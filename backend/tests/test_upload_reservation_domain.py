@@ -202,7 +202,7 @@ def test_partial_row_lease_and_noncanonical_candidate_json_fail_closed():
     )
 
     row = PerformanceTakeUploadReservation(
-        status="FINALIZING", expires_at=NOW, finalizing_token="half"
+        status=UploadReservationStatus.FINALIZING, expires_at=NOW, finalizing_token="half"
     )
     with pytest.raises(ReservationInvariantError):
         lifecycle_from_row(row)

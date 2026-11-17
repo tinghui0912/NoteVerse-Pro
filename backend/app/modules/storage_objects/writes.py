@@ -5,6 +5,8 @@ commits: the caller attaches its owner and commits adoption/accounting together.
 Domain parent locks precede intent locks during adoption; prewriting releases read locks.
 """
 
+from app.db.models.object_write_intent import ObjectWriteIntentStatus
+
 from dataclasses import dataclass
 from datetime import timedelta
 from uuid import uuid4
@@ -44,14 +46,14 @@ class ObjectWriteReceipt:
         return self.facts.byte_size
 
 
-def cleanup_lifecycle() -> DurableDeliveryLifecycle[str]:
+def cleanup_lifecycle() -> DurableDeliveryLifecycle[ObjectWriteIntentStatus]:
     return DurableDeliveryLifecycle(
         DeliveryStatuses(
-            "CLEANUP_PENDING",
-            "CLEANUP_DISPATCHED",
-            "CLEANUP_PROCESSING",
-            "CLEANUP_FAILED",
-            "CLEANED",
+            ObjectWriteIntentStatus.CLEANUP_PENDING,
+            ObjectWriteIntentStatus.CLEANUP_DISPATCHED,
+            ObjectWriteIntentStatus.CLEANUP_PROCESSING,
+            ObjectWriteIntentStatus.CLEANUP_FAILED,
+            ObjectWriteIntentStatus.CLEANED,
         ),
         DeliveryLifecyclePolicy(
             settings.OBJECT_WRITE_CLEANUP_MAX_ATTEMPTS,
@@ -124,18 +126,27 @@ def prepare_write(db: Session, facts: StoredObjectFacts) -> ObjectWriteReceipt:
     if intent_facts(row) != facts:
         raise ValueError("Immutable object key has conflicting write facts")
     existing = _matching_object(db, facts)
-    if existing is None and row.status in ("ADOPTED", "CLEANED"):
-        cleanup_lifecycle().reset(row, status="PREPARED", reset_attempts=True, now=now)
+    if existing is None and row.status in (
+        ObjectWriteIntentStatus.ADOPTED,
+        ObjectWriteIntentStatus.CLEANED,
+    ):
+        cleanup_lifecycle().reset(
+            row, status=ObjectWriteIntentStatus.PREPARED, reset_attempts=True, now=now
+        )
         row.write_token = str(uuid4())
         row.written_at = None
         row.write_expires_at = now + timedelta(seconds=settings.OBJECT_WRITE_INTENT_LEASE_SECONDS)
-    elif row.status not in ("PREPARED", "WRITTEN", "ADOPTED"):
+    elif row.status not in (
+        ObjectWriteIntentStatus.PREPARED,
+        ObjectWriteIntentStatus.WRITTEN,
+        ObjectWriteIntentStatus.ADOPTED,
+    ):
         raise ValueError("Object write cleanup owns this generation")
-    elif row.write_expires_at <= now and row.status != "ADOPTED":
+    elif row.write_expires_at <= now and row.status != ObjectWriteIntentStatus.ADOPTED:
         # No physical IO is in flight while this row lock is held. A new writer
         # owns a fresh generation; earlier callers cannot adopt or write it.
         row.write_token = str(uuid4())
-        row.status = "PREPARED"
+        row.status = ObjectWriteIntentStatus.PREPARED
         row.written_at = None
         row.write_expires_at = now + timedelta(seconds=settings.OBJECT_WRITE_INTENT_LEASE_SECONDS)
         row.updated_at = now
@@ -163,12 +174,21 @@ def inspect_write(
     ):
         raise ValueError("Write bytes disagree with intent")
     existing = _matching_object(db, receipt.facts)
-    if existing is not None and row.status in ("PREPARED", "WRITTEN", "ADOPTED"):
-        cleanup_lifecycle().finish(row, status="ADOPTED", error=None, now=utc_now())
+    if existing is not None and row.status in (
+        ObjectWriteIntentStatus.PREPARED,
+        ObjectWriteIntentStatus.WRITTEN,
+        ObjectWriteIntentStatus.ADOPTED,
+    ):
+        cleanup_lifecycle().finish(
+            row, status=ObjectWriteIntentStatus.ADOPTED, error=None, now=utc_now()
+        )
         return row, False
-    if row.status not in ("PREPARED", "WRITTEN") or row.write_expires_at <= utc_now():
+    if (
+        row.status not in (ObjectWriteIntentStatus.PREPARED, ObjectWriteIntentStatus.WRITTEN)
+        or row.write_expires_at <= utc_now()
+    ):
         raise ValueError("Object write lease is not active")
-    return row, row.status == "PREPARED" and existing is None
+    return row, row.status == ObjectWriteIntentStatus.PREPARED and existing is None
 
 
 def finalize_write(
@@ -179,8 +199,8 @@ def finalize_write(
         result.object_key != receipt.object_key or result.size_bytes != receipt.facts.byte_size
     ):
         raise ValueError("Object write result disagrees with intent")
-    if row.status != "ADOPTED":
-        row.status = "WRITTEN"
+    if row.status != ObjectWriteIntentStatus.ADOPTED:
+        row.status = ObjectWriteIntentStatus.WRITTEN
         row.written_at = row.written_at or utc_now()
         row.updated_at = utc_now()
 
@@ -244,12 +264,12 @@ def adopt_written_object(db: Session, receipt: ObjectWriteReceipt) -> StoredObje
     row = lock_intent(db, receipt.intent_uuid)
     require_generation(row, receipt)
     existing = _matching_object(db, receipt.facts)
-    if row.status == "ADOPTED" and existing is not None:
+    if row.status == ObjectWriteIntentStatus.ADOPTED and existing is not None:
         retained = retain_existing_object(db, receipt.facts)
         if retained is None:
             raise ValueError("Committed object retired during attachment")
         return retained
-    if row.status != "WRITTEN" or row.write_expires_at <= utc_now():
+    if row.status != ObjectWriteIntentStatus.WRITTEN or row.write_expires_at <= utc_now():
         raise ValueError("New StoredObject requires a live WRITTEN intent")
     if existing is None:
         existing = object_to_row(receipt.facts)
@@ -259,7 +279,9 @@ def adopt_written_object(db: Session, receipt: ObjectWriteReceipt) -> StoredObje
         existing = retain_for_reference(db, existing.id)
         if existing is None:
             raise ValueError("Committed object retired during adoption")
-    cleanup_lifecycle().finish(row, status="ADOPTED", error=None, now=utc_now())
+    cleanup_lifecycle().finish(
+        row, status=ObjectWriteIntentStatus.ADOPTED, error=None, now=utc_now()
+    )
     return existing
 
 
@@ -309,9 +331,18 @@ class ObjectWriteCleanupDelivery:
                 select(ObjectWriteIntent)
                 .where(
                     or_(
-                        (ObjectWriteIntent.status.in_(["PREPARED", "WRITTEN"]))
+                        (
+                            ObjectWriteIntent.status.in_(
+                                [ObjectWriteIntentStatus.PREPARED, ObjectWriteIntentStatus.WRITTEN]
+                            )
+                        )
                         & (ObjectWriteIntent.write_expires_at <= now),
-                        ObjectWriteIntent.status.in_(["CLEANUP_DISPATCHED", "CLEANUP_PROCESSING"]),
+                        ObjectWriteIntent.status.in_(
+                            [
+                                ObjectWriteIntentStatus.CLEANUP_DISPATCHED,
+                                ObjectWriteIntentStatus.CLEANUP_PROCESSING,
+                            ]
+                        ),
                     )
                 )
                 .with_for_update(skip_locked=True)
@@ -320,8 +351,13 @@ class ObjectWriteCleanupDelivery:
         )
         lifecycle = cleanup_lifecycle()
         for row in rows:
-            if row.status in ("PREPARED", "WRITTEN"):
-                lifecycle.reset(row, status="CLEANUP_PENDING", reset_attempts=True, now=now)
+            if row.status in (ObjectWriteIntentStatus.PREPARED, ObjectWriteIntentStatus.WRITTEN):
+                lifecycle.reset(
+                    row,
+                    status=ObjectWriteIntentStatus.CLEANUP_PENDING,
+                    reset_attempts=True,
+                    now=now,
+                )
             else:
                 lifecycle.recover_lease(row, error="Object write cleanup lease expired", now=now)
         db.flush()
@@ -329,7 +365,12 @@ class ObjectWriteCleanupDelivery:
             db.scalars(
                 select(ObjectWriteIntent.intent_uuid)
                 .where(
-                    ObjectWriteIntent.status.in_(["CLEANUP_PENDING", "CLEANUP_FAILED"]),
+                    ObjectWriteIntent.status.in_(
+                        [
+                            ObjectWriteIntentStatus.CLEANUP_PENDING,
+                            ObjectWriteIntentStatus.CLEANUP_FAILED,
+                        ]
+                    ),
                     ObjectWriteIntent.next_attempt_at <= now,
                     ObjectWriteIntent.attempt_count < lifecycle.policy.max_attempts,
                 )

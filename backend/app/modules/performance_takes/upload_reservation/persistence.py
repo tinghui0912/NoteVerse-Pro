@@ -14,7 +14,6 @@ from app.modules.performance_takes.upload_reservation.domain import (
     ReservationTransition,
     UploadReservationLifecycle,
 )
-from app.shared.performance_take_upload import UploadReservationStatus
 
 
 def decode_orphan_candidates(value: str) -> tuple[OrphanFinalCandidate, ...]:
@@ -58,10 +57,6 @@ def lifecycle_from_row(row: PerformanceTakeUploadReservation) -> UploadReservati
         value is not None for value in fields
     ):
         raise ReservationInvariantError("Partial finalize lease")
-    try:
-        status = UploadReservationStatus(row.status)
-    except ValueError as error:
-        raise ReservationInvariantError("Unknown reservation status") from error
     lease = (
         FinalizeLease(row.finalizing_token, row.finalizing_object_key, row.finalizing_expires_at)
         if row.finalizing_token is not None
@@ -70,7 +65,7 @@ def lifecycle_from_row(row: PerformanceTakeUploadReservation) -> UploadReservati
         else None
     )
     return UploadReservationLifecycle(
-        status,
+        row.status,
         row.expires_at,
         lease,
         decode_orphan_candidates(row.orphan_final_object_keys),
@@ -96,7 +91,7 @@ def apply_transition(
 
 
 def _write(row: PerformanceTakeUploadReservation, state: UploadReservationLifecycle) -> None:
-    row.status = state.status.value
+    row.status = state.status
     row.expires_at = state.expires_at
     row.finalizing_token = state.lease.token if state.lease else None
     row.finalizing_object_key = state.lease.object_key if state.lease else None

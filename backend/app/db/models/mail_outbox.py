@@ -53,7 +53,7 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         durable_failure_facts_constraint(name="ck_mail_outbox_failure_facts"),
         delivery_attempt_token_constraint(
-            name="ck_mail_outbox_attempt_token", processing_status="PROCESSING"
+            name="ck_mail_outbox_attempt_token", processing_status=MailOutboxStatus.PROCESSING
         ),
         delivery_attempt_count_constraint(name="ck_mail_outbox_attempt_count"),
         Index("idx_mail_outbox_status_available", "status", "next_attempt_at"),

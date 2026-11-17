@@ -1,5 +1,7 @@
 """Fenced revision metadata delivery; source reads and computation occur outside locks."""
 
+from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+
 from app.modules.storage_objects.reads import StoredObjectReadTarget
 
 from dataclasses import dataclass
@@ -33,13 +35,24 @@ from app.processing.musicxml import (
 from app.shared.time import utc_now
 from app.core.logger import logger
 
-from app.modules.revisions.metadata_policy import METADATA_BATCH_SIZE
+from app.core.config import settings
 
 
-def metadata_lifecycle() -> DurableDeliveryLifecycle[str]:
+def metadata_lifecycle() -> DurableDeliveryLifecycle[RevisionMetadataOutboxStatus]:
     return DurableDeliveryLifecycle(
-        DeliveryStatuses("PENDING", "DISPATCHED", "PROCESSING", "FAILED", "COMPLETED"),
-        DeliveryLifecyclePolicy(5, 60, 300, 300),
+        DeliveryStatuses(
+            RevisionMetadataOutboxStatus.PENDING,
+            RevisionMetadataOutboxStatus.DISPATCHED,
+            RevisionMetadataOutboxStatus.PROCESSING,
+            RevisionMetadataOutboxStatus.FAILED,
+            RevisionMetadataOutboxStatus.COMPLETED,
+        ),
+        DeliveryLifecyclePolicy(
+            max_attempts=settings.REVISION_METADATA_MAX_ATTEMPTS,
+            retry_base_seconds=settings.REVISION_METADATA_RETRY_BASE_SECONDS,
+            dispatch_timeout_seconds=settings.REVISION_METADATA_DISPATCH_TIMEOUT_SECONDS,
+            processing_timeout_seconds=settings.REVISION_METADATA_PROCESSING_TIMEOUT_SECONDS,
+        ),
     )
 
 
@@ -191,7 +204,10 @@ class RevisionMetadataDelivery:
         row = self.get(db, uuid)
         if target is None or target.deleted_at is not None or row is None:
             raise ValueError("Metadata rebuild requires an active revision")
-        if row.status in ("PROCESSING", "DISPATCHED"):
+        if row.status in (
+            RevisionMetadataOutboxStatus.PROCESSING,
+            RevisionMetadataOutboxStatus.DISPATCHED,
+        ):
             raise ValueError("Metadata execution already owns this delivery")
         metadata_lifecycle().rearm(row, now=utc_now())
 
@@ -204,7 +220,14 @@ class RevisionMetadataDelivery:
         now, lifecycle = utc_now(), metadata_lifecycle()
         rows = db.scalars(
             select(RevisionMetadataOutbox)
-            .where(RevisionMetadataOutbox.status.in_(["DISPATCHED", "PROCESSING"]))
+            .where(
+                RevisionMetadataOutbox.status.in_(
+                    [
+                        RevisionMetadataOutboxStatus.DISPATCHED,
+                        RevisionMetadataOutboxStatus.PROCESSING,
+                    ]
+                )
+            )
             .with_for_update(skip_locked=True)
             .execution_options(populate_existing=True)
         ).all()
@@ -215,12 +238,14 @@ class RevisionMetadataDelivery:
             db.scalars(
                 select(RevisionMetadataOutbox.outbox_uuid)
                 .where(
-                    RevisionMetadataOutbox.status.in_(["PENDING", "FAILED"]),
+                    RevisionMetadataOutbox.status.in_(
+                        [RevisionMetadataOutboxStatus.PENDING, RevisionMetadataOutboxStatus.FAILED]
+                    ),
                     RevisionMetadataOutbox.next_attempt_at <= now,
                     RevisionMetadataOutbox.attempt_count < lifecycle.policy.max_attempts,
                 )
                 .order_by(RevisionMetadataOutbox.id)
-                .limit(METADATA_BATCH_SIZE)
+                .limit(settings.REVISION_METADATA_DISPATCH_BATCH_SIZE)
             )
         )
 

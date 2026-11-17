@@ -58,7 +58,7 @@ class RenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         durable_failure_facts_constraint(name="ck_render_outbox_failure_facts"),
         delivery_attempt_token_constraint(
-            name="ck_render_outbox_attempt_token", processing_status="PROCESSING"
+            name="ck_render_outbox_attempt_token", processing_status=RenderOutboxStatus.PROCESSING
         ),
         delivery_attempt_count_constraint(name="ck_render_outbox_attempt_count"),
         CheckConstraint(

@@ -164,3 +164,19 @@ Failed Render, Playback and Score deletion can be manually rearmed after exhaust
 permanent/expired Mail cannot. Import rearm takes Dispatch then Job locks and resets
 execution steps under those locks. Audit remains owned by the Ops route. Domain-owned
 records remain the only durable lifecycle authority.
+
+
+Lifecycle status vocabulary remains domain-specific. Revision metadata uses
+`app/db/models/revision_metadata_outbox.py::RevisionMetadataOutboxStatus`, physical
+write/cleanup uses `ObjectWriteIntentStatus`, and retirement uses
+`StoredObjectRetirementStatus` from their respective model modules. Their ORM
+status fields and non-native SQLAlchemy Enum CHECKs project these same enums.
+Delivery policies, maintenance predicates and workers consume enum members.
+Attempt-token constraints take a domain enum member, including
+`ObjectWriteIntentStatus.CLEANUP_PROCESSING`; they do not own a status vocabulary.
+
+`RevisionMetadataDeliverySettings` owns metadata dispatch interval, batch size,
+max attempts, retry base, dispatch timeout and processing timeout. Defaults are
+5 seconds, 50 rows, 5 attempts, 60 seconds, 300 seconds and 300 seconds respectively.
+Beat and delivery read the composed runtime Settings. The lifecycle policy uses
+explicit keyword arguments; processing timeout is separate from retry ceiling.

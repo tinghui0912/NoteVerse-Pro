@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.config import Settings
-from app.modules.revisions.metadata_policy import METADATA_SCAN_INTERVAL_SECONDS
 
 
 BeatSchedule = dict[str, dict[str, Any]]
@@ -23,7 +22,7 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
     return {
         "revision-metadata-maintenance": {
             "task": "app.worker.tasks.run_revision_metadata_maintenance",
-            "schedule": METADATA_SCAN_INTERVAL_SECONDS,
+            "schedule": float(settings.REVISION_METADATA_DISPATCH_INTERVAL_SECONDS),
         },
         "job-maintenance-every-five-minutes": {
             "task": "app.worker.tasks.run_job_maintenance",

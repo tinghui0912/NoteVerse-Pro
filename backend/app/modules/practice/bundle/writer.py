@@ -50,7 +50,7 @@ class PracticeBundleWriter:
         if bound is not None:
             return self.repository.reference(bound), read_verified_bundle(self.storage, bound)
         row = self._reserve_creation(db, candidate)
-        if row.status == PracticeBundleStatus.CREATING.value:
+        if row.status == PracticeBundleStatus.CREATING:
             creation_id = require_persisted_id(row.id, entity="practice bundle")
             # A durable null-FK lease must exist before physical IO, so a crash
             # leaves semantic recovery and independent ObjectWriteIntent evidence.
@@ -133,15 +133,15 @@ class PracticeBundleWriter:
                 field="practice_bundle",
                 details={"reason": "creation_lease_lost"},
             )
-        if row.status == PracticeBundleStatus.CREATING.value:
+        if row.status == PracticeBundleStatus.CREATING:
             if row.creation_expires_at is None or row.creation_expires_at <= utc_now():
                 raise ValueError("Bundle creation lease expired")
             prepared = adopt_written_object(db, receipts[0])
             artifact = adopt_written_object(db, receipts[1])
             row.prepared_musicxml_object, row.artifact_object = prepared, artifact
-            row.status, row.creation_expires_at = PracticeBundleStatus.READY.value, None
+            row.status, row.creation_expires_at = PracticeBundleStatus.READY, None
             db.flush()
-        if row.status != PracticeBundleStatus.READY.value:
+        if row.status != PracticeBundleStatus.READY:
             raise ValidationException(
                 CustomerErrorCode.STORAGE_BACKEND_UNAVAILABLE,
                 field="practice_bundle",

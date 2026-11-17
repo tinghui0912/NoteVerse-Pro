@@ -1,5 +1,7 @@
 """PracticeBundle retention owns semantic GC; physical retirement is shared."""
 
+from app.db.models.practice_bundle import PracticeBundleStatus
+
 from sqlalchemy import select
 from app.core.config import settings
 from app.db.models import PracticeBundleRecord, ScoreRevisionPracticeBinding
@@ -29,7 +31,10 @@ class PracticeBundleRetention:
     def retire_unowned(self, db, bundle_id):
         row = db.execute(
             select(PracticeBundleRecord)
-            .where(PracticeBundleRecord.id == bundle_id, PracticeBundleRecord.status == "READY")
+            .where(
+                PracticeBundleRecord.id == bundle_id,
+                PracticeBundleRecord.status == PracticeBundleStatus.READY,
+            )
             .with_for_update()
             .execution_options(populate_existing=True)
         ).scalar_one_or_none()
@@ -38,7 +43,10 @@ class PracticeBundleRetention:
     def discard_creation(self, db, bundle_id):
         row = db.execute(
             select(PracticeBundleRecord)
-            .where(PracticeBundleRecord.id == bundle_id, PracticeBundleRecord.status == "CREATING")
+            .where(
+                PracticeBundleRecord.id == bundle_id,
+                PracticeBundleRecord.status == PracticeBundleStatus.CREATING,
+            )
             .with_for_update()
             .execution_options(populate_existing=True)
         ).scalar_one_or_none()
@@ -49,7 +57,7 @@ class PracticeBundleRetention:
             db.scalars(
                 select(PracticeBundleRecord)
                 .where(
-                    PracticeBundleRecord.status == "CREATING",
+                    PracticeBundleRecord.status == PracticeBundleStatus.CREATING,
                     PracticeBundleRecord.creation_expires_at <= utc_now(),
                 )
                 .order_by(PracticeBundleRecord.id)
@@ -64,7 +72,7 @@ class PracticeBundleRetention:
             db.scalars(
                 select(PracticeBundleRecord)
                 .where(
-                    PracticeBundleRecord.status == "READY",
+                    PracticeBundleRecord.status == PracticeBundleStatus.READY,
                     ~select(ScoreRevisionPracticeBinding.revision_id)
                     .where(ScoreRevisionPracticeBinding.bundle_id == PracticeBundleRecord.id)
                     .exists(),

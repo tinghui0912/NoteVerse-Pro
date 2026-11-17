@@ -1,5 +1,7 @@
 """Fresh PostgreSQL Bundle binding ownership and cascades."""
 
+from app.db.models.practice_bundle import PracticeBundleStatus
+
 import sqlalchemy as sa
 from alembic import command
 from sqlmodel import SQLModel
@@ -65,7 +67,7 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
                     byte_size=10,
                     content_type="application/json",
                 ),
-                status="READY",
+                status=PracticeBundleStatus.READY,
             )
             db.add(source)
             db.flush()

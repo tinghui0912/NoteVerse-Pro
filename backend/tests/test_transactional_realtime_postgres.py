@@ -1,5 +1,9 @@
 """Partial recipient inserts/NOTIFY must not escape authoritative outcome rollback."""
 
+from app.db.models.object_write_intent import ObjectWriteIntentStatus
+
+from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+
 from contextlib import contextmanager
 from datetime import timedelta
 import pytest
@@ -86,7 +90,10 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         assert recipients == [1, 2]
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         row = db.scalar(sa.select(RevisionMetadataOutbox))
-        assert row.status == "PROCESSING" and row.attempt_token == first.lease.token
+        assert (
+            row.status == RevisionMetadataOutboxStatus.PROCESSING
+            and row.attempt_token == first.lease.token
+        )
         assert row.attempt_count == first.lease.attempt
         assert db.scalar(sa.select(RealtimeChange)) is None
     with Session(engine) as db:
@@ -107,7 +114,10 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == (
             MetadataStatus.FAILED if semantic_failure else MetadataStatus.READY
         )
-        assert db.scalar(sa.select(RevisionMetadataOutbox)).status == "COMPLETED"
+        assert (
+            db.scalar(sa.select(RevisionMetadataOutbox)).status
+            == RevisionMetadataOutboxStatus.COMPLETED
+        )
         events = list(db.scalars(sa.select(RealtimeChange)))
         assert len(events) == 2 and sorted(event.recipient_user_id for event in events) == [1, 2]
         assert all(event.kind == "score.metadata.changed" for event in events)
@@ -146,7 +156,9 @@ def test_derivative_ready_publication_failure_rolls_back_adoption_and_fails_exac
             row.status.value == "FAILED" and row.attempt_token is None and row.completed_at is None
         )
         unadopted = db.scalar(
-            sa.select(ObjectWriteIntent).where(ObjectWriteIntent.status == "WRITTEN")
+            sa.select(ObjectWriteIntent).where(
+                ObjectWriteIntent.status == ObjectWriteIntentStatus.WRITTEN
+            )
         )
         assert unadopted is not None and storage.exists(unadopted.object_key)
         key = unadopted.object_key
@@ -222,7 +234,10 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
 
     def fail_after_rollback(db, uuid, lease, error):
         row = db.scalar(sa.select(RevisionMetadataOutbox))
-        assert row.status == "PROCESSING" and row.attempt_token == lease.token
+        assert (
+            row.status == RevisionMetadataOutboxStatus.PROCESSING
+            and row.attempt_token == lease.token
+        )
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         assert db.scalar(sa.select(RealtimeChange)) is None
         return failure(db, uuid, lease, error)
@@ -233,7 +248,7 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
     assert worker.execute_revision_metadata_task(None, uuid)["status"] == "failed"
     with Session(engine) as db:
         row = db.scalar(sa.select(RevisionMetadataOutbox))
-        assert row.status == "FAILED" and row.attempt_token is None
+        assert row.status == RevisionMetadataOutboxStatus.FAILED and row.attempt_token is None
         row.next_attempt_at = utc_now() - timedelta(seconds=1)
         db.commit()
     monkeypatch.setattr(publisher, "_notify_change", original)

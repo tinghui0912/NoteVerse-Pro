@@ -52,7 +52,8 @@ class ScoreDeletionOperation(SQLModel, table=True):  # type: ignore[call-arg]
         durable_failure_facts_constraint(name="ck_score_deletion_operations_failure_facts"),
         delivery_attempt_count_constraint(name="ck_score_deletion_attempt_count"),
         delivery_attempt_token_constraint(
-            name="ck_score_deletion_attempt_token", processing_status="PROCESSING"
+            name="ck_score_deletion_attempt_token",
+            processing_status=ScoreDeletionOperationStatus.PROCESSING,
         ),
         Index("idx_score_deletion_due", "status", "next_attempt_at"),
     )

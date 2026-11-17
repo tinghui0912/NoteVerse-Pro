@@ -239,7 +239,7 @@ def _create_default_bundle(
             byte_size=len(artifact_bytes),
             content_type="application/json",
         ),
-        status=PracticeBundleStatus.READY.value,
+        status=PracticeBundleStatus.READY,
         creation_expires_at=None,
     )
     session.add(source)
@@ -298,7 +298,7 @@ def _create_default_take(
         staging_object_key=media_object_key + ".staging",
         storage_reservation_id="quota-" + take_uuid,
         expires_at=datetime.now(timezone.utc),
-        status="COMPLETED",
+        status=UploadReservationStatus.COMPLETED,
     )
     now = datetime.now(timezone.utc)
     state = UploadReservationLifecycle.reserved(
@@ -1390,7 +1390,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         assert session.get(PracticeBundleRecord, practice_bundle_id) is not None
         retained = session.get(PracticeBundleRecord, practice_bundle_id)
         session.refresh(retained)
-        assert retained.status == PracticeBundleStatus.READY.value
+        assert retained.status == PracticeBundleStatus.READY
         assert session.get(ScoreRevisionPracticeBinding, 100).bundle_id == retained.id
         assert storage.exists(musicxml_key)
         assert storage.exists(artifact_key)
@@ -2182,7 +2182,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         assert session.get(PracticeBundleRecord, practice_bundle_id) is not None
         retained = session.get(PracticeBundleRecord, practice_bundle_id)
         session.refresh(retained)
-        assert retained.status == PracticeBundleStatus.READY.value
+        assert retained.status == PracticeBundleStatus.READY
         assert session.get(ScoreRevisionPracticeBinding, 100).bundle_id == retained.id
         assert storage.exists(musicxml_key)
         assert storage.exists(artifact_key)

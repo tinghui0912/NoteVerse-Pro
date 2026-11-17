@@ -30,20 +30,20 @@ class UploadReservationCleanupService:
                     or_(
                         (
                             PerformanceTakeUploadReservation.status
-                            == UploadReservationStatus.RESERVED.value
+                            == UploadReservationStatus.RESERVED
                         )
                         & (PerformanceTakeUploadReservation.expires_at <= now),
                         (
                             PerformanceTakeUploadReservation.status
-                            == UploadReservationStatus.FINALIZING.value
+                            == UploadReservationStatus.FINALIZING
                         )
                         & (PerformanceTakeUploadReservation.finalizing_expires_at <= now),
                         (
                             PerformanceTakeUploadReservation.status.in_(
                                 [
-                                    UploadReservationStatus.COMPLETED.value,
-                                    UploadReservationStatus.CANCELLED.value,
-                                    UploadReservationStatus.EXPIRED.value,
+                                    UploadReservationStatus.COMPLETED,
+                                    UploadReservationStatus.CANCELLED,
+                                    UploadReservationStatus.EXPIRED,
                                 ]
                             )
                         )

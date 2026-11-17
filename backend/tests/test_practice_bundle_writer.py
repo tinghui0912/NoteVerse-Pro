@@ -1,5 +1,7 @@
 """Real transaction phases and live access fences of durable bundle admission."""
 
+from app.db.models.practice_bundle import PracticeBundleStatus
+
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -57,7 +59,10 @@ def test_writer_commits_creation_before_io_and_reauthorizes_before_binding(
         def physical(**kwargs):
             with Session(engine) as observer:
                 row = observer.scalar(select(PracticeBundleRecord))
-                assert row.status == "CREATING" and row.creation_expires_at is not None
+                assert (
+                    row.status == PracticeBundleStatus.CREATING
+                    and row.creation_expires_at is not None
+                )
                 assert row.prepared_musicxml_object_id is row.artifact_object_id is None
                 assert observer.scalar(select(ScoreRevisionPracticeBinding)) is None
                 assert observer.scalar(select(StoredObject)) is None
@@ -87,7 +92,7 @@ def test_writer_commits_creation_before_io_and_reauthorizes_before_binding(
                 observer.get(ScoreRevisionPracticeBinding, repository.test_revision_id).bundle_id
                 == ref.id
             )
-            assert observer.get(PracticeBundleRecord, ref.id).status == "READY"
+            assert observer.get(PracticeBundleRecord, ref.id).status == PracticeBundleStatus.READY
 
 
 def test_repository_queries_and_insertions_are_transaction_neutral(postgres_bundle):
@@ -225,4 +230,4 @@ def test_expired_creation_lease_cannot_adopt_or_bind(postgres_bundle, monkeypatc
     with Session(engine) as observer:
         assert observer.scalar(select(ScoreRevisionPracticeBinding)) is None
         assert observer.scalar(select(StoredObject)) is None
-        assert observer.scalar(select(PracticeBundleRecord)).status == "CREATING"
+        assert observer.scalar(select(PracticeBundleRecord)).status == PracticeBundleStatus.CREATING

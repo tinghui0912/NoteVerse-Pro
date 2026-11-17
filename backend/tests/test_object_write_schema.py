@@ -1,5 +1,7 @@
 """Current PostgreSQL write-intent evidence and fencing schema."""
 
+from app.db.models.object_write_intent import ObjectWriteIntentStatus
+
 from datetime import timedelta
 import pytest
 import sqlalchemy as sa
@@ -24,22 +26,15 @@ def test_current_write_statuses_key_uniqueness_and_attempt_bounds(monkeypatch):
                 write_token="generation",
                 write_expires_at=utc_now() + timedelta(minutes=15),
             )
-            statuses = [
-                "PREPARED",
-                "WRITTEN",
-                "ADOPTED",
-                "CLEANUP_PENDING",
-                "CLEANUP_DISPATCHED",
-                "CLEANUP_PROCESSING",
-                "CLEANUP_FAILED",
-                "CLEANED",
-            ]
+            statuses = list(ObjectWriteIntentStatus)
             for status in statuses:
                 db.add(
                     ObjectWriteIntent(
                         object_key="writes/" + status,
                         status=status,
-                        attempt_token="fixture-token" if status == "CLEANUP_PROCESSING" else None,
+                        attempt_token="fixture-token"
+                        if status == ObjectWriteIntentStatus.CLEANUP_PROCESSING
+                        else None,
                         **facts,
                     )
                 )
@@ -47,10 +42,14 @@ def test_current_write_statuses_key_uniqueness_and_attempt_bounds(monkeypatch):
             assert set(db.scalars(sa.select(ObjectWriteIntent.status))) == set(statuses)
             for patch in [
                 {"object_key": "writes/PREPARED"},
-                {"status": "INVALID"},
                 {"attempt_count": -1},
             ]:
                 with pytest.raises(IntegrityError):
                     db.add(ObjectWriteIntent(**(facts | {"object_key": "writes/new"} | patch)))
                     db.commit()
                 db.rollback()
+
+            with pytest.raises(IntegrityError):
+                db.execute(sa.text("UPDATE object_write_intents SET status = 'INVALID'"))
+                db.commit()
+            db.rollback()

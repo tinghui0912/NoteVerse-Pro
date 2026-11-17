@@ -4,6 +4,7 @@ from datetime import datetime
 import enum
 from typing import Optional
 
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -35,13 +36,12 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
         UniqueConstraint("bundle_id", name="uq_practice_bundles_bundle_id"),
         UniqueConstraint("prepared_musicxml_object_id", name="uq_practice_bundles_musicxml_object"),
         UniqueConstraint("artifact_object_id", name="uq_practice_bundles_artifact_object"),
-        CheckConstraint("status IN ('CREATING', 'READY')", name="ck_practice_bundles_status"),
         Index("ix_practice_bundles_status_creation", "status", "creation_expires_at"),
         CheckConstraint(
             "("
-            "status = 'CREATING' AND creation_expires_at IS NOT NULL AND prepared_musicxml_object_id IS NULL AND artifact_object_id IS NULL"
+            f"status = '{PracticeBundleStatus.CREATING.value}' AND creation_expires_at IS NOT NULL AND prepared_musicxml_object_id IS NULL AND artifact_object_id IS NULL"
             ") OR ("
-            "status = 'READY' AND creation_expires_at IS NULL AND prepared_musicxml_object_id IS NOT NULL AND artifact_object_id IS NOT NULL"
+            f"status = '{PracticeBundleStatus.READY.value}' AND creation_expires_at IS NULL AND prepared_musicxml_object_id IS NOT NULL AND artifact_object_id IS NOT NULL"
             ")",
             name="ck_practice_bundles_creation_lease",
         ),
@@ -78,7 +78,20 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
             StoredObject, foreign_keys="PracticeBundleRecord.artifact_object_id", lazy="selectin"
         )
     )
-    status: str = Field(sa_column=Column(String(16), nullable=False))
+    status: PracticeBundleStatus = Field(
+        sa_column=Column(
+            SAEnum(
+                PracticeBundleStatus,
+                native_enum=False,
+                create_constraint=True,
+                validate_strings=True,
+                values_callable=lambda cls: [value.value for value in cls],
+                name="ck_practice_bundles_status",
+                length=16,
+            ),
+            nullable=False,
+        ),
+    )
     creation_expires_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),

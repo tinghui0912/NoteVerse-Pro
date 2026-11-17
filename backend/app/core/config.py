@@ -1,6 +1,7 @@
 """Application settings and configuration validation."""
 
 from pathlib import Path
+from app.core.settings.revision_metadata_delivery import RevisionMetadataDeliverySettings
 from app.core.settings.object_writes import ObjectWriteSettings
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,6 +35,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(
+    RevisionMetadataDeliverySettings,
     ObjectWriteSettings,
     AccountEmailLinkSettings,
     DatabaseSettings,

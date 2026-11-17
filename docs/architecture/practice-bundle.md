@@ -134,3 +134,11 @@ decoder for the content-only artifact. It does not re-prove the backend musical 
 and prepared musicXml. PracticePlan carries the binding and artifact projection;
 notation remains admitted rendering/Review representation. Review, Save and VideoExport
 read executed binding truth rather than inferring ownership from artifact content.
+
+
+`app/db/models/practice_bundle.py::PracticeBundleStatus` owns Bundle lifecycle
+vocabulary. `PracticeBundleRecord.status` is typed with that enum, and its
+non-native SQLAlchemy Enum projects the VARCHAR(16) status CHECK. Creation-lease
+constraints reference enum members: CREATING requires a live creation expiry and
+null representation IDs; READY requires both representation IDs and no creation
+expiry. Repository, writer and retention consume the same enum members.

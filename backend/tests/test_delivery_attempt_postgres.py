@@ -317,8 +317,11 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
     ],
 )
 def test_processing_token_coherence_is_enforced_by_postgresql(database, model):
-    processing = "CLEANUP_PROCESSING" if model is ObjectWriteIntent else "PROCESSING"
-    pending = "PREPARED" if model is ObjectWriteIntent else "PENDING"
+    status_type = model.__table__.c.status.type.enum_class
+    processing = (
+        status_type.CLEANUP_PROCESSING if model is ObjectWriteIntent else status_type.PROCESSING
+    )
+    pending = status_type.PREPARED if model is ObjectWriteIntent else status_type.PENDING
     with Session(database) as db:
         for status, token in ((processing, None), (pending, "invalid-owner")):
             with pytest.raises(IntegrityError) as failure:

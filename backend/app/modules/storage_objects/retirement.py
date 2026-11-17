@@ -1,5 +1,7 @@
 """Transactional reference release/retention and durable physical retirement delivery."""
 
+from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+
 from dataclasses import dataclass
 from uuid import uuid4
 
@@ -21,9 +23,15 @@ from app.modules.storage_objects.references import stored_object_has_semantic_re
 from app.shared.time import utc_now
 
 
-def delivery_lifecycle() -> DurableDeliveryLifecycle[str]:
+def delivery_lifecycle() -> DurableDeliveryLifecycle[StoredObjectRetirementStatus]:
     return DurableDeliveryLifecycle(
-        DeliveryStatuses("PENDING", "DISPATCHED", "PROCESSING", "FAILED", "COMPLETED"),
+        DeliveryStatuses(
+            StoredObjectRetirementStatus.PENDING,
+            StoredObjectRetirementStatus.DISPATCHED,
+            StoredObjectRetirementStatus.PROCESSING,
+            StoredObjectRetirementStatus.FAILED,
+            StoredObjectRetirementStatus.COMPLETED,
+        ),
         DeliveryLifecyclePolicy(
             settings.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS,
             settings.STORED_OBJECT_RETIREMENT_RETRY_BASE_SECONDS,
@@ -58,9 +66,11 @@ def retain_for_reference(db: Session, object_id: int) -> StoredObject | None:
         return None
     operation = _operation_for_object(db, object_id)
     if operation is not None:
-        if operation.status == "COMPLETED":
+        if operation.status == StoredObjectRetirementStatus.COMPLETED:
             raise ValueError("Completed retirement still references a physical object")
-        delivery_lifecycle().finish(operation, status="CANCELLED", error=None, now=utc_now())
+        delivery_lifecycle().finish(
+            operation, status=StoredObjectRetirementStatus.CANCELLED, error=None, now=utc_now()
+        )
     return row
 
 
@@ -81,7 +91,7 @@ def retire_if_unreferenced(db: Session, object_id: int) -> StoredObjectRetiremen
         )
         db.add(operation)
         db.flush()
-    elif operation.status == "CANCELLED":
+    elif operation.status == StoredObjectRetirementStatus.CANCELLED:
         if snapshot(operation) != facts:
             raise ValueError("Retirement snapshot disagrees with StoredObject")
         delivery_lifecycle().rearm(operation, now=utc_now())
@@ -151,7 +161,14 @@ class StoredObjectRetirementDelivery:
         rows = list(
             db.scalars(
                 select(StoredObjectRetirement)
-                .where(StoredObjectRetirement.status.in_(["DISPATCHED", "PROCESSING"]))
+                .where(
+                    StoredObjectRetirement.status.in_(
+                        [
+                            StoredObjectRetirementStatus.DISPATCHED,
+                            StoredObjectRetirementStatus.PROCESSING,
+                        ]
+                    )
+                )
                 .with_for_update(skip_locked=True)
                 .execution_options(populate_existing=True)
             )
@@ -163,7 +180,9 @@ class StoredObjectRetirementDelivery:
             db.scalars(
                 select(StoredObjectRetirement.retirement_uuid)
                 .where(
-                    StoredObjectRetirement.status.in_(["PENDING", "FAILED"]),
+                    StoredObjectRetirement.status.in_(
+                        [StoredObjectRetirementStatus.PENDING, StoredObjectRetirementStatus.FAILED]
+                    ),
                     StoredObjectRetirement.next_attempt_at <= now,
                     StoredObjectRetirement.attempt_count < lifecycle.policy.max_attempts,
                 )

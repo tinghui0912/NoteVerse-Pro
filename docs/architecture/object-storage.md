@@ -145,3 +145,11 @@ Temporary upload staging, finalizing and orphan keys are reservation lifecycle l
 Development uses the same application protocol as production. `docker-compose.backend-dev.yml` supplies the development object-store service. Backend filesystem durable storage and backend upload fallback do not exist. Worker materialization writes disposable files under `WORK_ROOT`. Browser OPFS and LocalMediaAsset are independent transient browser resources.
 
 Unit/application tests use a test-only object-map adapter. `NOTEVERSE_TEST_OBJECT_STORAGE_*` selects a dedicated network integration namespace for direct upload, metadata, full/range reads, copy, signed download and deletion. Network integration is reported separately from SDK-boundary and unit tests.
+
+
+`ObjectWriteIntentStatus` and `StoredObjectRetirementStatus` each own their complete
+lifecycle vocabulary in their respective `app/db/models` modules. ORM status
+fields are enums; non-native SQLAlchemy Enum projects each VARCHAR(24) admission
+CHECK. Write/adoption, cleanup and retirement predicates and transitions consume
+their domain enum members. ObjectWriteIntent keeps physical-write states alongside
+its cleanup delivery states; retirement retains its distinct CANCELLED meaning.

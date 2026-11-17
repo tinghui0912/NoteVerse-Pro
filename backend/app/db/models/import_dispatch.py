@@ -52,7 +52,8 @@ class ImportDispatch(SQLModel, table=True):  # type: ignore[call-arg]
         durable_failure_facts_constraint(name="ck_import_dispatches_failure_facts"),
         delivery_attempt_count_constraint(name="ck_import_dispatch_attempt_count"),
         delivery_attempt_token_constraint(
-            name="ck_import_dispatch_attempt_token", processing_status="PROCESSING"
+            name="ck_import_dispatch_attempt_token",
+            processing_status=ImportDispatchStatus.PROCESSING,
         ),
         Index("idx_import_dispatch_due", "status", "next_attempt_at"),
     )

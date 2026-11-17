@@ -1,5 +1,7 @@
 """Attempt-fenced physical deletion, independent of semantic domains and accounting."""
 
+from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+
 from app.core.logger import logger
 from app.shared.time import utc_now
 from app.db.session import SessionLocal
@@ -42,7 +44,7 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
             if operation is None or not lifecycle.attempt_matches(operation, attempt):
                 db.commit()
                 return {"status": "ignored", "retirement_uuid": retirement_uuid}
-            if operation.status != "PROCESSING":
+            if operation.status != StoredObjectRetirementStatus.PROCESSING:
                 db.commit()
                 return {"status": "ignored", "retirement_uuid": retirement_uuid}
             if row is None or operation.stored_object_id != row.id:
@@ -51,7 +53,11 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
                 raise ValueError("Retirement snapshot disagrees with StoredObject")
             if stored_object_has_semantic_references(db, row.id):
                 lifecycle.finish_attempt(
-                    operation, lease=attempt, status="CANCELLED", error=None, now=utc_now()
+                    operation,
+                    lease=attempt,
+                    status=StoredObjectRetirementStatus.CANCELLED,
+                    error=None,
+                    now=utc_now(),
                 )
                 db.commit()
                 return {"status": "cancelled", "retirement_uuid": retirement_uuid}

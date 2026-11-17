@@ -1,5 +1,7 @@
 """Run the actual metadata worker for admitted revision work in application tests."""
 
+from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+
 from contextlib import contextmanager
 from unittest.mock import patch
 from sqlalchemy import select
@@ -11,7 +13,9 @@ def drain_revision_metadata(db, storage):
     identities = list(
         db.scalars(
             select(RevisionMetadataOutbox.outbox_uuid).where(
-                RevisionMetadataOutbox.status.in_(["PENDING", "DISPATCHED"])
+                RevisionMetadataOutbox.status.in_(
+                    [RevisionMetadataOutboxStatus.PENDING, RevisionMetadataOutboxStatus.DISPATCHED]
+                )
             )
         )
     )

@@ -125,20 +125,20 @@ class PerformanceTakeReservationService:
         metadata: PerformanceTakeUploadMetadata,
     ) -> PerformanceTakeUploadReservationRead:
         state = lifecycle_from_row(reservation)
-        status = state.status.value
+        status = state.status
         completed_take = self.repository.get_by_reservation(db, reservation.user_id, reservation.id)
         if state.status is UploadReservationStatus.COMPLETED and completed_take is None:
             raise ResourceNotFoundException("performance_take", reservation.manifest.take_uuid)
         state.assert_take_presence(completed_take is not None)
         if status not in {
-            UploadReservationStatus.RESERVED.value,
-            UploadReservationStatus.FINALIZING.value,
-            UploadReservationStatus.COMPLETED.value,
+            UploadReservationStatus.RESERVED,
+            UploadReservationStatus.FINALIZING,
+            UploadReservationStatus.COMPLETED,
         }:
             raise ValidationException(
                 CustomerErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
-                details={"reason": f"client_request_id_{status.lower()}"},
+                details={"reason": f"client_request_id_{status.value.lower()}"},
             )
         if manifest_from_row(reservation.manifest).admitted_upload_metadata != metadata:
             raise ValidationException(
@@ -148,13 +148,13 @@ class PerformanceTakeReservationService:
             )
         if completed_take is not None:
             return completed_reservation_response(self.takes, db, reservation, completed_take)
-        if status == UploadReservationStatus.FINALIZING.value:
+        if status == UploadReservationStatus.FINALIZING:
             return reservation_read(reservation)
-        if status != UploadReservationStatus.RESERVED.value:
+        if status != UploadReservationStatus.RESERVED:
             raise ValidationException(
                 CustomerErrorCode.VALIDATION_ERROR,
                 field="client_request_id",
-                details={"reason": f"client_request_id_{status.lower()}"},
+                details={"reason": f"client_request_id_{status.value.lower()}"},
             )
         if reservation.expires_at <= utc_now():
             self._expire_reservation(db, reservation)

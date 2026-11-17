@@ -77,7 +77,7 @@ class PracticeBundleRepository:
             bundle_id=bundle_id,
             artifact_id=artifact_id,
             artifact_schema_version=artifact_schema_version,
-            status=PracticeBundleStatus.CREATING.value,
+            status=PracticeBundleStatus.CREATING,
             creation_expires_at=expires_at,
         )
         db.add(row)
@@ -95,7 +95,7 @@ class PracticeBundleRepository:
             select(PracticeBundleRecord)
             .where(
                 PracticeBundleRecord.id == bundle_id,
-                PracticeBundleRecord.status == PracticeBundleStatus.READY.value,
+                PracticeBundleRecord.status == PracticeBundleStatus.READY,
             )
             .with_for_update(read=lock is BundleRowLock.SHARED_READ)
             .execution_options(populate_existing=True)
@@ -112,7 +112,7 @@ class PracticeBundleRepository:
             select(PracticeBundleRecord)
             .where(
                 PracticeBundleRecord.bundle_id == bundle_id,
-                PracticeBundleRecord.status == PracticeBundleStatus.READY.value,
+                PracticeBundleRecord.status == PracticeBundleStatus.READY,
             )
             .with_for_update(read=True)
             .execution_options(populate_existing=True)

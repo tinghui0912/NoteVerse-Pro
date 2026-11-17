@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.db.models.practice_bundle import PracticeBundleStatus
+
 from tests.support.practice_bundle import bind_bundle
 from app.modules.practice.bundle.content import read_verified_bundle
 
@@ -349,7 +351,7 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
             db.rollback()
     with sessions() as db:
         row = db.scalar(select(PracticeBundleRecord))
-        assert row.status == "CREATING" and row.creation_expires_at is not None
+        assert row.status == PracticeBundleStatus.CREATING and row.creation_expires_at is not None
         from app.db.models import ObjectWriteIntent, StoredObject
 
         assert row.prepared_musicxml_object_id is None and row.artifact_object_id is None

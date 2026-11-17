@@ -1,11 +1,12 @@
 """Durable operation evidence for retirement of an unreferenced physical object."""
 
+from enum import StrEnum
 from datetime import datetime
 from uuid import uuid4
 
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
     BigInteger,
-    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -28,17 +29,23 @@ from app.db.durable_delivery import (
 from app.shared.time import utc_now
 
 
+class StoredObjectRetirementStatus(StrEnum):
+    PENDING = "PENDING"
+    DISPATCHED = "DISPATCHED"
+    PROCESSING = "PROCESSING"
+    FAILED = "FAILED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
 class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "stored_object_retirements"
     __table_args__ = (
         delivery_attempt_token_constraint(
-            name="ck_stored_object_retirements_attempt_token", processing_status="PROCESSING"
+            name="ck_stored_object_retirements_attempt_token",
+            processing_status=StoredObjectRetirementStatus.PROCESSING,
         ),
         UniqueConstraint("stored_object_id", name="uq_object_retirement_object"),
-        CheckConstraint(
-            "status IN ('PENDING','DISPATCHED','PROCESSING','FAILED','COMPLETED','CANCELLED')",
-            name="ck_object_retirement_status",
-        ),
         delivery_attempt_count_constraint(name="ck_object_retirement_attempts"),
         Index("ix_object_retirement_due", "status", "next_attempt_at"),
     )
@@ -62,8 +69,21 @@ class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     sha256: str = Field(sa_column=Column(String(64), nullable=False))
     content_type: str = Field(sa_column=Column(String(255), nullable=False))
-    status: str = Field(
-        default="PENDING", sa_column=Column(String(24), nullable=False, default="PENDING")
+    status: StoredObjectRetirementStatus = Field(
+        default=StoredObjectRetirementStatus.PENDING,
+        sa_column=Column(
+            SAEnum(
+                StoredObjectRetirementStatus,
+                native_enum=False,
+                create_constraint=True,
+                validate_strings=True,
+                values_callable=lambda cls: [value.value for value in cls],
+                name="ck_object_retirement_status",
+                length=24,
+            ),
+            nullable=False,
+            default=StoredObjectRetirementStatus.PENDING,
+        ),
     )
     attempt_count: int = delivery_attempt_count_field()
     attempt_token: str | None = delivery_attempt_token_field()

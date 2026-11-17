@@ -1,5 +1,7 @@
 """Durably clean unadopted bytes while holding the write-generation fence."""
 
+from app.db.models.object_write_intent import ObjectWriteIntentStatus
+
 from app.core.logger import logger
 from app.db.session import SessionLocal
 from app.modules.storage_objects.writes import (
@@ -31,7 +33,11 @@ def execute_object_write_cleanup_task(task, intent_uuid: str) -> dict[str, str]:
                 existing = _matching_object(db, intent_facts(row))
                 if existing is not None:
                     cleanup_lifecycle().finish_attempt(
-                        row, lease=attempt, status="ADOPTED", error=None, now=utc_now()
+                        row,
+                        lease=attempt,
+                        status=ObjectWriteIntentStatus.ADOPTED,
+                        error=None,
+                        now=utc_now(),
                     )
                     db.commit()
                     return {"status": "adopted", "intent_uuid": intent_uuid}

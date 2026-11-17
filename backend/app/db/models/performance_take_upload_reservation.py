@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
     BigInteger,
     Column,
@@ -37,11 +38,7 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
             name="fk_take_reservation_manifest_owner",
         ),
         CheckConstraint(
-            "status IN ('RESERVED','FINALIZING','COMPLETED','CANCELLED','EXPIRED')",
-            name="ck_take_reservation_status",
-        ),
-        CheckConstraint(
-            "(status = 'FINALIZING' AND finalizing_token IS NOT NULL AND finalizing_object_key IS NOT NULL AND finalizing_expires_at IS NOT NULL) OR (status != 'FINALIZING' AND finalizing_token IS NULL AND finalizing_object_key IS NULL AND finalizing_expires_at IS NULL)",
+            f"(status = '{UploadReservationStatus.FINALIZING.value}' AND finalizing_token IS NOT NULL AND finalizing_object_key IS NOT NULL AND finalizing_expires_at IS NOT NULL) OR (status != '{UploadReservationStatus.FINALIZING.value}' AND finalizing_token IS NULL AND finalizing_object_key IS NULL AND finalizing_expires_at IS NULL)",
             name="ck_take_reservation_finalize_lease",
         ),
         UniqueConstraint(
@@ -107,12 +104,20 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
     )
-    status: str = Field(
-        default=UploadReservationStatus.RESERVED.value,
+    status: UploadReservationStatus = Field(
+        default=UploadReservationStatus.RESERVED,
         sa_column=Column(
-            String(24),
+            SAEnum(
+                UploadReservationStatus,
+                native_enum=False,
+                create_constraint=True,
+                validate_strings=True,
+                values_callable=lambda cls: [value.value for value in cls],
+                name="ck_take_reservation_status",
+                length=24,
+            ),
             nullable=False,
-            default=UploadReservationStatus.RESERVED.value,
+            default=UploadReservationStatus.RESERVED,
         ),
     )
     created_at: datetime = Field(

@@ -1,11 +1,12 @@
 """Durable ownership of server-created bytes before semantic adoption."""
 
+from enum import StrEnum
 from datetime import datetime
 from uuid import uuid4
 
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
     BigInteger,
-    CheckConstraint,
     Column,
     DateTime,
     Index,
@@ -27,17 +28,25 @@ from app.db.durable_delivery import (
 from app.shared.time import utc_now
 
 
+class ObjectWriteIntentStatus(StrEnum):
+    PREPARED = "PREPARED"
+    WRITTEN = "WRITTEN"
+    ADOPTED = "ADOPTED"
+    CLEANUP_PENDING = "CLEANUP_PENDING"
+    CLEANUP_DISPATCHED = "CLEANUP_DISPATCHED"
+    CLEANUP_PROCESSING = "CLEANUP_PROCESSING"
+    CLEANUP_FAILED = "CLEANUP_FAILED"
+    CLEANED = "CLEANED"
+
+
 class ObjectWriteIntent(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "object_write_intents"
     __table_args__ = (
         delivery_attempt_token_constraint(
-            name="ck_object_write_intents_attempt_token", processing_status="CLEANUP_PROCESSING"
+            name="ck_object_write_intents_attempt_token",
+            processing_status=ObjectWriteIntentStatus.CLEANUP_PROCESSING,
         ),
         UniqueConstraint("object_key", name="uq_object_write_intent_key"),
-        CheckConstraint(
-            "status IN ('PREPARED','WRITTEN','ADOPTED','CLEANUP_PENDING','CLEANUP_DISPATCHED','CLEANUP_PROCESSING','CLEANUP_FAILED','CLEANED')",
-            name="ck_object_write_intent_status",
-        ),
         delivery_attempt_count_constraint(name="ck_object_write_intent_attempts"),
         Index("ix_object_write_intent_due", "status", "next_attempt_at"),
     )
@@ -55,8 +64,21 @@ class ObjectWriteIntent(SQLModel, table=True):  # type: ignore[call-arg]
     byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     sha256: str = Field(sa_column=Column(String(64), nullable=False))
     content_type: str = Field(sa_column=Column(String(255), nullable=False))
-    status: str = Field(
-        default="PREPARED", sa_column=Column(String(24), nullable=False, default="PREPARED")
+    status: ObjectWriteIntentStatus = Field(
+        default=ObjectWriteIntentStatus.PREPARED,
+        sa_column=Column(
+            SAEnum(
+                ObjectWriteIntentStatus,
+                native_enum=False,
+                create_constraint=True,
+                validate_strings=True,
+                values_callable=lambda cls: [value.value for value in cls],
+                name="ck_object_write_intent_status",
+                length=24,
+            ),
+            nullable=False,
+            default=ObjectWriteIntentStatus.PREPARED,
+        ),
     )
     write_token: str = Field(sa_column=Column(String(36), nullable=False))
     write_expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))

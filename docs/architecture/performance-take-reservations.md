@@ -43,7 +43,10 @@ Content-Type, container signature and full SHA-256 against the admitted recordin
 ## Lifecycle and persistence
 
 `app/shared/performance_take_upload.py` owns `UploadReservationStatus`, consumed by
-both the lifecycle domain and persistence. The domain owns `FinalizeLease`, orphan
+both the lifecycle domain and persistence. The ORM status field is typed with this
+enum; its VARCHAR(24) admission CHECK is projected by SQLAlchemy Enum with
+`native_enum=False`. The finalize-lease CHECK projects FINALIZING from the same
+enum. Hydration and transitions pass enum members without string coercion. The domain owns `FinalizeLease`, orphan
 candidates, invariants and transitions. Time, tokens, object keys and lease expiry are explicit
 command inputs. No domain transition accesses a database, storage, HTTP or clock.
 

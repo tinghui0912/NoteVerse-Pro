@@ -115,7 +115,8 @@ class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         durable_failure_facts_constraint(name="ck_playback_outbox_failure_facts"),
         delivery_attempt_token_constraint(
-            name="ck_playback_outbox_attempt_token", processing_status="PROCESSING"
+            name="ck_playback_outbox_attempt_token",
+            processing_status=PlaybackOutboxStatus.PROCESSING,
         ),
         delivery_attempt_count_constraint(name="ck_playback_outbox_attempt_count"),
         UniqueConstraint(

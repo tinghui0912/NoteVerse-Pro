@@ -1,5 +1,7 @@
 """Real foreign-key ownership and durable retirement behavior without a broker."""
 
+from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+
 from contextlib import contextmanager
 from datetime import timedelta
 from unittest.mock import Mock
@@ -118,7 +120,10 @@ def test_fk_flush_precedes_physical_delete_and_completion(
     with transaction() as db:
         assert db.get(StoredObject, identity) is None
         operation = retirement_delivery.get(db, uuid)
-        assert operation.status == "COMPLETED" and operation.stored_object_id is None
+        assert (
+            operation.status == StoredObjectRetirementStatus.COMPLETED
+            and operation.stored_object_id is None
+        )
         assert operation.completed_at is not None and operation.failure_detail is None
     assert not storage.exists("immutable/object")
 
@@ -130,12 +135,15 @@ def test_reacquisition_cancels_and_last_release_rearms(retirement_db):
         obj = retain_for_reference(db, identity)
         db.add(Upload(stored_object_id=obj.id, original_filename="again.png", uploader_user_id=1))
     with transaction() as db:
-        assert retirement_delivery.get(db, uuid).status == "CANCELLED"
+        assert retirement_delivery.get(db, uuid).status == StoredObjectRetirementStatus.CANCELLED
         upload = db.scalar(select(Upload))
         db.delete(upload)
         assert retire_after_release(db, identity) == [uuid]
         operation = retirement_delivery.get(db, uuid)
-        assert operation.status == "PENDING" and operation.attempt_count == 0
+        assert (
+            operation.status == StoredObjectRetirementStatus.PENDING
+            and operation.attempt_count == 0
+        )
 
 
 def test_worker_cancels_if_reference_appears_before_destruction(retirement_db, monkeypatch):
@@ -148,7 +156,7 @@ def test_worker_cancels_if_reference_appears_before_destruction(retirement_db, m
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "cancelled"
     assert delete.call_count == 0 and storage.exists("immutable/object")
     with transaction() as db:
-        assert retirement_delivery.get(db, uuid).status == "CANCELLED"
+        assert retirement_delivery.get(db, uuid).status == StoredObjectRetirementStatus.CANCELLED
         assert db.get(StoredObject, identity) is not None
 
 
@@ -180,7 +188,9 @@ def test_failures_do_not_retire_live_or_unverified_bytes(retirement_db, monkeypa
     assert storage.exists("immutable/object")
     with transaction() as db:
         operation = retirement_delivery.get(db, uuid)
-        assert operation.status == "FAILED" and operation.attempt_count == 1
+        assert (
+            operation.status == StoredObjectRetirementStatus.FAILED and operation.attempt_count == 1
+        )
         assert operation.next_attempt_at > operation.started_at
         if failure != "missing":
             assert db.get(StoredObject, identity) is not None
@@ -209,8 +219,8 @@ def test_cancel_rearm_does_not_allow_stale_attempt_aba(retirement_db, monkeypatc
 @pytest.mark.parametrize(
     "status,field,timeout",
     [
-        ("DISPATCHED", "dispatched_at", "dispatch_timeout_seconds"),
-        ("PROCESSING", "started_at", "processing_timeout_seconds"),
+        (StoredObjectRetirementStatus.DISPATCHED, "dispatched_at", "dispatch_timeout_seconds"),
+        (StoredObjectRetirementStatus.PROCESSING, "started_at", "processing_timeout_seconds"),
     ],
 )
 def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
@@ -222,7 +232,9 @@ def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
     with transaction() as db:
         operation = retirement_delivery.get(db, uuid)
         operation.status = status
-        operation.attempt_token = "fixture-token" if status == "PROCESSING" else None
+        operation.attempt_token = (
+            "fixture-token" if status == StoredObjectRetirementStatus.PROCESSING else None
+        )
         operation.attempt_count = 2
         setattr(
             operation, field, now - timedelta(seconds=getattr(delivery_lifecycle().policy, timeout))
@@ -231,7 +243,10 @@ def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
     with transaction() as db:
         assert retirement_delivery.recover_and_list_due(db) == [uuid]
         operation = retirement_delivery.get(db, uuid)
-        assert operation.status == "FAILED" and operation.next_attempt_at == now
+        assert (
+            operation.status == StoredObjectRetirementStatus.FAILED
+            and operation.next_attempt_at == now
+        )
         assert operation.attempt_count == 2
 
 
@@ -284,7 +299,10 @@ def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
         assert kwargs == {"retirement_uuid": uuid} and task_id
         with transaction() as db:
             operation = retirement_delivery.get(db, uuid)
-            assert operation.status == "DISPATCHED" and operation.attempt_count == 0
+            assert (
+                operation.status == StoredObjectRetirementStatus.DISPATCHED
+                and operation.attempt_count == 0
+            )
         if not broker_accepts:
             raise OSError("broker rejected")
 
@@ -292,7 +310,11 @@ def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
     assert dispatch.dispatch_stored_object_retirement(uuid) is broker_accepts
     with transaction() as db:
         operation = retirement_delivery.get(db, uuid)
-        assert operation.status == ("DISPATCHED" if broker_accepts else "PENDING")
+        assert operation.status == (
+            StoredObjectRetirementStatus.DISPATCHED
+            if broker_accepts
+            else StoredObjectRetirementStatus.PENDING
+        )
         assert operation.attempt_count == 0
         assert operation.failure_detail == (None if broker_accepts else "broker rejected")
         if not broker_accepts:

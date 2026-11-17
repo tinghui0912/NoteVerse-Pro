@@ -1,5 +1,7 @@
 """Bindings own Bundle lifetime; each representation retires independently."""
 
+from app.db.models.practice_bundle import PracticeBundleStatus
+
 from tests.support.practice_bundle import bind_bundle
 
 from datetime import timedelta
@@ -85,7 +87,7 @@ def test_stale_creation_lease_has_no_physical_authority(test_env):
         bundle_id="creating",
         artifact_id="artifact",
         artifact_schema_version=1,
-        status="CREATING",
+        status=PracticeBundleStatus.CREATING,
         creation_expires_at=utc_now() - timedelta(seconds=1),
     )
     db.add(bundle)

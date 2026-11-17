@@ -1,5 +1,7 @@
 """Canonical admission, transactional consequences and metadata fencing on real PostgreSQL."""
 
+from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 
 from tests.support.storage_state import provision_storage_users
@@ -465,7 +467,10 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
         assert db.scalar(sa.select(RealtimeChange)) is None
         metadata_delivery.adopt(db, second, result)
         db.commit()
-        assert db.scalar(sa.select(RevisionMetadataOutbox)).status == "COMPLETED"
+        assert (
+            db.scalar(sa.select(RevisionMetadataOutbox)).status
+            == RevisionMetadataOutboxStatus.COMPLETED
+        )
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == (
             MetadataStatus.READY if outcome == "ready" else MetadataStatus.FAILED
         )
@@ -556,7 +561,11 @@ def test_metadata_relay_releases_broker_failure_without_consuming_attempt_and_be
     assert not metadata_dispatch.dispatch_revision_metadata(uuid)
     with Session(engine) as db:
         row = db.scalar(sa.select(RevisionMetadataOutbox))
-        assert row.status == "PENDING" and row.attempt_count == 0 and row.attempt_token is None
+        assert (
+            row.status == RevisionMetadataOutboxStatus.PENDING
+            and row.attempt_count == 0
+            and row.attempt_token is None
+        )
     sent = []
     monkeypatch.setattr(
         producer.celery_app, "send_task", lambda name, **kwargs: sent.append((name, kwargs))
@@ -588,7 +597,10 @@ def test_metadata_database_token_coherence_and_source_failure_are_delivery_seman
         assert metadata_delivery.fail(db, uuid, payload.lease, "OSError")
         db.commit()
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
-        assert db.scalar(sa.select(RevisionMetadataOutbox)).status == "FAILED"
+        assert (
+            db.scalar(sa.select(RevisionMetadataOutbox)).status
+            == RevisionMetadataOutboxStatus.FAILED
+        )
         with pytest.raises(StaleDeliveryAttempt):
             metadata_delivery.adopt(
                 db, payload, compute_metadata(storage.read_bytes(payload.source.storage_key))
@@ -653,7 +665,11 @@ def test_metadata_worker_retries_source_failures_without_metadata_or_realtime_mu
     assert worker.execute_revision_metadata_task(None, uuid)["status"] == "failed"
     with Session(engine) as db:
         row = db.scalar(sa.select(RevisionMetadataOutbox))
-        assert row.status == "FAILED" and row.attempt_count == 1 and row.attempt_token is None
+        assert (
+            row.status == RevisionMetadataOutboxStatus.FAILED
+            and row.attempt_count == 1
+            and row.attempt_token is None
+        )
         assert row.next_attempt_at > row.started_at
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         assert db.scalar(sa.select(RealtimeChange)) is None

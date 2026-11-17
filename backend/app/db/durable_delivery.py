@@ -4,6 +4,7 @@ Each factory returns an independent Field/Column. Status, targets, timestamps of
 resource recency and transaction completion remain owned by the consuming domain.
 """
 
+from enum import Enum
 from typing import Any
 
 from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, Integer, String, Text
@@ -60,8 +61,10 @@ def delivery_attempt_count_constraint(*, name: str) -> CheckConstraint:
     return CheckConstraint("attempt_count >= 0", name=name)
 
 
-def delivery_attempt_token_constraint(*, name: str, processing_status: str) -> CheckConstraint:
-    status = "'" + processing_status.replace("'", "''") + "'"
+def delivery_attempt_token_constraint(*, name: str, processing_status: Enum) -> CheckConstraint:
+    if not isinstance(processing_status, Enum) or not isinstance(processing_status.value, str):
+        raise TypeError("Attempt-token coherence requires a string-valued status enum member")
+    status = "'" + processing_status.value.replace("'", "''") + "'"
     return CheckConstraint(
         f"(status = {status} AND attempt_token IS NOT NULL) OR (status <> {status} AND attempt_token IS NULL)",
         name=name,

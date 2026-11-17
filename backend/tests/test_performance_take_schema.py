@@ -1,5 +1,7 @@
 """Fresh PostgreSQL persistence for independent media provenance."""
 
+from app.shared.performance_take_upload import UploadReservationStatus
+
 import hashlib
 from tests.test_performance_takes import VALID_WEBM_BYTES
 from datetime import timedelta
@@ -36,7 +38,7 @@ def reservation_values(user_id, manifest_id):
         staging_object_key="staging",
         storage_reservation_id="quota",
         expires_at=utc_now() + timedelta(hours=1),
-        status="RESERVED",
+        status=UploadReservationStatus.RESERVED,
     ).model_dump(exclude={"id"})
 
 
@@ -60,7 +62,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                 staging_object_key="staging",
                 storage_reservation_id="quota",
                 expires_at=utc_now() + timedelta(hours=1),
-                status="RESERVED",
+                status=UploadReservationStatus.RESERVED,
             )
             take = PerformanceTake(
                 manifest_id=manifest.id,
@@ -101,7 +103,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                     staging_object_key="other-staging",
                     storage_reservation_id="other-quota",
                     expires_at=utc_now() + timedelta(hours=1),
-                    status="RESERVED",
+                    status=UploadReservationStatus.RESERVED,
                 )
             )
             with pytest.raises(IntegrityError):
