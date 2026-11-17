@@ -331,7 +331,6 @@ class ScoreRevisionMetadata(SQLModel, table=True):  # type: ignore[call-arg]
     )
     notation_title: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     measure_count: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    playback_duration_ms: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     part_count: Optional[int] = Field(default=None, sa_column=Column(Integer))
     primary_key_fifths: Optional[int] = Field(default=None, sa_column=Column(Integer))
     primary_mode: Optional[str] = Field(default=None, sa_column=Column(String(32)))

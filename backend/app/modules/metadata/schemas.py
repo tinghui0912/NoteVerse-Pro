@@ -13,7 +13,6 @@ class MetadataRead(BaseModel):
     status: MetadataStatus
     notation_title: str | None
     measure_count: int | None
-    playback_duration_ms: int | None
     part_count: int | None
     primary_key_fifths: int | None
     primary_mode: str | None

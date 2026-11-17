@@ -1947,17 +1947,6 @@
             ],
             "title": "Part Count"
           },
-          "playback_duration_ms": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Playback Duration Ms"
-          },
           "primary_key_fifths": {
             "anyOf": [
               {
@@ -2007,7 +1996,6 @@
           "status",
           "notation_title",
           "measure_count",
-          "playback_duration_ms",
           "part_count",
           "primary_key_fifths",
           "primary_mode",

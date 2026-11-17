@@ -10,7 +10,7 @@ import pytest
 from app.core.exceptions import ValidationException
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
 from app.score_semantics.performance_navigation import (
     project_performance_occurrences,
@@ -234,8 +234,7 @@ def test_duplicate_labels_unresolved_references_and_part_identity_remain_source_
     ]
     assert model.playback_navigation[3].dalsegno == "unresolved"
     assert model.playback_navigation[3].tocoda == "missing"
-    with pytest.raises(MetadataExtractionError):
-        extract_musicxml_metadata(xml)
+    assert extract_musicxml_metadata(xml).measure_count > 0
     assert len(compile_practice_score(xml).notes) == 3
 
 

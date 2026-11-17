@@ -1,11 +1,12 @@
 """The exact shared performance contract preserves navigation and encounter identity."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from dataclasses import FrozenInstanceError
 from fractions import Fraction
 
 import pytest
 
-from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_plan import build_performance_plan
 from tests.support.canonical_musicxml import dc_score, ds_score, boundary_tempos
@@ -48,7 +49,7 @@ def test_plan_is_the_exact_navigation_contract(xml, order, end, duration):
     assert result.projection.end == Fraction(end)
     assert result.initial_tempo_bpm == Fraction(80)
     assert result.tempo_events == ()
-    assert extract_musicxml_metadata(xml).playback_duration_ms == duration
+    assert performed_duration_ms(xml) == duration
 
 
 @pytest.mark.parametrize(
@@ -85,7 +86,7 @@ def test_same_performance_quarter_preserves_source_then_destination_encounters()
         (2, 8, 80),
         (3, 16, 100),
     ]
-    assert extract_musicxml_metadata(boundary_tempos()).playback_duration_ms == 14400
+    assert performed_duration_ms(boundary_tempos()) == 14400
     with pytest.raises(FrozenInstanceError):
         result.initial_tempo_bpm = Fraction(100)
     with pytest.raises(FrozenInstanceError):
@@ -115,7 +116,7 @@ def test_dc_source_tempo_precedes_destination_tempo_at_one_performance_quarter()
         (4, 14, 80),
     ]
     assert all(type(t.performance_position) is type(t.bpm) is Fraction for t in result.tempo_events)
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 15000
+    assert performed_duration_ms(xml) == 15000
 
 
 def test_same_value_source_encounters_are_not_deduplicated():

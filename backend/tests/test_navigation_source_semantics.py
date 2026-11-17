@@ -1,5 +1,7 @@
 """Playback sources, presentation independence and shared sound applicability."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from fractions import Fraction
 import xml.etree.ElementTree as ET
 
@@ -7,7 +9,7 @@ import pytest
 
 from app.core.exceptions import ValidationException
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
 from app.score_semantics.musicxml_tempo import MusicXMLTempoError, parse_tempo_directive
 from app.score_semantics.performance_navigation import (
@@ -109,7 +111,7 @@ def test_visual_markers_and_unmodeled_sound_applicability_do_not_change_traversa
     assert model.playback_navigation == ()
     assert len(model.navigation_markers) == 3
     assert [o.measure_index for o in project_performance_occurrences(model).occurrences] == order
-    assert extract_musicxml_metadata(xml).playback_duration_ms == len(order) * 3000
+    assert performed_duration_ms(xml) == len(order) * 3000
 
 
 def test_tempo_keeps_applicability_without_becoming_a_navigation_event():
@@ -122,8 +124,7 @@ def test_tempo_keeps_applicability_without_becoming_a_navigation_event():
     assert model.tempos[0].point == WrittenPoint(0, Fraction(0))
     with pytest.raises(PerformanceNavigationError, match="unsupported_time_only_playback"):
         project_performance_occurrences(model)
-    with pytest.raises(MetadataExtractionError, match="unsupported_time_only_playback"):
-        extract_musicxml_metadata(xml)
+    assert extract_musicxml_metadata(xml).measure_count > 0
 
 
 def test_sound_applicability_without_navigation_or_tempo_is_not_a_command():
@@ -131,7 +132,7 @@ def test_sound_applicability_without_navigation_or_tempo_is_not_a_command():
     model = admitted(xml)
     assert model.playback_navigation == model.tempos == model.navigation_markers == ()
     assert [o.measure_index for o in project_performance_occurrences(model).occurrences] == [0]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 3000
+    assert performed_duration_ms(xml) == 3000
 
 
 def test_barline_endpoint_and_next_sound_start_retain_distinct_written_ownership():

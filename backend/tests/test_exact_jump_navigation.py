@@ -1,5 +1,7 @@
 """Exact single D.C./D.S. traversal and generic partial-interval fact replay."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from fractions import Fraction
 
 import pytest
@@ -8,7 +10,7 @@ import verovio
 
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
@@ -51,7 +53,7 @@ def test_exact_mid_measure_jump_and_fine_produce_partial_occurrences_and_15000ms
         for o in result.occurrences
         for value in (o.written_start, o.written_end, o.performance_start, o.performance_end)
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 15000
+    assert performed_duration_ms(xml) == 15000
     assert len(compile_practice_score(xml).notes) == 16
 
 
@@ -104,7 +106,7 @@ def test_source_tempo_executes_before_jump_and_destination_tempo_reexecutes(rese
     assert [(f.position, f.value) for f in facts] == (
         [(0, 80), (14, 100), (14, 80)] if reset else [(14, 100)]
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == expected
+    assert performed_duration_ms(xml) == expected
 
 
 @pytest.mark.parametrize("at_target,expected", [(False, 17000), (True, 14000)])
@@ -123,7 +125,7 @@ def test_ds_replays_target_tempo_but_never_replays_earlier_measure_tempo(at_targ
     assert [(f.position, f.value) for f in facts] == (
         [(4, 60), (5, 90), (15, 100), (15, 90)] if at_target else [(4, 60), (15, 100)]
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == expected
+    assert performed_duration_ms(xml) == expected
 
 
 def test_fine_point_facts_execute_before_termination():
@@ -217,7 +219,7 @@ def test_supported_default_and_explicit_jump_fine_predicates(primary, fine):
         .replace('dacapo="yes"', f'dacapo="yes"{primary}')
         .replace('fine="yes"', f'fine="yes"{fine}')
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 15000
+    assert performed_duration_ms(xml) == 15000
 
 
 @pytest.mark.parametrize("kind", ["segno", "coda"])
@@ -264,7 +266,7 @@ def test_multipart_program_agreement_is_semantic_and_complete(opinion):
         assert intervals(project_performance_occurrences(model)) == intervals(
             projection(score_measures(*first))
         )
-        assert extract_musicxml_metadata(xml).playback_duration_ms == 9000
+        assert performed_duration_ms(xml) == 9000
 
 
 def test_same_point_sound_and_barline_destination_duplicates_collapse():
@@ -310,7 +312,7 @@ def test_duplicate_primary_representation_at_one_semantic_point_is_one_command()
     xml = dc_score().replace(
         '<sound dacapo="yes"/>', '<sound dacapo="yes"/><sound dacapo="yes" time-only="1"/>'
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 15000
+    assert performed_duration_ms(xml) == 15000
 
 
 @pytest.mark.parametrize(
@@ -372,8 +374,7 @@ def test_unsupported_programs_stay_admissible_but_fail_before_traversal(body, er
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     with pytest.raises(PerformanceNavigationError, match=f"^{error}$"):
         project_performance_occurrences(model)
-    with pytest.raises(MetadataExtractionError, match=error):
-        extract_musicxml_metadata(xml)
+    assert extract_musicxml_metadata(xml).measure_count > 0
 
 
 @pytest.mark.parametrize(
@@ -407,7 +408,7 @@ def test_fractional_navigation_positions_stay_exact(kind):
     )
     result = projection(xml)
     assert result.end == Fraction(20, 3)
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 5000
+    assert performed_duration_ms(xml) == 5000
     assert result.occurrences[3].written_end == (Fraction(14, 3) if kind == "dc" else Fraction(5))
 
 
@@ -431,7 +432,7 @@ def test_canonical_sound_offsets_resolve_exact_jump_and_fine_points():
         measure(3, {2: '<sound dalsegno="S1"><offset>1</offset></sound>'}),
     )
     assert intervals(projection(xml))[-2:] == [(1, 2, 5, 8), (2, 2, 8, 10)]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 15000
+    assert performed_duration_ms(xml) == 15000
 
 
 def test_unresolved_cross_measure_boundary_jump_point_fails_without_guessing_side():
@@ -450,7 +451,7 @@ def test_gated_destination_in_executable_program_is_not_silently_used():
 
 def test_destination_metadata_can_share_one_unambiguous_command_event():
     xml = dc_score().replace('dacapo="yes"', 'dacapo="yes" coda="C1"')
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 15000
+    assert performed_duration_ms(xml) == 15000
 
 
 @pytest.mark.parametrize("kind", ["dc", "ds"])

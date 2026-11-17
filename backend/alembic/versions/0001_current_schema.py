@@ -2375,7 +2375,6 @@ def upgrade() -> None:
         ),
         sa.Column("notation_title", sa.Text(), nullable=True),
         sa.Column("measure_count", sa.Integer(), nullable=True),
-        sa.Column("playback_duration_ms", sa.BigInteger(), nullable=True),
         sa.Column("part_count", sa.Integer(), nullable=True),
         sa.Column("primary_key_fifths", sa.Integer(), nullable=True),
         sa.Column("primary_mode", sa.String(length=32), nullable=True),

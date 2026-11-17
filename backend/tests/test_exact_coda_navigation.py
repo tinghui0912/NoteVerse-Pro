@@ -1,5 +1,7 @@
 """Finite exact primary/To-Coda transfers and generic positioned fact replay."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from fractions import Fraction
 
 import pytest
@@ -8,7 +10,7 @@ import verovio
 
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
@@ -70,7 +72,7 @@ def test_exact_coda_paths_are_three_finite_legs(kind, expected, duration):
         for o in result.occurrences
         for value in (o.written_start, o.written_end, o.performance_start, o.performance_end)
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == duration
+    assert performed_duration_ms(xml) == duration
     assert len(compile_practice_score(xml).notes) == 20
 
 
@@ -87,7 +89,7 @@ def rates(xml):
 def test_illustrative_q16_coda_destination_is_distinct_from_q17_fixture():
     xml = score(ds_measures(coda_local=0))
     assert projection(xml).end == 23
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 17250
+    assert performed_duration_ms(xml) == 17250
 
 
 @pytest.mark.parametrize("reset,expected", [(False, 14700), (True, 15150)])
@@ -100,7 +102,7 @@ def test_source_tempo_carries_or_is_replaced_by_destination_at_same_performed_in
     if reset:
         xml = xml.replace('<sound coda="C1"/>', '<sound tempo="80"/><sound coda="C1"/>')
     assert rates(xml) == ([(6, 100), (20, 100), (20, 80)] if reset else [(6, 100), (20, 100)])
-    assert extract_musicxml_metadata(xml).playback_duration_ms == expected
+    assert performed_duration_ms(xml) == expected
 
 
 def test_coda_target_preceding_tempo_is_skipped_and_exact_entry_tempo_executes():
@@ -111,7 +113,7 @@ def test_coda_target_preceding_tempo_is_skipped_and_exact_entry_tempo_executes()
         .replace('<sound tocoda="C1"/>', '<sound tempo="100"/><sound tocoda="C1"/>')
     )
     assert rates(xml) == [(9, 100), (19, 100), (19, 90)]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 14750
+    assert performed_duration_ms(xml) == 14750
 
 
 @pytest.mark.parametrize("exact,expected", [(False, 21000), (True, 15333)])
@@ -120,14 +122,14 @@ def test_segno_entry_preserves_primary_target_tempo_filtering(exact, expected):
     if exact:
         xml = xml.replace('<sound segno="S1"/>', '<sound tempo="90"/><sound segno="S1"/>')
     assert rates(xml) == ([(4, 60), (5, 90), (15, 90)] if exact else [(4, 60)])
-    assert extract_musicxml_metadata(xml).playback_duration_ms == expected
+    assert performed_duration_ms(xml) == expected
 
 
 def test_same_measure_forward_transfer_skips_only_the_second_leg_interior():
     xml = score([measure(0, {1: sound('tocoda="C1"'), 3: sound('dacapo="yes" coda="C1"')})])
     result = projection(xml)
     assert intervals(result) == [(0, 1, 0, 3), (0, 2, 0, 1), (0, 3, 3, 4)]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 3750
+    assert performed_duration_ms(xml) == 3750
     facts = result.project_facts(
         [WrittenPerformanceFact(WrittenPoint(0, Fraction(q)), str(q)) for q in (1, 2, 3)]
     )
@@ -160,7 +162,7 @@ def test_second_leg_can_pass_the_disabled_primary_source_before_tocoda():
         (4, 1, 17, 20),
     ]
     assert result.end == 19
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 14250
+    assert performed_duration_ms(xml) == 14250
 
 
 def test_tocoda_at_primary_target_is_one_zero_duration_second_leg():
@@ -208,7 +210,7 @@ def test_default_and_explicit_supported_phase_predicates_are_equivalent(primary,
         .replace('dalsegno="S1"', f'dalsegno="S1"{primary}')
         .replace('tocoda="C1"', f'tocoda="C1"{tocoda}')
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 16500
+    assert performed_duration_ms(xml) == 16500
 
 
 @pytest.mark.parametrize("opinion", ["none", "same", "partial", "different"])
@@ -237,7 +239,7 @@ def test_complete_multipart_coda_program_agreement_is_semantic(opinion):
         assert intervals(project_performance_occurrences(model)) == intervals(
             projection(score(first))
         )
-        assert extract_musicxml_metadata(xml).playback_duration_ms == 16500
+        assert performed_duration_ms(xml) == 16500
 
 
 def test_same_point_coda_sound_and_barline_destinations_collapse():
@@ -287,7 +289,7 @@ def test_fractional_coda_source_and_target_coordinates_remain_exact(kind, durati
         "<divisions>1</divisions>", "<divisions>3</divisions>"
     )
     assert projection(xml).end == (Fraction(23, 3) if kind == "dc" else Fraction(22, 3))
-    assert extract_musicxml_metadata(xml).playback_duration_ms == duration
+    assert performed_duration_ms(xml) == duration
 
 
 def test_later_part_can_supply_the_complete_coda_program():
@@ -324,7 +326,7 @@ def test_semantically_duplicate_tocoda_command_at_one_point_fires_once():
     xml = score(ds_measures()).replace(
         '<sound tocoda="C1"/>', '<sound tocoda="C1"/><sound tocoda="C1" time-only="2"/>'
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 16500
+    assert performed_duration_ms(xml) == 16500
 
 
 @pytest.mark.parametrize(
@@ -392,8 +394,7 @@ def test_unsupported_coda_programs_remain_admissible_but_fail_before_traversal(c
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     with pytest.raises(PerformanceNavigationError, match=f"^{error}$"):
         project_performance_occurrences(model)
-    with pytest.raises(MetadataExtractionError, match=error):
-        extract_musicxml_metadata(xml)
+    assert extract_musicxml_metadata(xml).measure_count > 0
 
 
 @pytest.mark.parametrize("predicate", ["1", "3", "1,2"])

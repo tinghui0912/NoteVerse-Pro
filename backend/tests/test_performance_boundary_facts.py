@@ -1,5 +1,7 @@
 """Written measure ownership survives repeated endpoint encounters."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from fractions import Fraction
 import xml.etree.ElementTree as ET
 
@@ -7,7 +9,7 @@ import pytest
 import verovio
 
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
@@ -67,7 +69,7 @@ def test_interior_repeat_endpoint_tempo_executes_before_each_jump_and_exit():
     assert fact.measure_index == 1
     assert fact.position == model.measures[1].end == model.measures[2].start == Fraction(8)
     assert rates(model) == [(Fraction(8), 100), (Fraction(16), 100)]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 13200
+    assert performed_duration_ms(xml) == 13200
 
 
 def test_endpoint_and_next_measure_start_are_distinct_canonical_tempo_slots():
@@ -78,13 +80,13 @@ def test_endpoint_and_next_measure_start_are_distinct_canonical_tempo_slots():
         (2, Fraction(8), Fraction(80)),
     ]
     assert rates(model) == [(Fraction(8), 100), (Fraction(16), 100), (Fraction(16), 80)]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 13800
+    assert performed_duration_ms(xml) == 13800
 
 
 def test_endpoint_encounter_precedes_repeat_destination_even_when_bpm_decreases():
     xml = endpoint_score(repeat_start=tempo(80))
     assert rates(parse_score_semantics(xml)) == [(0, 80), (8, 100), (8, 80), (16, 100)]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 14400
+    assert performed_duration_ms(xml) == 14400
 
 
 def test_generic_projection_retains_boundary_identity_source_order_and_duplicate_values():
@@ -148,8 +150,7 @@ def test_cross_measure_offset_on_an_unowned_shared_boundary_is_admitted_but_not_
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     with pytest.raises(PerformanceNavigationError, match="ambiguous_cross_measure_boundary"):
         projected(model)
-    with pytest.raises(MetadataExtractionError, match="ambiguous_cross_measure_boundary"):
-        extract_musicxml_metadata(xml)
+    assert extract_musicxml_metadata(xml).measure_count > 0
 
 
 @pytest.mark.parametrize("second_bpm", [90, 100])

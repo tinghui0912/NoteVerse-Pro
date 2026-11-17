@@ -24,6 +24,9 @@ Canonical source content, visual render output, playable output and queryable me
    JSONB is only persistence serialization: the metadata codec explicitly encodes typed
    events and strictly decodes required fields, types, and exact shapes on read.
    Event JSON is not a second musical authority and is not editable revision content.
+   Metadata answers written title, measure/part count, key, meter, and tempo facts; it does
+   not construct a PerformancePlan, expand navigation, or calculate performed duration.
+   `ScorePlaybackAsset.duration_ms` describes the actual generated audio.
 5. Revision creation stores the canonical source transactionally with the revision.
 6. Render assets, playback assets, and metadata are rebuildable from the canonical source and
    are produced asynchronously after revision creation.

@@ -83,5 +83,5 @@ verifies the notation/event/moment projection against that transport contract.
 The artifact uses notation-order quarter positions without repeated occurrences.
 The Practice Verovio adapter sets `expandNever: true` on its toolkit instance, so its
 visual timeline shares the artifact's written axis. Score Preview separately uses
-renderer-expanded performance coordinates. Metadata's supported repeat-duration
-projection does not alter Practice chronology.
+renderer-expanded performance coordinates. Revision Metadata projects written-score facts
+without expanding repeats or calculating performed duration.

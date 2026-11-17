@@ -90,7 +90,7 @@ def test_conflicting_positioned_facts(fact):
         parse_score_semantics(score(fact + note("a")))
 
 
-def test_cross_projection_written_witness(monkeypatch):
+def test_cross_projection_written_witness():
     from app.modules.practice.score.compiler.musicxml import (
         compile_practice_score,
         project_practice_score,
@@ -119,28 +119,24 @@ def test_cross_projection_written_witness(monkeypatch):
     ]
     assert len(practice.notes) == 8  # Written pitched notes, with no repeated occurrences.
     assert [t.start_tick for t in practice.tempo_segments] == [2]
-    original = metadata._playback_duration_ms
+    from app.score_semantics.performance_plan import build_performance_plan
 
-    def witness(plan):
-        performance = plan.projection
-        assert plan.initial_tempo_bpm == Fraction(80)
-        assert [o.measure_index for o in performance.occurrences] == [0, 1, 0, 1, 2, 3]
-        assert all(type(o.performance_start) is Fraction for o in performance.occurrences)
-        assert [(o.written_start, o.written_end) for o in performance.occurrences] == [
-            (model.measures[i].start, model.measures[i].end) for i in [0, 1, 0, 1, 2, 3]
-        ]
-        assert tuple((f.performance_position, f.bpm) for f in plan.tempo_events) == (
-            (Fraction(2), Fraction(90)),
-            (Fraction(10), Fraction(90)),
-        )
-        assert [f.occurrence_ordinal for f in plan.tempo_events] == [0, 2]
-        return original(plan)
-
-    monkeypatch.setattr(metadata, "_playback_duration_ms", witness)
+    plan = build_performance_plan(model)
+    performance = plan.projection
+    assert plan.initial_tempo_bpm == Fraction(80)
+    assert [o.measure_index for o in performance.occurrences] == [0, 1, 0, 1, 2, 3]
+    assert all(type(o.performance_start) is Fraction for o in performance.occurrences)
+    assert [(o.written_start, o.written_end) for o in performance.occurrences] == [
+        (model.measures[i].start, model.measures[i].end) for i in [0, 1, 0, 1, 2, 3]
+    ]
+    assert tuple((f.performance_position, f.bpm) for f in plan.tempo_events) == (
+        (Fraction(2), Fraction(90)),
+        (Fraction(10), Fraction(90)),
+    )
+    assert [f.occurrence_ordinal for f in plan.tempo_events] == [0, 2]
     result = metadata.project_score_metadata(model)
     assert result == metadata.extract_musicxml_metadata(content)
     assert result.part_count == 2 and result.measure_count == 4
-    assert result.playback_duration_ms == 14833
     assert result.tempo_events == [TempoEvent(part=1, measure="1", offset_quarters=2, bpm=90)]
 
 
@@ -211,7 +207,7 @@ def test_written_model_does_not_require_practice_meter_or_physical_pitch_support
     model = parse_score_semantics(xml)
     assert model.notes[0].pitch.alter == Fraction(1, 2)
     assert model.meters == ()
-    assert project_score_metadata(model).playback_duration_ms == 750
+    assert project_score_metadata(model).measure_count == 1
     with pytest.raises(PracticeScoreInvalidError):
         project_practice_score(model)
 
@@ -248,7 +244,6 @@ def test_negative_direction_offset_can_place_a_fact_in_the_previous_measure():
     assert project_practice_score(model).tempo_segments[0].start_tick == 1
     result = project_score_metadata(model)
     assert result.tempo_events == [TempoEvent(part=1, measure="2", offset_quarters=-1, bpm=60)]
-    assert result.playback_duration_ms == 3750  # 1 quarter at 80, then 3 at 60.
 
 
 @pytest.mark.parametrize(
@@ -301,7 +296,6 @@ def test_cross_part_polymeter_is_canonical_but_not_one_practice_meter():
         TimeSignatureEvent(part=1, measure="1", beats=4, beat_type=4),
         TimeSignatureEvent(part=2, measure="1", beats=3, beat_type=4),
     ]
-    assert result.playback_duration_ms == 3000
 
 
 def test_staff_meters_are_preserved_and_rejected_by_both_current_projections():

@@ -64,7 +64,6 @@ class MetadataProjectionService:
         projection.error_code = None
         projection.notation_title = result.notation_title
         projection.measure_count = result.measure_count
-        projection.playback_duration_ms = result.playback_duration_ms
         projection.part_count = result.part_count
         projection.primary_key_fifths = result.primary_key_fifths
         projection.primary_mode = result.primary_mode
@@ -82,7 +81,6 @@ class MetadataProjectionService:
         projection.notation_title = None
         projection.computed_at = utc_now()
         projection.measure_count = None
-        projection.playback_duration_ms = None
         projection.part_count = None
         projection.primary_key_fifths = None
         projection.primary_mode = None
@@ -97,7 +95,6 @@ class MetadataProjectionService:
             status=projection.status,
             notation_title=projection.notation_title,
             measure_count=projection.measure_count,
-            playback_duration_ms=projection.playback_duration_ms,
             part_count=projection.part_count,
             primary_key_fifths=projection.primary_key_fifths,
             primary_mode=projection.primary_mode,

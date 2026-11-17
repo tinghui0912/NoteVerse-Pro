@@ -99,7 +99,6 @@ def test_sound_consumers_share_the_time_only_datatype_owner():
 
 def test_performance_consumers_share_the_plan_entry_point():
     for path in (
-        "processing/musicxml/metadata.py",
         "processing/engines/playback/verovio_midi.py",
         "modules/playback/performance_plan_service.py",
     ):
@@ -153,3 +152,22 @@ def test_midi_codec_and_projection_have_explicit_adapter_dependencies():
                 )
             elif isinstance(node, ast.Import):
                 assert all(a.name.split(".")[0] in sys.stdlib_module_names for a in node.names)
+
+
+def test_metadata_depends_only_on_written_score_semantics():
+    tree = ast.parse((ROOT / "processing/musicxml/metadata.py").read_text(encoding="utf-8"))
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            imports.append(node.module)
+            imports.extend(f"{node.module}.{alias.name}" for alias in node.names)
+        elif isinstance(node, ast.Import):
+            imports.extend(alias.name for alias in node.names)
+    assert "app.score_semantics.musicxml_score" in imports
+    for dependency in imports:
+        assert not dependency.startswith(
+            (
+                "app.score_semantics.performance_plan",
+                "app.score_semantics.performance_navigation",
+            )
+        )

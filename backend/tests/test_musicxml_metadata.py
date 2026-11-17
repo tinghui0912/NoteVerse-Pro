@@ -76,7 +76,6 @@ def test_metadata_extractor_handles_repeats_key_meter_tempo_and_parts() -> None:
     assert result.notation_title == "Metadata Contract"
     assert result.measure_count == 4
     assert result.part_count == 2
-    assert result.playback_duration_ms == 12000
     assert result.primary_key_fifths == 0
     assert result.primary_mode == "major"
     assert [event.fifths for event in result.key_signature_events if event.part == 1] == [
@@ -170,7 +169,6 @@ def test_postgresql_jsonb_round_trip_decodes_the_canonical_public_event_types(pe
         assert all(type(event) is event_type for event in getattr(read, field))
         assert getattr(read, field) == getattr(result, field)
         assert read.model_dump(mode="json")[field] == getattr(projection, field)
-    assert read.playback_duration_ms == 12000
     assert projection.extractor_version == "musicxml-metadata-v1"
     MetadataProjectionService._mark_failed(projection, "metadata_invalid")
     db.commit()
@@ -264,3 +262,67 @@ def test_metadata_tempo_offsets_keep_six_decimal_projection():
     )
     xml = xml.replace("<divisions>2</divisions>", "<divisions>3</divisions>")
     assert extract_musicxml_metadata(xml).tempo_events[0].offset_quarters == 0.333333
+
+
+@pytest.mark.parametrize("source", ["repeats", "dc", "ds", "post_jump"])
+def test_written_metadata_does_not_construct_performance_chronology(monkeypatch, source):
+    from app.score_semantics import performance_plan, performance_navigation
+    from tests.support.canonical_musicxml import dc_score, ds_score, jump_measures, score
+
+    def unexpected_performance_construction(*args, **kwargs):
+        pytest.fail("written metadata must not construct performed chronology")
+
+    monkeypatch.setattr(
+        performance_plan, "build_performance_plan", unexpected_performance_construction
+    )
+    monkeypatch.setattr(
+        performance_navigation,
+        "project_performance_occurrences",
+        unexpected_performance_construction,
+    )
+    xml = {
+        "repeats": (FIXTURES / "score-domain-metadata.musicxml").read_bytes(),
+        "dc": dc_score(),
+        "ds": ds_score(),
+        "post_jump": score(jump_measures(None)),
+    }[source]
+    from app.score_semantics.musicxml_score import parse_score_semantics
+
+    model = parse_score_semantics(xml)
+    result = extract_musicxml_metadata(xml)
+    assert result.measure_count == len(model.measures)
+    assert result.part_count == len(model.parts)
+    assert len(result.tempo_events) == len(model.tempos)
+    assert [event.part for event in result.key_signature_events] == [
+        key.part_index + 1
+        for key in sorted(model.keys, key=lambda key: (key.part_index, key.measure_index))
+    ]
+
+
+def test_metadata_schema_contains_only_written_projection_facts():
+    from dataclasses import fields
+    from app.db.models import ScorePlaybackAsset
+    from app.main import app
+
+    expected = {
+        "measure_count",
+        "part_count",
+        "primary_key_fifths",
+        "primary_mode",
+        "key_signature_events",
+        "time_signature_events",
+        "tempo_events",
+        "extractor_version",
+        "notation_title",
+    }
+    assert {field.name for field in fields(MusicXMLMetadata)} == expected
+    read_fields = (expected - {"extractor_version"}) | {"revision_id", "status", "computed_at"}
+    assert set(MetadataRead.model_fields) == read_fields
+    assert set(app.openapi()["components"]["schemas"]["MetadataRead"]["properties"]) == read_fields
+    assert set(ScoreRevisionMetadata.__table__.columns.keys()) == expected | {
+        "revision_id",
+        "status",
+        "error_code",
+        "computed_at",
+    }
+    assert "duration_ms" in ScorePlaybackAsset.__table__.columns

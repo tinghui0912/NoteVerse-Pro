@@ -15,7 +15,7 @@ from app.modules.practice.score.compiler.musicxml import (
 )
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import TempoEvent, extract_musicxml_metadata
 from app.processing.engines.playback.verovio_midi import VerovioMidiCompiler
 from tests.support.midi_observations import conductor_events
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
@@ -57,8 +57,11 @@ def test_practice_rejects_sound_only_gated_tempo_after_successful_canonical_admi
             PracticeScoreInvalidError, match="Practice does not support pass-gated tempo"
         ):
             compile_call()
-    with pytest.raises(MetadataExtractionError, match="unsupported_time_only_playback"):
-        extract_musicxml_metadata(trusted)
+    metadata = extract_musicxml_metadata(trusted)
+    assert metadata.measure_count == 1
+    assert metadata.tempo_events == [
+        TempoEvent(part=1, measure="1", offset_quarters=0.0, bpm=100.0)
+    ]
 
 
 def test_direction_without_metronome_keeps_its_gated_sound_tempo_byte_identical():

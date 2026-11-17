@@ -1,9 +1,8 @@
-"""Public written metadata and exact canonical performance-plan duration."""
+"""Lightweight written-score metadata projected from canonical MusicXML."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from fractions import Fraction
 from pydantic import BaseModel, ConfigDict
 
 from app.score_semantics.musicxml_score import (
@@ -11,10 +10,6 @@ from app.score_semantics.musicxml_score import (
     MusicXMLSemanticError,
     parse_score_semantics,
 )
-from app.score_semantics.performance_navigation import (
-    PerformanceNavigationError,
-)
-from app.score_semantics.performance_plan import CanonicalPerformancePlan, build_performance_plan
 from app.processing.musicxml.notation_title import extract_notation_title
 
 EXTRACTOR_VERSION = "musicxml-metadata-v1"
@@ -54,7 +49,6 @@ class TempoEvent(BaseModel):
 @dataclass(frozen=True)
 class MusicXMLMetadata:
     measure_count: int
-    playback_duration_ms: int
     part_count: int
     primary_key_fifths: int | None
     primary_mode: str | None
@@ -117,15 +111,9 @@ def project_score_metadata(
         )
         for tempo in sorted(model.tempos, key=lambda t: (t.part_index, t.measure_index))
     ]
-    try:
-        plan = build_performance_plan(model)
-    except PerformanceNavigationError as error:
-        raise MetadataExtractionError(str(error)) from error
-    duration_ms = _playback_duration_ms(plan)
     primary_key = next((event for event in key_events if event.part == 1), None)
     return MusicXMLMetadata(
         len(model.measures),
-        duration_ms,
         len(model.parts),
         primary_key.fifths if primary_key else None,
         primary_key.mode if primary_key else None,
@@ -134,16 +122,3 @@ def project_score_metadata(
         tempo_events,
         notation_title=notation_title,
     )
-
-
-def _playback_duration_ms(plan: CanonicalPerformancePlan) -> int:
-    tempo = plan.initial_tempo_bpm
-    cursor = Fraction(0)
-    total_seconds = Fraction(0)
-    for fact in plan.tempo_events:
-        position, next_tempo = fact.performance_position, fact.bpm
-        total_seconds += (position - cursor) * 60 / tempo
-        cursor = position
-        tempo = next_tempo
-    total_seconds += (plan.projection.end - cursor) * 60 / tempo
-    return round(total_seconds * 1000)

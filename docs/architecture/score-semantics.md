@@ -12,7 +12,6 @@ MusicXML score-partwise
        -> Practice support validation -> compiled score -> written artifact
        -> metadata written events
        -> performance navigation -> CanonicalPerformancePlan
-            -> metadata playback duration
             -> backend performance MIDI / exact HTTP transport
 ```
 
@@ -102,7 +101,7 @@ dots, and consumes that playback offset. The written parser positions those fact
 once, using its current cursor and shared measure start, and validates positional
 conflicts. Missing tempo produces no fact. Consumers needing effective timing apply
 `contracts/score/tempo-policy.json`: 80 quarter notes per minute until an explicit
-fact takes effect. Metadata integrates exact Fraction durations to final milliseconds.
+fact takes effect. Written metadata preserves tempo marks without constructing performed timing.
 
 ## Written and performance axes
 
@@ -215,8 +214,8 @@ Intervals may be partial; their full written measure identity remains intact.
 Ending pass sets select actual visits;
 the written model itself never unfolds them.
 `CanonicalPerformancePlan` combines those occurrences, initial tempo policy and
-ordered tempo encounters. Metadata consumes the plan for duration;
-tempo state persists across jumps until an encountered marking changes it. Ending
+ordered tempo encounters. Tempo state persists across jumps until an encountered marking
+changes it. Metadata projects only written-score facts and does not consume this plan. Ending
 layouts and jump programs outside that subset remain valid written notation but fail
 the performance capability boundary. Browser Score Preview and backend playback both consume this plan. Verovio
 provides written-axis realization with `expandNever`: backend projects MIDI

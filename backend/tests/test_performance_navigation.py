@@ -1,5 +1,7 @@
 """Canonical measure occurrences and their consumers, independent of renderer IDs."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from dataclasses import FrozenInstanceError
 from fractions import Fraction
 
@@ -7,7 +9,7 @@ import pytest
 import verovio
 
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_navigation import (
@@ -177,8 +179,7 @@ def test_unsupported_repeat_shapes_are_admitted_but_not_executed(measures):
     model = parse_score_semantics(admit_musicxml_document(score(*measures).encode()))
     with pytest.raises(PerformanceNavigationError):
         project_performance_occurrences(model)
-    with pytest.raises(MetadataExtractionError):
-        extract_musicxml_metadata(score(*measures))
+    assert extract_musicxml_metadata(score(*measures)).measure_count > 0
 
 
 def test_ending_facts_survive_admission_and_select_whole_measure_visits():
@@ -275,7 +276,9 @@ def test_occurrence_mapping_owns_late_tempo_positions_and_boundary_selection():
 
 
 @pytest.mark.parametrize("reset, expected_ms", [(False, 18000), (True, 18600)])
-def test_metadata_carries_tempo_across_repeat_jump_until_a_mark_reexecutes(reset, expected_ms):
+def test_performance_plan_carries_tempo_across_repeat_jump_until_a_mark_reexecutes(
+    reset, expected_ms
+):
     xml = score(
         measure(0, tempo(80)),
         measure(1, bar("forward") + (tempo(80) if reset else "")),
@@ -284,7 +287,7 @@ def test_metadata_carries_tempo_across_repeat_jump_until_a_mark_reexecutes(reset
     )
     projection = project_performance_occurrences(parse_score_semantics(xml))
     assert [o.measure_index for o in projection.occurrences] == [0, 1, 2, 3, 1, 2, 3]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == expected_ms
+    assert performed_duration_ms(xml) == expected_ms
 
 
 @pytest.mark.parametrize("times", [None, 3])
@@ -333,7 +336,7 @@ def test_visual_navigation_symbols_preserve_presentation_without_changing_traver
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     assert len(model.navigation_markers) == 1
     assert [o.measure_index for o in project_performance_occurrences(model).occurrences] == [0]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 3000
+    assert performed_duration_ms(xml) == 3000
 
 
 def test_late_tempo_in_repeated_second_measure_executes_at_each_occurrence():
@@ -358,7 +361,7 @@ def test_late_tempo_in_repeated_second_measure_executes_at_each_occurrence():
         (Fraction(6), Fraction(90)),
         (Fraction(14), Fraction(90)),
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 13833
+    assert performed_duration_ms(xml) == 13833
 
 
 def test_exact_duration_is_rounded_only_at_the_millisecond_boundary():
@@ -367,7 +370,7 @@ def test_exact_duration_is_rounded_only_at_the_millisecond_boundary():
     ).replace("<divisions>1", "<divisions>3")
     projection = project_performance_occurrences(parse_score_semantics(xml))
     assert projection.end == Fraction(4, 3)
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 889
+    assert performed_duration_ms(xml) == 889
 
 
 def test_projected_facts_at_end_execute_before_repeat_destination_facts():

@@ -1,3 +1,4 @@
+from tests.support.performance_plan import performed_duration_ms
 from fractions import Fraction
 import xml.etree.ElementTree as ET
 
@@ -161,7 +162,6 @@ def test_canonical_practice_and_metadata_share_sound_playback_position(notation,
     assert metadata.tempo_events == [
         TempoEvent(part=1, measure="1", offset_quarters=position, bpm=60)
     ]
-    assert metadata.playback_duration_ms == position * 750 + (4 - position) * 1000
 
 
 @pytest.mark.parametrize("flag, position", [("", 1), (' sound="no"', 1), (' sound="yes"', 2)])
@@ -212,13 +212,12 @@ def test_offset_position_agrees_in_practice_metadata_and_duration(before, offset
     assert [(t.start_tick, t.bpm) for t in compiled.tempo_segments] == [(2, 60)]
     metadata = extract_musicxml_metadata(xml)
     assert metadata.tempo_events == [TempoEvent(part=1, measure="1", offset_quarters=2, bpm=60)]
-    assert metadata.playback_duration_ms == 3500  # 2 quarters at 80, then 2 at 60.
 
 
 def test_missing_and_late_tempo_do_not_backfill_the_initial_default():
-    assert extract_musicxml_metadata(score(rest(8))).playback_duration_ms == 3000
+    assert performed_duration_ms(score(rest(8))) == 3000
     xml = score(rest(4) + "<direction>" + metronome(rate="90") + "</direction>" + rest(4))
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 2833
+    assert performed_duration_ms(xml) == 2833
     assert [(t.start_tick, t.bpm) for t in compile_practice_score(xml).tempo_segments] == [(2, 90)]
 
 

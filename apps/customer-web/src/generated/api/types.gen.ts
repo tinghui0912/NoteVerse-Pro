@@ -1023,10 +1023,6 @@ export type MetadataRead = {
      */
     part_count: number | null;
     /**
-     * Playback Duration Ms
-     */
-    playback_duration_ms: number | null;
-    /**
      * Primary Key Fifths
      */
     primary_key_fifths: number | null;

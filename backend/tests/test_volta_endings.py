@@ -1,5 +1,7 @@
 """Whole-measure volta traversal, fact encounters and renderer conformance."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from fractions import Fraction
 from dataclasses import replace
 
@@ -8,7 +10,7 @@ import verovio
 
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.core.exceptions import ValidationException
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.score_semantics.musicxml_score import MusicXMLSemanticError, parse_score_semantics
 from app.score_semantics.performance_navigation import (
@@ -113,7 +115,7 @@ def test_official_style_volta_derives_pass_count_without_repeat_times(plays):
 @pytest.mark.parametrize("reset,expected", [(False, 10200), (True, 11400)])
 def test_tempo_state_follows_visited_endings_and_explicit_common_markings(reset, expected):
     xml = score(volta(common_tempo=tempo(80) if reset else "", back_tempo=tempo(100)))
-    assert extract_musicxml_metadata(xml).playback_duration_ms == expected
+    assert performed_duration_ms(xml) == expected
 
 
 @pytest.mark.parametrize(
@@ -274,8 +276,7 @@ def test_unknown_or_incomplete_or_overlapping_pass_coverage_is_not_guessed(back,
     model = parse_score_semantics(admit_musicxml_document(xml.encode()))
     with pytest.raises(PerformanceNavigationError):
         project_performance_occurrences(model)
-    with pytest.raises(MetadataExtractionError):
-        extract_musicxml_metadata(xml)
+    assert extract_musicxml_metadata(xml).measure_count > 0
 
 
 @pytest.mark.parametrize(
@@ -340,7 +341,7 @@ def test_endpoint_fact_precedes_jump_and_final_ending_start_only_executes_on_ent
     projection = project_performance_occurrences(model)
     facts = projection.project_facts([WrittenPerformanceFact(t.point, t) for t in model.tempos])
     assert [(f.position, f.value.quarter_bpm) for f in facts] == [(8, 100), (12, 60)]
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 12400
+    assert performed_duration_ms(xml) == 12400
 
 
 def test_common_and_ending_facts_replay_only_on_their_own_visits():

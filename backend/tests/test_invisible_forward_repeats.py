@@ -1,5 +1,7 @@
 """Representation-neutral repeat starts with exact source ownership."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from fractions import Fraction
 
 import pytest
@@ -8,7 +10,7 @@ import verovio
 
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
@@ -45,7 +47,7 @@ def test_no_jump_invisible_start_matches_visible_repeat(times, plays, policy):
     result = projection(xml)
     assert result == projection(explicit)
     assert [o.measure_index for o in result.occurrences] == [0, 1] * plays
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 6000 * plays
+    assert performed_duration_ms(xml) == 6000 * plays
     assert len(compile_practice_score(xml).notes) == 8
 
 
@@ -54,7 +56,7 @@ def test_no_jump_invisible_start_matches_visible_repeat(times, plays, policy):
 def test_post_jump_invisible_context_is_the_same_program(kind, policy, duration):
     xml = jump_score(policy=policy, kind=kind)
     assert projection(xml) == projection(jump_score(VISIBLE, policy, kind))
-    assert extract_musicxml_metadata(xml).playback_duration_ms == duration
+    assert performed_duration_ms(xml) == duration
 
 
 @pytest.mark.parametrize("markup", [VISIBLE + INVISIBLE, INVISIBLE * 2, VISIBLE + INVISIBLE * 2])
@@ -89,7 +91,7 @@ def test_destination_metadata_and_invisible_start_share_one_source_event(label):
 @pytest.mark.parametrize("policy,duration", [("yes", 30000), ("no", 24000)])
 def test_ds_can_enter_exact_invisible_start_with_destination_on_same_sound(policy, duration):
     xml = jump_score(sound('forward-repeat="yes" segno="S1"'), policy, "ds")
-    assert extract_musicxml_metadata(xml).playback_duration_ms == duration
+    assert performed_duration_ms(xml) == duration
     assert projection(xml) == projection(jump_score(VISIBLE, policy, "ds"))
 
 
@@ -114,8 +116,7 @@ def test_reachable_missing_post_jump_policy_is_not_filled_in(kind):
     xml = jump_score(kind=kind)
     with pytest.raises(PerformanceNavigationError, match="ambiguous_repeat_after_jump"):
         projection(xml)
-    with pytest.raises(MetadataExtractionError, match="ambiguous_repeat_after_jump"):
-        extract_musicxml_metadata(xml)
+    assert extract_musicxml_metadata(xml).measure_count > 0
 
 
 def test_invisible_repeat_before_ds_target_needs_no_post_jump_policy():
@@ -128,7 +129,7 @@ def test_invisible_repeat_before_ds_target_needs_no_post_jump_policy():
         ]
     )
     assert projection(xml) == projection(xml.replace(INVISIBLE, VISIBLE))
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 18000
+    assert performed_duration_ms(xml) == 18000
 
 
 @pytest.mark.parametrize("after_coda", [False, True])
@@ -302,10 +303,7 @@ def test_tempo_replay_is_independent_of_start_representation(reset, policy):
         )
 
     assert tempos(xml) == tempos(explicit)
-    assert (
-        extract_musicxml_metadata(xml).playback_duration_ms
-        == extract_musicxml_metadata(explicit).playback_duration_ms
-    )
+    assert performed_duration_ms(xml) == performed_duration_ms(explicit)
 
 
 @pytest.mark.parametrize("policy", [None, "yes", "no"])

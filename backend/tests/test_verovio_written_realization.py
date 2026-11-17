@@ -1,5 +1,7 @@
 """Playback source fidelity is shared; canonical admission remains broader."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from unittest.mock import patch
 
 import pytest
@@ -9,7 +11,6 @@ from app.modules.playback.performance_plan_service import compile_performance_pl
 from app.processing.engines.playback.verovio_midi import VerovioMidiCompiler
 from app.processing.engines.playback.standard_midi import parse_standard_midi
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import parse_score_semantics
 from tests.support.written_realization_sources import (
     SOURCES,
@@ -64,7 +65,7 @@ def test_faithful_sources_reach_both_playback_consumers(name):
 
 @pytest.mark.parametrize("name", ["microtonal", "directionDynamics", "multipleInstruments"])
 def test_metadata_does_not_require_sound_realization(name):
-    assert extract_musicxml_metadata(SOURCES[name]).playback_duration_ms == 3000
+    assert performed_duration_ms(SOURCES[name]) == 3000
 
 
 @pytest.mark.parametrize("xml", [with_sound(s) for s in LOSSY_SOUND_CONTROLS] + [SWING_SOURCE])

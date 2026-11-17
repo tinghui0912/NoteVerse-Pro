@@ -1,5 +1,7 @@
 """Explicit per-region repeat policy on exact pre/post-primary traversal legs."""
 
+from tests.support.performance_plan import performed_duration_ms
+
 from fractions import Fraction
 
 import pytest
@@ -8,7 +10,7 @@ import verovio
 
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.processing.musicxml.metadata import MetadataExtractionError, extract_musicxml_metadata
+from app.processing.musicxml.metadata import extract_musicxml_metadata
 from app.score_semantics.musicxml_score import parse_score_semantics
 from app.score_semantics.performance_navigation import (
     PerformanceNavigationError,
@@ -44,7 +46,7 @@ def test_explicit_post_jump_policy_changes_only_the_post_primary_repeat_count(
         expected.append((index, visits[index], index * 4, end))
     assert intervals(result) == expected
     assert result.end == Fraction(total)
-    assert extract_musicxml_metadata(xml).playback_duration_ms == duration
+    assert performed_duration_ms(xml) == duration
     assert len(compile_practice_score(xml).notes) == 16
 
 
@@ -55,8 +57,7 @@ def test_reachable_post_jump_repeat_with_absent_policy_is_ambiguous(kind):
     assert model.repeats[-1].after_jump is None
     with pytest.raises(PerformanceNavigationError, match="ambiguous_repeat_after_jump"):
         project_performance_occurrences(model)
-    with pytest.raises(MetadataExtractionError, match="ambiguous_repeat_after_jump"):
-        extract_musicxml_metadata(xml)
+    assert extract_musicxml_metadata(xml).measure_count > 0
 
 
 @pytest.mark.parametrize("policy", ["yes", "no"])
@@ -66,7 +67,7 @@ def test_no_jump_repeat_ignores_post_jump_policy(policy, times, plays):
         [measure(0, {0: repeat("forward")}), measure(1, {4: repeat("backward", policy, times)})]
     )
     assert [o.measure_index for o in projection(xml).occurrences] == [0, 1] * plays
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 6000 * plays
+    assert performed_duration_ms(xml) == 6000 * plays
 
 
 @pytest.mark.parametrize("policy,passes,total", [("yes", 6, 56), ("no", 4, 40)])
@@ -85,7 +86,7 @@ def test_repeat_before_ds_target_needs_no_unencountered_post_jump_policy():
     result = projection(xml)
     assert [o.measure_index for o in result.occurrences] == [0, 1, 0, 1, 2, 3, 2]
     assert result.end == 24
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 18000
+    assert performed_duration_ms(xml) == 18000
 
 
 @pytest.mark.parametrize("policy,expected", [("yes", 33000), ("no", 27000)])
@@ -99,7 +100,7 @@ def test_ds_target_at_non_origin_forward_boundary_can_enter_the_complete_repeat(
             measure(4, {2: sound('dalsegno="S1"')}),
         ]
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == expected
+    assert performed_duration_ms(xml) == expected
 
 
 def test_ds_target_before_repeat_start_keeps_its_partial_prefix_and_complete_repeat():
@@ -115,7 +116,7 @@ def test_ds_target_before_repeat_start_keeps_its_partial_prefix_and_complete_rep
     result = projection(xml)
     assert intervals(result)[7] == (0, 2, 1, 4)
     assert result.end == 47
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 35250
+    assert performed_duration_ms(xml) == 35250
 
 
 def test_sequential_contexts_keep_individual_post_jump_policies():
@@ -150,7 +151,7 @@ def test_sequential_contexts_keep_individual_post_jump_policies():
         4,
     ]
     assert result.end == 64
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 48000
+    assert performed_duration_ms(xml) == 48000
 
 
 @pytest.mark.parametrize("policy,total", [("yes", 44), ("no", 36), (None, None)])
@@ -169,7 +170,7 @@ def test_post_primary_repeat_before_tocoda_uses_after_jump(policy, total):
             projection(xml)
     else:
         assert projection(xml).end == total
-        assert extract_musicxml_metadata(xml).playback_duration_ms == total * 750
+        assert performed_duration_ms(xml) == total * 750
 
 
 @pytest.mark.parametrize("policy,total", [("yes", 36), ("no", 28), (None, None)])
@@ -243,7 +244,7 @@ def test_primary_at_next_measure_start_is_after_the_completed_repeat():
     assert (2, 1, Fraction(8), Fraction(8)) in intervals(result)
     assert result.end == 34
     assert result.project_position(WrittenPoint(2, Fraction(8))) == (Fraction(16), Fraction(32))
-    assert extract_musicxml_metadata(xml).playback_duration_ms == 25500
+    assert performed_duration_ms(xml) == 25500
 
 
 def test_post_jump_leg_ending_at_forward_boundary_has_not_encountered_backward_repeat():
@@ -322,7 +323,7 @@ def test_tempo_carries_until_an_actual_repeat_start_fact_reexecutes(policy, rese
     assert [f.position for f in facts if f.value == 80] == (
         ([0, 8, 22, 30] if policy == "yes" else [0, 8, 22]) if reset else []
     )
-    assert extract_musicxml_metadata(xml).playback_duration_ms == expected
+    assert performed_duration_ms(xml) == expected
 
 
 @pytest.mark.parametrize("policy", ["yes", "no"])
