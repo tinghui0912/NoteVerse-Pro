@@ -80,5 +80,5 @@ export async function scoresDeleted(client: QueryClient, scoreIds: readonly stri
 }
 
 export function guestPreviewSettingsUpdated(client: QueryClient, scoreId: string, settings: GuestPreviewSettingsRead) {
-  client.setQueryData(queryKeys.scores.guestPreviewSettings(scoreId), settings);
+  client.setQueryData(queryKeys.scores.guestPreviewSettings(scoreId), { enabled: settings.enabled, issued_at: settings.issued_at });
 }

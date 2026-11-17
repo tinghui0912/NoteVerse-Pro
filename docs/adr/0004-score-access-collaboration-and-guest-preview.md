@@ -49,16 +49,26 @@ Authenticated generated playback requires PRACTICE. Presentation image viewing i
 inline VIEW access, separate from DOWNLOAD. Score membership confers no visibility
 into another user's personal practice data.
 
-Each Score owns one cryptographically random, stable Guest Preview token and an enabled
-flag. Only the owner can read the link or enable/disable access. Disabling and
-re-enabling preserve the same token. The token is persisted on Score and is excluded
-from generic Score responses and logs. Guest Preview has no expiry, revision pin or
-link history.
+Score does not store Guest Preview credentials. At most one active
+GuestPreviewCredential exists per Score; its presence enables bearer access. The
+secret is high entropy and persisted only as a SHA-256 lookup hash. Only the owner
+can issue, revoke or rotate it. Issue and rotate reveal plaintext once; settings
+expose only enabled state and issue time. Revoke immediately removes active
+authority, and re-enable issues a fresh credential. Rotation invalidates the
+previous link. Credential commands lock Score before the credential, without
+changing Score metadata version or recency. There is no expiry, revision pin or
+credential history.
+
+The owner UI keeps a newly revealed link only in transient component/mutation
+memory. Settings caches contain no secret. Reloading shows enabled state with the
+secret hidden; rotating supplies a new link when the owner needs one. Settings,
+credential commands and bearer responses, including errors, are private, no-store.
 
 ## Presentation boundary
 
 Guest Preview resolves the current Score head on every read, image and playback
-request. It serves only that head's rendered pages inline and generated audio for
+request. It serves only that head's `SCORE_PRESENTATION_RENDER_PROFILE` rendered
+pages inline and generated audio for
 listening. Missing current-head assets remain unavailable; another revision is never
 a fallback. A page identifier obtained before a head change cannot deliver the old
 revision. Shared attribution comes from the Score owner. The response contains no

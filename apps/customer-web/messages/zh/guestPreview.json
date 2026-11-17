@@ -17,5 +17,10 @@
   "enabled": "已开启",
   "disabled": "已关闭",
   "enable": "开启访客预览",
-  "disable": "关闭访客预览"
+  "disable": "关闭访客预览",
+  "secretHidden": "当前私密链接已隐藏。",
+  "rotateWarning": "轮换后，之前的链接将立即失效。",
+  "rotate": "轮换访客预览链接",
+  "newLink": "新的访客预览链接",
+  "oneTimeReveal": "出于安全考虑，此链接仅在此刻显示。如果丢失，请轮换链接。"
 }

@@ -2,7 +2,6 @@ import { guestPreviewSettingsUpdated } from '@/lib/cache-effects/scores';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { guestPreviewApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import type { GuestPreviewUpdateRequest } from '@/generated/api';
 
 export function useGuestPreview(token: string) {
   return useQuery({
@@ -21,12 +20,31 @@ export function useGuestPreviewSettings(scoreId: string) {
   });
 }
 
-export function useUpdateGuestPreviewSettings(scoreId: string) {
+export function useIssueGuestPreviewCredential(scoreId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (input: GuestPreviewUpdateRequest) =>
-      guestPreviewApi.updateSettings(scoreId, input),
-    onSuccess: (settings) =>
-      guestPreviewSettingsUpdated(client, scoreId, settings),
+    mutationFn: () => guestPreviewApi.issueCredential(scoreId),
+    gcTime: 0,
+    onSuccess: ({ issued_at }) =>
+      guestPreviewSettingsUpdated(client, scoreId, { enabled: true, issued_at }),
+  });
+}
+
+export function useRotateGuestPreviewCredential(scoreId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => guestPreviewApi.rotateCredential(scoreId),
+    gcTime: 0,
+    onSuccess: ({ issued_at }) =>
+      guestPreviewSettingsUpdated(client, scoreId, { enabled: true, issued_at }),
+  });
+}
+
+export function useRevokeGuestPreviewCredential(scoreId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => guestPreviewApi.revokeCredential(scoreId),
+    onSuccess: () =>
+      guestPreviewSettingsUpdated(client, scoreId, { enabled: false, issued_at: null }),
   });
 }

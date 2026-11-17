@@ -17,5 +17,10 @@
   "enabled": "Enabled",
   "disabled": "Disabled",
   "enable": "Enable Guest Preview",
-  "disable": "Disable Guest Preview"
+  "disable": "Disable Guest Preview",
+  "secretHidden": "The current secret link is hidden.",
+  "rotateWarning": "Rotating immediately invalidates the previous link.",
+  "rotate": "Rotate Guest Preview link",
+  "newLink": "New Guest Preview link",
+  "oneTimeReveal": "For security, this link is only shown now. If you lose it, rotate the link."
 }

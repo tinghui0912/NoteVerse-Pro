@@ -52,7 +52,6 @@ def forbid_observations(storage, monkeypatch):
 @pytest.fixture
 def admitted(preview_context, monkeypatch):
     db, storage, score, _, guest = preview_context
-    score.guest_preview_enabled = True
     content = b'<score-partwise version="4.0"><part-list/></score-partwise>'
     blob = object_from_bytes(
         object_key="source.xml", content=content, content_type="application/xml"
@@ -133,14 +132,12 @@ def test_admitted_asset_lists_deliveries_and_review_use_database_facts(admitted)
     )
     assert assets.render_asset_access_url(db, page.asset_uuid, 1).asset_id == page.asset_uuid
     assert assets.source_access_url(db, source.source_uuid, 1).asset_id == source.source_uuid
-    preview = guest.read(db, score.guest_preview_token)
+    token = guest.issue_credential(db, score.score_uuid, 1).token
+    preview = guest.read(db, token)
     assert [item.asset_id for item in preview.render_assets] == [
         page.asset_uuid
     ] and preview.audio_available
-    assert (
-        guest.image(db, score.guest_preview_token, page.asset_uuid).byte_size
-        == page.stored_object.byte_size
-    )
+    assert guest.image(db, token, page.asset_uuid).byte_size == page.stored_object.byte_size
     playback = PlaybackDeliveryReadModel(access_policy=ScoreAccessPolicy()).delivery_for_revision(
         db, 901
     )
@@ -165,7 +162,8 @@ def test_physical_loss_preserves_admitted_assets_and_product_readiness(admitted)
     storage.objects.clear()
     listed = ScoreAssetService(storage=storage).list_revision_assets(db, score.score_uuid, 1)
     assert len(listed.revision_sources) == len(listed.render_assets) == 1
-    preview = guest.read(db, score.guest_preview_token)
+    token = guest.issue_credential(db, score.score_uuid, 1).token
+    preview = guest.read(db, token)
     assert len(preview.render_assets) == 1 and preview.audio_available
     state = ScoreService(storage=storage).get(db, score.score_uuid, 1).derived_assets
     assert state.preview.status == state.audio.status == "ready"

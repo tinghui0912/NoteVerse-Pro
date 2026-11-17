@@ -1,5 +1,12 @@
 """Real PostgreSQL head-writer / final-admission serialization for both derivatives."""
 
+from app.db.models import GuestPreviewCredential
+from app.modules.guest_previews.credentials import (
+    issue_guest_preview_token,
+    guest_preview_token_hash,
+)
+
+
 from tests.support.storage_state import provision_storage_users
 
 from app.shared.time import utc_now
@@ -66,11 +73,16 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                 score_uuid="race-score",
                 display_title="Race",
                 owner_user_id=user_id,
-                guest_preview_enabled=True,
             )
             seed.add(score)
             seed.flush()
             score_id = score.id
+            seed.add(
+                GuestPreviewCredential(
+                    score_id=score_id,
+                    token_hash=guest_preview_token_hash(issue_guest_preview_token()),
+                )
+            )
             rows = [
                 ScoreRevision(
                     revision_uuid=f"race-r{n}",

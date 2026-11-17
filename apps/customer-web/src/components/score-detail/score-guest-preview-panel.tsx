@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   useGuestPreviewSettings,
-  useUpdateGuestPreviewSettings,
+  useIssueGuestPreviewCredential,
+  useRevokeGuestPreviewCredential,
+  useRotateGuestPreviewCredential,
 } from '@/hooks/guest-preview/use-guest-preview';
 import { routing } from '@/i18n/routing';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
@@ -17,11 +19,16 @@ export function ScoreGuestPreviewPanel({ scoreId }: { scoreId: string }) {
   const locale = useLocale();
   const [feedback, setFeedback] = useState('');
   const settings = useGuestPreviewSettings(scoreId);
-  const update = useUpdateGuestPreviewSettings(scoreId);
+  const issue = useIssueGuestPreviewCredential(scoreId);
+  const revoke = useRevokeGuestPreviewCredential(scoreId);
+  const rotate = useRotateGuestPreviewCredential(scoreId);
+  const [revealed, setRevealed] = useState<{ scoreId: string; token: string } | null>(null);
+  const revealedToken = revealed?.scoreId === scoreId ? revealed.token : null;
+  const pending = issue.isPending || revoke.isPending || rotate.isPending;
   const data = settings.data;
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
-  const link = data
-    ? `${origin}${locale === routing.defaultLocale ? '' : `/${locale}`}/preview/${data.token}`
+  const link = data?.enabled && revealedToken
+    ? `${origin}${locale === routing.defaultLocale ? '' : `/${locale}`}/preview/${revealedToken}`
     : '';
   const showError = (error: unknown) =>
     setFeedback(userFacingErrorMessage(errors, error, t('failed')));
@@ -35,25 +42,38 @@ export function ScoreGuestPreviewPanel({ scoreId }: { scoreId: string }) {
       {data ? (
         <>
           <p>{data.enabled ? t('enabled') : t('disabled')}</p>
-          <Button
-            disabled={update.isPending}
-            onClick={() => update.mutate({ enabled: !data.enabled }, { onError: showError })}
-          >
-            {data.enabled ? t('disable') : t('enable')}
-          </Button>
-          <div className="flex gap-2">
-            <Input aria-label={t('link')} readOnly value={link} />
-            <Button
-              onClick={() => {
-                void navigator.clipboard
-                  .writeText(link)
-                  .then(() => setFeedback(t('copied')))
-                  .catch(showError);
-              }}
-            >
-              {t('copy')}
-            </Button>
-          </div>
+          {data.enabled ? (
+            <>
+              {!revealedToken ? <p>{t('secretHidden')}</p> : null}
+              <p className="text-sm text-muted-foreground">{t('rotateWarning')}</p>
+              <Button disabled={pending} onClick={() => rotate.mutate(undefined, {
+                onSuccess: ({ token }) => { setRevealed({ scoreId, token }); setFeedback(''); rotate.reset(); },
+                onError: showError,
+              })}>{t('rotate')}</Button>
+              <Button disabled={pending} onClick={() => revoke.mutate(undefined, {
+                onSuccess: () => { setRevealed(null); setFeedback(''); issue.reset(); rotate.reset(); },
+                onError: showError,
+              })}>{t('disable')}</Button>
+            </>
+          ) : (
+            <Button disabled={pending} onClick={() => issue.mutate(undefined, {
+              onSuccess: ({ token }) => { setRevealed({ scoreId, token }); setFeedback(''); issue.reset(); },
+              onError: showError,
+            })}>{t('enable')}</Button>
+          )}
+          {link ? (
+            <div className="space-y-2">
+              <p>{t('newLink')}</p>
+              <p className="text-sm text-muted-foreground">{t('oneTimeReveal')}</p>
+              <div className="flex gap-2">
+                <Input aria-label={t('link')} readOnly value={link} />
+                <Button onClick={() => {
+                  void navigator.clipboard.writeText(link)
+                    .then(() => setFeedback(t('copied'))).catch(showError);
+                }}>{t('copy')}</Button>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : null}
       {feedback ? <p role="status">{feedback}</p> : null}

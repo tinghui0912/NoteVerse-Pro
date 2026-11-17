@@ -23,7 +23,6 @@ from app.modules.scores.service import ScoreService
 from app.modules.playback.delivery import PlaybackDeliveryReadModel
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.guest_previews.service import GuestPreviewService
-from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
 from app.modules.storage_usage.service import storage_usage_service
 from app.shared.error_codes import CustomerErrorCode
 from tests.test_revision_derivative_demand import revisions as revisions
@@ -77,8 +76,8 @@ def test_head_projection_and_playback_do_not_read_other_revision(revisions):
 def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode):
     db, storage, score, rows = revisions
     keys = seed_assets(db, storage, rows)
-    score.guest_preview_enabled = enabled
-    db.commit()
+    if enabled:
+        GuestPreviewService(storage=storage).issue_credential(db, score.score_uuid, 1)
     cleanup = DerivedAssetRetentionService()
     if mode == "async":
         result = cleanup.cleanup_for_score(db, score_id=score.id)
@@ -127,14 +126,7 @@ def test_background_retention_disposes_old_head_while_new_derivatives_are_pendin
     token = None
     previews = GuestPreviewService(storage=storage)
     if active_preview:
-        token = (
-            previews.update_settings(
-                db,
-                score.score_uuid,
-                1,
-                GuestPreviewUpdateRequest(enabled=True),
-            )
-        ).token
+        token = (previews.issue_credential(db, score.score_uuid, 1)).token
     created = RevisionService(storage=storage).create(
         db,
         score.score_uuid,

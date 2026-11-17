@@ -56,6 +56,8 @@ class CustomerErrorCode(StrEnum):
     NO_FILE_SELECTED = "no_file_selected"
     STORAGE_QUOTA_EXCEEDED = "storage_quota_exceeded"
     QUOTA_CHECK_UNAVAILABLE = "quota_check_unavailable"
+    GUEST_PREVIEW_ALREADY_ENABLED = "guest_preview_already_enabled"
+    GUEST_PREVIEW_NOT_ENABLED = "guest_preview_not_enabled"
     GUEST_PREVIEW_NOT_FOUND = "guest_preview_not_found"
     INVITE_NOT_FOUND = "invite_not_found"
     INVITE_EXPIRED = "invite_expired"

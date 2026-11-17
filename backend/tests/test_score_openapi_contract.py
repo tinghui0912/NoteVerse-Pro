@@ -125,7 +125,9 @@ def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None
     }
     assert operations == {
         ("get", "/api/v1/scores/{score_id}/guest-preview"),
-        ("patch", "/api/v1/scores/{score_id}/guest-preview"),
+        ("post", "/api/v1/scores/{score_id}/guest-preview/credential"),
+        ("delete", "/api/v1/scores/{score_id}/guest-preview/credential"),
+        ("post", "/api/v1/scores/{score_id}/guest-preview/credential/rotate"),
         ("get", "/api/v1/guest-previews/{token}"),
         ("get", "/api/v1/guest-previews/{token}/render-assets/{asset_id}/view"),
         ("get", "/api/v1/guest-previews/{token}/playback"),
@@ -137,9 +139,11 @@ def test_guest_preview_contract_is_presentation_only(client: TestClient) -> None
         "render_assets",
         "audio_available",
     }
-    assert set(components["GuestPreviewUpdateRequest"]["properties"]) == {"enabled"}
-    assert components["GuestPreviewUpdateRequest"]["additionalProperties"] is False
-    assert set(components["GuestPreviewSettingsRead"]["properties"]) == {"enabled", "token"}
+    assert set(components["GuestPreviewCredentialIssuedRead"]["properties"]) == {
+        "token",
+        "issued_at",
+    }
+    assert set(components["GuestPreviewSettingsRead"]["properties"]) == {"enabled", "issued_at"}
 
 
 def test_collaboration_role_contract_is_least_privilege(client: TestClient) -> None:

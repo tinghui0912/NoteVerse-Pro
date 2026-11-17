@@ -53,6 +53,8 @@ export const CUSTOMER_ERROR_MESSAGE_KEYS = {
   no_file_selected: 'no_file_selected',
   storage_quota_exceeded: 'storage_quota_exceeded',
   quota_check_unavailable: 'quota_check_unavailable',
+  guest_preview_already_enabled: 'guest_preview_already_enabled',
+  guest_preview_not_enabled: 'guest_preview_not_enabled',
   guest_preview_not_found: 'guest_preview_not_found',
   invite_not_found: 'invite_not_found',
   invite_expired: 'invite_expired',

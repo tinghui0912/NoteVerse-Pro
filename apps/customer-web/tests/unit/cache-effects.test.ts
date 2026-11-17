@@ -87,7 +87,7 @@ describe('Score semantic consequences', () => {
   });
   it('replaces only the exact Guest Preview settings representation', () => {
     const target = seed(keys.scores.guestPreviewSettings('a')); const other = seed(keys.scores.guestPreviewSettings('b'));
-    const publicPreview = seed(keys.scores.guestPreview('token')); const settings = { token: 'token', enabled: true };
+    const publicPreview = seed(keys.scores.guestPreview('token')); const settings = { enabled: true, issued_at: '2026-11-17T00:00:00Z' };
     guestPreviewSettingsUpdated(client, 'a', settings);
     expect(client.getQueryData(target)).toEqual(settings);
     expect(client.getQueryData(other)).toEqual({ cached: true }); expect(stale(publicPreview)).toBe(false);

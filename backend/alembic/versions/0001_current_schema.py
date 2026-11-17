@@ -1548,8 +1548,6 @@ def upgrade() -> None:
         sa.Column("score_uuid", sa.String(length=36), nullable=False),
         sa.Column("owner_user_id", sa.BigInteger(), nullable=False),
         sa.Column("display_title", sa.String(length=255), nullable=False),
-        sa.Column("guest_preview_token", sa.String(length=64), nullable=False),
-        sa.Column("guest_preview_enabled", sa.Boolean(), nullable=False),
         sa.Column(
             "genres",
             sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"),
@@ -1574,7 +1572,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_scores"),
         sa.UniqueConstraint("originating_job_id", name="uq_scores_originating_job_id"),
         sa.UniqueConstraint("score_uuid", name="uq_scores_score_uuid"),
-        sa.UniqueConstraint("guest_preview_token", name="uq_scores_guest_preview_token"),
     )
     op.create_index(
         "idx_scores_owner_active_updated",
@@ -1584,6 +1581,25 @@ def upgrade() -> None:
     )
     op.create_index(
         "idx_scores_owner_updated", "scores", ["owner_user_id", "updated_at"], unique=False
+    )
+    op.create_table(
+        "guest_preview_credentials",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
+        sa.Column("score_id", sa.BigInteger(), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column("issued_at", sa.DateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_guest_preview_credentials"),
+        sa.ForeignKeyConstraint(
+            ["score_id"],
+            ["scores.id"],
+            ondelete="CASCADE",
+            name="fk_guest_preview_credentials_score_id_scores",
+        ),
+        sa.UniqueConstraint("score_id", name="uq_guest_preview_credentials_score_id"),
+        sa.UniqueConstraint("token_hash", name="uq_guest_preview_credentials_token_hash"),
+        sa.CheckConstraint(
+            "length(token_hash) = 64", name="ck_guest_preview_credentials_hash_length"
+        ),
     )
     op.create_table(
         "score_deletion_operations",
@@ -2687,6 +2703,7 @@ def downgrade() -> None:
     op.drop_index("idx_score_deletion_due", table_name="score_deletion_operations")
     op.drop_table("score_deletion_operations")
     op.drop_index("idx_scores_owner_active_updated", table_name="scores")
+    op.drop_table("guest_preview_credentials")
     op.drop_table("scores")
     op.drop_index(
         "ix_take_upload_reservation_status_expires",

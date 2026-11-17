@@ -9,7 +9,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.guest_previews.dependencies import get_guest_preview_service
 from app.modules.guest_previews.schemas import (
-    GuestPreviewUpdateRequest,
+    GuestPreviewCredentialIssuedRead,
     GuestPreviewSettingsRead,
     GuestPreviewRead,
 )
@@ -34,20 +34,51 @@ def read_guest_preview_settings(
     return service.settings(db, score_id, require_persisted_id(current_user.id, entity="user"))
 
 
-@score_router.patch(
-    "/{score_id}/guest-preview",
-    operation_id="scoreGuestPreviewSettingsUpdate",
-    response_model=GuestPreviewSettingsRead,
+@score_router.post(
+    "/{score_id}/guest-preview/credential",
+    operation_id="scoreGuestPreviewCredentialIssue",
+    response_model=GuestPreviewCredentialIssuedRead,
 )
-def update_guest_preview_settings(
+def issue_credential(
     score_id: str,
-    request: GuestPreviewUpdateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
-    return service.update_settings(
-        db, score_id, require_persisted_id(current_user.id, entity="user"), request
+    return service.issue_credential(
+        db, score_id, require_persisted_id(current_user.id, entity="user")
+    )
+
+
+@score_router.delete(
+    "/{score_id}/guest-preview/credential",
+    operation_id="scoreGuestPreviewCredentialRevoke",
+    status_code=204,
+    response_class=Response,
+)
+def revoke_credential(
+    score_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db, scope="function"),
+    service: GuestPreviewService = Depends(get_guest_preview_service),
+):
+    service.revoke_credential(db, score_id, require_persisted_id(current_user.id, entity="user"))
+    return Response(status_code=204)
+
+
+@score_router.post(
+    "/{score_id}/guest-preview/credential/rotate",
+    operation_id="scoreGuestPreviewCredentialRotate",
+    response_model=GuestPreviewCredentialIssuedRead,
+)
+def rotate_credential(
+    score_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db, scope="function"),
+    service: GuestPreviewService = Depends(get_guest_preview_service),
+):
+    return service.rotate_credential(
+        db, score_id, require_persisted_id(current_user.id, entity="user")
     )
 
 

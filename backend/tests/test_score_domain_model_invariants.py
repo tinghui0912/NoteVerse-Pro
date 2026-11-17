@@ -204,16 +204,6 @@ def test_metadata_status_requires_a_classified_failure(score_session: Session) -
     )
 
 
-def test_score_guest_preview_token_is_unique(score_session: Session) -> None:
-    first = score_session.get(Score, 10)
-    second = score_session.get(Score, 11)
-    assert first.guest_preview_token != second.guest_preview_token
-    second.guest_preview_token = first.guest_preview_token
-    with pytest.raises(IntegrityError):
-        score_session.commit()
-    score_session.rollback()
-
-
 def test_membership_and_library_organization_are_unique_per_user(
     score_session: Session,
 ) -> None:

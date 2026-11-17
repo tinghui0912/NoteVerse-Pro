@@ -36,7 +36,6 @@ from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.guest_previews.service import GuestPreviewService
-from app.modules.guest_previews.schemas import GuestPreviewUpdateRequest
 from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.score_assets.derived_assets import derived_asset_status
@@ -125,8 +124,8 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
     revisions, monkeypatch, enabled
 ):
     db, storage, score, rows = revisions
-    score.guest_preview_enabled = enabled
-    db.commit()
+    if enabled:
+        GuestPreviewService(storage=storage).issue_credential(db, score.score_uuid, 1)
     from app.worker.execution import score_revision_render_outbox, playback_outbox
 
     @contextmanager
@@ -363,7 +362,10 @@ def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
     monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", relay)
     service = GuestPreviewService(storage=storage)
     for enabled in [True, False]:
-        service.update_settings(db, score.score_uuid, 1, GuestPreviewUpdateRequest(enabled=enabled))
+        if enabled:
+            service.issue_credential(db, score.score_uuid, 1)
+        else:
+            service.revoke_credential(db, score.score_uuid, 1)
         assert db.scalar(select(func.count()).select_from(ScoreRevisionRenderOutbox)) == 3
         assert db.scalar(select(func.count()).select_from(PlaybackOutbox)) == 3
         for model, identity, status, attempt in snapshot:

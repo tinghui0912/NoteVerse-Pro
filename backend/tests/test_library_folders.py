@@ -51,8 +51,14 @@ def workspace(score_service_session):
         for i, name in [(10, "A"), (20, "B"), (30, "C")]
     ]
     scores[1].owner_user_id = scores[2].owner_user_id = 2
-    scores[2].guest_preview_enabled = True
-    scores[2].guest_preview_token = "link-only"
+    from app.db.models import GuestPreviewCredential
+    from app.modules.guest_previews.credentials import guest_preview_token_hash
+
+    db.add(
+        GuestPreviewCredential(
+            score_id=scores[2].id, token_hash=guest_preview_token_hash("link-only")
+        )
+    )
     member = ScoreMembership(
         score_id=20, user_id=1, role=MembershipRole.VIEWER, created_by_user_id=2
     )

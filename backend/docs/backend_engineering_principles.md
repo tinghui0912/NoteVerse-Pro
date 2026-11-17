@@ -434,7 +434,7 @@ For score-domain changes, add focused coverage for the relevant behavior:
 - revision ordering, conflict, approval, immutable sources, and restore semantics;
 - metadata extraction, rebuild, and failure states;
 - authorization matrix for owner/member access and anonymous Guest Preview paths;
-- Guest Preview stable-token settings, current-head isolation and presentation boundaries;
+- Guest Preview hash-only credential lifecycle, one-time reveal, current-head and canonical-profile presentation boundaries;
 - revision-bound `PracticeScoreArtifact`, practice-ready content, and target/source
   delivery;
 - browser-local active Practice state remains outside backend session authority;

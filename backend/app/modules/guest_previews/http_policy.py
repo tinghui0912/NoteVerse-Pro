@@ -20,7 +20,7 @@ class GuestPreviewCachePolicyMiddleware:
             or not path.startswith(self.api_prefix)
             or not (
                 parts[0] == "guest-previews"
-                or (len(parts) == 3 and parts[0] == "scores" and parts[2] == "guest-preview")
+                or (len(parts) >= 3 and parts[0] == "scores" and parts[2] == "guest-preview")
             )
         ):
             await self.app(scope, receive, send)

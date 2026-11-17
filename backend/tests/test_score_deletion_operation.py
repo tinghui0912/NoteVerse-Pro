@@ -382,8 +382,6 @@ def test_postgres_operation_constraints_indexes_and_retention(postgres_score):
         "score_uuid",
         "owner_user_id",
         "display_title",
-        "guest_preview_token",
-        "guest_preview_enabled",
         "genres",
         "head_revision_id",
         "originating_job_id",

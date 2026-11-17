@@ -13,14 +13,18 @@ import errors from '@/../messages/en/errors.json';
 
 const api = vi.hoisted(() => ({
   getSettings: vi.fn(),
-  updateSettings: vi.fn(),
+  issueCredential: vi.fn(),
+  revokeCredential: vi.fn(),
+  rotateCredential: vi.fn(),
   read: vi.fn(),
   copy: vi.fn(),
 }));
 vi.mock('@/lib/api', () => ({
   guestPreviewApi: {
     getSettings: (...args: unknown[]) => api.getSettings(...args),
-    updateSettings: (...args: unknown[]) => api.updateSettings(...args),
+    issueCredential: (...args: unknown[]) => api.issueCredential(...args),
+    revokeCredential: (...args: unknown[]) => api.revokeCredential(...args),
+    rotateCredential: (...args: unknown[]) => api.rotateCredential(...args),
     read: (...args: unknown[]) => api.read(...args),
     pageUrl: (token: string, asset: string) =>
       `/guest-previews/${token}/render-assets/${asset}/view`,
@@ -59,39 +63,58 @@ beforeEach(() => {
   api.copy.mockResolvedValue(undefined);
 });
 
-it('reloads, toggles and copies the same stable link', async () => {
+it('reveals a credential once, hides it on reload, rotates and clears it on revoke', async () => {
   let enabled = false;
-  const settings = () => ({ enabled, token: 'stable-token' });
+  const issued_at = '2026-11-17T00:00:00Z';
+  const settings = () => ({ enabled, issued_at: enabled ? issued_at : null });
   api.getSettings.mockImplementation(async () => settings());
-  api.updateSettings.mockImplementation(async (_scoreId, input) => {
-    enabled = input.enabled;
-    return settings();
-  });
+  api.issueCredential.mockImplementation(async () => { enabled = true; return { token: 'token-a', issued_at }; });
+  api.rotateCredential.mockResolvedValue({ token: 'token-b', issued_at });
+  api.revokeCredential.mockImplementation(async () => { enabled = false; });
   const first = mount(<ScoreGuestPreviewPanel scoreId="score" />);
-  const link = await screen.findByRole('textbox', { name: guestPreview.link });
-  expect(link).toHaveValue('http://localhost:3000/en/preview/stable-token');
-  expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
-    guestPreview.enable,
-    guestPreview.copy,
-  ]);
-  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  await screen.findByRole('button', { name: guestPreview.enable });
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: guestPreview.enable }));
-  expect(await screen.findByRole('button', { name: guestPreview.disable })).toBeEnabled();
-  expect(api.updateSettings).toHaveBeenLastCalledWith('score', { enabled: true });
-  first.unmount();
-  first.client.clear();
-  const second = mount(<ScoreGuestPreviewPanel scoreId="score" />);
-  expect(await screen.findByRole('textbox', { name: guestPreview.link })).toHaveValue(
-    'http://localhost:3000/en/preview/stable-token'
-  );
-  await userEvent.click(screen.getByRole('button', { name: guestPreview.disable }));
-  expect(await screen.findByRole('button', { name: guestPreview.enable })).toBeEnabled();
-  expect(screen.getByRole('textbox')).toHaveValue('http://localhost:3000/en/preview/stable-token');
-  await userEvent.click(screen.getByRole('button', { name: guestPreview.enable }));
-  await screen.findByRole('button', { name: guestPreview.disable });
+  expect(await screen.findByRole('textbox', { name: guestPreview.link })).toHaveValue('http://localhost:3000/en/preview/token-a');
+  expect(screen.getByText(guestPreview.oneTimeReveal)).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: guestPreview.copy }));
-  expect(api.copy).toHaveBeenCalledWith('http://localhost:3000/en/preview/stable-token');
+  expect(api.copy).toHaveBeenCalledWith('http://localhost:3000/en/preview/token-a');
+  expect(api.issueCredential).toHaveBeenCalledWith('score');
+  expect(first.client.getQueryData(queryKeys.scores.guestPreviewSettings('score'))).toEqual(settings());
+  expect(JSON.stringify(first.client.getQueryCache().getAll())).not.toContain('token-a');
+  first.unmount(); first.client.clear();
+  const second = mount(<ScoreGuestPreviewPanel scoreId="score" />);
+  await screen.findByRole('button', { name: guestPreview.rotate });
+  expect(screen.getByText(guestPreview.secretHidden)).toBeVisible();
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: guestPreview.copy })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: guestPreview.rotate }));
+  expect(await screen.findByRole('textbox')).toHaveValue('http://localhost:3000/en/preview/token-b');
+  expect(api.rotateCredential).toHaveBeenCalledWith('score');
+  expect(second.client.getQueryData(queryKeys.scores.guestPreviewSettings('score'))).toEqual(settings());
+  await userEvent.click(screen.getByRole('button', { name: guestPreview.disable }));
+  await screen.findByRole('button', { name: guestPreview.enable });
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: guestPreview.rotate })).not.toBeInTheDocument();
+  expect(api.revokeCredential).toHaveBeenCalledWith('score');
+  expect(second.client.getQueryData(queryKeys.scores.guestPreviewSettings('score'))).toEqual({ enabled: false, issued_at: null });
   second.client.clear();
+});
+
+it('keeps a revealed credential scoped to its Score component context', async () => {
+  api.getSettings.mockImplementation(async (id) => ({ enabled: id === 'other', issued_at: id === 'other' ? '2026-11-17T00:00:00Z' : null }));
+  api.issueCredential.mockResolvedValue({ token: 'private-score-token', issued_at: '2026-11-17T00:00:00Z' });
+  function OwnerContext() {
+    const [id, setId] = React.useState('score');
+    return <><button onClick={() => setId('other')}>Other score</button><ScoreGuestPreviewPanel scoreId={id} /></>;
+  }
+  const view = mount(<OwnerContext />);
+  await userEvent.click(await screen.findByRole('button', { name: guestPreview.enable }));
+  expect(await screen.findByRole('textbox')).toHaveValue('http://localhost:3000/en/preview/private-score-token');
+  await userEvent.click(screen.getByRole('button', { name: 'Other score' }));
+  await screen.findByRole('button', { name: guestPreview.rotate });
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  view.client.clear();
 });
 
 it('refreshes current-head pages without changing the bearer token', async () => {

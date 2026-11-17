@@ -315,6 +315,8 @@
           "no_file_selected",
           "storage_quota_exceeded",
           "quota_check_unavailable",
+          "guest_preview_already_enabled",
+          "guest_preview_not_enabled",
           "guest_preview_not_found",
           "invite_not_found",
           "invite_expired",
@@ -420,6 +422,25 @@
         "title": "ForgotPasswordRequest",
         "type": "object"
       },
+      "GuestPreviewCredentialIssuedRead": {
+        "properties": {
+          "issued_at": {
+            "format": "date-time",
+            "title": "Issued At",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "issued_at"
+        ],
+        "title": "GuestPreviewCredentialIssuedRead",
+        "type": "object"
+      },
       "GuestPreviewPageRead": {
         "properties": {
           "asset_id": {
@@ -475,30 +496,24 @@
             "title": "Enabled",
             "type": "boolean"
           },
-          "token": {
-            "title": "Token",
-            "type": "string"
+          "issued_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued At"
           }
         },
         "required": [
           "enabled",
-          "token"
+          "issued_at"
         ],
         "title": "GuestPreviewSettingsRead",
-        "type": "object"
-      },
-      "GuestPreviewUpdateRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "enabled"
-        ],
-        "title": "GuestPreviewUpdateRequest",
         "type": "object"
       },
       "ImportArtifactRead": {
@@ -10186,9 +10201,11 @@
         "tags": [
           "Guest Previews"
         ]
-      },
-      "patch": {
-        "operationId": "scoreGuestPreviewSettingsUpdate",
+      }
+    },
+    "/api/v1/scores/{score_id}/guest-preview/credential": {
+      "delete": {
+        "operationId": "scoreGuestPreviewCredentialRevoke",
         "parameters": [
           {
             "in": "path",
@@ -10216,22 +10233,71 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GuestPreviewUpdateRequest"
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
               }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Revoke Credential",
+        "tags": [
+          "Guest Previews"
+        ]
+      },
+      "post": {
+        "operationId": "scoreGuestPreviewCredentialIssue",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
             }
           },
-          "required": true
-        },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GuestPreviewSettingsRead"
+                  "$ref": "#/components/schemas/GuestPreviewCredentialIssuedRead"
                 }
               }
             },
@@ -10258,7 +10324,75 @@
             "description": "Application failure."
           }
         },
-        "summary": "Update Guest Preview Settings",
+        "summary": "Issue Credential",
+        "tags": [
+          "Guest Previews"
+        ]
+      }
+    },
+    "/api/v1/scores/{score_id}/guest-preview/credential/rotate": {
+      "post": {
+        "operationId": "scoreGuestPreviewCredentialRotate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "score_id",
+            "required": true,
+            "schema": {
+              "title": "Score Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestPreviewCredentialIssuedRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Rotate Credential",
         "tags": [
           "Guest Previews"
         ]

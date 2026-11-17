@@ -1,15 +1,16 @@
-from pydantic import BaseModel, ConfigDict
+from app.shared.time import Instant
+from pydantic import BaseModel
 from app.shared.api_model import ApiModel
-
-
-class GuestPreviewUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    enabled: bool
 
 
 class GuestPreviewSettingsRead(ApiModel):
     enabled: bool
+    issued_at: Instant | None
+
+
+class GuestPreviewCredentialIssuedRead(ApiModel):
     token: str
+    issued_at: Instant
 
 
 class GuestPreviewPageRead(BaseModel):

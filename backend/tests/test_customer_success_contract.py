@@ -42,6 +42,7 @@ BODYLESS_COMMANDS = {
     "libraryFolderDelete",
     "scoreMembershipLeave",
     "scoreMemberRemove",
+    "scoreGuestPreviewCredentialRevoke",
     "performanceTakeUploadCancel",
     "performanceTakeDelete",
 }

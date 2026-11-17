@@ -55,7 +55,7 @@ for (const loggedIn of [false, true]) {
   });
 }
 
-test('owner toggles a stable preview link and an anonymous browser opens it', async ({
+test('owner issues, rotates and revokes one-time bearer links', async ({
   page,
   browser,
 }) => {
@@ -92,37 +92,65 @@ test('owner toggles a stable preview link and an anonymous browser opens it', as
   await page.route('**/api/v1/scores/preview-owner-score/revision-assets**', (route) =>
     route.fulfill({ json: { revision_sources: [], render_assets: [] } })
   );
-  let enabled = false;
-  await page.route('**/api/v1/scores/preview-owner-score/guest-preview', async (route) => {
-    if (route.request().method() === 'PATCH') {
-      expect(Object.keys(route.request().postDataJSON())).toEqual(['enabled']);
-      enabled = route.request().postDataJSON().enabled;
-    }
-    await route.fulfill({ json: { token: 'stable-token', enabled } });
+  let activeToken: string | null = null;
+  let generation = 0;
+  const issued_at = '2026-11-17T00:00:00Z';
+  await page.route('**/api/v1/scores/preview-owner-score/guest-preview**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const method = route.request().method();
+    if (method === 'GET') {
+      await route.fulfill({ json: { enabled: activeToken !== null, issued_at: activeToken ? issued_at : null } });
+    } else if (method === 'DELETE') {
+      activeToken = null;
+      await route.fulfill({ status: 204 });
+    } else if (method === 'POST') {
+      if (path.endsWith('/rotate') ? !activeToken : !!activeToken) throw new Error('Invalid credential lifecycle command');
+      activeToken = `credential-${++generation}`;
+      await route.fulfill({ json: { token: activeToken, issued_at } });
+    } else throw new Error('Unexpected credential command');
   });
   await page.goto('/en/score/preview-owner-score?tab=guest-preview');
   const link = page.getByRole('textbox', { name: 'Guest Preview link' });
-  await expect(link).toHaveValue(/\/preview\/stable-token$/);
+  await expect(link).toHaveCount(0);
   await page.getByRole('button', { name: 'Enable Guest Preview', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Disable Guest Preview', exact: true })
-  ).toBeVisible();
-  await page.reload();
-  await expect(link).toHaveValue(/\/preview\/stable-token$/);
-  await page.getByRole('button', { name: 'Disable Guest Preview', exact: true }).click();
-  await expect(link).toHaveValue(/\/preview\/stable-token$/);
-  await page.getByRole('button', { name: 'Enable Guest Preview', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Disable Guest Preview', exact: true })
-  ).toBeVisible();
+  await expect(link).toHaveValue(/\/preview\/credential-1$/);
+  const a = await link.inputValue();
   const context = await browser.newContext();
   try {
     const visitor = await context.newPage();
     await mockAnonymousSession(visitor);
-    await mockGuestPreview(visitor, 'stable-token');
-    await visitor.goto(await link.inputValue());
-    await expect(visitor.getByRole('img', { name: 'Score page 1' })).toBeVisible();
-    await visitor.getByLabel('Listen to score').evaluate((audio: HTMLAudioElement) => audio.play());
+    // The anonymous endpoint resolves the currently active credential, not a stable fixture.
+    for (const token of ['credential-1', 'credential-2', 'credential-3']) await mockGuestPreview(visitor, token);
+    await visitor.route('**/api/v1/guest-previews/**', async (route) => {
+      const token = new URL(route.request().url()).pathname.split('/')[4];
+      if (token !== activeToken) await route.fulfill({ status: 404, json: { code: 'guest_preview_not_found', request_id: 'e2e-guest-preview' } });
+      else await route.fallback();
+    });
+    const visible = async (url: string) => {
+      await visitor.goto(url);
+      await expect(visitor.getByRole('img', { name: 'Score page 1' })).toBeVisible();
+    };
+    const unavailable = async (url: string) => {
+      await visitor.goto(url);
+      await expect(visitor.getByText('This preview is unavailable.')).toBeVisible();
+    };
+    await visible(a);
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Rotate Guest Preview link' })).toBeVisible();
+    await expect(link).toHaveCount(0);
+    await page.getByRole('button', { name: 'Rotate Guest Preview link' }).click();
+    await expect(link).toHaveValue(/\/preview\/credential-2$/);
+    const b = await link.inputValue();
+    expect(b).not.toBe(a);
+    await unavailable(a); await visible(b);
+    await page.getByRole('button', { name: 'Disable Guest Preview', exact: true }).click();
+    await expect(link).toHaveCount(0);
+    await unavailable(b);
+    await page.getByRole('button', { name: 'Enable Guest Preview', exact: true }).click();
+    await expect(link).toHaveValue(/\/preview\/credential-3$/);
+    const c = await link.inputValue();
+    expect([a, b]).not.toContain(c);
+    await unavailable(a); await unavailable(b); await visible(c);
   } finally {
     await context.close();
   }

@@ -68,7 +68,7 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ enabled: false, token: 'layout-preview-token' }),
+      body: JSON.stringify({ enabled: false, issued_at: null }),
     })
   );
   await page.goto(`/en/score/${scoreId}`);
