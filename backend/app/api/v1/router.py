@@ -17,6 +17,7 @@ from app.modules.realtime.router import router as realtime
 from app.modules.import_jobs.review.router import router as review
 from app.modules.performance_takes.router import router as performance_takes
 from app.modules.practice.bundle.router import router as practice_bundles
+from app.modules.practice.activities.router import router as practice_activities
 from app.modules.scores.router import router as scores
 from app.modules.storage_usage.router import router as storage_usage
 from app.modules.score_assets.router import render_asset_router
@@ -73,3 +74,7 @@ api_router.include_router(
     performance_takes, prefix="/performance-takes", tags=["Performance Takes"]
 )
 api_router.include_router(practice_bundles, prefix="/practice", tags=["Practice Sources"])
+
+api_router.include_router(
+    practice_activities, prefix="/practice-activities", tags=["Practice Activities"]
+)

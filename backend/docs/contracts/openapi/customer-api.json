@@ -329,6 +329,7 @@
           "practice_score_invalid",
           "practice_bundle_failed",
           "practice_scope_invalid",
+          "practice_activity_conflict",
           "no_practice_access",
           "user_not_found",
           "email_not_found",
@@ -3010,6 +3011,138 @@
         ],
         "title": "PracticeAcousticAccessRead",
         "type": "object"
+      },
+      "PracticeActivityBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Bundle Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "score_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Score Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score_id",
+          "revision_id",
+          "bundle_id"
+        ],
+        "title": "PracticeActivityBinding",
+        "type": "object"
+      },
+      "PracticeActivityCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_session_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Client Session Id",
+            "type": "string"
+          },
+          "input_source": {
+            "$ref": "#/components/schemas/PracticeActivityInputSource"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/PracticeActivityMode"
+          },
+          "practice_binding": {
+            "$ref": "#/components/schemas/PracticeActivityBinding"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/PracticeActivityScope"
+          }
+        },
+        "required": [
+          "client_session_id",
+          "practice_binding",
+          "mode",
+          "input_source",
+          "scope"
+        ],
+        "title": "PracticeActivityCreateRequest",
+        "type": "object"
+      },
+      "PracticeActivityInputSource": {
+        "enum": [
+          "MICROPHONE",
+          "MIDI"
+        ],
+        "title": "PracticeActivityInputSource",
+        "type": "string"
+      },
+      "PracticeActivityMode": {
+        "enum": [
+          "STEP_BY_STEP",
+          "CONTINUOUS_PLAY"
+        ],
+        "title": "PracticeActivityMode",
+        "type": "string"
+      },
+      "PracticeActivityRead": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity_id",
+          "completed_at"
+        ],
+        "title": "PracticeActivityRead",
+        "type": "object"
+      },
+      "PracticeActivityScope": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PracticeActivityScopeKind"
+          },
+          "start_tick": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Start Tick",
+            "type": "integer"
+          },
+          "terminal_tick": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Terminal Tick",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "start_tick",
+          "terminal_tick"
+        ],
+        "title": "PracticeActivityScope",
+        "type": "object"
+      },
+      "PracticeActivityScopeKind": {
+        "enum": [
+          "FULL",
+          "RANGE"
+        ],
+        "title": "PracticeActivityScopeKind",
+        "type": "string"
       },
       "PracticeBundleNotationRead": {
         "additionalProperties": false,
@@ -9336,6 +9469,75 @@
         "summary": "Create Performance Plan",
         "tags": [
           "Playback"
+        ]
+      }
+    },
+    "/api/v1/practice-activities": {
+      "post": {
+        "operationId": "practiceActivityCreate",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PracticeActivityCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PracticeActivityRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Create Activity",
+        "tags": [
+          "Practice Activities"
         ]
       }
     },

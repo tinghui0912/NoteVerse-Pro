@@ -184,10 +184,52 @@ analysis/recorder clones, AudioContexts, recorder and inference lease while reta
 the page Resource Binding and healthy warm engine.
 Natural completion and abandonment retain their distinct contracts below.
 
-Persistent state consists only of user preferences and the verified OPFS
+Browser-local Practice persistent state consists only of user preferences and the verified OPFS
 model asset. Readiness, warm engine, tempo/metronome/scope and current completion
 are browser memory; capture, clocks, evaluation and recorder are session resources.
-Practice Results/reports remain transient and are never persisted.
+Rich Practice Results/reports remain transient and are never persisted.
+A separate lightweight server PracticeActivity persists natural completion facts:
+the practicing user, exact revision/bundle provenance, mode/input/scope and server
+completion time. This personal record does not mutate Score, Library recency,
+notifications, realtime or storage accounting.
+
+
+### Durable completion boundary
+
+PracticeActivity is one authenticated user's lightweight `SCOPE_COMPLETED` fact.
+Both STEP_BY_STEP and CONTINUOUS_PLAY submit from the common completed session
+snapshot at the page's natural-completion callback. The executed PracticePlan owns
+binding, input and resolved tick scope. Manual End, failed preparation/runtime,
+abandonment and interruptions without natural completion create no Activity.
+A recovered execution that completes naturally has the same one-row admission.
+
+`POST /api/v1/practice-activities` authorizes PRACTICE on the exact Score/Revision
+and validates the current READY Bundle binding using DB-only queries. It does not
+read Bundle representations or re-admit execution bytes. Activity stores bundle
+identity as provenance with no FK or retention pin to Bundle representations.
+User and revision FKs cascade; soft-deleted Scores cannot admit new completions.
+
+The unique `(user_id, client_session_id)` fence admits exact retries as the same
+Activity and rejects different semantic facts with `practice_activity_conflict`.
+Server `utc_now()` owns completed_at. The command commits only its Activity row.
+There is no list/shared-history endpoint, worker or outbox.
+
+Submission is best effort and non-blocking. A page-local submitted-session set
+avoids duplicate calls; database idempotency remains authoritative. Failed writes
+are reported to client observability without changing local completion, opening a
+blocking modal or preventing Review/recording handoff. No Activity queue/history is
+persisted in the browser.
+
+| Value | Ownership and durability |
+| --- | --- |
+| PracticeActivity | Server personal lightweight natural-completion fact |
+| PerformanceTake | Independent durable optional original recording, saved explicitly |
+| PracticeResult / TransientReviewSession | Browser-transient rich outcome and Review ownership |
+
+Activity contains no evaluation, attempts, assignment, strikes, confidence, score,
+recording/media, duration, tempo, artifact bytes or JSON payload. Activity and
+PerformanceTake have no FK to each other. Activity does not replace any browser
+execution session, Result, ReviewSession or PracticeBundle.
 
 Live note feedback is a presentation preference, mutable during ACTIVE/PAUSED.
 OFF removes live supported/unsupported decorations while retaining score, range

@@ -1,3 +1,4 @@
+from .practice_activity import PracticeActivity
 from .guest_preview import GuestPreviewCredential
 from .import_dispatch import ImportDispatch, ImportDispatchStatus
 from .stored_object import StoredObject
@@ -86,6 +87,7 @@ from .performance_take_upload_reservation import (
 from .stored_object_retirement import StoredObjectRetirement
 
 __all__ = [
+    "PracticeActivity",
     "GuestPreviewCredential",
     "User",
     "RefreshToken",

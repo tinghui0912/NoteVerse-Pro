@@ -74,5 +74,6 @@
   "unknown_error": "An unknown error occurred. Please try again.",
   "practice_score_invalid": "This score cannot be used for Practice.",
   "guest_preview_already_enabled": "Guest Preview is already enabled. Rotate the link to get a new one.",
-  "guest_preview_not_enabled": "Enable Guest Preview before rotating the link."
+  "guest_preview_not_enabled": "Enable Guest Preview before rotating the link.",
+  "practice_activity_conflict": "This Practice session already has a different completion record."
 }

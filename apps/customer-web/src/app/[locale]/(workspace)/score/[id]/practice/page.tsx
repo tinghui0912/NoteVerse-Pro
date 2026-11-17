@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useSearchParams } from 'next/navigation';
 import { createPracticePreparationKey } from '@/lib/practice/preparation/preparation-key';
+import { usePracticeActivityCompletion } from '@/hooks/practice/use-practice-activity-completion';
 import { usePracticeExecution } from '@/hooks/practice/use-practice-execution';
 import { usePracticeResourceBinding } from '@/hooks/practice/use-practice-resource-binding';
 import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
@@ -133,6 +134,8 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const selectedInputCapability = matching ? { supported: true as const, status: 'AVAILABLE' as const } : undefined;
   const canPreparePractice = Boolean(plan) && !range.isIncomplete && !range.isSelecting
     && matching && devicesReady && (plan?.resources.analysis.kind !== 'ACOUSTIC' || acousticState === 'READY_IDLE');
+  const recordActivity = usePracticeActivityCompletion();
+
   // Local Practice orchestration
   const execution = usePracticeExecution({
     plan, admitted: canPreparePractice, compositionId: `${id}:${selectedRevisionId ?? ''}`,
@@ -141,6 +144,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
     onNaturalCompletion: snapshot => {
       if (snapshot.completionReason !== 'SCOPE_COMPLETED') return;
       setIsCompletionDialogOpen(true);
+      recordActivity(snapshot);
     },
   });
   const stepCommands = execution.mode === 'STEP_BY_STEP' && execution.modeCommands?.mode === 'STEP_BY_STEP' ? execution.modeCommands : null;

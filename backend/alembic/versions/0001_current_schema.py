@@ -2493,6 +2493,83 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_table(
+        "practice_activities",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
+        sa.Column("activity_uuid", sa.String(36), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
+        sa.Column("revision_id", sa.BigInteger(), nullable=False),
+        sa.Column("client_session_id", sa.String(128), nullable=False),
+        sa.Column("bundle_id", sa.String(128), nullable=False),
+        sa.Column(
+            "mode",
+            sa.Enum(
+                "STEP_BY_STEP",
+                "CONTINUOUS_PLAY",
+                native_enum=False,
+                create_constraint=True,
+                name="ck_practice_activities_mode",
+                length=32,
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "input_source",
+            sa.Enum(
+                "MICROPHONE",
+                "MIDI",
+                native_enum=False,
+                create_constraint=True,
+                name="ck_practice_activities_input_source",
+                length=16,
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "scope_kind",
+            sa.Enum(
+                "FULL",
+                "RANGE",
+                native_enum=False,
+                create_constraint=True,
+                name="ck_practice_activities_scope_kind",
+                length=16,
+            ),
+            nullable=False,
+        ),
+        sa.Column("scope_start_tick", sa.BigInteger(), nullable=False),
+        sa.Column("scope_terminal_tick", sa.BigInteger(), nullable=False),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint("id", name="pk_practice_activities"),
+        sa.UniqueConstraint("activity_uuid", name="uq_practice_activities_activity_uuid"),
+        sa.UniqueConstraint(
+            "user_id", "client_session_id", name="uq_practice_activities_user_session"
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+            ondelete="CASCADE",
+            name="fk_practice_activities_user_id_users",
+        ),
+        sa.ForeignKeyConstraint(
+            ["revision_id"],
+            ["score_revisions.id"],
+            ondelete="CASCADE",
+            name="fk_practice_activities_revision_id_score_revisions",
+        ),
+        sa.CheckConstraint("scope_start_tick >= 0", name="ck_practice_activities_scope_start"),
+        sa.CheckConstraint(
+            "scope_terminal_tick > scope_start_tick", name="ck_practice_activities_scope_terminal"
+        ),
+    )
+    op.create_index(
+        "idx_practice_activities_user_completed", "practice_activities", ["user_id", "completed_at"]
+    )
+    op.create_index(
+        "idx_practice_activities_revision_completed",
+        "practice_activities",
+        ["revision_id", "completed_at"],
+    )
+    op.create_table(
         "score_revision_sources",
         sa.Column(
             "id",
@@ -2634,6 +2711,9 @@ def downgrade() -> None:
     op.drop_constraint("fk_import_jobs_score_id", "import_jobs", type_="foreignkey")
     op.drop_index("idx_score_revision_sources_revision_format", table_name="score_revision_sources")
     op.drop_table("score_revision_sources")
+    op.drop_index("idx_practice_activities_revision_completed", table_name="practice_activities")
+    op.drop_index("idx_practice_activities_user_completed", table_name="practice_activities")
+    op.drop_table("practice_activities")
     op.drop_index(
         op.f("ix_score_revision_practice_bindings_bundle_id"),
         table_name="score_revision_practice_bindings",

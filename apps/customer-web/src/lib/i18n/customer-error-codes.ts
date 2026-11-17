@@ -67,6 +67,7 @@ export const CUSTOMER_ERROR_MESSAGE_KEYS = {
   practice_score_invalid: 'practice_score_invalid',
   practice_bundle_failed: 'practice_bundle_failed',
   practice_scope_invalid: 'practice_scope_invalid',
+  practice_activity_conflict: 'practice_activity_conflict',
   no_practice_access: 'no_practice_access',
   user_not_found: 'user_not_found',
   email_not_found: 'email_not_found',

@@ -17,6 +17,7 @@ PROTECTED_SERVICE_MODULES = (
     "app/modules/metadata/service.py",
     "app/modules/playback/delivery.py",
     "app/modules/practice/bundle/service.py",
+    "app/modules/practice/activities/service.py",
     "app/modules/revisions/service.py",
     "app/modules/score_assets/service.py",
     "app/modules/collaboration/invitation_service.py",

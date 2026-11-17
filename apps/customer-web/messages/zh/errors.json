@@ -74,5 +74,6 @@
   "unknown_error": "发生未知错误，请稍后重试。",
   "practice_score_invalid": "这份乐谱目前无法用于练习。",
   "guest_preview_already_enabled": "访客预览已启用。请轮换链接以获取新链接。",
-  "guest_preview_not_enabled": "请先启用访客预览，再轮换链接。"
+  "guest_preview_not_enabled": "请先启用访客预览，再轮换链接。",
+  "practice_activity_conflict": "此练习会话已有不同的完成记录。"
 }

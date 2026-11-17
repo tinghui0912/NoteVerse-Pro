@@ -70,6 +70,7 @@ class CustomerErrorCode(StrEnum):
     PRACTICE_SCORE_INVALID = "practice_score_invalid"
     PRACTICE_BUNDLE_FAILED = "practice_bundle_failed"
     PRACTICE_SCOPE_INVALID = "practice_scope_invalid"
+    PRACTICE_ACTIVITY_CONFLICT = "practice_activity_conflict"
     NO_PRACTICE_ACCESS = "no_practice_access"
     USER_NOT_FOUND = "user_not_found"
     EMAIL_NOT_FOUND = "email_not_found"

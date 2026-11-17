@@ -59,6 +59,7 @@ export const customerRoutes = {
   performanceTakesList: { method: "GET", url: "/api/v1/performance-takes" },
   playbackPerformancePlanCreate: { method: "POST", url: "/api/v1/playback/performance-plan" },
   practiceAcousticModelAccessGet: { method: "GET", url: "/api/v1/model-assets/practice-acoustic/access" },
+  practiceActivityCreate: { method: "POST", url: "/api/v1/practice-activities" },
   practiceScoreRevisionBundleGet: { method: "GET", url: "/api/v1/practice/scores/{score_id}/revisions/{revision_id}/bundle" },
   realtimeEventsStream: { method: "GET", url: "/api/v1/realtime/events" },
   scoreFingeringGenerate: { method: "POST", url: "/api/v1/scores/{score_id}/fingering" },
