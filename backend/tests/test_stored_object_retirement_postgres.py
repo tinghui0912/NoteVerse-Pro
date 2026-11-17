@@ -1,6 +1,7 @@
 """Real PostgreSQL retirement/reference fences across independent connections."""
 
 from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+from app.shared.performance_take_upload import UploadReservationStatus
 
 from app.db.models import StoragePlanPolicy, UserStorageEntitlement
 
@@ -179,7 +180,7 @@ def test_retirement_vs_upload_reacquisition_after_last_reference_release(
         operation = db.scalar(
             select(StoredObjectRetirement).where(StoredObjectRetirement.retirement_uuid == uuid)
         )
-        assert operation.status == (
+        assert operation.status is (
             StoredObjectRetirementStatus.COMPLETED
             if worker_wins
             else StoredObjectRetirementStatus.CANCELLED
@@ -267,7 +268,7 @@ async def test_attempt_takeover_fences_stale_work_and_holds_rows_across_delete(
     assert observations == ["stored_objects", "stored_object_retirements"]
     with Session(engine) as db:
         assert db.get(StoredObject, identity) is None
-        assert retirement_delivery.get(db, uuid).status == StoredObjectRetirementStatus.COMPLETED
+        assert retirement_delivery.get(db, uuid).status is StoredObjectRetirementStatus.COMPLETED
         assert not retirement_delivery.fail(db, old, "stale")
         db.commit()
 
@@ -323,13 +324,13 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         assert storage.exists(key)
         assert (db.get(StorageUsageAccount, 1)).used_bytes == len(MEDIA)
         assert manifest_from_row(db.get(PerformanceTakeManifest, manifest_id)) == manifest
-        assert (
-            db.scalar(select(PerformanceTakeUploadReservation))
-        ).status == StoredObjectRetirementStatus.COMPLETED
+        reservation = db.scalar(select(PerformanceTakeUploadReservation))
+        assert reservation is not None
+        assert reservation.status is UploadReservationStatus.COMPLETED
         UploadService(storage=storage).delete_upload(db, db.get(User, 1), upload.upload_uuid)
         operation = db.scalar(select(StoredObjectRetirement))
         uuid = operation.retirement_uuid
-        assert operation.status == StoredObjectRetirementStatus.PENDING and storage.exists(key)
+        assert operation.status is StoredObjectRetirementStatus.PENDING and storage.exists(key)
         assert (db.get(StorageUsageAccount, 1)).used_bytes == 0
     delete = storage.delete
     monkeypatch.setattr(
@@ -341,7 +342,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
     with sessions() as db:
         operation = db.scalar(select(StoredObjectRetirement))
         assert (
-            operation.status == StoredObjectRetirementStatus.FAILED
+            operation.status is StoredObjectRetirementStatus.FAILED
             and db.get(StoredObject, identity) is not None
         )
         assert db.scalar(select(PerformanceTake)) is None

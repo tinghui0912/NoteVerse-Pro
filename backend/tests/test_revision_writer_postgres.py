@@ -469,7 +469,7 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
         db.commit()
         assert (
             db.scalar(sa.select(RevisionMetadataOutbox)).status
-            == RevisionMetadataOutboxStatus.COMPLETED
+            is RevisionMetadataOutboxStatus.COMPLETED
         )
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == (
             MetadataStatus.READY if outcome == "ready" else MetadataStatus.FAILED
@@ -562,7 +562,7 @@ def test_metadata_relay_releases_broker_failure_without_consuming_attempt_and_be
     with Session(engine) as db:
         row = db.scalar(sa.select(RevisionMetadataOutbox))
         assert (
-            row.status == RevisionMetadataOutboxStatus.PENDING
+            row.status is RevisionMetadataOutboxStatus.PENDING
             and row.attempt_count == 0
             and row.attempt_token is None
         )
@@ -599,7 +599,7 @@ def test_metadata_database_token_coherence_and_source_failure_are_delivery_seman
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         assert (
             db.scalar(sa.select(RevisionMetadataOutbox)).status
-            == RevisionMetadataOutboxStatus.FAILED
+            is RevisionMetadataOutboxStatus.FAILED
         )
         with pytest.raises(StaleDeliveryAttempt):
             metadata_delivery.adopt(
@@ -666,7 +666,7 @@ def test_metadata_worker_retries_source_failures_without_metadata_or_realtime_mu
     with Session(engine) as db:
         row = db.scalar(sa.select(RevisionMetadataOutbox))
         assert (
-            row.status == RevisionMetadataOutboxStatus.FAILED
+            row.status is RevisionMetadataOutboxStatus.FAILED
             and row.attempt_count == 1
             and row.attempt_token is None
         )

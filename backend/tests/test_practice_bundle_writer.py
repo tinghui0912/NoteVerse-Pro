@@ -60,7 +60,7 @@ def test_writer_commits_creation_before_io_and_reauthorizes_before_binding(
             with Session(engine) as observer:
                 row = observer.scalar(select(PracticeBundleRecord))
                 assert (
-                    row.status == PracticeBundleStatus.CREATING
+                    row.status is PracticeBundleStatus.CREATING
                     and row.creation_expires_at is not None
                 )
                 assert row.prepared_musicxml_object_id is row.artifact_object_id is None
@@ -92,7 +92,7 @@ def test_writer_commits_creation_before_io_and_reauthorizes_before_binding(
                 observer.get(ScoreRevisionPracticeBinding, repository.test_revision_id).bundle_id
                 == ref.id
             )
-            assert observer.get(PracticeBundleRecord, ref.id).status == PracticeBundleStatus.READY
+            assert observer.get(PracticeBundleRecord, ref.id).status is PracticeBundleStatus.READY
 
 
 def test_repository_queries_and_insertions_are_transaction_neutral(postgres_bundle):
@@ -230,4 +230,4 @@ def test_expired_creation_lease_cannot_adopt_or_bind(postgres_bundle, monkeypatc
     with Session(engine) as observer:
         assert observer.scalar(select(ScoreRevisionPracticeBinding)) is None
         assert observer.scalar(select(StoredObject)) is None
-        assert observer.scalar(select(PracticeBundleRecord)).status == PracticeBundleStatus.CREATING
+        assert observer.scalar(select(PracticeBundleRecord)).status is PracticeBundleStatus.CREATING

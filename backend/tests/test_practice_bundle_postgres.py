@@ -351,7 +351,7 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
             db.rollback()
     with sessions() as db:
         row = db.scalar(select(PracticeBundleRecord))
-        assert row.status == PracticeBundleStatus.CREATING and row.creation_expires_at is not None
+        assert row.status is PracticeBundleStatus.CREATING and row.creation_expires_at is not None
         from app.db.models import ObjectWriteIntent, StoredObject
 
         assert row.prepared_musicxml_object_id is None and row.artifact_object_id is None

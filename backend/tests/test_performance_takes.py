@@ -1390,7 +1390,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         assert session.get(PracticeBundleRecord, practice_bundle_id) is not None
         retained = session.get(PracticeBundleRecord, practice_bundle_id)
         session.refresh(retained)
-        assert retained.status == PracticeBundleStatus.READY
+        assert retained.status is PracticeBundleStatus.READY
         assert session.get(ScoreRevisionPracticeBinding, 100).bundle_id == retained.id
         assert storage.exists(musicxml_key)
         assert storage.exists(artifact_key)
@@ -2182,7 +2182,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         assert session.get(PracticeBundleRecord, practice_bundle_id) is not None
         retained = session.get(PracticeBundleRecord, practice_bundle_id)
         session.refresh(retained)
-        assert retained.status == PracticeBundleStatus.READY
+        assert retained.status is PracticeBundleStatus.READY
         assert session.get(ScoreRevisionPracticeBinding, 100).bundle_id == retained.id
         assert storage.exists(musicxml_key)
         assert storage.exists(artifact_key)

@@ -56,21 +56,21 @@ def test_prepare_is_committed_before_put_and_returned_facts_are_verified(
     def writing(**kwargs):
         with Session(engine) as observer:
             row = observer.scalar(select(ObjectWriteIntent))
-            assert row.status == ObjectWriteIntentStatus.PREPARED and row.write_token
+            assert row.status is ObjectWriteIntentStatus.PREPARED and row.write_token
             assert observer.scalar(select(StoredObject)) is None
         return put(**kwargs)
 
     monkeypatch.setattr(storage, "put_bytes", writing)
     with Session(engine) as db:
         receipt = write_object(db, storage, key=facts().object_key, content=b"bytes")
-        assert lock_intent(db, receipt.intent_uuid).status == ObjectWriteIntentStatus.WRITTEN
+        assert lock_intent(db, receipt.intent_uuid).status is ObjectWriteIntentStatus.WRITTEN
         assert db.scalar(select(StoredObject)) is None
         obj = adopt_written_object(db, receipt)
         db.add(Upload(stored_object_id=obj.id, original_filename="upload.bin", uploader_user_id=1))
         identity = obj.id
         db.commit()
     with transaction() as db:
-        assert lock_intent(db, receipt.intent_uuid).status == ObjectWriteIntentStatus.ADOPTED
+        assert lock_intent(db, receipt.intent_uuid).status is ObjectWriteIntentStatus.ADOPTED
         assert db.scalar(select(Upload)).stored_object_id == identity
 
 
@@ -100,7 +100,7 @@ def test_crash_windows_are_cleanup_owned(retirement_db, monkeypatch, phase):
         worker.execute_object_write_cleanup_task(None, receipt.intent_uuid)["status"] == "cleaned"
     )
     with transaction() as db:
-        assert lock_intent(db, receipt.intent_uuid).status == ObjectWriteIntentStatus.CLEANED
+        assert lock_intent(db, receipt.intent_uuid).status is ObjectWriteIntentStatus.CLEANED
     assert not storage.exists(receipt.object_key)
 
 
@@ -123,7 +123,7 @@ def test_same_key_exact_reuse_conflict_and_generation_fence(retirement_db, monke
         with pytest.raises(ValueError, match="Stale"):
             perform_write(db, storage, first, b"bytes")
         db.rollback()
-        assert lock_intent(db, current.intent_uuid).status == ObjectWriteIntentStatus.PREPARED
+        assert lock_intent(db, current.intent_uuid).status is ObjectWriteIntentStatus.PREPARED
 
 
 @pytest.mark.parametrize("conflict", [False, True])
@@ -157,7 +157,7 @@ def test_delete_failure_and_uncertain_completion_retry_idempotently(retirement_d
     assert worker.execute_object_write_cleanup_task(None, receipt.intent_uuid)["status"] == "failed"
     with transaction() as db:
         row = lock_intent(db, receipt.intent_uuid)
-        assert row.status == ObjectWriteIntentStatus.CLEANUP_FAILED and row.attempt_count == 1
+        assert row.status is ObjectWriteIntentStatus.CLEANUP_FAILED and row.attempt_count == 1
         row.next_attempt_at = utc_now()
     monkeypatch.setattr(storage, "delete", delete)
     commits = 0
@@ -232,7 +232,7 @@ def test_incorrect_storage_write_result_stays_prepared_and_cleanup_owned(
         row = db.scalar(select(ObjectWriteIntent))
         uuid = row.intent_uuid
         assert (
-            row.status == ObjectWriteIntentStatus.PREPARED
+            row.status is ObjectWriteIntentStatus.PREPARED
             and db.scalar(select(StoredObject)) is None
         )
     expire(transaction, uuid)
@@ -261,7 +261,7 @@ def test_cleanup_generation_takeover_rejects_stale_failure(retirement_db, monkey
         write_cleanup_delivery.fail(db, old, "stale")
         assert (
             lock_intent(db, receipt.intent_uuid).status
-            == ObjectWriteIntentStatus.CLEANUP_PROCESSING
+            is ObjectWriteIntentStatus.CLEANUP_PROCESSING
         )
     monkeypatch.setattr(write_cleanup_delivery, "claim", lambda *_: old)
     assert (
@@ -291,7 +291,7 @@ def test_retired_existing_authority_cannot_be_recreated_by_an_unwritten_receipt(
     storage.put_bytes(key=facts().object_key, content=b"bytes")
     with Session(engine) as db:
         receipt = write_object(db, storage, key=facts().object_key, content=b"bytes")
-        assert lock_intent(db, receipt.intent_uuid).status == ObjectWriteIntentStatus.ADOPTED
+        assert lock_intent(db, receipt.intent_uuid).status is ObjectWriteIntentStatus.ADOPTED
         db.rollback()
     assert (
         stored_object_retirement.execute_stored_object_retirement_task(None, uuid)["status"]
@@ -329,7 +329,7 @@ def test_cleanup_dispatch_rejection_preserves_attempt_and_durable_work(
         with transaction() as db:
             row = lock_intent(db, receipt.intent_uuid)
             assert (
-                row.status == ObjectWriteIntentStatus.CLEANUP_DISPATCHED and row.attempt_count == 0
+                row.status is ObjectWriteIntentStatus.CLEANUP_DISPATCHED and row.attempt_count == 0
             )
         if not broker_accepts:
             raise OSError("broker unavailable")
@@ -338,7 +338,7 @@ def test_cleanup_dispatch_rejection_preserves_attempt_and_durable_work(
     assert dispatch.dispatch_object_write_cleanup(receipt.intent_uuid) is broker_accepts
     with transaction() as db:
         row = lock_intent(db, receipt.intent_uuid)
-        assert row.status == (
+        assert row.status is (
             ObjectWriteIntentStatus.CLEANUP_DISPATCHED
             if broker_accepts
             else ObjectWriteIntentStatus.CLEANUP_PENDING

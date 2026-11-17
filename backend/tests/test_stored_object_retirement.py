@@ -121,7 +121,7 @@ def test_fk_flush_precedes_physical_delete_and_completion(
         assert db.get(StoredObject, identity) is None
         operation = retirement_delivery.get(db, uuid)
         assert (
-            operation.status == StoredObjectRetirementStatus.COMPLETED
+            operation.status is StoredObjectRetirementStatus.COMPLETED
             and operation.stored_object_id is None
         )
         assert operation.completed_at is not None and operation.failure_detail is None
@@ -135,13 +135,13 @@ def test_reacquisition_cancels_and_last_release_rearms(retirement_db):
         obj = retain_for_reference(db, identity)
         db.add(Upload(stored_object_id=obj.id, original_filename="again.png", uploader_user_id=1))
     with transaction() as db:
-        assert retirement_delivery.get(db, uuid).status == StoredObjectRetirementStatus.CANCELLED
+        assert retirement_delivery.get(db, uuid).status is StoredObjectRetirementStatus.CANCELLED
         upload = db.scalar(select(Upload))
         db.delete(upload)
         assert retire_after_release(db, identity) == [uuid]
         operation = retirement_delivery.get(db, uuid)
         assert (
-            operation.status == StoredObjectRetirementStatus.PENDING
+            operation.status is StoredObjectRetirementStatus.PENDING
             and operation.attempt_count == 0
         )
 
@@ -156,7 +156,7 @@ def test_worker_cancels_if_reference_appears_before_destruction(retirement_db, m
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "cancelled"
     assert delete.call_count == 0 and storage.exists("immutable/object")
     with transaction() as db:
-        assert retirement_delivery.get(db, uuid).status == StoredObjectRetirementStatus.CANCELLED
+        assert retirement_delivery.get(db, uuid).status is StoredObjectRetirementStatus.CANCELLED
         assert db.get(StoredObject, identity) is not None
 
 
@@ -189,7 +189,7 @@ def test_failures_do_not_retire_live_or_unverified_bytes(retirement_db, monkeypa
     with transaction() as db:
         operation = retirement_delivery.get(db, uuid)
         assert (
-            operation.status == StoredObjectRetirementStatus.FAILED and operation.attempt_count == 1
+            operation.status is StoredObjectRetirementStatus.FAILED and operation.attempt_count == 1
         )
         assert operation.next_attempt_at > operation.started_at
         if failure != "missing":
@@ -244,7 +244,7 @@ def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
         assert retirement_delivery.recover_and_list_due(db) == [uuid]
         operation = retirement_delivery.get(db, uuid)
         assert (
-            operation.status == StoredObjectRetirementStatus.FAILED
+            operation.status is StoredObjectRetirementStatus.FAILED
             and operation.next_attempt_at == now
         )
         assert operation.attempt_count == 2
@@ -300,7 +300,7 @@ def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
         with transaction() as db:
             operation = retirement_delivery.get(db, uuid)
             assert (
-                operation.status == StoredObjectRetirementStatus.DISPATCHED
+                operation.status is StoredObjectRetirementStatus.DISPATCHED
                 and operation.attempt_count == 0
             )
         if not broker_accepts:
@@ -310,7 +310,7 @@ def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
     assert dispatch.dispatch_stored_object_retirement(uuid) is broker_accepts
     with transaction() as db:
         operation = retirement_delivery.get(db, uuid)
-        assert operation.status == (
+        assert operation.status is (
             StoredObjectRetirementStatus.DISPATCHED
             if broker_accepts
             else StoredObjectRetirementStatus.PENDING

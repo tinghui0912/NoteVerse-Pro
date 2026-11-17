@@ -91,7 +91,7 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         row = db.scalar(sa.select(RevisionMetadataOutbox))
         assert (
-            row.status == RevisionMetadataOutboxStatus.PROCESSING
+            row.status is RevisionMetadataOutboxStatus.PROCESSING
             and row.attempt_token == first.lease.token
         )
         assert row.attempt_count == first.lease.attempt
@@ -116,7 +116,7 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         )
         assert (
             db.scalar(sa.select(RevisionMetadataOutbox)).status
-            == RevisionMetadataOutboxStatus.COMPLETED
+            is RevisionMetadataOutboxStatus.COMPLETED
         )
         events = list(db.scalars(sa.select(RealtimeChange)))
         assert len(events) == 2 and sorted(event.recipient_user_id for event in events) == [1, 2]
@@ -235,7 +235,7 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
     def fail_after_rollback(db, uuid, lease, error):
         row = db.scalar(sa.select(RevisionMetadataOutbox))
         assert (
-            row.status == RevisionMetadataOutboxStatus.PROCESSING
+            row.status is RevisionMetadataOutboxStatus.PROCESSING
             and row.attempt_token == lease.token
         )
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
@@ -248,7 +248,7 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
     assert worker.execute_revision_metadata_task(None, uuid)["status"] == "failed"
     with Session(engine) as db:
         row = db.scalar(sa.select(RevisionMetadataOutbox))
-        assert row.status == RevisionMetadataOutboxStatus.FAILED and row.attempt_token is None
+        assert row.status is RevisionMetadataOutboxStatus.FAILED and row.attempt_token is None
         row.next_attempt_at = utc_now() - timedelta(seconds=1)
         db.commit()
     monkeypatch.setattr(publisher, "_notify_change", original)
