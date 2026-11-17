@@ -5,15 +5,15 @@ from app.db.models import PlaybackAssetKind, ScorePlaybackAsset
 from app.modules.playback.asset_records import (
     build_playback_asset_record,
     playback_asset_usage,
-    playback_storage_key,
+    playback_audio_object_key,
 )
 from app.processing.engines.playback import RenderedAudio
 from app.modules.storage_objects.persistence import object_from_bytes
 
 
-def test_playback_storage_key_uses_revision_scoped_asset_path() -> None:
+def test_playback_audio_object_key_uses_revision_scoped_asset_path() -> None:
     assert (
-        playback_storage_key(
+        playback_audio_object_key(
             score_uuid="score-1",
             revision_uuid="revision-1",
             asset_uuid="asset-1",

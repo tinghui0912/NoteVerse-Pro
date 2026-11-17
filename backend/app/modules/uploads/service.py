@@ -1,4 +1,5 @@
 import hashlib
+import re
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -23,6 +24,10 @@ from app.modules.uploads.upload_admission import read_score_import_upload, admit
 
 
 def blob_object_key(sha256: str, extension: str) -> str:
+    if re.fullmatch(r"[0-9a-f]{64}", sha256) is None:
+        raise ValueError("Upload identity requires a full lowercase SHA-256")
+    if re.fullmatch(r"\.[a-z0-9]+", extension) is None:
+        raise ValueError("Upload extension must be an admitted file extension")
     return f"blobs/{sha256[:2]}/{sha256}{extension}"
 
 

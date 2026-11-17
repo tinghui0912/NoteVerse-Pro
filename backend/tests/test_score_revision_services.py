@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.revisions.object_keys import canonical_revision_source_object_key
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
@@ -1096,6 +1097,9 @@ def test_revision_restore_creates_new_head_from_target_revision(
 
     assert all(r["status"] == "completed" for r in drain_revision_metadata(session, storage))
     metadata = session.get(ScoreRevisionMetadata, new_revision.id)
+    assert new_artifact.stored_object.object_key == canonical_revision_source_object_key(
+        score_uuid=score.score_uuid, revision_uuid=new_revision.revision_uuid
+    )
     assert restored.revision_number == 5
     assert restored.revision_id not in {"revision-1", "revision-2"}
     assert restored.created_by is not None
@@ -2394,6 +2398,10 @@ def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_session
     source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
     assert revision.content_hash == source.stored_object.sha256 == expected_hash
     assert source.stored_object.byte_size == len(admitted)
+    owner = session.get(Score, revision.score_id)
+    assert source.stored_object.object_key == canonical_revision_source_object_key(
+        score_uuid=owner.score_uuid, revision_uuid=revision.revision_uuid
+    )
     assert storage.read_bytes(source.stored_object.object_key) == admitted
 
 

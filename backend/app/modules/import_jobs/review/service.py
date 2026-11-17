@@ -1,4 +1,7 @@
 from __future__ import annotations
+from app.modules.revisions.object_keys import canonical_revision_source_object_key
+from app.modules.import_jobs.object_keys import review_musicxml_object_key
+from app.modules.import_jobs.artifact_records import REVIEW_MUSICXML_MIME_TYPE
 from app.storage import ObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import write_object, adopt_written_object
@@ -128,7 +131,9 @@ class ImportReviewService:
         options = decode_requested_options(job.requested_options)
         display_title = self._confirmed_display_title(options, request, content)
         genres = self._confirmed_genres(options, request)
-        key = f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml"
+        key = canonical_revision_source_object_key(
+            score_uuid=score_uuid, revision_uuid=revision_uuid
+        )
         reservation = storage_usage_service.reserve(
             db,
             user_id=user_id,
@@ -295,9 +300,11 @@ class ImportReviewService:
         stored = write_object(
             db,
             self.storage,
-            key=f"jobs/{job_uuid}/{ImportArtifactKind.REVIEW_MUSICXML.value}/{uuid.uuid4()}.musicxml",
+            key=review_musicxml_object_key(
+                job_uuid=job_uuid, content_sha256=hashlib.sha256(content).hexdigest()
+            ),
             content=content,
-            content_type="application/vnd.recordare.musicxml+xml",
+            content_type=REVIEW_MUSICXML_MIME_TYPE,
         )
         job = (
             db.execute(

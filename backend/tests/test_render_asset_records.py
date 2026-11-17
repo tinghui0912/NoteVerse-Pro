@@ -6,14 +6,14 @@ from app.db.models.score import RenderAssetKind
 from app.modules.score_assets.render_asset_records import (
     build_render_asset_record,
     render_asset_usage,
-    render_storage_key,
+    rendered_page_object_key,
 )
 from app.modules.storage_objects.persistence import object_from_bytes
 
 
-def test_render_storage_key_uses_profile_and_page_scoped_asset_path() -> None:
+def test_rendered_page_object_key_uses_profile_and_page_scoped_asset_path() -> None:
     assert (
-        render_storage_key(
+        rendered_page_object_key(
             score_uuid="score-1",
             revision_uuid="revision-1",
             profile="default",

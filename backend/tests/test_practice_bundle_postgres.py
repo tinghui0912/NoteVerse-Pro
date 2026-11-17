@@ -1,6 +1,10 @@
 """Database-authoritative Bundle lifecycle admission across independent transactions."""
 
 from __future__ import annotations
+from app.modules.practice.bundle.object_keys import (
+    practice_bundle_musicxml_object_key,
+    practice_bundle_artifact_object_key,
+)
 
 from app.db.models.practice_bundle import PracticeBundleStatus
 
@@ -118,6 +122,13 @@ async def test_same_revision_concurrent_candidates_have_one_bundle_one_binding(p
     with sessions() as db:
         assert db.scalar(select(func.count()).select_from(PracticeBundleRecord)) == 1
         assert db.scalar(select(func.count()).select_from(ScoreRevisionPracticeBinding)) == 1
+        row = db.scalar(select(PracticeBundleRecord))
+        assert row.prepared_musicxml_object.object_key == practice_bundle_musicxml_object_key(
+            bundle.bundle_id
+        )
+        assert row.artifact_object.object_key == practice_bundle_artifact_object_key(
+            bundle.bundle_id
+        )
 
 
 @pytest.mark.asyncio

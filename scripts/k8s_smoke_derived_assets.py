@@ -118,6 +118,7 @@ from app.db.models import User
 from app.db.models import Score, StorageUsageCategory
 from app.db.models.score import RevisionOrigin
 from app.db.session import SessionLocal
+from app.modules.revisions.object_keys import canonical_revision_source_object_key
 from app.modules.revisions.writer import revision_writer, InitialRevisionWrite, PreparedRevisionSource
 from app.modules.revisions.render_dispatch import dispatch_score_revision_render
 from app.modules.revisions.dispatch import dispatch_playback_outbox
@@ -163,7 +164,7 @@ with SessionLocal() as db:
     try:
         db.commit()
         stored = write_object(db, object_storage,
-            key=f"scores/{{score_uuid}}/revisions/{{revision_uuid}}/score.musicxml", content=musicxml,
+            key=canonical_revision_source_object_key(score_uuid=score_uuid, revision_uuid=revision_uuid), content=musicxml,
             content_type="application/vnd.recordare.musicxml+xml")
         db.add(Score(score_uuid=score_uuid, owner_user_id=user_id, display_title="K8s Smoke Derived Asset"))
         db.flush()

@@ -714,3 +714,72 @@ def test_materialization_failure_preserves_committed_start_without_a_progress_he
     assert job.processing_finished_at >= job.processing_started_at
     assert job.failure_code == "import_pipeline_failed"
     assert job.failure_stage == "pipeline" and job.failure_classification == "system_error"
+
+
+def test_pipeline_and_review_updates_share_content_addressed_musicxml_identity(
+    setup_delivery, monkeypatch, tmp_path
+):
+    import hashlib
+    from app.modules.import_jobs.pipeline import artifact_recorder
+    from app.modules.import_jobs.object_keys import review_musicxml_object_key
+    from app.modules.import_jobs.artifact_records import REVIEW_MUSICXML_MIME_TYPE
+    from app.modules.import_jobs.review.service import ImportReviewService
+    from app.modules.import_jobs.review.schemas import ReviewUpdateRequest
+    from app.processing.musicxml.admission import admit_musicxml_document
+    from app.db.models import StorageUsageCounter, StorageUsageCategory, StoredObjectRetirement
+    from tests.test_score_revision_services import MUSICXML_1, MUSICXML_2
+
+    db, storage, job, dispatch = setup_delivery
+    lease = claim(db, dispatch)
+    recorder = ImportExecutionRecorder()
+    recorder.start_execution(db, lease)
+
+    @contextmanager
+    def session():
+        yield db
+
+    monkeypatch.setattr(artifact_recorder, "SessionLocal", session)
+    monkeypatch.setattr(artifact_recorder, "object_storage", storage)
+    content = admit_musicxml_document(MUSICXML_1)
+    expected = review_musicxml_object_key(
+        job_uuid=job.job_uuid, content_sha256=hashlib.sha256(content).hexdigest()
+    )
+    for filename in ("temporary.xml", "different-worker-name.musicxml"):
+        path = tmp_path / filename
+        path.write_bytes(content)
+        artifact_recorder.replace_files(lease, ImportArtifactKind.REVIEW_MUSICXML, [str(path)])
+        artifact = db.scalar(select(ImportArtifact).where(ImportArtifact.job_id == job.id))
+        assert artifact.stored_object.object_key == expected
+        assert artifact.filename == "score.musicxml"
+        assert artifact.stored_object.content_type == REVIEW_MUSICXML_MIME_TYPE
+    first_id = artifact.stored_object_id
+    recorder.finalize_success(db, lease)
+    assert job.state is ImportJobState.READY_FOR_REVIEW
+    service = ImportReviewService(storage=storage)
+    service.update(db, job.job_uuid, 1, ReviewUpdateRequest(content=content.decode()))
+    db.refresh(artifact)
+    assert artifact.stored_object_id == first_id
+    assert artifact.stored_object.object_key == expected
+    assert storage.read_bytes(expected) == content
+    changed = admit_musicxml_document(MUSICXML_2.encode())
+    service.update(db, job.job_uuid, 1, ReviewUpdateRequest(content=changed.decode()))
+    db.refresh(artifact)
+    changed_key = review_musicxml_object_key(
+        job_uuid=job.job_uuid, content_sha256=hashlib.sha256(changed).hexdigest()
+    )
+    assert changed_key != expected
+    assert artifact.stored_object_id != first_id
+    assert artifact.stored_object.object_key == changed_key
+    assert storage.read_bytes(changed_key) == changed
+    assert len(list(db.scalars(select(ImportArtifact).where(ImportArtifact.job_id == job.id)))) == 1
+    retirement = db.scalar(
+        select(StoredObjectRetirement).where(StoredObjectRetirement.stored_object_id == first_id)
+    )
+    assert retirement is not None and retirement.status.value == "PENDING"
+    counter = db.scalar(
+        select(StorageUsageCounter).where(
+            StorageUsageCounter.user_id == 1,
+            StorageUsageCounter.category == StorageUsageCategory.TEMP_IMPORT,
+        )
+    )
+    assert counter.used_bytes == len(changed) and counter.reserved_bytes == 0

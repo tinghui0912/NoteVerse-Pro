@@ -32,7 +32,7 @@ from app.db.models.score import RenderAssetKind, RevisionSourceFormat
 from app.modules.score_assets.render_asset_records import (
     build_render_asset_record,
     render_asset_usage,
-    render_storage_key,
+    rendered_page_object_key,
 )
 from app.modules.rendering.execution_manifest import build_render_execution_manifest
 from app.modules.revisions.render_delivery import revision_render_delivery
@@ -211,7 +211,7 @@ class ScoreRevisionRenderService:
         output: RenderedPage, score_uuid: str, revision_uuid: str, revision_id: int, profile: str
     ) -> tuple[dict, str, str, bytes]:
         artifact_uuid = str(uuid.uuid4())
-        key = render_storage_key(
+        key = rendered_page_object_key(
             score_uuid=score_uuid,
             revision_uuid=revision_uuid,
             profile=profile,

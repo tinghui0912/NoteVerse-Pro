@@ -1,5 +1,7 @@
 """Creation leases, representation writes and atomic Practice revision binding."""
 
+from .object_keys import practice_bundle_musicxml_object_key, practice_bundle_artifact_object_key
+
 from collections.abc import Callable
 from datetime import timedelta
 
@@ -98,14 +100,20 @@ class PracticeBundleWriter:
     ) -> list[ObjectWriteReceipt]:
         receipts = []
         try:
-            for suffix, representation in [
-                ("score.musicxml", candidate.prepared_musicxml),
-                ("artifact.json", candidate.artifact.representation),
+            for key, representation in [
+                (
+                    practice_bundle_musicxml_object_key(candidate.bundle_id),
+                    candidate.prepared_musicxml,
+                ),
+                (
+                    practice_bundle_artifact_object_key(candidate.bundle_id),
+                    candidate.artifact.representation,
+                ),
             ]:
                 receipt = write_object(
                     db,
                     self.storage,
-                    key=f"practice-bundles/{candidate.bundle_id}/{suffix}",
+                    key=key,
                     content=representation.data,
                     content_type=representation.mime_type,
                 )

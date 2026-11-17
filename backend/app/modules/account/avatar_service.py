@@ -18,6 +18,8 @@ from app.storage import object_storage, ObjectStorage
 
 
 def avatar_object_key(filename: str) -> str:
+    if not filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
+        raise ValueError("Avatar filename must be a nonempty namespace segment")
     return f"avatars/{filename}"
 
 

@@ -14,13 +14,18 @@ class PlaybackAssetUsage:
     size_bytes: int
 
 
-def playback_storage_key(
+def playback_audio_object_key(
     *,
     score_uuid: str,
     revision_uuid: str,
     asset_uuid: str,
     extension: str,
 ) -> str:
+    for component in (score_uuid, revision_uuid, asset_uuid, extension):
+        if not component or component in {".", ".."} or "/" in component or "\\" in component:
+            raise ValueError("Playback audio identity must contain safe namespace segments")
+    if not extension.startswith("."):
+        raise ValueError("Playback audio extension must start with a dot")
     return f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{extension}"
 
 

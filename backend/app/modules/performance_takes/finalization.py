@@ -19,7 +19,7 @@ from .final_media import PerformanceTakeFinalMedia
 from .writer import PerformanceTakeWriter
 from .repository import PerformanceTakeRepository
 from .manifest_persistence import manifest_from_row
-from .recording_media_admission import recording_extension
+from .object_keys import performance_take_recording_object_key
 from .schemas import PerformanceTakeRead
 from .service import PerformanceTakeService
 from .upload_reservation.domain import (
@@ -66,12 +66,15 @@ class PerformanceTakeFinalizationService:
             return self.takes.get_take(db, user_id, manifest.take_uuid)
         now = utc_now()
         token = str(uuid4())
-        extension = recording_extension(
-            manifest.snapshot.capture.kind, manifest.snapshot.capture.mime_type
-        )
         lease = FinalizeLease(
             token,
-            f"performance-takes/{user_id}/{manifest.take_uuid}/{token}.{extension}",
+            performance_take_recording_object_key(
+                user_id=user_id,
+                take_uuid=manifest.take_uuid,
+                finalize_token=token,
+                media_kind=manifest.snapshot.capture.kind,
+                mime_type=manifest.snapshot.capture.mime_type,
+            ),
             now + timedelta(seconds=TAKE_FINALIZING_LEASE_SECONDS),
         )
         try:

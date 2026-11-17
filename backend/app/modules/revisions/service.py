@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.revisions.object_keys import canonical_revision_source_object_key
 from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 from app.modules.storage_objects.writes import write_object
@@ -116,7 +117,9 @@ class RevisionService:
             receipt = write_object(
                 db,
                 self.storage,
-                key=f"scores/{score_uuid}/revisions/{revision_uuid}/score.musicxml",
+                key=canonical_revision_source_object_key(
+                    score_uuid=score_uuid, revision_uuid=revision_uuid
+                ),
                 content=content,
                 content_type="application/vnd.recordare.musicxml+xml",
             )

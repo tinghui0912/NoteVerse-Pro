@@ -177,7 +177,7 @@ def test_manifest_upload_and_delivery_depend_on_the_admission_adapter():
         "service.py",
         "upload_reservation/reservation_service.py",
         "final_media.py",
-        "finalization.py",
+        "object_keys.py",
     ]:
         tree = ast.parse(
             (ROOT / "backend/app/modules/performance_takes" / name).read_text(encoding="utf-8")

@@ -29,6 +29,7 @@ from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceServ
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.pipeline.artifact_recorder import _build_file_item
+from app.modules.import_jobs.object_keys import review_musicxml_object_key
 from app.shared.error_codes import CustomerErrorCode
 from app.db.models.import_job import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
@@ -136,9 +137,8 @@ def test_artifact_recorder_persists_intent_before_upload(
     assert set(item) == {"write_intent_uuid", "write_token", "filename", "page_number"}
     assert item["write_intent_uuid"] == row.intent_uuid and item["write_token"] == row.write_token
     assert row.status == "WRITTEN" and row.content_type == mime
-    assert (
-        row.object_key
-        == f"jobs/task-1/{getattr(kind, 'value', kind)}/{hashlib.sha256(content).hexdigest()}/001-output.{extension}"
+    assert row.object_key == review_musicxml_object_key(
+        job_uuid="task-1", content_sha256=hashlib.sha256(content).hexdigest()
     )
     assert row.byte_size == len(content) and storage.read_bytes(row.object_key) == content
 

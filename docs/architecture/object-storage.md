@@ -6,6 +6,36 @@ NoteVerse uses one private `ObjectStorage` namespace per deployment. The capabil
 
 `modules/storage_objects/facts.py` validates the immutable `StoredObjectFacts` value. `persistence.py` is the physical-fact hydration/creation boundary. Application-verified complete bytes establish size and SHA; provider checksums and ETags do not establish durable SHA authority.
 
+## Domain object-key authority
+
+Storage infrastructure owns durable physical facts and the write/adoption/retirement
+protocol. Feature domains own semantic object-key construction. ObjectStorage,
+ObjectWriteIntent, StoredObject, accounting and retirement consume opaque exact keys;
+they neither infer semantic ownership from prefixes nor import feature key builders.
+
+| Semantic object | Owning domain | Canonical builder |
+| --- | --- | --- |
+| Canonical revision MusicXML | Revisions | `canonical_revision_source_object_key` |
+| Temporary Review MusicXML | Import Jobs | `review_musicxml_object_key` |
+| Rendered page | Score Assets | `rendered_page_object_key` |
+| Revision playback audio | Playback | `playback_audio_object_key` |
+| Uploaded blob | Uploads | `blob_object_key` |
+| Profile avatar | Account | `avatar_object_key` |
+| Bundle MusicXML | Practice Bundle | `practice_bundle_musicxml_object_key` |
+| Bundle artifact JSON | Practice Bundle | `practice_bundle_artifact_object_key` |
+| Staging recording candidate | Performance Takes | `performance_take_staging_object_key` |
+| Finalization-generation recording | Performance Takes | `performance_take_recording_object_key` |
+
+These are internal namespace identities, not Customer API contracts. Revision create,
+restore, confirmation and Writer identity verification consume the same revision builder.
+Import pipeline recording and Review updates identify the current MusicXML by job and
+content SHA-256, with a stable `score.musicxml` delivery filename and canonical MusicXML
+MIME. Worker temporary filenames do not determine product identity. Identical bytes
+reacquire the exact immutable key through the existing ObjectWriteIntent/retirement
+fences. Staging and final recordings have distinct locators; the finalization token
+identifies the final physical generation, and recording-media admission owns extensions.
+Model assets consume configured/manifest locators independently of runtime producers.
+
 ## Application IO and HTTP transport
 
 `ObjectStorage` is synchronous infrastructure. Backend application services,

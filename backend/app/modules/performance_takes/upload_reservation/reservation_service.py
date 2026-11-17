@@ -2,6 +2,7 @@ from __future__ import annotations
 from app.storage import ObjectStorage
 
 from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.object_keys import performance_take_staging_object_key
 
 from dataclasses import asdict
 from datetime import datetime, timedelta
@@ -11,7 +12,6 @@ from app.modules.performance_takes.manifest import TakeManifest
 from app.modules.performance_takes.recording_media_admission import (
     normalize_recording_mime,
     is_admitted_recording_mime,
-    recording_extension,
 )
 from app.modules.performance_takes.manifest_persistence import (
     manifest_from_row,
@@ -69,11 +69,6 @@ from .effects import apply_reservation_transition
 from .responses import reservation_read, completed_reservation_response
 
 TAKE_UPLOAD_RESERVATION_SECONDS = 3600
-
-
-def _build_staging_object_key(user_id: int, take_uuid: str, media_kind: str, mime_type: str) -> str:
-    ext = recording_extension(media_kind, mime_type)
-    return f"staging/performance-takes/{user_id}/{take_uuid}/recording.{ext}"
 
 
 class PerformanceTakeReservationService:
@@ -251,7 +246,9 @@ class PerformanceTakeReservationService:
             }
         )
         take_uuid = str(uuid4())
-        staging_key = _build_staging_object_key(user_id, take_uuid, media.kind, media.mime_type)
+        staging_key = performance_take_staging_object_key(
+            user_id=user_id, take_uuid=take_uuid, media_kind=media.kind, mime_type=media.mime_type
+        )
         upload_target = self.storage.upload_url(
             key=staging_key, content_type=media.mime_type, checksum_sha256=""
         )

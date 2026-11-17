@@ -18,7 +18,6 @@ PROTECTED_SERVICE_MODULES = (
     "app/modules/playback/delivery.py",
     "app/modules/practice/bundle/service.py",
     "app/modules/revisions/service.py",
-    "app/modules/score_assets/score_revision_rendering.py",
     "app/modules/score_assets/service.py",
     "app/modules/collaboration/invitation_service.py",
     "app/modules/collaboration/membership_service.py",

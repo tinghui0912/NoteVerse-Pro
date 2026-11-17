@@ -117,3 +117,14 @@ def test_sqlite_artifact_enum_round_trip_is_typed(kind):
             assert loaded is kind
     finally:
         engine.dispose()
+
+
+@pytest.mark.parametrize("paths", [[], ["one.xml", "two.xml"]])
+def test_review_recording_admits_one_current_musicxml_before_io(monkeypatch, paths):
+    sessions, writes = Mock(), Mock()
+    monkeypatch.setattr(artifact_recorder, "SessionLocal", sessions)
+    monkeypatch.setattr(artifact_recorder, "write_object", writes)
+    with pytest.raises(ValueError, match="exactly one file"):
+        artifact_recorder.replace_files(Mock(), ImportArtifactKind.REVIEW_MUSICXML, paths)
+    sessions.assert_not_called()
+    writes.assert_not_called()

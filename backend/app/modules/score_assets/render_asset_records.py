@@ -14,7 +14,7 @@ class RenderAssetUsage:
     size_bytes: int | None
 
 
-def render_storage_key(
+def rendered_page_object_key(
     *,
     score_uuid: str,
     revision_uuid: str,
@@ -23,6 +23,11 @@ def render_storage_key(
     asset_uuid: str,
     extension: str,
 ) -> str:
+    for component in (score_uuid, revision_uuid, profile, asset_uuid, extension):
+        if not component or component in {".", ".."} or "/" in component or "\\" in component:
+            raise ValueError("Rendered-page identity must contain safe namespace segments")
+    if not extension.startswith("."):
+        raise ValueError("Rendered-page extension must start with a dot")
     return (
         f"scores/{score_uuid}/revisions/{revision_uuid}/renders/"
         f"{profile}/{page:03d}-{asset_uuid}{extension}"

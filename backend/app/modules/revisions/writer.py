@@ -1,5 +1,7 @@
 """Single canonical revision persistence algorithm; the use case owns commit."""
 
+from app.modules.revisions.object_keys import canonical_revision_source_object_key
+
 from dataclasses import dataclass
 from uuid import uuid4
 from sqlalchemy import select
@@ -99,7 +101,9 @@ class RevisionWriter:
             prepared.receipt.facts.sha256 != prepared.content_hash
             or prepared.receipt.facts.content_type != "application/vnd.recordare.musicxml+xml"
             or prepared.receipt.object_key
-            != f"scores/{score.score_uuid}/revisions/{prepared.revision_uuid}/score.musicxml"
+            != canonical_revision_source_object_key(
+                score_uuid=score.score_uuid, revision_uuid=prepared.revision_uuid
+            )
         ):
             raise ValueError("Prepared canonical source identity disagrees with revision")
         reservation = db.scalar(

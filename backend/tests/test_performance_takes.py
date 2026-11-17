@@ -1,4 +1,8 @@
 from __future__ import annotations
+from app.modules.performance_takes.object_keys import (
+    performance_take_staging_object_key,
+    performance_take_recording_object_key,
+)
 
 from tests.support.practice_bundle import bind_bundle
 from app.modules.practice.bundle.content import read_verified_bundle
@@ -667,7 +671,9 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             "bundle_id": _bundle_id(),
         }
         assert upload_url.startswith("https://objects.example/")
-        assert staging_object_key.startswith("staging/performance-takes/")
+        assert staging_object_key == performance_take_staging_object_key(
+            user_id=1, take_uuid=take_id, media_kind="AUDIO", mime_type="audio/webm"
+        )
 
         # Verify quota reservation was held
         account = session.get(StorageUsageAccount, 1)
@@ -689,10 +695,22 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         # 3. Simulate client direct upload to staging storage object
         storage.put_bytes(key=staging_object_key, content=media_content, content_type="audio/webm")
 
-        # 4. Finalize successfully with external UUIDs
-        res_fin = client.post(
-            "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
+        # 4. Finalize successfully with external UUIDs.
+        with patch.object(
+            take_svc.finalization.media, "verify", wraps=take_svc.finalization.media.verify
+        ) as verify:
+            res_fin = client.post(
+                "/api/v1/performance-takes/upload-reservations/" + reserved_upload_id + "/finalize"
+            )
+        admitted_lease = verify.call_args.args[1]
+        expected_final_key = performance_take_recording_object_key(
+            user_id=1,
+            take_uuid=take_id,
+            finalize_token=admitted_lease.token,
+            media_kind="AUDIO",
+            mime_type="audio/webm",
         )
+        assert admitted_lease.object_key == expected_final_key
         assert res_fin.status_code == 200, res_fin.text
         take_data = res_fin.json()
         assert take_data["take_id"] == take_id
@@ -744,7 +762,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         assert retained.status_code == 200, retained.text
         assert retained.json() == take_data
         final_object_key = take_row.recording_object.object_key
-        assert final_object_key.startswith(f"performance-takes/1/{take_id}/")
+        assert final_object_key == expected_final_key
         assert final_object_key != staging_object_key
         assert storage.exists(final_object_key)
         assert storage.exists(staging_object_key)

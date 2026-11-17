@@ -673,3 +673,24 @@ def test_metadata_worker_retries_source_failures_without_metadata_or_realtime_mu
         assert row.next_attempt_at > row.started_at
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         assert db.scalar(sa.select(RealtimeChange)) is None
+
+
+def test_writer_rejects_a_receipt_outside_the_canonical_revision_identity(database):
+    engine, storage = database
+    source = prepare(engine, storage)
+    with Session(engine) as db:
+        wrong = write_object(
+            db,
+            storage,
+            key="other/source.musicxml",
+            content=storage.read_bytes(source.receipt.object_key),
+            content_type=source.receipt.facts.content_type,
+        )
+        with pytest.raises(ValueError, match="canonical source identity"):
+            revision_writer.write(
+                db,
+                InitialRevisionWrite("score", 1, replace(source, receipt=wrong), 1, "wrong-source"),
+            )
+        db.rollback()
+        assert db.scalar(sa.select(ScoreRevisionSource)) is None
+        assert db.scalar(sa.select(ScoreRevision)) is None

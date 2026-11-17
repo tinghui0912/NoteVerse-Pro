@@ -30,7 +30,7 @@ from app.db.models.score import RevisionSourceFormat
 from app.modules.playback.asset_records import (
     build_playback_asset_record,
     playback_asset_usage,
-    playback_storage_key,
+    playback_audio_object_key,
 )
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
 from app.modules.playback.outbox_service import playback_outbox_service
@@ -110,7 +110,7 @@ class PlaybackGenerationService:
         stored = write_object(
             db,
             self.storage,
-            key=playback_storage_key(
+            key=playback_audio_object_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 asset_uuid=asset_uuid,
@@ -265,7 +265,7 @@ class PlaybackGenerationService:
         stored = write_object(
             db,
             self.storage,
-            key=playback_storage_key(
+            key=playback_audio_object_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 asset_uuid=asset_uuid,
