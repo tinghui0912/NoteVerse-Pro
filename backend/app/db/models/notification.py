@@ -29,7 +29,7 @@ class NotificationKind(StrEnum):
 class Notification(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "notifications"
     __table_args__ = (
-        Index("idx_notifications_recipient_created", "recipient_user_id", "created_at"),
+        Index("idx_notifications_recipient_created", "recipient_user_id", "created_at", "id"),
         Index("idx_notifications_recipient_read", "recipient_user_id", "read_at"),
         CheckConstraint(
             """

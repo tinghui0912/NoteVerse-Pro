@@ -68,22 +68,16 @@ describe('semantic Take deletion cache admission', () => {
         mutations: { retry: false },
       },
     });
-    const first = queryKeys.performanceTakes.list({ limit: 1, offset: 0 });
-    const second = queryKeys.performanceTakes.list({ limit: 1, offset: 1 });
+    const first = queryKeys.performanceTakes.list({ limit: 1 });
+    const second = queryKeys.performanceTakes.list({ limit: 20 });
     const matching = queryKeys.performanceTakes.list({ score_id: 'score-1' });
     const unrelated = queryKeys.performanceTakes.list({ score_id: 'score-2' });
     const other = { ...performanceTake, take_id: 'other' };
-    const list = (items: PerformanceTakeRead[], total: number, offset = 0) => ({
-        items,
-        total,
-        limit: 1,
-        offset,
-        has_more: offset + items.length < total,
-      });
-    client.setQueryData(first, list([performanceTake], 2));
-    client.setQueryData(second, list([other], 2, 1));
-    client.setQueryData(matching, list([performanceTake], 1));
-    client.setQueryData(unrelated, list([other], 1));
+    const list = (items: PerformanceTakeRead[]) => ({ pages: [{items, next_cursor: null}], pageParams: [undefined] });
+    client.setQueryData(first, { pages: [{ items: [other], next_cursor: 'next' }, { items: [performanceTake], next_cursor: null }], pageParams: [undefined, 'next'] });
+    client.setQueryData(second, list([other]));
+    client.setQueryData(matching, list([performanceTake]));
+    client.setQueryData(unrelated, list([other]));
     client.setQueryData(queryKeys.performanceTakes.detail('take-1'), performanceTake);
     client.setQueryData(queryKeys.performanceTakes.playbackUrl('take-1'), { playback_url: 'signed-deleted' });
     client.setQueryData(queryKeys.performanceTakes.playbackUrl('other'), { playback_url: 'signed-other' });
@@ -106,10 +100,10 @@ describe('semantic Take deletion cache admission', () => {
     });
     await waitFor(() => expect(finishInvalidations).toHaveLength(2));
     expect(finished).toBe(false);
-    expect(client.getQueryData(first)).toMatchObject({ items: [], total: 1, has_more: true });
-    expect(client.getQueryData(second)).toMatchObject({ items: [other], total: 1, has_more: false });
-    expect(client.getQueryData(matching)).toMatchObject({ items: [], total: 0 });
-    expect(client.getQueryData(unrelated)).toMatchObject({ items: [other], total: 1 });
+    expect(client.getQueryData(first)).toMatchObject({ pages: [{ items: [other], next_cursor: 'next' }, { items: [], next_cursor: null }], pageParams: [undefined, 'next'] });
+    expect(client.getQueryData(second)).toMatchObject({ pages: [{ items: [other] }] });
+    expect(client.getQueryData(matching)).toMatchObject({ pages: [{items: []}] });
+    expect(client.getQueryData(unrelated)).toMatchObject({ pages: [{items: [other]}] });
     expect(
       client.getQueryData(queryKeys.performanceTakes.detail('take-1')),
     ).toBeUndefined();
@@ -144,7 +138,7 @@ describe('semantic Take deletion cache admission', () => {
       defaultOptions: { mutations: { retry: false } },
     });
     const key = queryKeys.performanceTakes.list();
-    const cached = { items: [performanceTake], total: 1 };
+    const cached = { pages: [{items: [performanceTake], next_cursor: null}], pageParams: [undefined] };
     client.setQueryData(key, cached);
     const invalidate = vi.spyOn(client, 'invalidateQueries');
     vi.mocked(performanceTakesApi.deleteTake).mockRejectedValue(
@@ -172,7 +166,7 @@ it('cancels stale deleted-resource/list reads while another Take playback remain
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const key = queryKeys.performanceTakes.list();
-  client.setQueryData(key, { items: [performanceTake], total: 1, offset: 0 });
+  client.setQueryData(key, { pages: [{items: [performanceTake], next_cursor: null}], pageParams: [undefined] });
   let listSignal!: AbortSignal, otherSignal!: AbortSignal;
   let finishList!: (data: unknown) => void,
     finishOther!: (data: unknown) => void;
@@ -207,11 +201,11 @@ it('cancels stale deleted-resource/list reads while another Take playback remain
   });
   expect(listSignal.aborted).toBe(true);
   expect(otherSignal.aborted).toBe(false);
-  finishList({ items: [performanceTake], total: 1 });
+  finishList({ pages: [{ items: [performanceTake], next_cursor: null }], pageParams: [undefined] });
   finishOther({ playback_url: 'other-signed-recording' });
   await stale;
   await other;
-  expect(client.getQueryData(key)).toMatchObject({ items: [], total: 0 });
+  expect(client.getQueryData(key)).toMatchObject({ pages: [{items: []}] });
   expect(
     client.getQueryData(queryKeys.performanceTakes.playbackUrl('other')),
   ).toMatchObject({ playback_url: 'other-signed-recording' });

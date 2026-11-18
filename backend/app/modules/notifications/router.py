@@ -5,7 +5,11 @@ from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.notifications.dependencies import get_notification_service
-from app.modules.notifications.schemas import NotificationRead, NotificationUnreadCountRead
+from app.modules.notifications.schemas import (
+    NotificationRead,
+    NotificationUnreadCountRead,
+    NotificationListRead,
+)
 from app.modules.notifications.service import NotificationService
 
 
@@ -15,16 +19,17 @@ router = APIRouter()
 @router.get(
     "/notifications",
     operation_id="notificationsList",
-    response_model=list[NotificationRead],
+    response_model=NotificationListRead,
 )
 def list_my_notifications(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db, scope="function"),
     service: NotificationService = Depends(get_notification_service),
     limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    result = service.list_for_user(db, user_id, limit=limit)
+    result = service.list_for_user(db, user_id, limit=limit, cursor=cursor)
     return result
 
 

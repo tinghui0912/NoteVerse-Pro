@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, update, tuple_
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
@@ -13,18 +13,23 @@ notification_created_col = Notification.__table__.c.created_at
 
 
 class NotificationRepository:
-    def list_for_user(self, db: Session, user_id: int, *, limit: int = 50) -> list[Notification]:
+    def list_for_user(
+        self,
+        db: Session,
+        user_id: int,
+        *,
+        limit: int = 50,
+        before: tuple[datetime, int] | None = None,
+    ) -> list[Notification]:
+        statement = select(Notification).where(Notification.recipient_user_id == user_id)
+        if before is not None:
+            statement = statement.where(tuple_(Notification.created_at, Notification.id) < before)
         return list(
-            (
-                db.execute(
-                    select(Notification)
-                    .where(Notification.recipient_user_id == user_id)
-                    .order_by(notification_created_col.desc())
-                    .limit(limit)
+            db.scalars(
+                statement.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(
+                    limit
                 )
             )
-            .scalars()
-            .all()
         )
 
     def unread_count(self, db: Session, user_id: int) -> int:

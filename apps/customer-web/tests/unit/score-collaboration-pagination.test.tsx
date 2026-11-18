@@ -37,7 +37,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => (key === 'invitations' ? 'Invitations' : key),
 }));
 vi.mock('@/hooks/queries/use-notification-queries', () => ({
-  useMyNotifications: () => ({ data: [], isLoading: false, isError: false }),
+  useMyNotifications: () => ({ data: { pages: [{ items: [], next_cursor: null }], pageParams: [undefined] }, isLoading: false, isError: false }),
   useMarkNotificationRead: () => ({ mutate: vi.fn(), isPending: false }),
   useMarkAllNotificationsRead: () => ({ mutate: vi.fn(), isPending: false }),
 }));

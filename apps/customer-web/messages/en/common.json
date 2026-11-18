@@ -76,5 +76,6 @@
   "saved": "Saved",
   "accessDenied": "Access denied",
   "editAccessDeniedDesc": "You do not have permission to edit this score.",
-  "reviewAccessDeniedDesc": "You do not have permission to review this score."
+  "reviewAccessDeniedDesc": "You do not have permission to review this score.",
+  "loadMore": "Load more"
 }

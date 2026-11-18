@@ -14,7 +14,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/routing';
 
 import { PageHeader } from '@/components/page';
@@ -32,7 +31,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { PaginationControls } from '@/components/ui/pagination-controls';
 import {
   useDeletePerformanceTake,
   usePerformanceTakePlayback,
@@ -46,11 +44,6 @@ import {
 import type { RecordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
 import { isPerformanceTakeCompositeVideoCandidate } from '@/lib/practice/performance-take/admission';
 import { useToast } from '@/hooks/use-toast';
-
-function normalizePage(value?: string | number): number {
-  const page = Math.floor(Number(value ?? 1));
-  return Number.isFinite(page) ? Math.max(1, page) : 1;
-}
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -343,41 +336,15 @@ function PerformanceTakeCard({
   );
 }
 
-export default function MyPerformancesPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ page?: string }>;
-}) {
-  const synchronousPageParam = readSynchronousPageParam(searchParams);
-  const resolvedParams =
-    synchronousPageParam !== undefined
-      ? { page: synchronousPageParam }
-      : searchParams
-        ? React.use(searchParams)
-        : undefined;
-  return <MyPerformancesPageContent searchParams={resolvedParams} />;
-}
-
-function MyPerformancesPageContent({
-  searchParams,
-}: {
-  searchParams?: { page?: string };
-}) {
-  const routerSearchParams = useSearchParams();
-  const pageParam =
-    searchParams?.page ?? routerSearchParams?.get('page') ?? undefined;
-  const rawPage = normalizePage(pageParam);
-
+export default function MyPerformancesPage() {
   const t = useTranslations('practice');
   const common = useTranslations('common');
-  const router = useRouter();
   const { toast } = useToast();
 
   const pageSize = 20;
 
   const takesQuery = usePerformanceTakes({
     limit: pageSize,
-    offset: (rawPage - 1) * pageSize,
   });
   const deleteTake = useDeletePerformanceTake();
 
@@ -385,34 +352,7 @@ function MyPerformancesPageContent({
   const [takePendingDelete, setTakePendingDelete] =
     useState<PerformanceTakeRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const total = takesQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const currentPage = Math.min(rawPage, totalPages);
-  const queryItems = takesQuery.data?.items;
-  const takes = React.useMemo(() => queryItems ?? [], [queryItems]);
-  const goToPage = React.useCallback(
-    (nextPage: number) => {
-      setActiveTakeId(null);
-      const targetPage = Math.max(1, nextPage);
-      const search =
-        targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
-      router.push(search);
-    },
-    [router],
-  );
-
-  // If query succeeded and rawPage is beyond totalPages, normalize URL to totalPages
-  React.useEffect(() => {
-    if (takesQuery.isSuccess && rawPage > totalPages) {
-      const targetPage = Math.max(1, totalPages);
-      const search =
-        targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
-      router.push(search);
-    }
-  }, [takesQuery.isSuccess, total, totalPages, rawPage, router]);
-
-  const canGoPrevious = currentPage > 1;
-  const canGoNext = currentPage < totalPages;
+  const takes = takesQuery.data?.pages.flatMap(page => page.items) ?? [];
 
   const handleDeleteConfirm = async () => {
     if (!takePendingDelete) return;
@@ -443,7 +383,7 @@ function MyPerformancesPageContent({
 
       {takesQuery.isLoading ? (
         <SectionLoading label={common('loading')} />
-      ) : takesQuery.isError ? (
+      ) : takesQuery.isError && !takes.length ? (
         <SectionErrorState
           description={common('loadFailedDescription')}
           retryLabel={common('tryAgain')}
@@ -479,15 +419,12 @@ function MyPerformancesPageContent({
             />
           ))}
 
-          {totalPages > 1 ? (
-            <PaginationControls
-              page={currentPage}
-              totalPages={totalPages}
-              canGoPrevious={canGoPrevious}
-              canGoNext={canGoNext}
-              onPageChange={goToPage}
-              t={t}
-            />
+          {takesQuery.isFetchNextPageError ? <p role="alert">{common('loadFailedDescription')}</p> : null}
+          {takesQuery.hasNextPage ? (
+            <Button variant="outline" disabled={takesQuery.isFetchingNextPage}
+              onClick={() => void takesQuery.fetchNextPage()}>
+              {takesQuery.isFetchingNextPage ? common('loading') : takesQuery.isFetchNextPageError ? common('tryAgain') : common('loadMore')}
+            </Button>
           ) : null}
         </div>
       )}
@@ -538,18 +475,4 @@ function MyPerformancesPageContent({
       </AlertDialog>
     </div>
   );
-}
-
-function readSynchronousPageParam(
-  searchParams: Promise<{ page?: string }> | undefined,
-): string | undefined {
-  if (
-    !searchParams ||
-    typeof searchParams !== 'object' ||
-    !('page' in searchParams)
-  ) {
-    return undefined;
-  }
-  const page = searchParams.page;
-  return typeof page === 'string' ? page : undefined;
 }

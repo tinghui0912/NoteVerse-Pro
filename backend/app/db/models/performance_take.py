@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Index,
     UniqueConstraint,
 )
 from sqlmodel import Field, Relationship, SQLModel
@@ -24,6 +25,7 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_takes"
     __table_args__ = (
+        Index("idx_performance_takes_created", "created_at", "id"),
         UniqueConstraint("manifest_id", name="uq_performance_takes_manifest"),
         UniqueConstraint("recording_object_id", name="uq_performance_takes_recording_object"),
     )

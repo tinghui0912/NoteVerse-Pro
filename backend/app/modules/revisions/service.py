@@ -180,7 +180,7 @@ class RevisionService:
         score_id = require_persisted_id(access.score.id, entity="score")
         revisions, next_cursor = self.repository.revisions(db, score_id, limit=limit, cursor=cursor)
         return RevisionListRead(
-            items=[self._read(db, revision) for revision in revisions],
+            items=self.read_model.revision_page(db, revisions),
             next_cursor=next_cursor,
         )
 

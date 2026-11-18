@@ -2,13 +2,15 @@
 
 import { notificationsApi } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationReadOptimistically, allNotificationsReadOptimistically, rollbackNotificationRead, notificationsChanged } from '@/lib/cache-effects/notifications';
 
 export function useMyNotifications(enabled = true) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.notifications.list(),
-    queryFn: ({ signal }) => notificationsApi.list(signal),
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ signal, pageParam }) => notificationsApi.list({ cursor: pageParam, limit: 50 }, signal),
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
     enabled,
   });
 }

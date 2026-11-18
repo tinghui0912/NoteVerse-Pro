@@ -1,10 +1,11 @@
 import { notificationMarkRead, notificationsList, notificationsMarkAllRead, notificationsUnreadCountGet } from '@/generated/api';
+import type { NotificationsListData } from '@/generated/api';
 import { customerTransport, responseBody } from '@/lib/http/customer-browser-transport';
 
 
 export const notificationsApi = {
-  list: (signal?: AbortSignal) =>
-    responseBody(notificationsList({ ...customerTransport.authenticated, signal })),
+  list: (params?: NotificationsListData['query'], signal?: AbortSignal) =>
+    responseBody(notificationsList({ ...customerTransport.authenticated, query: params, signal })),
   unreadCount: (signal?: AbortSignal) =>
     responseBody(notificationsUnreadCountGet({ ...customerTransport.authenticated, signal })),
   markRead: (notificationId: string) =>

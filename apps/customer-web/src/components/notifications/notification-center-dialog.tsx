@@ -60,7 +60,7 @@ export function NotificationCenterDialog({ open, onOpenChange }: NotificationCen
   const markAllRead = useMarkAllNotificationsRead();
 
   const invites = pendingInvitesQuery.data?.pages.flatMap((page) => page?.items ?? []) ?? [];
-  const notifications = notificationsQuery.data ?? [];
+  const notifications = notificationsQuery.data?.pages.flatMap(page => page.items) ?? [];
   const unreadCount = notifications.filter((item) => !item.read_at).length;
   const visibleNotifications =
     updateFilter === 'unread'
@@ -264,7 +264,7 @@ export function NotificationCenterDialog({ open, onOpenChange }: NotificationCen
                   title={t('loading')}
                   className="min-h-0 rounded-lg border border-dashed p-5"
                 />
-              ) : notificationsQuery.isError ? (
+              ) : notificationsQuery.isError && !notifications.length ? (
                 <SectionErrorState
                   description={t('loadUpdatesFailed')}
                   retryLabel={t('retry')}
@@ -319,6 +319,13 @@ export function NotificationCenterDialog({ open, onOpenChange }: NotificationCen
                   ))}
                 </div>
               )}
+              {notificationsQuery.isFetchNextPageError ? <p role="alert">{t('loadUpdatesFailed')}</p> : null}
+              {notificationsQuery.hasNextPage ? (
+                <Button type="button" variant="outline" disabled={notificationsQuery.isFetchingNextPage}
+                  onClick={() => void notificationsQuery.fetchNextPage()}>
+                  {notificationsQuery.isFetchingNextPage ? t('loading') : notificationsQuery.isFetchNextPageError ? t('retry') : t('loadMore')}
+                </Button>
+              ) : null}
             </section>
           </div>
         </ScrollArea>

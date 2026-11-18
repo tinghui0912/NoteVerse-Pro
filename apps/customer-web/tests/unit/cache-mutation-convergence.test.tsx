@@ -57,7 +57,7 @@ it('converges a local confirmation through Import, Review, Library, Score and st
 
 it('restores optimistic notification snapshots on command failure then marks them stale', async () => {
   const notification: NotificationRead = { notification_id: 'notice', kind: 'import.failed', job_id: 'job', import_display_title: null, read_at: null, created_at: '2026-07-01T00:00:00Z' };
-  const list = [notification]; client.setQueryData(keys.notifications.list(), list);
+  const list = { pages: [{ items: [notification], next_cursor: null }], pageParams: [undefined] }; client.setQueryData(keys.notifications.list(), list);
   client.setQueryData(keys.notifications.unreadCount(), { count: 1 });
   api.markRead.mockRejectedValue(new Error('Unavailable'));
   const hook = renderHook(() => useMarkNotificationRead(), { wrapper });

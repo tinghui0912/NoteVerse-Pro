@@ -1068,6 +1068,20 @@ export type NotificationActorRead = {
     email: string;
 };
 
+/**
+ * NotificationListRead
+ */
+export type NotificationListRead = {
+    /**
+     * Items
+     */
+    items: Array<NotificationRead>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
+};
+
 export type NotificationRead = ({
     kind: 'score_invite.accepted';
 } & ScoreInviteAcceptedNotificationRead) | ({
@@ -1252,29 +1266,17 @@ export type PerformanceTakeFullScopeSelection = {
 };
 
 /**
- * PerformanceTakeListResponse
+ * PerformanceTakeListRead
  */
-export type PerformanceTakeListResponse = {
-    /**
-     * Has More
-     */
-    has_more?: boolean;
+export type PerformanceTakeListRead = {
     /**
      * Items
      */
     items: Array<PerformanceTakeRead>;
     /**
-     * Limit
+     * Next Cursor
      */
-    limit?: number;
-    /**
-     * Offset
-     */
-    offset?: number;
-    /**
-     * Total
-     */
-    total: number;
+    next_cursor: string | null;
 };
 
 /**
@@ -4319,6 +4321,10 @@ export type NotificationsListData = {
          * Limit
          */
         limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
     };
     url: '/api/v1/me/notifications';
 };
@@ -4338,11 +4344,9 @@ export type NotificationsListError = NotificationsListErrors[keyof Notifications
 
 export type NotificationsListResponses = {
     /**
-     * Response Notificationslist
-     *
      * Successful Response
      */
-    200: Array<NotificationRead>;
+    200: NotificationListRead;
 };
 
 export type NotificationsListResponse = NotificationsListResponses[keyof NotificationsListResponses];
@@ -4757,9 +4761,9 @@ export type PerformanceTakesListData = {
          */
         limit?: number;
         /**
-         * Offset
+         * Cursor
          */
-        offset?: number;
+        cursor?: string | null;
     };
     url: '/api/v1/performance-takes';
 };
@@ -4781,7 +4785,7 @@ export type PerformanceTakesListResponses = {
     /**
      * Successful Response
      */
-    200: PerformanceTakeListResponse;
+    200: PerformanceTakeListRead;
 };
 
 export type PerformanceTakesListResponse = PerformanceTakesListResponses[keyof PerformanceTakesListResponses];

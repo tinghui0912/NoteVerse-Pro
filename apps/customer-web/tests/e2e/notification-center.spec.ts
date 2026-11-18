@@ -93,12 +93,12 @@ test('notification center combines pending invites and update notifications', as
       body: JSON.stringify({ count: 1 }),
     })
   );
-  await page.route('**/api/v1/me/notifications', (route) => {
+  await page.route(/\/api\/v1\/me\/notifications(?:\?.*)?$/, (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(notifications),
+        body: JSON.stringify({ items: notifications, next_cursor: null }),
       });
     }
     return route.fallback();
@@ -159,12 +159,12 @@ test('failed processing notification opens Import Activity', async ({ page }) =>
       body: JSON.stringify({ count: 1 }),
     })
   );
-  await page.route('**/api/v1/me/notifications', (route) => {
+  await page.route(/\/api\/v1\/me\/notifications(?:\?.*)?$/, (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([failedProcessingNotification]),
+        body: JSON.stringify({ items: [failedProcessingNotification], next_cursor: null }),
       });
     }
     return route.fallback();
@@ -212,12 +212,12 @@ test('confirmed processing notification opens created score', async ({ page }) =
       body: JSON.stringify({ count: 1 }),
     })
   );
-  await page.route('**/api/v1/me/notifications', (route) => {
+  await page.route(/\/api\/v1\/me\/notifications(?:\?.*)?$/, (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([confirmedProcessingNotification]),
+        body: JSON.stringify({ items: [confirmedProcessingNotification], next_cursor: null }),
       });
     }
     return route.fallback();
@@ -240,9 +240,37 @@ test('confirmed processing notification opens created score', async ({ page }) =
     })
   );
 
+  await page.route('**/api/v1/import-jobs?*', (route) =>
+    route.fulfill({ json: { items: [], page: 1, page_size: 20, total: 0, total_pages: 0 } })
+  );
   await page.goto('/en/upload');
   await page.getByRole('button', { name: 'Notifications' }).click();
-  await page.getByText('Score processing completed').click();
+  await page.getByText('Processing complete — ready for review').click();
 
   await expect(page).toHaveURL(/\/score\/ready-score-1$/);
+});
+
+test('notification history loads continuations only after Load more', async ({ page }) => {
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
+  await page.route('**/api/v1/import-jobs?*', route => route.fulfill({json: {items: [], page: 1, page_size: 20, total: 0, total_pages: 0}}));
+  const positions: Array<string | null> = [];
+  await page.route(/\/api\/v1\/me\/notifications(?:\?.*)?$/, route => {
+    const cursor = new URL(route.request().url()).searchParams.get('cursor');
+    positions.push(cursor);
+    return route.fulfill({json: {
+      items: [notifications[cursor ? 1 : 0]],
+      next_cursor: cursor ? null : 'older-updates',
+    }});
+  });
+  await page.goto('/en/upload');
+  await page.getByRole('button', {name: 'Notifications'}).click();
+  await expect(page.getByText('Member accepted your invitation')).toBeVisible();
+  await expect(page.getByText('Reader declined your invitation')).toHaveCount(0);
+  expect(positions).toEqual([null]);
+  await page.getByRole('button', {name: 'Load more', exact: true}).click();
+  await expect(page.getByText('Reader declined your invitation')).toBeVisible();
+  await expect(page.getByText('Member accepted your invitation')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Load more', exact: true})).toHaveCount(0);
+  expect(positions).toEqual([null, 'older-updates']);
 });

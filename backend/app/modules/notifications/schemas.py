@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from app.shared.pagination import CursorPage
 from app.shared.time import Instant
 from typing import Annotated, Literal
 from pydantic import BaseModel, Field
@@ -67,3 +69,7 @@ type NotificationRead = Annotated[
 
 class NotificationUnreadCountRead(ApiModel):
     count: int
+
+
+class NotificationListRead(CursorPage[NotificationRead]):
+    next_cursor: str | None

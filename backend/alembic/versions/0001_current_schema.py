@@ -879,7 +879,7 @@ def upgrade() -> None:
     op.create_index(
         "idx_notifications_recipient_created",
         "notifications",
-        ["recipient_user_id", "created_at"],
+        ["recipient_user_id", "created_at", "id"],
         unique=False,
     )
     op.create_index(
@@ -1719,6 +1719,12 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_performance_takes"),
         sa.UniqueConstraint("manifest_id", name="uq_performance_takes_manifest"),
         sa.UniqueConstraint("recording_object_id", name="uq_performance_takes_recording_object"),
+    )
+    op.create_index(
+        "idx_performance_takes_created",
+        "performance_takes",
+        ["created_at", "id"],
+        unique=False,
     )
     op.create_index(
         op.f("ix_performance_takes_linked_score_id"),
@@ -2772,6 +2778,7 @@ def downgrade() -> None:
     op.drop_index("idx_score_input_assets_upload", table_name="score_input_assets")
     op.drop_index("idx_score_input_assets_score_order", table_name="score_input_assets")
     op.drop_table("score_input_assets")
+    op.drop_index("idx_performance_takes_created", table_name="performance_takes")
     op.drop_index(op.f("ix_performance_takes_linked_score_id"), table_name="performance_takes")
     op.drop_table("performance_takes")
     op.drop_index("idx_scores_owner_updated", table_name="scores")

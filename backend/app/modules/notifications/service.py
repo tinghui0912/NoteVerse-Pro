@@ -1,24 +1,22 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
-from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import Notification, NotificationKind, User
 from app.shared.realtime import RealtimeChangeKind
 from app.modules.notifications.repository import NotificationRepository
+from app.modules.notifications.read_model import NotificationReadModel
+from app.shared.feed_cursor import decode_cursor, encode_cursor
 from app.modules.notifications.schemas import (
-    NotificationActorRead,
     NotificationRead,
     NotificationUnreadCountRead,
+    NotificationListRead,
 )
 from app.shared.error_codes import CustomerErrorCode
 from app.modules.realtime.publisher import publish_change
 from app.shared.time import utc_now
-
-notification_read_adapter: TypeAdapter[NotificationRead] = TypeAdapter(NotificationRead)
 
 
 class NotificationService:
@@ -143,13 +141,21 @@ class NotificationService:
         )
 
     def list_for_user(
-        self, db: Session, user_id: int, *, limit: int = 50
-    ) -> list[NotificationRead]:
-        user = db.get(User, user_id)
-        if user is None:
+        self, db: Session, user_id: int, *, limit: int = 50, cursor: str | None = None
+    ) -> NotificationListRead:
+        before = decode_cursor(cursor, collection="notifications", scope=str(user_id))
+        if db.scalar(select(User.id).where(User.id == user_id)) is None:
             raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
-        notifications = self.repository.list_for_user(db, user_id, limit=limit)
-        return [self._notification_read(db, notification) for notification in notifications]
+        rows = self.repository.list_for_user(db, user_id, limit=limit + 1, before=before)
+        page = rows[:limit]
+        next_cursor = (
+            encode_cursor("notifications", str(user_id), page[-1].created_at, page[-1].id)
+            if len(rows) > limit
+            else None
+        )
+        return NotificationListRead(
+            items=NotificationReadModel().notification_page(db, page), next_cursor=next_cursor
+        )
 
     def unread_count(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
         user = db.get(User, user_id)
@@ -209,41 +215,7 @@ class NotificationService:
         return deleted
 
     def _notification_read(self, db: Session, row: Notification) -> NotificationRead:
-        common = dict(
-            notification_id=row.notification_uuid, read_at=row.read_at, created_at=row.created_at
-        )
-        fields = {**common, "kind": row.kind}
-        if row.kind in {
-            NotificationKind.SCORE_INVITE_ACCEPTED,
-            NotificationKind.SCORE_INVITE_DECLINED,
-            NotificationKind.SCORE_VERSION_CREATED,
-        }:
-            fields.update(
-                actor=self._actor(db, row.actor_user_id),
-                score_id=row.score_id,
-                score_display_title=row.score_display_title_snapshot,
-            )
-            if row.kind == NotificationKind.SCORE_VERSION_CREATED:
-                fields["revision_id"] = row.revision_id
-            else:
-                fields["invite_id"] = row.invite_id
-        else:
-            fields.update(
-                job_id=row.import_job_id, import_display_title=row.import_display_title_snapshot
-            )
-            if row.kind == NotificationKind.IMPORT_READY_FOR_REVIEW:
-                fields.update(
-                    score_id=row.score_id, score_display_title=row.score_display_title_snapshot
-                )
-        return notification_read_adapter.validate_python(fields)
-
-    def _actor(self, db: Session, user_id: int | None) -> NotificationActorRead | None:
-        user = db.get(User, user_id) if user_id is not None else None
-        if user is None:
-            return None
-        return NotificationActorRead(
-            display_name=user.display_name, email=user.email, avatar_url=avatar_url_for_user(user)
-        )
+        return NotificationReadModel().notification_page(db, [row])[0]
 
 
 notification_service = NotificationService()

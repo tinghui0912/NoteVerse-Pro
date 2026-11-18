@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, contains_eager, joinedload
+from datetime import datetime
+from app.db.models import Score
 from app.db.models.performance_take_manifest import PerformanceTakeManifest
 
 from app.db.models.performance_take import PerformanceTake
@@ -85,35 +87,36 @@ class PerformanceTakeRepository:
         self,
         db: Session,
         user_id: int,
-        linked_score_id: Optional[int] = None,
+        *,
+        score_uuid: str | None = None,
         limit: int = 50,
-        offset: int = 0,
-    ) -> tuple[list[PerformanceTake], int]:
-        filters = [PerformanceTakeManifest.user_id == user_id]
-        if linked_score_id is not None:
-            filters.append(PerformanceTake.linked_score_id == linked_score_id)
-
-        count_stmt = (
-            select(func.count(PerformanceTake.id)).join(PerformanceTakeManifest).where(*filters)
-        )
-        count_res = db.execute(count_stmt)
-        total = count_res.scalar_one_or_none() or 0
-
+        before: tuple[datetime, int] | None = None,
+    ) -> list[PerformanceTake]:
         statement = (
             select(PerformanceTake)
             .join(PerformanceTakeManifest)
             .options(
-                selectinload(PerformanceTake.manifest),
-                selectinload(PerformanceTake.recording_object),
+                contains_eager(PerformanceTake.manifest),
+                joinedload(PerformanceTake.recording_object),
             )
-            .where(*filters)
-            .order_by(PerformanceTake.created_at.desc(), PerformanceTake.id.desc())
-            .limit(limit)
-            .offset(offset)
+            .where(PerformanceTakeManifest.user_id == user_id)
         )
-        result = db.execute(statement)
-        items = list(result.scalars().all())
-        return items, total
+        if score_uuid is not None:
+            statement = statement.where(
+                PerformanceTake.linked_score_id
+                == select(Score.id).where(Score.score_uuid == score_uuid).scalar_subquery()
+            )
+        if before is not None:
+            statement = statement.where(
+                tuple_(PerformanceTake.created_at, PerformanceTake.id) < before
+            )
+        return list(
+            db.scalars(
+                statement.order_by(
+                    PerformanceTake.created_at.desc(), PerformanceTake.id.desc()
+                ).limit(limit)
+            )
+        )
 
     # Reservation methods
     def create_reservation(

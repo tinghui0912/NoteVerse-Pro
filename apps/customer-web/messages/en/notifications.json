@@ -34,5 +34,6 @@
   "declinedDescription": "The invitation was removed from your pending list.",
   "declineFailed": "Unable to decline invite",
   "declineFailedDescription": "Please try again later.",
-  "processingFailedSubtitle": "Try uploading this score again."
+  "processingFailedSubtitle": "Try uploading this score again.",
+  "loadMore": "Load more"
 }

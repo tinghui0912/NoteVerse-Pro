@@ -2,9 +2,9 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 from app.core.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
-from app.db.models import ScoreLibraryOrganization, ScoreLibraryFolder, ScoreRevision
-from app.db.models.score_access import AccessOrigin
+from app.db.models import ScoreLibraryOrganization, ScoreLibraryFolder
 from app.modules.library.repository import LibraryRepository
+from app.modules.library.read_model import LibraryReadModel
 from app.modules.library.schemas import (
     LibraryScoreBatchMoveRequest,
     LibraryScoreBatchFavoriteRequest,
@@ -16,11 +16,8 @@ from app.modules.library.schemas import (
     LibrarySort,
     LibraryView,
 )
-from app.modules.metadata.service import MetadataProjectionService
 from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
 from app.shared.time import utc_now
 
@@ -129,36 +126,7 @@ class LibraryService:
             page=page,
             page_size=page_size,
         )
-        result = []
-        for score, organization, projection, folder_uuid in rows:
-            head = db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
-            assets = (
-                score_derived_assets(db, self.asset_repository, revision=head)
-                if head
-                else ScoreDerivedAssetsRead(
-                    preview=ScoreDerivedAssetRead(status="pending", asset_id=None),
-                    audio=ScoreDerivedAssetRead(status="pending", asset_id=None),
-                )
-            )
-            result.append(
-                LibraryScoreRead(
-                    score_id=score.score_uuid,
-                    access_origin=AccessOrigin.OWNER
-                    if score.owner_user_id == user_id
-                    else AccessOrigin.MEMBERSHIP,
-                    folder_id=folder_uuid,
-                    display_title=score.display_title,
-                    genres=score.genres,
-                    derived_assets=assets,
-                    metadata=MetadataProjectionService.to_read(head, projection)
-                    if head and projection
-                    else None,
-                    is_favorite=organization.is_favorite if organization else False,
-                    created_at=score.created_at,
-                    updated_at=score.updated_at,
-                )
-            )
-        return result, total
+        return LibraryReadModel(self.asset_repository).score_page(db, user_id, rows), total
 
     def batch_move(self, db: Session, user_id: int, request: LibraryScoreBatchMoveRequest) -> int:
         try:

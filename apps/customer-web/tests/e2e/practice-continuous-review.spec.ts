@@ -467,10 +467,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
           contentType: 'application/json',
           body: representationBody({
             items: [...takesDatabase],
-            total: takesDatabase.length,
-            limit: 50,
-            offset: 0,
-            has_more: false,
+            next_cursor: null,
           }),
         });
       }

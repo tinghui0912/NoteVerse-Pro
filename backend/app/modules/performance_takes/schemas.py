@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.shared.pagination import CursorPage
+
 
 from app.shared.time import Instant
 from typing import Literal, Optional, Self
@@ -158,9 +160,5 @@ class PerformanceTakePlaybackRead(ApiModel, StrictPerformanceTakeModel):
     expires_in: int
 
 
-class PerformanceTakeListResponse(ApiModel, StrictPerformanceTakeModel):
-    items: list[PerformanceTakeRead]
-    total: int
-    limit: int = 50
-    offset: int = 0
-    has_more: bool = False
+class PerformanceTakeListRead(CursorPage[PerformanceTakeRead]):
+    next_cursor: str | None

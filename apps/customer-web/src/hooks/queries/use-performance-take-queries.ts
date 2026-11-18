@@ -3,21 +3,24 @@ import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
 import { PerformanceTakeSaveCommand } from '@/lib/practice/performance-take/save-command';
 import type { SavePerformanceTakeInput } from '@/lib/practice/performance-take/save';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
 import { performanceTakeDeleted, performanceTakeSaved } from '@/lib/cache-effects/performance-takes';
 import {
 performanceTakesApi
 } from '@/lib/api/performance-takes';
+import type { PerformanceTakesListData } from '@/generated/api';
 import { queryKeys } from '@/lib/query-client';
 
 export function usePerformanceTakes(
-  params?: { score_id?: string; limit?: number; offset?: number },
+  params?: Omit<NonNullable<PerformanceTakesListData['query']>, 'cursor'>,
   enabled = true,
 ) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.performanceTakes.list(params),
-    queryFn: ({ signal }) => performanceTakesApi.listTakes(params, signal),
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ signal, pageParam }) => performanceTakesApi.listTakes({ ...params, cursor: pageParam }, signal),
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
     enabled,
   });
 }

@@ -1,11 +1,28 @@
 from __future__ import annotations
 
+from typing import TypeAlias
+
 from sqlalchemy import func, select, and_
 from sqlalchemy.orm import Session
 from sqlmodel import col
-from app.db.models import Score, ScoreLibraryOrganization, ScoreLibraryFolder, ScoreRevisionMetadata
+from app.db.models import (
+    Score,
+    ScoreLibraryOrganization,
+    ScoreLibraryFolder,
+    ScoreRevisionMetadata,
+    ScoreRevision,
+)
 from app.modules.score_access.queries import accessible_score_predicate
 from app.modules.library.schemas import LibrarySort, LibraryView
+
+
+LibraryPageRow: TypeAlias = tuple[
+    Score,
+    ScoreLibraryOrganization | None,
+    ScoreRevisionMetadata | None,
+    str | None,
+    ScoreRevision | None,
+]
 
 
 class LibraryRepository:
@@ -92,12 +109,7 @@ class LibraryRepository:
         sort: LibrarySort,
         page: int,
         page_size: int,
-    ) -> tuple[
-        list[
-            tuple[Score, ScoreLibraryOrganization | None, ScoreRevisionMetadata | None, str | None]
-        ],
-        int,
-    ]:
+    ) -> tuple[list[LibraryPageRow], int]:
         filters = [accessible_score_predicate(user_id)]
         if view == LibraryView.CREATED_BY_ME:
             filters.append(Score.__table__.c.owner_user_id == user_id)
@@ -131,7 +143,9 @@ class LibraryRepository:
                 ScoreLibraryOrganization,
                 ScoreRevisionMetadata,
                 ScoreLibraryFolder.folder_uuid,
+                ScoreRevision,
             )
+            .select_from(Score)
             .outerjoin(ScoreLibraryOrganization, self._organization_join(user_id))
             .outerjoin(
                 ScoreLibraryFolder,
@@ -143,6 +157,7 @@ class LibraryRepository:
             .outerjoin(
                 ScoreRevisionMetadata, ScoreRevisionMetadata.revision_id == Score.head_revision_id
             )
+            .outerjoin(ScoreRevision, ScoreRevision.id == Score.head_revision_id)
             .where(*filters)
             .order_by(order, Score.id)
             .offset((page - 1) * page_size)

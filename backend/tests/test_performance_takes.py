@@ -1479,21 +1479,21 @@ def test_pagination(test_env):
             )
             assert res_fin.status_code == 200
 
-        # Page 1: limit=2, offset=0
-        r1 = client.get("/api/v1/performance-takes?limit=2&offset=0")
+        # First bounded page
+        r1 = client.get("/api/v1/performance-takes?limit=2")
         assert r1.status_code == 200
         d1 = r1.json()
         assert len(d1["items"]) == 2
-        assert d1["total"] == 3
-        assert d1["has_more"] is True
+        assert d1["next_cursor"] is not None
 
-        # Page 2: limit=2, offset=2
-        r2 = client.get("/api/v1/performance-takes?limit=2&offset=2")
+        # Continue from the immutable position
+        r2 = client.get(
+            "/api/v1/performance-takes", params={"limit": 2, "cursor": d1["next_cursor"]}
+        )
         assert r2.status_code == 200
         d2 = r2.json()
         assert len(d2["items"]) == 1
-        assert d2["total"] == 3
-        assert d2["has_more"] is False
+        assert d2["next_cursor"] is None
 
     finally:
         app.dependency_overrides.clear()

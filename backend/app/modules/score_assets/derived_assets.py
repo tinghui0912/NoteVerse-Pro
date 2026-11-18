@@ -59,11 +59,21 @@ def score_derived_assets(
         outbox_status=playback_outbox.status if playback_outbox else None,
     )
 
+    return derived_assets_read(
+        thumbnail.asset_uuid if thumbnail else None,
+        preview_status,
+        audio_asset.asset_uuid if audio_asset else None,
+        audio_status,
+    )
+
+
+def derived_assets_read(
+    thumbnail_id: str | None,
+    preview_status: DerivedAssetStatus,
+    audio_id: str | None,
+    audio_status: DerivedAssetStatus,
+) -> ScoreDerivedAssetsRead:
     return ScoreDerivedAssetsRead(
-        preview=ScoreDerivedAssetRead(
-            status=preview_status, asset_id=thumbnail.asset_uuid if thumbnail else None
-        ),
-        audio=ScoreDerivedAssetRead(
-            status=audio_status, asset_id=audio_asset.asset_uuid if audio_asset else None
-        ),
+        preview=ScoreDerivedAssetRead(status=preview_status, asset_id=thumbnail_id),
+        audio=ScoreDerivedAssetRead(status=audio_status, asset_id=audio_id),
     )

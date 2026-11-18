@@ -2005,8 +2005,8 @@ def test_notifications_are_scoped_and_can_be_marked_read(
     )
     assert created is not None
 
-    owner_notifications = service.list_for_user(db, 1)  # type: ignore[arg-type]
-    other_notifications = service.list_for_user(db, 2)  # type: ignore[arg-type]
+    owner_notifications = service.list_for_user(db, 1).items  # type: ignore[arg-type]
+    other_notifications = service.list_for_user(db, 2).items  # type: ignore[arg-type]
     assert [item.notification_id for item in owner_notifications] == [created.notification_uuid]
     public_notification = owner_notifications[0].model_dump()
     assert "resource_type" not in public_notification

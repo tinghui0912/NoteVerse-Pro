@@ -1,8 +1,8 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, InfiniteData } from '@tanstack/react-query';
 import type { NotificationsListResponse, NotificationsUnreadCountGetResponse } from '@/generated/api';
 import { queryKeys } from '@/lib/query-client';
 
-type NotificationListResponse = NotificationsListResponse;
+export type NotificationListResponse = InfiniteData<NotificationsListResponse, string | undefined>;
 type NotificationCountResponse = NotificationsUnreadCountGetResponse;
 
 export interface NotificationOptimisticSnapshot {
@@ -20,11 +20,11 @@ export function markNotificationReadInList(
   readAt = readTimestamp()
 ): NotificationListResponse | undefined {
   if (!response) return response;
-  return response.map((notification) =>
+  return { ...response, pages: response.pages.map(page => ({ ...page, items: page.items.map((notification) =>
       notification.notification_id === notificationId && !notification.read_at
         ? { ...notification, read_at: readAt }
         : notification
-    );
+    ) })) };
 }
 
 export function markAllNotificationsReadInList(
@@ -32,9 +32,9 @@ export function markAllNotificationsReadInList(
   readAt = readTimestamp()
 ): NotificationListResponse | undefined {
   if (!response) return response;
-  return response.map((notification) =>
+  return { ...response, pages: response.pages.map(page => ({ ...page, items: page.items.map((notification) =>
       notification.read_at ? notification : { ...notification, read_at: readAt }
-    );
+    ) })) };
 }
 
 function decrementUnreadCount(
@@ -78,7 +78,7 @@ async function snapshotNotifications(client: QueryClient): Promise<NotificationO
 
 export async function notificationReadOptimistically(client: QueryClient, notificationId: string) {
   const snapshot = await snapshotNotifications(client);
-  const wasUnread = snapshot.previousList?.some((item) => item.notification_id === notificationId && !item.read_at);
+  const wasUnread = snapshot.previousList?.pages.some(page => page.items.some((item) => item.notification_id === notificationId && !item.read_at));
   client.setQueryData<NotificationListResponse>(queryKeys.notifications.list(), (current) => markNotificationReadInList(current, notificationId));
   if (wasUnread) client.setQueryData<NotificationCountResponse>(queryKeys.notifications.unreadCount(), decrementUnreadCount);
   return snapshot;

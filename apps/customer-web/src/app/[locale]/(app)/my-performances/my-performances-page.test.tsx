@@ -15,13 +15,6 @@ import type {
   RecordingTimebase,
   PerformanceTakeTempoPlan,
 } from '@/lib/api/performance-takes';
-function pageParams(page: string): Promise<{
-  page: string;
-}> & {
-  page: string;
-} {
-  return Object.assign(Promise.resolve({ page }), { page });
-}
 const mockRouterPush = vi.fn();
 const mockToast = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({
@@ -197,15 +190,12 @@ const fixture121Takes: PerformanceTakeRead[] = Array.from(
     },
   }),
 );
-let currentTakesTotal = 121;
+let currentTakesCount = 121;
+let loadedPages = 1;
+const mockFetchNextPage = vi.fn(async () => { loadedPages += 1; notifyReactiveQuery(); });
 interface MockTakesQueryResult {
-  data?: {
-      items: PerformanceTakeRead[];
-      total: number;
-      limit: number;
-      offset: number;
-      has_more: boolean;
-  } | null;
+  data?: { pages: Array<{ items: PerformanceTakeRead[]; next_cursor: string | null }>; pageParams: Array<string | undefined> } | null;
+  hasNextPage?: boolean;
   isLoading: boolean;
   isError: boolean;
   isSuccess: boolean;
@@ -233,13 +223,9 @@ function enableReactiveQueryResponses(responses: MockTakesQueryResult[]) {
   notifyReactiveQuery();
 }
 const mockUsePerformanceTakes = vi.fn(
-  (params?: { limit?: number; offset?: number }) => {
+  (params?: { limit?: number }) => {
+    React.useSyncExternalStore(subscribeToReactiveQuery, getReactiveQuerySnapshot, getReactiveQuerySnapshot);
     if (mockReactiveQueryResponses) {
-      React.useSyncExternalStore(
-        subscribeToReactiveQuery,
-        getReactiveQuerySnapshot,
-        getReactiveQuerySnapshot,
-      );
       const response =
         mockReactiveQueryResponses[
           Math.min(
@@ -265,18 +251,12 @@ const mockUsePerformanceTakes = vi.fn(
     }
     if (mockQueryOverride) return mockQueryOverride;
     const limit = params?.limit ?? 20;
-    const offset = params?.offset ?? 0;
     const items = fixture121Takes
-      .slice(0, currentTakesTotal)
-      .slice(offset, offset + limit);
+      .slice(0, currentTakesCount)
+      .slice(0, loadedPages * limit);
     return {
-      data: {
-          items,
-          total: currentTakesTotal,
-          limit,
-          offset,
-          has_more: offset + limit < currentTakesTotal,
-        },
+      data: { pages: Array.from({ length: loadedPages }, (_, index) => ({ items: items.slice(index * limit, (index + 1) * limit), next_cursor: (index + 1) * limit < currentTakesCount ? 'next' : null })), pageParams: Array.from({length: loadedPages}, (_, index) => index ? 'next' : undefined) },
+      hasNextPage: loadedPages * limit < currentTakesCount,
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -285,8 +265,7 @@ const mockUsePerformanceTakes = vi.fn(
   },
 );
 vi.mock('@/hooks/queries/use-performance-take-queries', () => ({
-  usePerformanceTakes: (params?: { limit?: number; offset?: number }) =>
-    mockUsePerformanceTakes(params),
+  usePerformanceTakes: (params?: { limit?: number }) => ({ hasNextPage: false, isFetchingNextPage: false, fetchNextPage: mockFetchNextPage, ...mockUsePerformanceTakes(params) }),
   useDeletePerformanceTake: () => mockDeleteTakeMutation,
   usePerformanceTakePlayback: (takeId: string, enabled: boolean) => {
     if (!enabled) {
@@ -315,7 +294,9 @@ describe('MyPerformancesPage', () => {
     mockReactiveQueryIndex = 0;
     mockReactiveQueryListeners.clear();
     mockReactiveQueryVersion = 0;
-    currentTakesTotal = 121;
+    currentTakesCount = 121;
+    loadedPages = 1;
+    mockFetchNextPage.mockClear();
     mockPlaybackQuery.isLoading = false;
     mockPlaybackQuery.isError = false;
     mockDeleteTakeMutation.isPending = false;
@@ -349,7 +330,7 @@ describe('MyPerformancesPage', () => {
     expect(refetch).toHaveBeenCalled();
   });
   it('renders empty state when no takes exist', () => {
-    currentTakesTotal = 0;
+    currentTakesCount = 0;
     render(<MyPerformancesPage />);
     expect(screen.getByText('暂无已保存的演奏')).toBeInTheDocument();
   });
@@ -364,8 +345,7 @@ describe('MyPerformancesPage', () => {
   });
   it('renders retained score provenance as a score link', () => {
     mockQueryOverride = {
-      data: {
-          items: [
+      data: { pages: [{ items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-deleted-score',
@@ -395,12 +375,7 @@ describe('MyPerformancesPage', () => {
                 },
               },
             },
-          ],
-          total: 1,
-          limit: 20,
-          offset: 0,
-          has_more: false,
-        },
+          ], next_cursor: null }], pageParams: [undefined] },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -414,8 +389,7 @@ describe('MyPerformancesPage', () => {
   });
   it('renders retained score provenance as plain text when live score is no longer accessible', () => {
     mockQueryOverride = {
-      data: {
-          items: [
+      data: { pages: [{ items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-deleted-score',
@@ -445,12 +419,7 @@ describe('MyPerformancesPage', () => {
                 },
               },
             },
-          ],
-          total: 1,
-          limit: 20,
-          offset: 0,
-          has_more: false,
-        },
+          ], next_cursor: null }], pageParams: [undefined] },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -464,8 +433,7 @@ describe('MyPerformancesPage', () => {
   });
   it('handles playback toggling and playback error retry', () => {
     mockQueryOverride = {
-      data: {
-          items: [
+      data: { pages: [{ items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
@@ -493,12 +461,7 @@ describe('MyPerformancesPage', () => {
                 },
               },
             },
-          ],
-          total: 1,
-          limit: 20,
-          offset: 0,
-          has_more: false,
-        },
+          ], next_cursor: null }], pageParams: [undefined] },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -523,8 +486,7 @@ describe('MyPerformancesPage', () => {
     'offers %s raw video source/download and the local video export route',
     async (mimeType) => {
       mockQueryOverride = {
-        data: {
-            items: [
+        data: { pages: [{ items: [
               {
                 recording_media: { mime_type: mimeType, byte_size: 2048 },
                 take_id: 'take-video-1',
@@ -552,12 +514,7 @@ describe('MyPerformancesPage', () => {
                   },
                 },
               },
-            ],
-            total: 1,
-            limit: 20,
-            offset: 0,
-            has_more: false,
-          },
+            ], next_cursor: null }], pageParams: [undefined] },
         isLoading: false,
         isError: false,
         isSuccess: true,
@@ -596,8 +553,7 @@ describe('MyPerformancesPage', () => {
   );
   it('triggers download and handles download failure with retry', async () => {
     mockQueryOverride = {
-      data: {
-          items: [
+      data: { pages: [{ items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
@@ -625,12 +581,7 @@ describe('MyPerformancesPage', () => {
                 },
               },
             },
-          ],
-          total: 1,
-          limit: 20,
-          offset: 0,
-          has_more: false,
-        },
+          ], next_cursor: null }], pageParams: [undefined] },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -663,8 +614,7 @@ describe('MyPerformancesPage', () => {
   });
   it('opens confirmation dialog and handles delete failure with retry', async () => {
     mockQueryOverride = {
-      data: {
-          items: [
+      data: { pages: [{ items: [
             {
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
@@ -692,12 +642,7 @@ describe('MyPerformancesPage', () => {
                 },
               },
             },
-          ],
-          total: 1,
-          limit: 20,
-          offset: 0,
-          has_more: false,
-        },
+          ], next_cursor: null }], pageParams: [undefined] },
       isLoading: false,
       isError: false,
       isSuccess: true,
@@ -731,121 +676,21 @@ describe('MyPerformancesPage', () => {
       ).not.toBeInTheDocument();
     });
   });
-  describe('121+ Items Pagination Verification (Pages 1, 2, and 7)', () => {
-    it('verifies Page 1: limit=20, offset=0, items 1-20, canGoPrevious=false, canGoNext=true', () => {
-      render(<MyPerformancesPage searchParams={pageParams('1')} />);
-      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
-        limit: 20,
-        offset: 0,
-      });
-      // Renders items 1 through 20
-      expect(screen.getByText('Score Title 1')).toBeInTheDocument();
+  describe('personal Take continuation feed', () => {
+    it('loads one bounded page, then appends on explicit Load more without random page navigation', async () => {
+      render(<MyPerformancesPage />);
+      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({ limit: 20 });
       expect(screen.getByText('Score Title 20')).toBeInTheDocument();
       expect(screen.queryByText('Score Title 21')).not.toBeInTheDocument();
-      // Pagination indicator: Page 1 of 7
-      expect(screen.getByText('第 1 / 7 页')).toBeInTheDocument();
-      const prevBtn = screen.getByRole('button', { name: '上一页' });
-      const nextBtn = screen.getByRole('button', { name: '下一页' });
-      expect(prevBtn).toBeDisabled();
-      expect(nextBtn).toBeEnabled();
-      fireEvent.click(nextBtn);
-      expect(mockRouterPush).toHaveBeenCalledWith('?page=2');
-    });
-    it('verifies Page 2: limit=20, offset=20, items 21-40, canGoPrevious=true, canGoNext=true', () => {
-      render(<MyPerformancesPage searchParams={pageParams('2')} />);
-      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
-        limit: 20,
-        offset: 20,
-      });
-      // Renders items 21 through 40
-      expect(screen.queryByText('Score Title 20')).not.toBeInTheDocument();
-      expect(screen.getByText('Score Title 21')).toBeInTheDocument();
-      expect(screen.getByText('Score Title 40')).toBeInTheDocument();
-      expect(screen.queryByText('Score Title 41')).not.toBeInTheDocument();
-      expect(screen.getByText('第 2 / 7 页')).toBeInTheDocument();
-      const prevBtn = screen.getByRole('button', { name: '上一页' });
-      const nextBtn = screen.getByRole('button', { name: '下一页' });
-      expect(prevBtn).toBeEnabled();
-      expect(nextBtn).toBeEnabled();
-      fireEvent.click(prevBtn);
-      expect(mockRouterPush).toHaveBeenCalledWith('/my-performances');
-      fireEvent.click(nextBtn);
-      expect(mockRouterPush).toHaveBeenCalledWith('?page=3');
-    });
-    it('verifies Page 7: limit=20, offset=120, item 121 (last item), canGoPrevious=true, canGoNext=false', () => {
-      render(<MyPerformancesPage searchParams={pageParams('7')} />);
-      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
-        limit: 20,
-        offset: 120,
-      });
-      // Exactly 1 item on Page 7
-      expect(screen.getByText('Score Title 121')).toBeInTheDocument();
-      expect(screen.queryByText('Score Title 120')).not.toBeInTheDocument();
-      expect(screen.getByText('第 7 / 7 页')).toBeInTheDocument();
-      const prevBtn = screen.getByRole('button', { name: '上一页' });
-      const nextBtn = screen.getByRole('button', { name: '下一页' });
-      expect(prevBtn).toBeEnabled();
-      expect(nextBtn).toBeDisabled();
-      fireEvent.click(prevBtn);
-      expect(mockRouterPush).toHaveBeenCalledWith('?page=6');
-    });
-    it('normalizes illegal and negative query parameters to Page 1', () => {
-      render(<MyPerformancesPage searchParams={pageParams('invalid')} />);
-      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
-        limit: 20,
-        offset: 0,
-      });
-      render(<MyPerformancesPage searchParams={pageParams('-5')} />);
-      expect(mockUsePerformanceTakes).toHaveBeenCalledWith({
-        limit: 20,
-        offset: 0,
-      });
-    });
-    it('redirects to max valid page when URL page exceeds total pages', async () => {
-      render(<MyPerformancesPage searchParams={pageParams('99')} />);
-      await waitFor(() => {
-        expect(mockRouterPush).toHaveBeenCalledWith('?page=7');
-      });
-    });
-    it('adjusts total and page when last item on page is deleted', async () => {
-      currentTakesTotal = 121;
-      const { rerender } = render(
-        <MyPerformancesPage searchParams={pageParams('7')} />,
-      );
-      expect(screen.getByText('Score Title 121')).toBeInTheDocument();
-      const deleteBtn = screen.getByTestId('delete-take-take-121');
-      fireEvent.click(deleteBtn);
-      const confirmBtn = screen.getByTestId('confirm-delete-take-button');
-      fireEvent.click(confirmBtn);
-      await waitFor(() => {
-        expect(mockDeleteTakeMutation.mutateAsync).toHaveBeenCalledWith(
-          'take-121',
-        );
-      });
-      // Total drops to 120 (6 pages)
-      currentTakesTotal = 120;
-      rerender(<MyPerformancesPage searchParams={pageParams('7')} />);
-      await waitFor(() => {
-        expect(mockRouterPush).toHaveBeenCalledWith('?page=6');
-      });
-    });
-    it('resets playing audio when changing page', () => {
-      const { rerender } = render(
-        <MyPerformancesPage searchParams={pageParams('1')} />,
-      );
-      const playBtn = screen.getByTestId('play-take-take-1');
-      fireEvent.click(playBtn);
-      expect(
-        screen.getByTestId('recording-playback-player'),
-      ).toBeInTheDocument();
-      // Page change stops playback
-      rerender(<MyPerformancesPage searchParams={pageParams('2')} />);
-      expect(
-        screen.queryByTestId('recording-playback-player'),
-      ).not.toBeInTheDocument();
+      expect(mockFetchNextPage).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'loadMore' }));
+      await waitFor(() => expect(screen.getByText('Score Title 40')).toBeInTheDocument());
+      expect(screen.getByText('Score Title 1')).toBeInTheDocument();
+      expect(mockFetchNextPage).toHaveBeenCalledOnce();
+      expect(mockRouterPush).not.toHaveBeenCalled();
     });
     it('labels saved ranges without requiring a detached source timebase', () => {
-      render(<MyPerformancesPage searchParams={pageParams('1')} />);
+      render(<MyPerformancesPage />);
       // Range item: scope_start_tick = 4, scope_terminal_tick = 16
       expect(screen.getAllByText('选段演奏').length).toBeGreaterThan(0);
       // Full item:
@@ -865,13 +710,7 @@ describe('MyPerformancesPage', () => {
         const response = (
           items: PerformanceTakeRead[],
         ): MockTakesQueryResult => ({
-          data: {
-              items,
-              total: items.length,
-              limit: 20,
-              offset: 0,
-              has_more: false,
-            },
+          data: { pages: [{items, next_cursor: null}], pageParams: [undefined] },
           isLoading: false,
           isError: false,
           isSuccess: true,
@@ -932,7 +771,7 @@ describe('MyPerformancesPage', () => {
     });
     it('shows completed deletion toast when take deletion is confirmed', async () => {
       mockToast.mockClear();
-      render(<MyPerformancesPage searchParams={pageParams('1')} />);
+      render(<MyPerformancesPage />);
       const deleteBtn = screen.getByTestId('delete-take-take-1');
       fireEvent.click(deleteBtn);
       const confirmBtn = screen.getByTestId('confirm-delete-take-button');

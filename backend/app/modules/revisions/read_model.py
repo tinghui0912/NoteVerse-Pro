@@ -1,8 +1,8 @@
 from __future__ import annotations
 from app.modules.account.avatar_presentation import avatar_url_for_user
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import select, func
+from sqlalchemy.orm import Session, aliased, joinedload
 from sqlmodel import col
 
 from app.db.model_utils import require_persisted_id
@@ -17,61 +17,102 @@ from app.modules.revisions.schemas import (
 
 class RevisionReadModel:
     def revision_read(self, db: Session, revision: ScoreRevision) -> RevisionRead:
-        actor = db.get(User, revision.created_by_user_id) if revision.created_by_user_id else None
-        restore = self.restore_read(db, revision)
-        note = self.note_read(db, revision)
-        return RevisionRead(
-            revision_id=revision.revision_uuid,
-            revision_number=revision.revision_number,
-            origin=revision.origin,
-            created_at=revision.created_at,
-            created_by=actor_read(actor),
-            restore=restore,
-            note=note,
+        return self.revision_page(db, [revision])[0]
+
+    def revision_page(self, db: Session, revisions: list[ScoreRevision]) -> list[RevisionRead]:
+        if not revisions:
+            return []
+        ids = [require_persisted_id(row.id, entity="score revision") for row in revisions]
+        notes = {
+            row.revision_id: row
+            for row in db.scalars(
+                select(ScoreRevisionNote).where(ScoreRevisionNote.revision_id.in_(ids))
+            )
+        }
+        ranked = (
+            select(
+                ScoreRevisionEvent.id,
+                func.row_number()
+                .over(
+                    partition_by=ScoreRevisionEvent.revision_id,
+                    order_by=(
+                        col(ScoreRevisionEvent.created_at).desc(),
+                        ScoreRevisionEvent.id.desc(),
+                    ),
+                )
+                .label("ordinal"),
+            )
+            .where(ScoreRevisionEvent.revision_id.in_(ids), ScoreRevisionEvent.type == "RESTORE")
+            .subquery()
         )
+        target = aliased(ScoreRevision)
+        events = {
+            row[0].revision_id: row
+            for row in db.execute(
+                select(ScoreRevisionEvent, target.revision_uuid, target.revision_number)
+                .join(ranked, ranked.c.id == ScoreRevisionEvent.id)
+                .outerjoin(target, target.id == ScoreRevisionEvent.target_revision_id)
+                .where(ranked.c.ordinal == 1)
+            )
+        }
+        actor_ids = {
+            row.created_by_user_id for row in revisions if row.created_by_user_id is not None
+        }
+        actor_ids.update(
+            row.author_user_id for row in notes.values() if row.author_user_id is not None
+        )
+        actor_ids.update(
+            row[0].actor_user_id for row in events.values() if row[0].actor_user_id is not None
+        )
+        actors = (
+            {
+                row.id: row
+                for row in db.scalars(
+                    select(User)
+                    .options(joinedload(User.avatar_object))
+                    .where(User.id.in_(actor_ids))
+                )
+            }
+            if actor_ids
+            else {}
+        )
+        result = []
+        for revision in revisions:
+            event_row = events.get(revision.id)
+            event = event_row[0] if event_row else None
+            note = notes.get(revision.id)
+            result.append(
+                RevisionRead(
+                    revision_id=revision.revision_uuid,
+                    revision_number=revision.revision_number,
+                    origin=revision.origin,
+                    created_at=revision.created_at,
+                    created_by=actor_read(actors.get(revision.created_by_user_id)),
+                    restore=RevisionRestoreRead(
+                        restored_from_revision_id=event_row[1],
+                        restored_from_revision_number=event_row[2],
+                        note=event.note,
+                        actor=actor_read(actors.get(event.actor_user_id)),
+                        created_at=event.created_at,
+                    )
+                    if event is not None and event_row is not None
+                    else None,
+                    note=RevisionNoteRead(
+                        note=note.note,
+                        author=actor_read(actors.get(note.author_user_id)),
+                        updated_at=note.updated_at,
+                    )
+                    if note
+                    else None,
+                )
+            )
+        return result
 
     def restore_read(self, db: Session, revision: ScoreRevision) -> RevisionRestoreRead | None:
-        revision_id = require_persisted_id(revision.id, entity="score revision")
-        event = (
-            db.execute(
-                select(ScoreRevisionEvent)
-                .where(
-                    ScoreRevisionEvent.revision_id == revision_id,
-                    ScoreRevisionEvent.type == "RESTORE",
-                )
-                .order_by(col(ScoreRevisionEvent.created_at).desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-        if event is None:
-            return None
-        target = (
-            db.get(ScoreRevision, event.target_revision_id) if event.target_revision_id else None
-        )
-        actor = db.get(User, event.actor_user_id) if event.actor_user_id else None
-        return RevisionRestoreRead(
-            restored_from_revision_id=target.revision_uuid if target else None,
-            restored_from_revision_number=target.revision_number if target else None,
-            note=event.note,
-            actor=actor_read(actor),
-            created_at=event.created_at,
-        )
+        return self.revision_read(db, revision).restore
 
     def note_read(self, db: Session, revision: ScoreRevision) -> RevisionNoteRead | None:
-        revision_id = require_persisted_id(revision.id, entity="score revision")
-        note = (
-            db.execute(
-                select(ScoreRevisionNote).where(ScoreRevisionNote.revision_id == revision_id)
-            )
-        ).scalar_one_or_none()
-        if note is None:
-            return None
-        author = db.get(User, note.author_user_id) if note.author_user_id else None
-        return RevisionNoteRead(
-            note=note.note,
-            author=actor_read(author),
-            updated_at=note.updated_at,
-        )
+        return self.revision_read(db, revision).note
 
 
 def actor_read(user: User | None) -> RevisionActorRead | None:

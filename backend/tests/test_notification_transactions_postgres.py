@@ -92,7 +92,8 @@ def test_each_notification_kind_hydrates_a_typed_variant_and_read_preserves_sema
             created_at=now,
         )
         db.commit()
-        rows = service.list_for_user(db, 1)
+        page = service.list_for_user(db, 1)
+        rows = page.items
         assert {row.kind for row in rows} == {
             "score_invite.accepted",
             "score_invite.declined",
@@ -110,7 +111,7 @@ def test_each_notification_kind_hydrates_a_typed_variant_and_read_preserves_sema
         with TestClient(application) as client:
             response = client.get("/api/v1/me/notifications")
         assert response.status_code == 200
-        assert response.json() == [row.model_dump(mode="json") for row in rows]
+        assert response.json() == page.model_dump(mode="json")
         for row in rows:
             before = row.model_dump()
             marked = service.mark_read(db, row.notification_id, 1).model_dump()

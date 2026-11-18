@@ -158,17 +158,17 @@ it('converges Library organization, persisted storage and account sessions withi
   await accountSessionsChanged(client); expect(stale(sessions)).toBe(true);
 });
 
-it('surgically removes a Take and preserves other Score totals before background refresh', async () => {
+it('removes a Take across loaded feed pages and preserves unrelated Score feeds', async () => {
   const take = { take_id: 'take', linked_score_id: 'a' }; const other = { take_id: 'other', linked_score_id: 'b' };
-  const all = seed(keys.performanceTakes.list(), { items: [take, other], total: 2, offset: 0, limit: 20, has_more: false });
-  const matching = seed(keys.performanceTakes.list({ score_id: 'a' }), { items: [take], total: 1, offset: 0, limit: 20, has_more: false });
-  const unrelated = seed(keys.performanceTakes.list({ score_id: 'b' }), { items: [other], total: 1, offset: 0, limit: 20, has_more: false });
+  const all = seed(keys.performanceTakes.list(), { pages: [{items: [other], next_cursor: 'next'}, {items: [take], next_cursor: null}], pageParams: [undefined, 'next'] });
+  const matching = seed(keys.performanceTakes.list({ score_id: 'a' }), { pages: [{items: [take], next_cursor: null}], pageParams: [undefined] });
+  const unrelated = seed(keys.performanceTakes.list({ score_id: 'b' }), { pages: [{items: [other], next_cursor: null}], pageParams: [undefined] });
   const detail = seed(keys.performanceTakes.detail('take'), take); const playback = seed(keys.performanceTakes.playbackUrl('take'));
   const usage = storage();
   await performanceTakeDeleted(client, 'take');
-  expect(client.getQueryData<PerformanceTakesListResponse>(all)).toMatchObject({ items: [other], total: 1, has_more: false });
-  expect(client.getQueryData<PerformanceTakesListResponse>(matching)).toMatchObject({ items: [], total: 0, has_more: false });
-  expect(client.getQueryData<PerformanceTakesListResponse>(unrelated)).toMatchObject({ items: [other], total: 1 });
+  expect(client.getQueryData<PerformanceTakesListResponse>(all)).toMatchObject({ pages: [{items: [other], next_cursor: 'next'}, {items: [], next_cursor: null}] });
+  expect(client.getQueryData<PerformanceTakesListResponse>(matching)).toMatchObject({ pages: [{items: []}] });
+  expect(client.getQueryData<PerformanceTakesListResponse>(unrelated)).toMatchObject({ pages: [{items: [other]}] });
   expect(client.getQueryState(detail)).toBeUndefined(); expect(client.getQueryState(playback)).toBeUndefined();
   expect([all, matching, unrelated, usage].map(stale)).toEqual([true, true, true, true]);
   seed(detail); await performanceTakeSaved(client); expect(stale(detail)).toBe(true);

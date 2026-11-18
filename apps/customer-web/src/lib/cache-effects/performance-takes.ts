@@ -1,5 +1,5 @@
-import type { QueryClient } from '@tanstack/react-query';
-import type { PerformanceTakeGetResponse, PerformanceTakesListResponse } from '@/generated/api';
+import type { QueryClient, InfiniteData } from '@tanstack/react-query';
+import type { PerformanceTakesListResponse } from '@/generated/api';
 import { queryKeys } from '@/lib/query-client';
 import { storageUsageChanged } from './storage';
 
@@ -17,44 +17,15 @@ export async function performanceTakeDeleted(client: QueryClient, takeId: string
       exact: true,
     }),
   ]);
-  const lists = client.getQueriesData<PerformanceTakesListResponse>({
+  const lists = client.getQueriesData<InfiniteData<PerformanceTakesListResponse, string | undefined>>({
     queryKey: queryKeys.performanceTakes.lists(),
   });
-  const take =
-    client.getQueryData<PerformanceTakeGetResponse>(
-      queryKeys.performanceTakes.detail(takeId),
-    ) ??
-    lists
-      .flatMap(([, value]) => value?.items ?? [])
-      .find((item) => item.take_id === takeId);
-  const matchingScoreFilters = new Set(
-    lists.flatMap(([key, value]) => {
-      const filter = (key[2] ?? {}) as { score_id?: string };
-      return filter.score_id &&
-        value?.items.some((item) => item.take_id === takeId)
-        ? [filter.score_id]
-        : [];
-    }),
-  );
   for (const [key] of lists) {
-    const filter = (key[2] ?? {}) as { score_id?: string };
-    const belongs =
-      !filter.score_id ||
-      filter.score_id === take?.linked_score_id ||
-      matchingScoreFilters.has(filter.score_id);
-    client.setQueryData<PerformanceTakesListResponse>(key, (previous) => {
+    client.setQueryData<InfiniteData<PerformanceTakesListResponse, string | undefined>>(key, (previous) => {
       if (!previous) return previous;
-      const items = previous.items.filter((item) => item.take_id !== takeId);
-      const total = Math.max(
-        0,
-        previous.total - (belongs || items.length !== previous.items.length ? 1 : 0),
-      );
-      return {
-        ...previous,
-        items,
-        total,
-        has_more: (previous.offset ?? 0) + items.length < total,
-      };
+      return { ...previous, pages: previous.pages.map(page => ({
+        ...page, items: page.items.filter(item => item.take_id !== takeId),
+      })) };
     });
   }
   client.removeQueries({

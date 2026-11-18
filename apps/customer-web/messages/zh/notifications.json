@@ -34,5 +34,6 @@
   "declinedDescription": "这个邀请已从待处理列表中移除。",
   "declineFailed": "无法拒绝邀请",
   "declineFailedDescription": "请稍后重试。",
-  "processingFailedSubtitle": "请尝试重新上传这份乐谱。"
+  "processingFailedSubtitle": "请尝试重新上传这份乐谱。",
+  "loadMore": "加载更多"
 }

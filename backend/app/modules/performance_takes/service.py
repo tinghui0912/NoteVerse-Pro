@@ -3,9 +3,6 @@ from app.modules.storage_objects.reads import StoredObjectDelivery
 from app.storage import ObjectStorage
 
 
-from typing import Optional
-
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import (
@@ -19,8 +16,11 @@ from app.db.models.score import Score
 from app.modules.performance_takes.aggregate import performance_take_facts_from_row
 from app.modules.performance_takes.recording_media_admission import recording_extension
 from app.modules.performance_takes.repository import PerformanceTakeRepository
+from app.modules.performance_takes.read_model import PerformanceTakeReadModel, take_read
+from app.shared.feed_cursor import decode_cursor, encode_cursor
+import json
 from app.modules.performance_takes.schemas import (
-    PerformanceTakeListResponse,
+    PerformanceTakeListRead,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
 )
@@ -41,27 +41,13 @@ class PerformanceTakeService:
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
 
     def _to_read_dto(
-        self,
-        take: PerformanceTake,
-        *,
-        score: Score | None = None,
-        can_open_score: bool = False,
+        self, take: PerformanceTake, *, score: Score | None = None, can_open_score: bool = False
     ) -> PerformanceTakeRead:
-        facts = performance_take_facts_from_row(take)
-        manifest, recording = facts.manifest, facts.recording_object
-        linked_score_id = (
+        return take_read(
+            take,
             score.score_uuid
             if can_open_score and score is not None and score.deleted_at is None
-            else None
-        )
-
-        return PerformanceTakeRead(
-            take_id=manifest.take_uuid,
-            manifest=manifest.snapshot,
-            recording_media={"mime_type": recording.content_type, "byte_size": recording.byte_size},
-            linked_score_id=linked_score_id,
-            can_open_score=linked_score_id is not None,
-            created_at=take.created_at,
+            else None,
         )
 
     def _can_open_score(self, db: Session, user_id: int, score: Score | None) -> bool:
@@ -82,53 +68,23 @@ class PerformanceTakeService:
         self,
         db: Session,
         user_id: int,
-        score_id: Optional[str] = None,
+        score_id: str | None = None,
         limit: int = 50,
-        offset: int = 0,
-    ) -> PerformanceTakeListResponse:
-        score_db_id: Optional[int] = None
-        if score_id is not None:
-            score_res = db.execute(select(Score).where(Score.score_uuid == score_id))
-            score_filter = score_res.scalars().first()
-            if not score_filter:
-                return PerformanceTakeListResponse(
-                    items=[], total=0, limit=limit, offset=offset, has_more=False
-                )
-            score_db_id = score_filter.id
-
-        items, total = self.repository.list_takes(
-            db, user_id, linked_score_id=score_db_id, limit=limit, offset=offset
+        cursor: str | None = None,
+    ) -> PerformanceTakeListRead:
+        scope = json.dumps([user_id, score_id], separators=(",", ":"))
+        before = decode_cursor(cursor, collection="performance_takes", scope=scope)
+        rows = self.repository.list_takes(
+            db, user_id, score_uuid=score_id, limit=limit + 1, before=before
         )
-
-        score_ids = {item.linked_score_id for item in items if item.linked_score_id is not None}
-        score_map: dict[int, Score] = {}
-        if score_ids:
-            scores_res = db.execute(select(Score).where(Score.id.in_(score_ids)))
-            for s in scores_res.scalars().all():
-                if s.id is not None:
-                    score_map[s.id] = s
-
-        read_items: list[PerformanceTakeRead] = []
-        for item in items:
-            score_obj = (
-                score_map.get(item.linked_score_id) if item.linked_score_id is not None else None
-            )
-            can_open_score = self._can_open_score(db, user_id, score_obj)
-            read_items.append(
-                self._to_read_dto(
-                    item,
-                    score=score_obj,
-                    can_open_score=can_open_score,
-                )
-            )
-
-        has_more = (offset + len(items)) < total
-        return PerformanceTakeListResponse(
-            items=read_items,
-            total=total,
-            limit=limit,
-            offset=offset,
-            has_more=has_more,
+        page = rows[:limit]
+        next_cursor = (
+            encode_cursor("performance_takes", scope, page[-1].created_at, page[-1].id)
+            if len(rows) > limit
+            else None
+        )
+        return PerformanceTakeListRead(
+            items=PerformanceTakeReadModel().take_page(db, user_id, page), next_cursor=next_cursor
         )
 
     def get_take(

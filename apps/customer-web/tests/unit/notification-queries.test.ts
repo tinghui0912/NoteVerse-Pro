@@ -3,7 +3,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
 import { notificationReadOptimistically, allNotificationsReadOptimistically, rollbackNotificationRead } from '@/lib/cache-effects/notifications';
 
-import type { NotificationRead, NotificationsListResponse } from '@/generated/api';
+import type { NotificationRead } from '@/generated/api';
+import type { NotificationListResponse } from '@/lib/cache-effects/notifications';
 import {
   markAllNotificationsReadInList,
   markNotificationReadInList,
@@ -24,8 +25,8 @@ const baseNotification: NotificationRead = {
   created_at: '2026-07-01T00:00:00Z',
 };
 
-function response(data: NotificationRead[]): NotificationsListResponse {
-  return data;
+function response(data: NotificationRead[]): NotificationListResponse {
+  return { pages: data.map((item, index) => ({items: [item], next_cursor: index < data.length - 1 ? 'next' : null })), pageParams: data.map((_, index) => index ? 'next' : undefined) };
 }
 
 describe('notification query optimistic helpers', () => {
@@ -39,10 +40,10 @@ describe('notification query optimistic helpers', () => {
       },
     ]);
 
-    const next = markNotificationReadInList(current, 'notification-1', '2026-07-01T01:00:00Z');
+    const next = markNotificationReadInList(current, 'notification-2', '2026-07-01T01:00:00Z');
 
-    expect(next?.[0].read_at).toBe('2026-07-01T01:00:00Z');
-    expect(next?.[1].read_at).toBeNull();
+    expect(next?.pages[0].items[0].read_at).toBeNull();
+    expect(next?.pages[1].items[0].read_at).toBe('2026-07-01T01:00:00Z');
   });
 
   it('marks every unread notification as read without overwriting existing read timestamps', () => {
@@ -57,8 +58,8 @@ describe('notification query optimistic helpers', () => {
 
     const next = markAllNotificationsReadInList(current, '2026-07-01T01:00:00Z');
 
-    expect(next?.[0].read_at).toBe('2026-07-01T01:00:00Z');
-    expect(next?.[1].read_at).toBe('2026-07-01T00:30:00Z');
+    expect(next?.pages[0].items[0].read_at).toBe('2026-07-01T01:00:00Z');
+    expect(next?.pages[1].items[0].read_at).toBe('2026-07-01T00:30:00Z');
   });
 });
 
@@ -68,13 +69,13 @@ it('decrements only an originally unread notification and restores its exact sna
   client.setQueryData(queryKeys.notifications.list(), list);
   client.setQueryData(queryKeys.notifications.unreadCount(), { count: 2 });
   const snapshot = await notificationReadOptimistically(client, baseNotification.notification_id);
-  const read = client.getQueryData<NotificationsListResponse>(queryKeys.notifications.list())![0].read_at;
+  const read = client.getQueryData<NotificationListResponse>(queryKeys.notifications.list())!.pages[0].items[0].read_at;
   expect(read).not.toBeNull();
   expect(client.getQueryData(queryKeys.notifications.unreadCount())).toEqual({ count: 1 });
   await notificationReadOptimistically(client, baseNotification.notification_id);
   await notificationReadOptimistically(client, 'absent');
   expect(client.getQueryData(queryKeys.notifications.unreadCount())).toEqual({ count: 1 });
-  expect(client.getQueryData<NotificationsListResponse>(queryKeys.notifications.list())![0].read_at).toBe(read);
+  expect(client.getQueryData<NotificationListResponse>(queryKeys.notifications.list())!.pages[0].items[0].read_at).toBe(read);
   rollbackNotificationRead(client, snapshot);
   expect(client.getQueryData(queryKeys.notifications.list())).toEqual(list);
   expect(client.getQueryData(queryKeys.notifications.unreadCount())).toEqual({ count: 2 });
@@ -91,8 +92,8 @@ it('bounds optimistic unread counts at zero and preserves existing read timestam
   expect(client.getQueryData(queryKeys.notifications.unreadCount())).toEqual({ count: 0 });
   client.setQueryData(queryKeys.notifications.list(), list);
   const snapshot = await allNotificationsReadOptimistically(client);
-  const optimistic = client.getQueryData<NotificationsListResponse>(queryKeys.notifications.list())!;
-  expect(optimistic[0].read_at).not.toBeNull(); expect(optimistic[1].read_at).toBe(readAt);
+  const optimistic = client.getQueryData<NotificationListResponse>(queryKeys.notifications.list())!;
+  expect(optimistic.pages[0].items[0].read_at).not.toBeNull(); expect(optimistic.pages[1].items[0].read_at).toBe(readAt);
   rollbackNotificationRead(client, snapshot);
   expect(client.getQueryData(queryKeys.notifications.list())).toEqual(list);
   expect(client.getQueryData(queryKeys.notifications.unreadCount())).toEqual({ count: 0 });

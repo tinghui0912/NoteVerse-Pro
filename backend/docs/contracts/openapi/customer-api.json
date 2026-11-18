@@ -2053,6 +2053,34 @@
         "title": "NotificationActorRead",
         "type": "object"
       },
+      "NotificationListRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "NotificationListRead",
+        "type": "object"
+      },
       "NotificationRead": {
         "discriminator": {
           "mapping": {
@@ -2368,14 +2396,8 @@
         "title": "PerformanceTakeFullScopeSelection",
         "type": "object"
       },
-      "PerformanceTakeListResponse": {
-        "additionalProperties": false,
+      "PerformanceTakeListRead": {
         "properties": {
-          "has_more": {
-            "default": false,
-            "title": "Has More",
-            "type": "boolean"
-          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/PerformanceTakeRead"
@@ -2383,26 +2405,23 @@
             "title": "Items",
             "type": "array"
           },
-          "limit": {
-            "default": 50,
-            "title": "Limit",
-            "type": "integer"
-          },
-          "offset": {
-            "default": 0,
-            "title": "Offset",
-            "type": "integer"
-          },
-          "total": {
-            "title": "Total",
-            "type": "integer"
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "required": [
           "items",
-          "total"
+          "next_cursor"
         ],
-        "title": "PerformanceTakeListResponse",
+        "title": "PerformanceTakeListRead",
         "type": "object"
       },
       "PerformanceTakeManifestRead": {
@@ -7983,6 +8002,22 @@
             }
           },
           {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
             "in": "cookie",
             "name": "noteverse_session",
             "required": false,
@@ -8004,11 +8039,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/NotificationRead"
-                  },
-                  "title": "Response Notificationslist",
-                  "type": "array"
+                  "$ref": "#/components/schemas/NotificationListRead"
                 }
               }
             },
@@ -8911,13 +8942,18 @@
           },
           {
             "in": "query",
-            "name": "offset",
+            "name": "cursor",
             "required": false,
             "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Offset",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
             }
           },
           {
@@ -8942,7 +8978,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PerformanceTakeListResponse"
+                  "$ref": "#/components/schemas/PerformanceTakeListRead"
                 }
               }
             },

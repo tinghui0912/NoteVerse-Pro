@@ -21,7 +21,7 @@ from app.modules.performance_takes.upload_reservation.reservation_service import
 )
 from app.modules.performance_takes.finalization import PerformanceTakeFinalizationService
 from app.modules.performance_takes.schemas import (
-    PerformanceTakeListResponse,
+    PerformanceTakeListRead,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
     PerformanceTakeUploadReservationRead,
@@ -96,18 +96,18 @@ def finalize_take(
 @router.get(
     "",
     operation_id="performanceTakesList",
-    response_model=PerformanceTakeListResponse,
+    response_model=PerformanceTakeListRead,
 )
 def list_takes(
     score_id: Optional[str] = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db, scope="function"),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = service.list_takes(db, user_id, score_id=score_id, limit=limit, offset=offset)
+    data = service.list_takes(db, user_id, score_id=score_id, limit=limit, cursor=cursor)
     return data
 
 

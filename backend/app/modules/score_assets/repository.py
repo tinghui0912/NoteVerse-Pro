@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from typing import TypeAlias
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import (
     PlaybackAssetKind,
     PlaybackOutbox,
+    PlaybackOutboxStatus,
+    ScoreRevisionRenderOutbox,
+    ScoreRevisionRenderStatus,
     Score,
     ScorePlaybackAsset,
     ScoreRenderAsset,
@@ -21,6 +24,71 @@ ScoreAssetRecord: TypeAlias = ScoreRevisionSource | ScoreRenderAsset
 
 
 class ScoreAssetRepository:
+    def page_presentation_facts(
+        self, db: Session, revision_ids: list[int], *, render_profile: str
+    ) -> tuple[
+        dict[int, str],
+        dict[int, ScoreRevisionRenderStatus],
+        dict[int, str],
+        dict[int, PlaybackOutboxStatus],
+    ]:
+        if not revision_ids:
+            return {}, {}, {}, {}
+        pages = (
+            select(
+                ScoreRenderAsset.revision_id,
+                ScoreRenderAsset.asset_uuid,
+                func.row_number()
+                .over(
+                    partition_by=ScoreRenderAsset.revision_id,
+                    order_by=(
+                        ScoreRenderAsset.page_number,
+                        ScoreRenderAsset.created_at,
+                        ScoreRenderAsset.id,
+                    ),
+                )
+                .label("ordinal"),
+            )
+            .where(
+                ScoreRenderAsset.revision_id.in_(revision_ids),
+                ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
+                ScoreRenderAsset.render_profile == render_profile,
+            )
+            .subquery()
+        )
+        thumbnails = dict(
+            db.execute(
+                select(pages.c.revision_id, pages.c.asset_uuid).where(pages.c.ordinal == 1)
+            ).all()
+        )
+        renders = dict(
+            db.execute(
+                select(
+                    ScoreRevisionRenderOutbox.revision_id, ScoreRevisionRenderOutbox.status
+                ).where(
+                    ScoreRevisionRenderOutbox.revision_id.in_(revision_ids),
+                    ScoreRevisionRenderOutbox.render_profile == render_profile,
+                )
+            ).all()
+        )
+        audio = dict(
+            db.execute(
+                select(ScorePlaybackAsset.revision_id, ScorePlaybackAsset.asset_uuid).where(
+                    ScorePlaybackAsset.revision_id.in_(revision_ids),
+                    ScorePlaybackAsset.kind == PlaybackAssetKind.AUDIO,
+                )
+            ).all()
+        )
+        playback = dict(
+            db.execute(
+                select(PlaybackOutbox.revision_id, PlaybackOutbox.status).where(
+                    PlaybackOutbox.revision_id.in_(revision_ids),
+                    PlaybackOutbox.asset_kind == PlaybackAssetKind.AUDIO,
+                )
+            ).all()
+        )
+        return thumbnails, renders, audio, playback
+
     def get_source(self, db: Session, source_uuid: str) -> ScoreRevisionSource | None:
         return (
             db.execute(
