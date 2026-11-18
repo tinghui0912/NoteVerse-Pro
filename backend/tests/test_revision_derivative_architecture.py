@@ -22,18 +22,29 @@ def test_render_and_playback_claim_use_one_demand_policy():
     assert outbox_service.revision_presentation_demand is revision_presentation_demand
 
 
-def test_api_and_beat_use_the_same_neutral_revision_producer():
-    for path in [
-        ROOT / "modules/revisions/derivatives.py",
-        ROOT / "worker/execution/maintenance_dispatch.py",
-    ]:
-        assert "app.modules.revisions.dispatch" in imports(path)
-    assert "app.task_queue.producer" in imports(ROOT / "modules/revisions/dispatch.py")
-    for path in list((ROOT / "task_queue").glob("*.py")) + [
-        ROOT / "modules/revisions/dispatch.py",
-        ROOT / "modules/revisions/derivatives.py",
-    ]:
-        assert all(not module.startswith("app.worker") for module in imports(path)), path
+def test_post_commit_and_maintenance_use_domain_owned_broker_relays():
+    relays = {
+        "app.modules.revisions.render_dispatch",
+        "app.modules.playback.dispatch",
+        "app.modules.revisions.metadata_dispatch",
+    }
+    assert relays <= imports(ROOT / "modules/revisions/post_commit.py")
+    assert relays - {"app.modules.revisions.metadata_dispatch"} <= imports(
+        ROOT / "worker/execution/maintenance_dispatch.py"
+    )
+    assert "app.modules.revisions.metadata_dispatch" in imports(
+        ROOT / "worker/execution/revision_metadata.py"
+    )
+    for relative in (
+        "modules/revisions/render_dispatch.py",
+        "modules/playback/dispatch.py",
+        "modules/revisions/metadata_dispatch.py",
+    ):
+        assert "app.task_queue.producer" in imports(ROOT / relative)
+        assert all(not module.startswith("app.worker") for module in imports(ROOT / relative))
+    assert "app.modules.revisions.post_commit" not in imports(
+        ROOT / "worker/execution/maintenance_dispatch.py"
+    )
 
 
 def test_demand_and_retention_are_independent_policy_owners():

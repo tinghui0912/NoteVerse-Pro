@@ -59,7 +59,7 @@ def execute_playback_outbox_maintenance() -> dict[str, int]:
             due = playback_outbox_service.recover_and_list_due(db)
             db.commit()
 
-        from app.modules.revisions.dispatch import dispatch_playback_outbox
+        from app.modules.playback.dispatch import dispatch_playback_outbox
 
         dispatched = sum(1 for outbox_uuid in due if dispatch_playback_outbox(outbox_uuid))
         return {"due": len(due), "dispatched": dispatched}

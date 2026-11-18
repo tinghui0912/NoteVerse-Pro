@@ -70,8 +70,19 @@ computes inline or creates a parallel metadata/source admission path. In-flight
 DISPATCHED/PROCESSING work cannot be rearmed by that command. Integration seed and
 derived-asset smoke setup also use Writer with prepared canonical sources.
 
-Post-commit render/playback/metadata relays are latency hints.
-Durable evidence already exists. Retention is background reconciliation under current
+`RevisionWriteResult` contains the admitted revision and an optional frozen
+`RevisionPostCommitWork`: Score/revision IDs and render, playback, and metadata outbox
+UUIDs. A new revision supplies the complete ticket; same-content and idempotency
+replays supply none and do not fast-dispatch existing work. The ticket has no persistence.
+
+After the business commit and outside its rollback handler, RevisionService and
+ImportReviewService pass the ticket to `RevisionPostCommitCoordinator`. It attempts
+all three domain relays with independent exception logging. Caller guards also isolate
+unexpected coordinator failures from already committed business success. K8s smoke uses
+the same coordinator; durable-only seed paths need no fast dispatch.
+
+These relays are latency hints. Durable evidence already exists in three independent
+outboxes; their own workers, leases, retry policies, and maintenance own convergence. Retention is background reconciliation under current
 head demand, not request-path cleanup. There is no universal revision/background runner.
 
 See [durable delivery](durable-asynchronous-delivery.md) and

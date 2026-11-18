@@ -52,8 +52,9 @@ durable work identities. After COMMIT, the API attempts best-effort relay and pr
 catch-up. Metadata extraction is independently fenced durable execution. Guest Preview
 settings only change bearer access and do not enqueue or reactivate derivative work.
 
-The revision dispatcher and Beat maintenance use the same revision-owned render relay
-and producer: mark and commit DISPATCHED, publish the stable Celery task, and release
+The post-commit coordinator and Beat maintenance use the domain-owned relays:
+`revisions/render_dispatch.py`, `playback/dispatch.py`, and `revisions/metadata_dispatch.py`.
+Each relay has its own producer protocol: mark and commit DISPATCHED, publish the stable Celery task, and release
 dispatch on broker failure.
 The shared `app.task_queue` package owns Celery assembly, runtime options, producer tracing
 and schedule wiring; it imports no worker execution implementation. API relays execute

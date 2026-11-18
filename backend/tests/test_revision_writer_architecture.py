@@ -60,6 +60,14 @@ def test_use_cases_delegate_revision_admission_and_only_hint_after_commit():
         tree = ast.parse((ROOT / file).read_text())
         imports = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
         assert "app.modules.revisions.writer" in imports
+        assert "app.modules.revisions.post_commit" in imports
+        assert imports.isdisjoint(
+            {
+                "app.modules.revisions.render_dispatch",
+                "app.modules.playback.dispatch",
+                "app.modules.revisions.metadata_dispatch",
+            }
+        )
         if file.endswith("revisions/service.py"):
             assert imports.isdisjoint(
                 {
@@ -96,3 +104,38 @@ def test_executable_seed_and_smoke_paths_delegate_to_the_canonical_writer():
                 for node in ast.walk(parsed)
             )
         assert "app.modules.revisions.writer" in path.read_text(encoding="utf-8")
+
+
+def test_writer_has_no_broker_dispatch_dependency():
+    tree = ast.parse((ROOT / "modules/revisions/writer.py").read_text())
+    modules = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)}
+    assert modules.isdisjoint(
+        {
+            "app.task_queue.producer",
+            "app.worker.tasks",
+            "app.modules.revisions.render_dispatch",
+            "app.modules.playback.dispatch",
+            "app.modules.revisions.metadata_dispatch",
+        }
+    )
+
+
+def test_three_domain_fast_dispatch_has_one_owner_in_production_and_smoke():
+    relays = {
+        "app.modules.revisions.render_dispatch",
+        "app.modules.playback.dispatch",
+        "app.modules.revisions.metadata_dispatch",
+    }
+    owners = set()
+    for path in ROOT.rglob("*.py"):
+        modules = {
+            node.module
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+            if isinstance(node, ast.ImportFrom)
+        }
+        if relays <= modules:
+            owners.add(path.relative_to(ROOT).as_posix())
+    assert owners == {"modules/revisions/post_commit.py"}
+    smoke = (ROOT.parents[1] / "scripts/k8s_smoke_derived_assets.py").read_text()
+    assert "from app.modules.revisions.post_commit import revision_post_commit" in smoke
+    assert all(module not in smoke for module in relays)

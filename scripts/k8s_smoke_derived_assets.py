@@ -120,9 +120,7 @@ from app.db.models.score import RevisionOrigin
 from app.db.session import SessionLocal
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 from app.modules.revisions.writer import revision_writer, InitialRevisionWrite, PreparedRevisionSource
-from app.modules.revisions.render_dispatch import dispatch_score_revision_render
-from app.modules.revisions.dispatch import dispatch_playback_outbox
-from app.modules.revisions.metadata_dispatch import dispatch_revision_metadata
+from app.modules.revisions.post_commit import revision_post_commit
 from app.modules.storage_objects.writes import write_object
 from app.modules.storage_usage.service import storage_usage_service
 from app.processing.musicxml.admission import admit_musicxml_document
@@ -178,15 +176,13 @@ with SessionLocal() as db:
         storage_usage_service.release_reservation(db, reservation.reservation_id)
         db.commit()
         raise
-    work = result.derivatives
+    work = result.post_commit_work
     assert work is not None
-    dispatch_score_revision_render(work.revision_render_outbox_uuid)
-    dispatch_playback_outbox(work.playback_outbox_uuid)
-    dispatch_revision_metadata(result.metadata_outbox_uuid)
+    revision_post_commit.dispatch_best_effort(work)
     print(json.dumps({{
         "score_id": score_uuid,
         "revision_id": revision_uuid,
-        "revision_render_outbox_id": work.revision_render_outbox_uuid,
+        "revision_render_outbox_id": work.render_outbox_uuid,
         "playback_outbox_id": work.playback_outbox_uuid,
     }}))
 """

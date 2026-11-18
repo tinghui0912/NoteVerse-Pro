@@ -86,6 +86,5 @@ def test_guest_preview_dependencies_own_presentation_authorization_and_demand_pr
             and node.module.startswith("app.modules.revisions.")
         }
         assert revision_dependencies <= {
-            "app.modules.revisions.derivatives",
             "app.modules.revisions.derived_asset_retention_service",
         }

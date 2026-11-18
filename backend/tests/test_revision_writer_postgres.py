@@ -189,7 +189,7 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
             try:
                 result = revision_writer.write(db, cmd2)
                 db.commit()
-                return result.created, result.revision.revision_uuid
+                return result.post_commit_work is not None, result.revision.revision_uuid
             except ConflictException as exc:
                 db.rollback()
                 return exc.code
@@ -309,9 +309,12 @@ def test_initial_append_restore_noop_and_history_are_one_boundary(database):
     noop = prepare(engine, storage)
     with Session(engine) as db:
         before = snapshot(db)
-        assert not revision_writer.write(
-            db, AppendRevisionWrite("score", 1, noop, head, RevisionOrigin.EDIT)
-        ).created
+        assert (
+            revision_writer.write(
+                db, AppendRevisionWrite("score", 1, noop, head, RevisionOrigin.EDIT)
+            ).post_commit_work
+            is None
+        )
         db.commit()
         after = snapshot(db)
         for name in before.keys() - {"storage_usage_accounts", "storage_usage_counters"}:
@@ -496,7 +499,7 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
         pass
 
     monkeypatch.setattr(review_module, "write_object", paused)
-    monkeypatch.setattr(review_module, "revision_fast_path", latency_only)
+    monkeypatch.setattr(review_module.revision_post_commit, "dispatch_best_effort", latency_only)
 
     def confirm():
         with Session(engine) as db:

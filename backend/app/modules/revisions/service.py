@@ -26,7 +26,8 @@ from app.modules.revisions.writer import (
     AppendRevisionWrite,
     RestoreLineage,
 )
-from app.modules.revisions.fast_path import revision_fast_path
+from app.modules.revisions.post_commit import revision_post_commit
+from app.core.logger import logger
 from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.schemas import (
     RevisionContentRead,
@@ -111,7 +112,6 @@ class RevisionService:
             reason="revision_restore" if restore else "revision_create",
             object_type="score_revision_source",
         )
-        committed = False
         try:
             db.commit()
             receipt = write_object(
@@ -145,15 +145,25 @@ class RevisionService:
                 ),
             )
             db.commit()
-            committed = True
-            revision_fast_path(result)
-            return self._read(db, result.revision)
         except Exception:
             db.rollback()
-            if not committed:
-                storage_usage_service.release_reservation(db, reservation.reservation_id)
-                db.commit()
+            storage_usage_service.release_reservation(db, reservation.reservation_id)
+            db.commit()
             raise
+
+        work = result.post_commit_work
+        if work is not None:
+            try:
+                revision_post_commit.dispatch_best_effort(work)
+            except Exception as exc:
+                logger.bind(
+                    event="revision_post_commit.coordinator_failed",
+                    score_id=work.score_id,
+                    revision_id=work.revision_id,
+                    exception_type=type(exc).__name__,
+                ).warning("revision_post_commit.coordinator_failed")
+
+        return self._read(db, result.revision)
 
     def list(
         self,

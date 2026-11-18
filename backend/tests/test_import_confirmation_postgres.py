@@ -130,7 +130,7 @@ def confirmation(monkeypatch):
         def latency_only(*args):
             pass
 
-        monkeypatch.setattr(review, "revision_fast_path", latency_only)
+        monkeypatch.setattr(review.revision_post_commit, "dispatch_best_effort", latency_only)
         yield engine, storage
 
 

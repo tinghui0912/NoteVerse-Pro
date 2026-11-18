@@ -22,14 +22,16 @@ from app.db.models import (
     ScoreRevisionRenderStatus,
     PlaybackOutbox,
     PlaybackOutboxStatus,
+    RevisionMetadataOutbox,
     ImportJob,
     ImportDispatch,
     ImportDispatchStatus,
 )
 from app.db.models.import_job import ImportJobState
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat
-from app.modules.revisions import dispatch
-from app.modules.revisions.derivatives import revision_derivative_service, RevisionDerivativeService
+from app.modules.playback import dispatch
+from app.modules.revisions import render_dispatch, metadata_dispatch
+from app.modules.revisions.post_commit import revision_post_commit, RevisionPostCommitCoordinator
 from app.modules.revisions.schemas import RevisionRestoreRequest
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.schemas import RevisionCreateRequest
@@ -218,10 +220,17 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
         db.commit()
 
     monkeypatch.setattr(dispatch, "SessionLocal", database)
-    monkeypatch.setattr(dispatch.revision_render_dispatch, "SessionLocal", database)
+    monkeypatch.setattr(render_dispatch, "SessionLocal", database)
+    monkeypatch.setattr(metadata_dispatch, "SessionLocal", database)
 
     def broker(task_name, *, kwargs, task_id):
-        model = ScoreRevisionRenderOutbox if "render" in task_name else PlaybackOutbox
+        model = (
+            ScoreRevisionRenderOutbox
+            if "render" in task_name
+            else RevisionMetadataOutbox
+            if "metadata" in task_name
+            else PlaybackOutbox
+        )
         with Session(db.get_bind()) as check:
             row = check.scalar(select(model).where(model.outbox_uuid == kwargs["outbox_uuid"]))
             assert row.status.value == "DISPATCHED"
@@ -243,7 +252,7 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
             assert (
                 check.scalar(
                     select(ScoreRevisionRenderOutbox).where(
-                        ScoreRevisionRenderOutbox.outbox_uuid == work.revision_render_outbox_uuid
+                        ScoreRevisionRenderOutbox.outbox_uuid == work.render_outbox_uuid
                     )
                 )
                 is not None
@@ -257,12 +266,12 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
                 is not None
             )
         observed.append(work)
-        dispatch.dispatch_revision_derivatives_best_effort(work)
+        RevisionPostCommitCoordinator().dispatch_best_effort(work)
 
     def after_commit(work):
         relay_after_commit(work)
 
-    monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", after_commit)
+    monkeypatch.setattr(revision_post_commit, "dispatch_best_effort", after_commit)
     if operation == "save":
         RevisionService(storage=storage).create(
             db,
@@ -299,11 +308,11 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
         ImportReviewService(storage=storage).confirm(
             db, "confirm-demand", 1, ReviewConfirmRequest(content=MUSICXML_2)
         )
-    assert len(observed) == 1 and len(calls) == 2
+    assert len(observed) == 1 and len(calls) == 3
     work = observed[0]
     render = db.scalar(
         select(ScoreRevisionRenderOutbox).where(
-            ScoreRevisionRenderOutbox.outbox_uuid == work.revision_render_outbox_uuid
+            ScoreRevisionRenderOutbox.outbox_uuid == work.render_outbox_uuid
         )
     )
     audio = db.scalar(
@@ -320,22 +329,14 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
         monkeypatch.setattr(producer.celery_app, "send_task", lambda *_a, **_k: None)
         assert maintenance_dispatch.execute_score_revision_render_maintenance()["dispatched"] >= 1
         assert maintenance_dispatch.execute_playback_outbox_maintenance()["dispatched"] >= 1
+        from app.worker.execution import revision_metadata as metadata_worker
+
+        monkeypatch.setattr(metadata_worker, "SessionLocal", database)
+        monkeypatch.setattr(metadata_worker, "run_scheduler_scan", lambda _name, scan: scan())
+        assert metadata_worker.execute_revision_metadata_maintenance()["dispatched"] >= 1
         db.refresh(render)
         db.refresh(audio)
         assert render.status.value == audio.status.value == "DISPATCHED"
-
-
-def test_dispatcher_crash_does_not_escape_post_commit_boundary(monkeypatch):
-    from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
-
-    monkeypatch.setattr(
-        dispatch,
-        "dispatch_revision_derivatives_best_effort",
-        Mock(side_effect=RuntimeError("dispatcher crashed")),
-    )
-    RevisionDerivativeService().dispatch_after_commit(
-        RevisionDerivativeOutboxes(1, 2, "render", "audio")
-    )
 
 
 @pytest.mark.parametrize(
@@ -359,7 +360,7 @@ def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
         for work in work_rows(db, n)
     ]
     relay = Mock(side_effect=AssertionError("Toggle must not dispatch work"))
-    monkeypatch.setattr(revision_derivative_service, "dispatch_after_commit", relay)
+    monkeypatch.setattr(revision_post_commit, "dispatch_best_effort", relay)
     service = GuestPreviewService(storage=storage)
     for enabled in [True, False]:
         if enabled:

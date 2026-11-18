@@ -28,7 +28,7 @@ from app.modules.storage_objects.writes import ObjectWriteReceipt, adopt_written
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.revisions.render_admission import admit_revision_render
 from app.modules.playback.outbox_service import create_playback_outbox
-from app.modules.revisions.derivatives import RevisionDerivativeOutboxes
+from app.modules.revisions.post_commit import RevisionPostCommitWork
 from app.modules.realtime.publisher import score_recipients, publish_change
 from app.modules.notifications.service import notification_service
 from app.shared.error_codes import CustomerErrorCode
@@ -76,9 +76,7 @@ class AppendRevisionWrite:
 @dataclass(frozen=True)
 class RevisionWriteResult:
     revision: ScoreRevision
-    created: bool
-    derivatives: RevisionDerivativeOutboxes | None = None
-    metadata_outbox_uuid: str | None = None
+    post_commit_work: RevisionPostCommitWork | None
 
 
 class RevisionWriter:
@@ -265,11 +263,13 @@ class RevisionWriter:
         db.flush()
         return RevisionWriteResult(
             revision,
-            True,
-            RevisionDerivativeOutboxes(
-                score_id, revision_id, render.outbox_uuid, playback.outbox_uuid
+            RevisionPostCommitWork(
+                score_id=score_id,
+                revision_id=revision_id,
+                render_outbox_uuid=render.outbox_uuid,
+                playback_outbox_uuid=playback.outbox_uuid,
+                metadata_outbox_uuid=metadata.outbox_uuid,
             ),
-            metadata.outbox_uuid,
         )
 
     def existing_append(
@@ -331,7 +331,7 @@ class RevisionWriter:
         db: Session, source: PreparedRevisionSource, revision: ScoreRevision
     ) -> RevisionWriteResult:
         storage_usage_service.release_reservation(db, source.reservation_id)
-        return RevisionWriteResult(revision, False)
+        return RevisionWriteResult(revision, None)
 
 
 revision_writer = RevisionWriter()
