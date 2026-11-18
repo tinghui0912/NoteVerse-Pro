@@ -1689,6 +1689,9 @@ def upgrade() -> None:
             "manifest_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
         ),
         sa.Column(
+            "owner_user_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=False
+        ),
+        sa.Column(
             "linked_score_id", sa.BigInteger().with_variant(sa.Integer(), "sqlite"), nullable=True
         ),
         sa.Column(
@@ -1705,9 +1708,9 @@ def upgrade() -> None:
             ondelete="SET NULL",
         ),
         sa.ForeignKeyConstraint(
-            ["manifest_id"],
-            ["performance_take_manifests.id"],
-            name="fk_performance_takes_manifest_id_performance_take_manifests",
+            ["manifest_id", "owner_user_id"],
+            ["performance_take_manifests.id", "performance_take_manifests.user_id"],
+            name="fk_performance_takes_manifest_owner",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
@@ -1721,15 +1724,21 @@ def upgrade() -> None:
         sa.UniqueConstraint("recording_object_id", name="uq_performance_takes_recording_object"),
     )
     op.create_index(
-        "idx_performance_takes_created",
+        "idx_performance_takes_owner_created",
         "performance_takes",
-        ["created_at", "id"],
+        ["owner_user_id", "created_at", "id"],
         unique=False,
     )
     op.create_index(
         op.f("ix_performance_takes_linked_score_id"),
         "performance_takes",
         ["linked_score_id"],
+        unique=False,
+    )
+    op.create_index(
+        "idx_performance_takes_owner_score_created",
+        "performance_takes",
+        ["owner_user_id", "linked_score_id", "created_at", "id"],
         unique=False,
     )
     op.create_table(
@@ -2778,7 +2787,8 @@ def downgrade() -> None:
     op.drop_index("idx_score_input_assets_upload", table_name="score_input_assets")
     op.drop_index("idx_score_input_assets_score_order", table_name="score_input_assets")
     op.drop_table("score_input_assets")
-    op.drop_index("idx_performance_takes_created", table_name="performance_takes")
+    op.drop_index("idx_performance_takes_owner_score_created", table_name="performance_takes")
+    op.drop_index("idx_performance_takes_owner_created", table_name="performance_takes")
     op.drop_index(op.f("ix_performance_takes_linked_score_id"), table_name="performance_takes")
     op.drop_table("performance_takes")
     op.drop_index("idx_scores_owner_updated", table_name="scores")

@@ -176,3 +176,38 @@ def test_read_transition_and_change_admission_roll_back_together(
         db.rollback()
         assert db.scalar(sa.select(Notification)).read_at is None
         assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 1
+
+
+def test_mark_all_read_uses_collection_scope_beyond_an_already_read_page(notifications):
+    from datetime import timedelta
+
+    now = utc_now()
+    with Session(notifications) as db:
+        db.add_all(
+            [
+                Notification(
+                    recipient_user_id=1,
+                    kind="import.failed",
+                    import_job_id=f"job-{i}",
+                    created_at=now + timedelta(seconds=i),
+                    read_at=now if i >= 20 else None,
+                )
+                for i in range(40)
+            ]
+        )
+        db.add(Notification(recipient_user_id=2, kind="import.failed", import_job_id="other"))
+        db.commit()
+        service = NotificationService()
+        page = service.list_for_user(db, 1, limit=20)
+        assert page.next_cursor is not None
+        assert len(page.items) == 20
+        assert all(row.read_at is not None for row in page.items)
+        assert service.repository.unread_count(db, 1) == 20
+        assert service.mark_all_read(db, 1).count == 0
+        db.expire_all()
+        assert service.repository.unread_count(db, 1) == 0
+        assert service.repository.unread_count(db, 2) == 1
+        assert all(
+            row.read_at is not None
+            for row in service.list_for_user(db, 1, cursor=page.next_cursor).items
+        )

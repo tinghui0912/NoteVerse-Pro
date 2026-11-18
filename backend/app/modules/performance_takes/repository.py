@@ -4,7 +4,7 @@ from typing import Optional
 
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import selectinload, contains_eager, joinedload
+from sqlalchemy.orm import selectinload, joinedload
 from datetime import datetime
 from app.db.models import Score
 from app.db.models.performance_take_manifest import PerformanceTakeManifest
@@ -94,12 +94,11 @@ class PerformanceTakeRepository:
     ) -> list[PerformanceTake]:
         statement = (
             select(PerformanceTake)
-            .join(PerformanceTakeManifest)
             .options(
-                contains_eager(PerformanceTake.manifest),
+                joinedload(PerformanceTake.manifest),
                 joinedload(PerformanceTake.recording_object),
             )
-            .where(PerformanceTakeManifest.user_id == user_id)
+            .where(PerformanceTake.owner_user_id == user_id)
         )
         if score_uuid is not None:
             statement = statement.where(

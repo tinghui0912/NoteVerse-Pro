@@ -27,6 +27,7 @@ def test_manifest_and_lifecycle_persistence_ownership():
     assert set(take.columns.keys()) == {
         "id",
         "manifest_id",
+        "owner_user_id",
         "linked_score_id",
         "recording_object_id",
         "created_at",
@@ -64,6 +65,17 @@ def test_manifest_and_lifecycle_persistence_ownership():
         if fk.name == "fk_take_reservation_manifest_owner"
     )
     assert [c.name for c in owner_fk.columns] == ["manifest_id", "user_id"]
+    assert not take.c.owner_user_id.nullable
+    take_owner_fk = next(
+        fk
+        for fk in take.foreign_key_constraints
+        if fk.name == "fk_performance_takes_manifest_owner"
+    )
+    assert [c.name for c in take_owner_fk.columns] == ["manifest_id", "owner_user_id"]
+    assert [fk.target_fullname for fk in take_owner_fk.elements] == [
+        "performance_take_manifests.id",
+        "performance_take_manifests.user_id",
+    ]
 
 
 def test_finalize_contract_consumes_only_user_scoped_reservation_identity():

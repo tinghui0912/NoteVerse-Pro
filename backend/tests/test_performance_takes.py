@@ -318,6 +318,7 @@ def _create_default_take(
     session.add(reservation)
     session.flush()
     take = PerformanceTake(
+        owner_user_id=user_id,
         manifest=reservation.manifest,
         linked_score_id=linked_score_id,
         recording_object=StoredObject(
@@ -728,6 +729,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             .join(PerformanceTakeManifest)
             .where(PerformanceTakeManifest.take_uuid == take_id)
         ).scalar_one()
+        assert take_row.owner_user_id == take_row.manifest.user_id == user_1.id
         source = session.execute(
             select(PracticeBundleRecord).where(
                 PracticeBundleRecord.bundle_id

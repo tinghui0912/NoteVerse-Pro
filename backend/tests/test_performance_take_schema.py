@@ -65,6 +65,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                 status=UploadReservationStatus.RESERVED,
             )
             take = PerformanceTake(
+                owner_user_id=user.id,
                 manifest_id=manifest.id,
                 recording_object=StoredObject(
                     object_key="media",
@@ -76,9 +77,36 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
             db.add_all([row, take])
             db.commit()
             assert row.manifest_id == take.manifest_id == manifest.id
+            db.refresh(take)
+            assert take.owner_user_id == manifest.user_id == user.id
+            indexes = {
+                index["name"]: index["column_names"]
+                for index in sa.inspect(engine).get_indexes("performance_takes")
+            }
+            assert indexes["idx_performance_takes_owner_created"] == [
+                "owner_user_id",
+                "created_at",
+                "id",
+            ]
+            assert indexes["idx_performance_takes_owner_score_created"] == [
+                "owner_user_id",
+                "linked_score_id",
+                "created_at",
+                "id",
+            ]
+            owner_fk = next(
+                fk
+                for fk in sa.inspect(engine).get_foreign_keys("performance_takes")
+                if fk["name"] == "fk_performance_takes_manifest_owner"
+            )
+            assert owner_fk["constrained_columns"] == ["manifest_id", "owner_user_id"]
+            assert owner_fk["referred_table"] == "performance_take_manifests"
+            assert owner_fk["referred_columns"] == ["id", "user_id"]
+            assert owner_fk["options"]["ondelete"] == "CASCADE"
             assert db.scalar(sa.text("SELECT count(*) FROM practice_bundles")) == 0
             db.add(
                 PerformanceTake(
+                    owner_user_id=user.id,
                     manifest_id=manifest.id,
                     recording_object=StoredObject(
                         object_key="other",
@@ -94,6 +122,17 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
             other = User(email="other@example.com", display_name="Other", password_hash="test")
             db.add(other)
             db.flush()
+            with pytest.raises(IntegrityError) as mismatch:
+                with db.begin_nested():
+                    db.execute(
+                        sa.update(PerformanceTake)
+                        .where(PerformanceTake.id == take.id)
+                        .values(owner_user_id=other.id)
+                    )
+            assert mismatch.value.orig.sqlstate == "23503"
+            assert mismatch.value.orig.diag.constraint_name == "fk_performance_takes_manifest_owner"
+            db.refresh(take)
+            assert take.owner_user_id == user.id
             db.add(
                 PerformanceTakeUploadReservation(
                     user_id=other.id,

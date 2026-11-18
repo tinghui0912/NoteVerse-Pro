@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import (
     ResourceNotFoundException,
+    UnauthorizedException,
 )
 from app.db.models.performance_take import PerformanceTake
 from app.db.models import StorageUsageCategory
@@ -61,7 +62,7 @@ class PerformanceTakeService:
                 user_id=user_id,
             )
             return True
-        except Exception:
+        except (UnauthorizedException, ResourceNotFoundException):
             return False
 
     def list_takes(

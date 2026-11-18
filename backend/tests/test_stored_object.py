@@ -137,6 +137,7 @@ def test_physical_schema_and_dependency_ownership():
     assert set(take.columns.keys()) == {
         "id",
         "manifest_id",
+        "owner_user_id",
         "recording_object_id",
         "linked_score_id",
         "created_at",

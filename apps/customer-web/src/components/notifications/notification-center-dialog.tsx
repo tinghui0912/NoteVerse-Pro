@@ -31,6 +31,7 @@ import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useMyNotifications,
+  useNotificationUnreadCount,
 } from '@/hooks/queries/use-notification-queries';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
@@ -54,6 +55,7 @@ export function NotificationCenterDialog({ open, onOpenChange }: NotificationCen
 
   const pendingInvitesQuery = useMyPendingScoreInvites(open);
   const notificationsQuery = useMyNotifications(open);
+  const unreadCountQuery = useNotificationUnreadCount(open);
   const acceptInvite = useAcceptMyPendingScoreInvite();
   const declineInvite = useDeclineMyPendingScoreInvite();
   const markRead = useMarkNotificationRead();
@@ -61,7 +63,7 @@ export function NotificationCenterDialog({ open, onOpenChange }: NotificationCen
 
   const invites = pendingInvitesQuery.data?.pages.flatMap((page) => page?.items ?? []) ?? [];
   const notifications = notificationsQuery.data?.pages.flatMap(page => page.items) ?? [];
-  const unreadCount = notifications.filter((item) => !item.read_at).length;
+  const unreadCount = unreadCountQuery.data?.count ?? 0;
   const visibleNotifications =
     updateFilter === 'unread'
       ? notifications.filter((notification) => !notification.read_at)

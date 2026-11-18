@@ -69,6 +69,7 @@ class PerformanceTakeWriter:
         db.add(blob)
         db.flush()
         take = PerformanceTake(
+            owner_user_id=reservation.user_id,
             recording_object_id=blob.id,
             recording_object=blob,
             manifest_id=reservation.manifest_id,

@@ -110,6 +110,9 @@ Reserve commits Manifest, Reservation and quota hold atomically. Concurrent equa
 retain one of each. Both Reservation and Take responses expose the same nested `manifest`
 projection; their public `take_id` comes from Manifest.take_uuid. The composite Reservation
 Manifest/owner FK enforces agreement with its idempotency user. Take.manifest_id is unique.
+Take.owner_user_id directly scopes its library timeline and is bound to Manifest.user_id by
+its composite (manifest_id, owner_user_id) FK. Owner chronology and owner-plus-linked-Score
+chronology each have a matching composite index; Manifest loading does not establish list ownership.
 
 Finalization holds an immutable TakeManifest value across slow storage IO and creates a Take
 with its manifest_id, recording_object_id and library facts. StoredObject creation, Take creation,

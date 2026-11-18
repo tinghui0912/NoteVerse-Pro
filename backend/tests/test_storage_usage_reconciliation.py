@@ -169,7 +169,11 @@ def inventory(db):
     db.add(manifest)
     db.flush()
     db.add(
-        PerformanceTake(manifest_id=manifest.id, recording_object_id=obj(db, "recording", 31).id)
+        PerformanceTake(
+            owner_user_id=manifest.user_id,
+            manifest_id=manifest.id,
+            recording_object_id=obj(db, "recording", 31).id,
+        )
     )
     # Exclusions share the same physical fact type, but have no accounting category.
     db.get(User, 1).avatar_object_id = obj(db, "avatar", 1001).id

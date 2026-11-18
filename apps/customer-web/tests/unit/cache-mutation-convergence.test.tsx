@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useUpdateScore } from '@/hooks/queries/use-score-queries';
@@ -8,7 +8,7 @@ import {
   useConfirmImportJobReview,
   useUpdateImportJobReview,
 } from '@/hooks/queries/use-review-queries';
-import { useMarkNotificationRead } from '@/hooks/queries/use-notification-queries';
+import { useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/queries/use-notification-queries';
 import { queryKeys as keys } from '@/lib/query-client';
 import type { ScoreRead, NotificationRead, ImportJobReviewRead } from '@/generated/api';
 
@@ -17,11 +17,12 @@ const api = vi.hoisted(() => ({
   confirm: vi.fn(),
   updateReview: vi.fn(),
   markRead: vi.fn(),
+  markAllRead: vi.fn(),
 }));
 vi.mock('@/lib/api', () => ({
   scoresApi: { update: api.update },
   reviewApi: { confirm: api.confirm, update: api.updateReview },
-  notificationsApi: { markRead: api.markRead },
+  notificationsApi: { markRead: api.markRead, markAllRead: api.markAllRead },
 }));
 let client: QueryClient;
 beforeEach(() => { vi.resetAllMocks(); client = new QueryClient({ defaultOptions: { mutations: { retry: false } } }); });
@@ -99,5 +100,42 @@ it('converges a successful Review update before mutateAsync resolves', async () 
     Array(changed.length).fill(true),
   );
   expect(unchanged.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([false, false]);
+  hook.unmount();
+});
+
+it.each(['success', 'failure'] as const)('mark-all updates every loaded page and global count, then converges on %s', async (outcome) => {
+  const notification: NotificationRead = {
+    notification_id: 'read', kind: 'import.failed', job_id: 'job', import_display_title: null,
+    read_at: '2026-07-01T01:00:00Z', created_at: '2026-07-01T00:00:00Z',
+  };
+  const list = { pages: [
+    { items: [notification], next_cursor: 'second' },
+    { items: [{ ...notification, notification_id: 'unread', read_at: null }], next_cursor: 'unloaded' },
+  ], pageParams: [undefined, 'second'] };
+  client.setQueryData(keys.notifications.list(), list);
+  client.setQueryData(keys.notifications.unreadCount(), { count: 9 });
+  let finish!: () => void;
+  api.markAllRead.mockImplementation(() => new Promise((resolve, reject) => {
+    finish = () => outcome === 'success' ? resolve({count: 0}) : reject(new Error('Unavailable'));
+  }));
+  const hook = renderHook(() => useMarkAllNotificationsRead(), {wrapper});
+  act(() => hook.result.current.mutate());
+  await waitFor(() => expect(api.markAllRead).toHaveBeenCalledOnce());
+  const optimistic = client.getQueryData<typeof list>(keys.notifications.list())!;
+  expect(optimistic.pages.every(page => page.items.every(item => item.read_at !== null))).toBe(true);
+  expect(optimistic.pages[0].items[0].read_at).toBe(notification.read_at);
+  expect(optimistic.pageParams).toEqual(list.pageParams);
+  expect(optimistic.pages.map(page => page.next_cursor)).toEqual(['second', 'unloaded']);
+  expect(client.getQueryData(keys.notifications.unreadCount())).toEqual({count: 0});
+  await act(async () => finish());
+  await waitFor(() => expect(hook.result.current.isPending).toBe(false));
+  if (outcome === 'failure') {
+    expect(client.getQueryData(keys.notifications.list())).toEqual(list);
+    expect(client.getQueryData(keys.notifications.unreadCount())).toEqual({count: 9});
+  } else {
+    expect(client.getQueryData(keys.notifications.unreadCount())).toEqual({count: 0});
+  }
+  expect(client.getQueryState(keys.notifications.list())?.isInvalidated).toBe(true);
+  expect(client.getQueryState(keys.notifications.unreadCount())?.isInvalidated).toBe(true);
   hook.unmount();
 });

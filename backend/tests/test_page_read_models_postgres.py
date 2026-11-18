@@ -243,6 +243,7 @@ def pages(postgres_engine):
             db.flush()
             db.add(
                 PerformanceTake(
+                    owner_user_id=1,
                     manifest_id=manifest.id,
                     recording_object_id=obj.id,
                     linked_score_id=1 if i == 50 else [1, 51, 52, 53, None][(i - 1) % 5],
@@ -391,6 +392,7 @@ def test_keyset_continuation_survives_equal_times_and_anchor_mutation(pages, kin
             db.flush()
             db.add(
                 PerformanceTake(
+                    owner_user_id=1,
                     manifest_id=manifest.id,
                     recording_object_id=obj.id,
                     created_at=now + timedelta(seconds=1),
@@ -515,3 +517,128 @@ def test_take_visibility_query_errors_propagate_instead_of_becoming_access_denia
             PerformanceTakeService().list_takes(db, 1)
     finally:
         event.remove(engine, "before_cursor_execute", fail_visibility)
+
+
+@pytest.mark.parametrize("score_filter", [None, "score-1"])
+def test_take_timeline_owns_its_seek_with_other_user_noise(pages, score_filter):
+    engine, now = pages
+    with Session(engine) as db:
+        for i in range(200):
+            manifest = _manifest_row(
+                PracticeBundleRecord(bundle_id="bundle", artifact_id="artifact"),
+                user_id=2,
+                take_uuid=f"other-{i}",
+                title="Other user",
+            )
+            obj = object_from_bytes(
+                object_key=f"noise/{i}", content=VALID_WEBM_BYTES, content_type="audio/webm"
+            )
+            db.add_all([manifest, obj])
+            db.flush()
+            db.add(
+                PerformanceTake(
+                    owner_user_id=2,
+                    manifest_id=manifest.id,
+                    recording_object_id=obj.id,
+                    linked_score_id=1,
+                    created_at=now + timedelta(seconds=i % 3),
+                )
+            )
+        db.commit()
+    cursor, seen = None, []
+    while True:
+        with Session(engine) as db:
+            page = PerformanceTakeService().list_takes(
+                db, 1, score_id=score_filter, limit=7, cursor=cursor
+            )
+            seen.extend(row.take_id for row in page.items)
+        if page.next_cursor is None:
+            break
+        assert page.next_cursor != cursor
+        cursor = page.next_cursor
+    expected = [
+        f"take-{i}" for i in range(50, 0, -1) if score_filter is None or i == 50 or (i - 1) % 5 == 0
+    ]
+    assert seen == expected
+    with Session(engine) as db:
+        other = PerformanceTakeService().list_takes(db, 2, score_id=score_filter, limit=100)
+        assert len(other.items) == 100
+        assert all(row.take_id.startswith("other-") for row in other.items)
+        assert other.next_cursor is not None
+
+
+def test_take_timeline_where_clause_uses_direct_relational_owner(pages):
+    from sqlalchemy.sql import visitors
+    from app.modules.performance_takes.repository import PerformanceTakeRepository
+
+    engine, _ = pages
+    selects = []
+    with Session(engine) as db:
+
+        def observe(state):
+            if state.is_select:
+                selects.append(state.statement)
+
+        event.listen(db, "do_orm_execute", observe)
+        PerformanceTakeRepository().list_takes(db, 1, limit=7)
+    assert len(selects) == 1
+    columns = {
+        (node.table.name, node.name)
+        for node in visitors.iterate(selects[0].whereclause)
+        if getattr(node, "table", None) is not None
+    }
+    assert ("performance_takes", "owner_user_id") in columns
+    assert ("performance_take_manifests", "user_id") not in columns
+
+
+@pytest.mark.parametrize(
+    "failure", [RuntimeError("query unavailable"), ValueError("programming error")]
+)
+def test_take_detail_propagates_authorization_system_failures(pages, failure):
+    from unittest.mock import Mock
+    from app.modules.score_access.policy import ScoreAccessPolicy
+
+    engine, _ = pages
+    policy = Mock(spec=ScoreAccessPolicy)
+    policy.authorize_score.side_effect = failure
+    with Session(engine) as db, pytest.raises(type(failure), match=str(failure)):
+        PerformanceTakeService(score_access_policy=policy).get_take(db, 1, "take-1")
+
+
+@pytest.mark.parametrize("denial", ["unauthorized", "not_found"])
+def test_take_detail_projects_explicit_access_denial(pages, denial):
+    from unittest.mock import Mock
+    from app.core.exceptions import UnauthorizedException, ResourceNotFoundException
+    from app.modules.score_access.policy import ScoreAccessPolicy
+    from app.shared.error_codes import CustomerErrorCode
+
+    engine, _ = pages
+    policy = Mock(spec=ScoreAccessPolicy)
+    policy.authorize_score.side_effect = (
+        UnauthorizedException(CustomerErrorCode.NO_ACCESS)
+        if denial == "unauthorized"
+        else ResourceNotFoundException("score", "score-1", CustomerErrorCode.SCORE_NOT_FOUND)
+    )
+    with Session(engine) as db:
+        result = PerformanceTakeService(score_access_policy=policy).get_take(db, 1, "take-1")
+        assert result.linked_score_id is None
+        assert result.can_open_score is False
+
+
+def test_take_detail_does_not_convert_driver_failure_to_a_successful_access_projection(pages):
+    from sqlalchemy.exc import OperationalError
+
+    engine, _ = pages
+    failure = OperationalError("score authorization query", {}, RuntimeError("driver unavailable"))
+
+    def fail_authorization(_conn, _cursor, sql, *_args):
+        if "FROM scores" in sql and "scores.score_uuid =" in sql:
+            raise failure
+
+    event.listen(engine, "before_cursor_execute", fail_authorization)
+    try:
+        with Session(engine) as db, pytest.raises(OperationalError) as raised:
+            PerformanceTakeService().get_take(db, 1, "take-1")
+        assert raised.value is failure
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_authorization)

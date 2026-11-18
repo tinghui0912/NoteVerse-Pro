@@ -38,6 +38,7 @@ vi.mock('next-intl', () => ({
 }));
 vi.mock('@/hooks/queries/use-notification-queries', () => ({
   useMyNotifications: () => ({ data: { pages: [{ items: [], next_cursor: null }], pageParams: [undefined] }, isLoading: false, isError: false }),
+  useNotificationUnreadCount: () => ({ data: { count: 0 } }),
   useMarkNotificationRead: () => ({ mutate: vi.fn(), isPending: false }),
   useMarkAllNotificationsRead: () => ({ mutate: vi.fn(), isPending: false }),
 }));
