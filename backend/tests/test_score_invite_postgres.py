@@ -125,7 +125,9 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                         text("SELECT :winner = ANY(pg_blocking_pids(:waiting))"),
                         {"winner": winning_pid, "waiting": waiting_pid},
                     ):
-                        assert monotonic() < deadline, "Second command must wait on the Invite lock"
+                        assert monotonic() < deadline, (
+                            "Second command must wait on the Score lifecycle lock"
+                        )
                     blocked = observer.execute(
                         text(
                             "SELECT wait_event_type, query FROM pg_stat_activity WHERE pid = :waiting"
@@ -134,8 +136,7 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                     ).one()
                     assert blocked.wait_event_type == "Lock"
                     assert (
-                        "score_invites" in blocked.query.lower()
-                        and "for update" in blocked.query.lower()
+                        "scores" in blocked.query.lower() and "for update" in blocked.query.lower()
                     )
                     # Neither the accepted Invite nor its active membership is visible before commit.
                     assert (

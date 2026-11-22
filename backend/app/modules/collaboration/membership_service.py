@@ -61,7 +61,7 @@ class MembershipService:
         request: MemberUpdateRequest,
     ) -> MemberRead:
         access = self.access_policy.authorize_score(
-            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
+            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id, lock_score=True
         )
         membership = self._membership_for_score(db, access.score, membership_id)
         if membership.revoked_at is not None:
@@ -73,7 +73,7 @@ class MembershipService:
 
     def remove_member(self, db: Session, score_uuid: str, membership_id: int, user_id: int) -> None:
         access = self.access_policy.authorize_score(
-            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
+            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id, lock_score=True
         )
         membership = self._membership_for_score(db, access.score, membership_id)
         if membership.user_id == access.score.owner_user_id:
@@ -83,6 +83,7 @@ class MembershipService:
         db.commit()
 
     def leave_score(self, db: Session, score_uuid: str, user_id: int) -> None:
+        self.access_policy.active_score(db, score_uuid, lock_score=True)
         membership = self.repository.self_membership_for_update(db, score_uuid, user_id)
         # A retry of a completed leave does not grant access or rewrite its timestamp.
         if membership is not None and membership.revoked_at is not None:

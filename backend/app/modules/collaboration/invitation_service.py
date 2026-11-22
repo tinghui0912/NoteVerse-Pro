@@ -65,7 +65,7 @@ class InvitationService:
         request: InviteCreateRequest,
     ) -> InviteCreatedRead:
         access = self.access_policy.authorize_score(
-            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
+            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id, lock_score=True
         )
         owner = db.get(User, access.score.owner_user_id)
         if owner is None:
@@ -126,10 +126,10 @@ class InvitationService:
         return self.read_model.invite(db, invite)
 
     def inspect_invite(self, db: Session, token: str, user_id: int | None) -> InviteAccessRead:
-        invite = self._invite_by_token(db, token, allow_inactive=True)
-        score = db.get(Score, invite.score_id)
-        if not score:
-            raise ResourceNotFoundException("score", code=CustomerErrorCode.SCORE_NOT_FOUND)
+        invite = self._invite_by_token(db, token)
+        score = self.repository.active_score(db, invite.score_id)
+        if score is None:
+            raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
         user = db.get(User, user_id) if user_id is not None else None
         now = utc_now()
         can_accept = can_user_accept_invite(invite, user, now=now) and (
@@ -180,39 +180,29 @@ class InvitationService:
         self, db: Session, invite_uuid: str, user_id: int
     ) -> InviteAcceptRead:
         invite = self._invite_by_uuid(db, invite_uuid)
-        self._ensure_invite_target_user(db, invite, user_id)
         return self._accept_invite_record(db, invite, user_id)
 
     def decline_pending_invite(
         self, db: Session, invite_uuid: str, user_id: int
     ) -> PendingInviteRead:
         invite = self._invite_by_uuid(db, invite_uuid)
+        score, invite = self._lock_invite_parent(db, invite)
         user = self._ensure_invite_target_user(db, invite, user_id)
         now = utc_now()
         require_pending_invite(invite, field="invite_id", now=now)
         invite.terminal_outcome = InviteTerminalOutcome.DECLINED
         invite.terminal_at = now
         invite.terminal_actor_user_id = user_id
-        score = db.get(Score, invite.score_id)
-        if score:
-            self._notify_invite_response(
-                db,
-                invite=invite,
-                score=score,
-                actor=user,
-                accepted=False,
-            )
+        self._notify_invite_response(db, invite=invite, score=score, actor=user, accepted=False)
+        read = self.read_model.pending_invite(db, invite)
         db.commit()
-        db.refresh(invite)
-        return self.read_model.pending_invite(db, invite)
+        return read
 
     def _accept_invite_record(
         self, db: Session, invite: ScoreInvite, user_id: int
     ) -> InviteAcceptRead:
+        score, invite = self._lock_invite_parent(db, invite)
         user = self._ensure_invite_target_user(db, invite, user_id)
-        score = db.get(Score, invite.score_id)
-        if not score:
-            raise ResourceNotFoundException("score", code=CustomerErrorCode.SCORE_NOT_FOUND)
         if score.owner_user_id == user_id:
             raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="email")
 
@@ -258,7 +248,7 @@ class InvitationService:
         self, db: Session, score_uuid: str, invite_uuid: str, user_id: int
     ) -> ScoreInvite:
         access = self.access_policy.authorize_score(
-            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id
+            db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id, lock_score=True
         )
         invite = self.repository.invite_by_uuid(db, invite_uuid, lock=True)
         if not invite or invite.score_id != access.score.id:
@@ -267,27 +257,33 @@ class InvitationService:
             )
         return invite
 
-    def _invite_by_token(
-        self, db: Session, token: str, *, allow_inactive: bool = False
-    ) -> ScoreInvite:
-        invite = self.repository.invite_by_token_hash(
-            db, hash_invite_token(token), lock=not allow_inactive
-        )
+    def _invite_by_token(self, db: Session, token: str) -> ScoreInvite:
+        invite = self.repository.invite_by_token_hash(db, hash_invite_token(token))
         if not invite:
             raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
-        if allow_inactive:
-            return invite
-        require_pending_invite(invite, field="token", now=utc_now())
         return invite
 
     def _invite_by_uuid(self, db: Session, invite_uuid: str) -> ScoreInvite:
-        invite = self.repository.invite_by_uuid(db, invite_uuid, lock=True)
+        invite = self.repository.invite_by_uuid(db, invite_uuid)
         if not invite:
             raise ResourceNotFoundException(
                 "invite", invite_uuid, CustomerErrorCode.INVITE_NOT_FOUND
             )
-        require_pending_invite(invite, field="invite_id", now=utc_now())
         return invite
+
+    def _lock_invite_parent(
+        self, db: Session, discovered: ScoreInvite
+    ) -> tuple[Score, ScoreInvite]:
+        # Discovery does not admit a command. Re-read the actor after the parent fence.
+        score_id, invite_uuid = discovered.score_id, discovered.invite_uuid
+        score = self.repository.active_score(db, score_id, lock=True)
+        if score is None:
+            raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
+        invite = self.repository.invite_by_uuid(db, invite_uuid, lock=True)
+        if invite is None or invite.score_id != score_id:
+            raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
+        require_pending_invite(invite, field="invite_id", now=utc_now())
+        return score, invite
 
     def _ensure_invite_target_user(self, db: Session, invite: ScoreInvite, user_id: int) -> User:
         user = db.get(User, user_id)

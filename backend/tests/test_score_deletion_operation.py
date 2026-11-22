@@ -18,6 +18,10 @@ from app.api.deps import get_current_user, get_db
 from app.core.config import settings
 from app.db.models import (
     Score,
+    ScoreInvite,
+    ScoreMembership,
+    Notification,
+    MailOutbox,
     ScoreDeletionOperation,
     ScoreDeletionOperationStatus as Status,
     User,
@@ -133,12 +137,29 @@ def test_admission_failure_rolls_back_tombstone_and_operation(score_db):
 @pytest.mark.asyncio
 async def test_http_delete_hides_resource_before_cleanup(score_db):
     db, score = score_db
+    from app.db.models.score_access import MembershipRole
+    from app.modules.collaboration.invite_lifecycle import hash_invite_token
+    from app.modules.guest_previews.service import GuestPreviewService
+
+    guest_token = GuestPreviewService().issue_credential(db, score.score_uuid, 1).token
+    invite = ScoreInvite(
+        invite_uuid="pending-deletion",
+        score_id=score.id,
+        email="other@example.com",
+        role=MembershipRole.VIEWER,
+        token_hash=hash_invite_token("deletion-token"),
+        created_by_user_id=1,
+    )
+    db.add(invite)
+    db.commit()
+    invite_id = invite.id
+    current_user_id = 1
 
     def database():
         yield db
 
     def user():
-        return db.get(User, 1)
+        return db.get(User, current_user_id)
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
@@ -151,6 +172,7 @@ async def test_http_delete_hides_resource_before_cleanup(score_db):
             for path in [
                 "/scores/deletion-score",
                 "/scores/deletion-score/members",
+                "/scores/deletion-score/invites",
                 "/scores/deletion-score/revisions/deletion-revision/playback",
                 "/practice/scores/deletion-score/revisions/deletion-revision/bundle",
             ]:
@@ -160,6 +182,39 @@ async def test_http_delete_hides_resource_before_cleanup(score_db):
             assert listed.status_code == 200, listed.text
             assert "deletion-score" not in str(listed.json())
             assert db.get(Score, score.id) is not None
+            assert db.get(ScoreInvite, invite_id) is not None
+            notification_count = db.scalar(select(func.count()).select_from(Notification))
+            mail_count = db.scalar(select(func.count()).select_from(MailOutbox))
+            for method, path, body in [
+                (client.post, "/scores/deletion-score/invites", {"email": "other@example.com"}),
+                (client.post, "/scores/deletion-score/invites/pending-deletion/revoke", None),
+            ]:
+                rejected = await method("/api/v1" + path, json=body)
+                assert rejected.status_code == 404, rejected.text
+            current_user_id = 2
+            pending = await client.get("/api/v1/me/invites")
+            assert pending.status_code == 200 and pending.json()["items"] == []
+            inspected = await client.get("/api/v1/invites/deletion-token")
+            assert inspected.status_code == 404 and "invite_not_found" in inspected.text
+            for path in [
+                "/invites/deletion-token/accept",
+                "/me/invites/pending-deletion/accept",
+                "/me/invites/pending-deletion/decline",
+            ]:
+                rejected = await client.post("/api/v1" + path)
+                assert rejected.status_code == 404 and "invite_not_found" in rejected.text
+            guest = await client.get(f"/api/v1/guest-previews/{guest_token}")
+            assert guest.status_code == 404 and "guest_preview_not_found" in guest.text
+            db.refresh(invite)
+            assert (invite.terminal_outcome, invite.terminal_at, invite.terminal_actor_user_id) == (
+                None,
+                None,
+                None,
+            )
+            assert db.scalar(select(func.count()).select_from(ScoreInvite)) == 1
+            assert db.scalar(select(func.count()).select_from(ScoreMembership)) == 0
+            assert db.scalar(select(func.count()).select_from(Notification)) == notification_count
+            assert db.scalar(select(func.count()).select_from(MailOutbox)) == mail_count
     finally:
         app.dependency_overrides.clear()
 

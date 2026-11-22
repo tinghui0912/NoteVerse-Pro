@@ -30,11 +30,19 @@ ScoreInvite stores an optional actor terminal outcome: ACCEPTED, DECLINED or
 REVOKED, with one terminal timestamp and actor. Unresolved invitations are PENDING
 until expires_at, then project EXPIRED without any database lifecycle write.
 Effective status and admission are pure computations at an explicit current time.
-Actor commands lock and refresh Invite before admission; only application commands
-commit. Accept locks Invite before Membership and commits both changes together.
+Collaboration mutations first lock and refresh the active Score parent. When all
+three participate, command lock order is Score -> Invite -> Membership. Only
+application commands commit; Accept commits Invite and Membership changes together.
 Revoke is idempotent for REVOKED, preserving its terminal time and actor. Actor
 outcomes are retained history, distinct from current Membership access: removing
 a member or leaving a Score does not rewrite the accepted invitation.
+
+Score tombstone immediately extinguishes Collaboration active authority. Pending
+Invite collections filter inactive Scores in SQL before pagination. Public Invite
+tokens cannot inspect or accept, and account Invite actions cannot accept or decline,
+after parent deletion. Score-scoped commands require the active parent. Deletion
+does not synthesize Invite REVOKED outcomes or enumerate child rows at admission;
+physical Score graph cleanup later cascades the retained Invite and Membership rows.
 
 VIEWER can view rendered presentation only. PRACTITIONER can also practice, which
 necessarily discloses exact machine-readable PracticeBundle to that trusted browser.

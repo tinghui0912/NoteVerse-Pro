@@ -25,8 +25,18 @@ class CollaborationRepository:
             return {}
         return {
             require_persisted_id(score.id, entity="score"): score
-            for score in db.scalars(select(Score).where(Score.id.in_(score_ids)))
+            for score in db.scalars(
+                select(Score).where(Score.id.in_(score_ids), active_score_predicate())
+            )
         }
+
+    def active_score(self, db: Session, score_id: int, *, lock: bool = False) -> Score | None:
+        query = select(Score).where(Score.id == score_id, active_score_predicate())
+        if lock:
+            query = query.with_for_update().execution_options(
+                populate_existing=True, autoflush=False
+            )
+        return db.scalar(query)
 
     def invite_by_token_hash(
         self, db: Session, token_hash: str, *, lock: bool = False
@@ -100,10 +110,15 @@ class CollaborationRepository:
     ) -> tuple[list[ScoreInvite], str | None]:
         position = decode_cursor(cursor, kind="pending_invites", scope=str(user_id))
         columns = ScoreInvite.__table__.c
-        query = select(ScoreInvite).where(
-            columns.email == email,
-            columns.terminal_outcome.is_(None),
-            or_(columns.expires_at.is_(None), columns.expires_at > now),
+        query = (
+            select(ScoreInvite)
+            .join(Score, Score.id == columns.score_id)
+            .where(
+                active_score_predicate(),
+                columns.email == email,
+                columns.terminal_outcome.is_(None),
+                or_(columns.expires_at.is_(None), columns.expires_at > now),
+            )
         )
         if position:
             created_at, row_id = position

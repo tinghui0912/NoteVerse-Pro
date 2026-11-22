@@ -18,7 +18,8 @@ Every member role may leave a Score; owners cannot leave their ownership. Self
 leave revokes the current user's membership through
 `DELETE /api/v1/me/scores/{score_id}/membership`. Owner removal is a distinct
 member-management command. Both preserve the membership row and are idempotent
-when it is revoked. Membership mutations lock and refresh that row, so concurrent
+when it is revoked and the Score remains active. Membership mutations lock the
+active Score parent before locking and refreshing the Membership row, so concurrent
 leave, removal and invite acceptance serialize. Role PATCH only changes active
 memberships and cannot restore revoked access; explicit acceptance of a new valid
 Invite is the reactivation path.
@@ -44,7 +45,8 @@ and expired.
 List and management APIs do not reveal raw tokens. Score invite, membership and
 account pending-invite collections use stable cursor pagination with explicit
 continuation. Invitations are newest first; memberships are oldest first. Pending
-pages contain invitations whose pending status and expiry currently allow action.
+pages contain invitations whose pending status, expiry and active Score parent
+currently allow action. The query excludes inactive Scores before pagination.
 
 `/invite/:token` presents the invitation. Login/registration preserves the return
 URL, and acceptance requires the authenticated account's normalized email to
@@ -57,9 +59,10 @@ An invitation stores an optional actor terminal outcome (ACCEPTED, DECLINED or
 REVOKED), terminal_at and terminal actor. With no actor outcome, it projects
 PENDING until expires_at and EXPIRED at or after expires_at. Expiry is a pure time
 projection: reads and expired command rejection do not write lifecycle state.
-Commands lock and refresh Invite before effective-status admission. Application
-commands own commits; Accept commits its actor outcome and Membership admission
-together, retaining Invite then Membership lock order. Waiting on Membership
+Commands lock the active Score parent, then lock and refresh Invite before
+effective-status admission. Application commands own commits; Accept commits its
+actor outcome and Membership admission together. The lock order is
+Score -> Invite -> Membership when all three participate. Waiting on Membership
 requires a fresh expiry check before restoring access. Repeating Revoke preserves
 its terminal time and actor; other terminal outcomes reject further actor actions.
 
@@ -72,6 +75,15 @@ Membership without changing the ACCEPTED Invite.
 The owner's score UI separates collaboration management from Guest Preview.
 Capability flags control presentation, while backend action policy authorizes
 every request. An editor member does not become the quota/storage owner.
+
+Score tombstone immediately removes all active Collaboration authority, even while
+physical Invite and Membership rows await durable graph cleanup. Public token
+inspection/acceptance and account accept/decline treat the Invite as unavailable;
+pending account collections omit it. Owner Invite creation/revocation and Member
+update/removal/Leave also require an active parent. Collaboration mutations serialize
+with deletion on the Score lifecycle lock. If a child command wins, it commits before
+deletion; if deletion wins, the command writes no actor outcome, Membership,
+Notification or MailOutbox. Deletion does not manufacture REVOKED Invite outcomes.
 
 ## Delivery and notification
 

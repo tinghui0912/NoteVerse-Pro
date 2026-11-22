@@ -40,13 +40,14 @@ class ScoreRevisionAccessContext:
 
 class ScoreAccessPolicy:
     def resolve_score(
-        self, db: Session, score_uuid: str, *, user_id: int | None = None
+        self,
+        db: Session,
+        score_uuid: str,
+        *,
+        user_id: int | None = None,
+        lock_score: bool = False,
     ) -> ScoreAccessContext:
-        score = db.scalar(
-            select(Score).where(Score.score_uuid == score_uuid, active_score_predicate())
-        )
-        if score is None:
-            raise ResourceNotFoundException("score", score_uuid, CustomerErrorCode.SCORE_NOT_FOUND)
+        score = self.active_score(db, score_uuid, lock_score=lock_score)
         if user_id == score.owner_user_id:
             return ScoreAccessContext(score, AccessOrigin.OWNER, owner_capabilities())
         if user_id is not None:
@@ -65,11 +66,29 @@ class ScoreAccessPolicy:
         raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"score_id": score_uuid})
 
     def authorize_score(
-        self, db: Session, score_uuid: str, action: ScoreAction, *, user_id: int | None = None
+        self,
+        db: Session,
+        score_uuid: str,
+        action: ScoreAction,
+        *,
+        user_id: int | None = None,
+        lock_score: bool = False,
     ) -> ScoreAccessContext:
-        access = self.resolve_score(db, score_uuid, user_id=user_id)
+        access = self.resolve_score(db, score_uuid, user_id=user_id, lock_score=lock_score)
         self._require_action(access, score_uuid, action)
         return access
+
+    def active_score(self, db: Session, score_uuid: str, *, lock_score: bool = False) -> Score:
+        """Resolve the live parent; command admission holds its lifecycle lock."""
+        query = select(Score).where(Score.score_uuid == score_uuid, active_score_predicate())
+        if lock_score:
+            query = query.with_for_update().execution_options(
+                populate_existing=True, autoflush=False
+            )
+        score = db.scalar(query)
+        if score is None:
+            raise ResourceNotFoundException("score", score_uuid, CustomerErrorCode.SCORE_NOT_FOUND)
+        return score
 
     def resolve_revision(
         self,
