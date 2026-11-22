@@ -18,7 +18,7 @@ import {
   useImportJobList,
   useRetryImportJob,
   useDeleteImportJob,
-} from '@/hooks/queries/use-import-job-queries';
+} from '@/features/imports/queries';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { ImportJobCard } from './import-job-card';
 import type { ImportJobRead } from '@/generated/api';

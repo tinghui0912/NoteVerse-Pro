@@ -18,7 +18,7 @@ and unread notifications without turning pending invitations into notification r
 
 Invite responses notify the inviter. Non-initial revisions notify eligible owners and
 active members excluding the actor. Import failure opens `/upload#import-activity`;
-completed Import opens `/review/:jobId` until confirmation supplies a Score target.
+completed Import opens `/imports/:jobId/review` until confirmation supplies a Score target.
 Confirmation enriches the retained completed notification in its business transaction.
 A notification removed by retention does not block confirmation or recreate history.
 

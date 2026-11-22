@@ -9,9 +9,10 @@ import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
-import { ReviewScoreComparison } from '@/components/review/review-score-comparison';
-import { ReviewValidationWarnings } from '@/components/review/review-validation-warnings';
-import { useReviewPageData } from '@/hooks/review/use-review-page-data';
+import { ReviewScoreComparison } from '@/features/imports/review/review-score-comparison';
+import { ReviewValidationWarnings } from '@/features/imports/review/review-validation-warnings';
+import { importReviewEditLocation } from '@/features/imports/routes';
+import { useReviewPageData } from '@/features/imports/review/use-review-page-data';
 
 export default function ReviewPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = React.use(params);
@@ -53,7 +54,7 @@ export default function ReviewPage({ params }: { params: Promise<{ jobId: string
             size="lg"
             variant="outline"
             className="rounded-full"
-            onClick={() => router.push(`/review/${jobId}/edit?returnUrl=${encodeURIComponent(`/review/${jobId}`)}`)}
+            onClick={() => router.push(importReviewEditLocation(jobId))}
             disabled={page.confirming}
           >
             <Pencil className="mr-2 h-5 w-5" />

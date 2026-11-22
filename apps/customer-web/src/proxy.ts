@@ -8,7 +8,7 @@ const PROTECTED_PATH_PREFIXES = [
   '/upload',
   '/library',
   '/settings',
-  '/review',
+  '/imports',
   '/score',
 ];
 

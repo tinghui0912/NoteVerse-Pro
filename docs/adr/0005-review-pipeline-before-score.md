@@ -19,9 +19,9 @@ OCR output requires human confirmation before it becomes a stable score. Job-sco
 5. `ImportJob.CONFIRMED` records completed review confirmation. Score owns its unique
    `created_from_import_job_id` relationship to that history. Import Activity projects a
    live Score link; Score deletion preserves the confirmed history and removes that link.
-6. `/review/:jobId` is the review route.
-7. `/review/:jobId/edit` is a job-scoped editor for the temporary review MusicXML artifact.
-8. Saving in `/review/:jobId/edit` updates the review artifact through `PATCH /import-jobs/{job_id}/review`.
+6. `/imports/:jobId/review` is the review route.
+7. `/imports/:jobId/review/edit` is a job-scoped editor for the temporary review MusicXML artifact.
+8. Saving in `/imports/:jobId/review/edit` updates the review artifact through `PATCH /import-jobs/{job_id}/review`.
    It does not create a Score revision.
 9. Confirming review creates the first Score, its first revision, the canonical MusicXML
    revision source, pending metadata projection and revision-owned durable render/playback work.
@@ -36,8 +36,8 @@ OCR output requires human confirmation before it becomes a stable score. Job-sco
 ```text
 Upload
   -> ImportJob
-  -> /review/:jobId
-  -> optional /review/:jobId/edit
+  -> /imports/:jobId/review
+  -> optional /imports/:jobId/review/edit
   -> confirm
   -> /score/:scoreId
   -> /score/:scoreId/edit
@@ -61,7 +61,7 @@ POST  /api/v1/import-jobs/{job_id}/review/confirm
 - Review correction can still happen before Score creation through a job-scoped editor.
 - Upload Import Activity displays pending reviews as job cards, separate from Library Scores.
 - Score has no review lifecycle state column.
-- Import-completed notifications route to `/review/:jobId` until confirm. After confirm,
+- Import-completed notifications route to `/imports/:jobId/review` until confirm. After confirm,
   `admit_import_confirmation_consequences(...)` synchronously enriches the retained
   import notification with Score identity/title and appends the current realtime consequences
   inside the confirmation transaction.

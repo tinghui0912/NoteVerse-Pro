@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ImportJobRead } from '@/generated/api';
-import { importJobDestination, type ImportJobDestination } from './navigation';
+import { importJobDestination, type ImportJobDestination } from './routes';
 
 type Case = {
   state: ImportJobRead['state'];
@@ -12,7 +12,7 @@ const cases: Case[] = [
   { state: 'QUEUED', score_id: 'score', expected: null },
   { state: 'PROCESSING', score_id: 'score', expected: null },
   { state: 'FAILED', score_id: 'score', expected: null },
-  { state: 'READY_FOR_REVIEW', score_id: null, expected: { kind: 'review', href: '/review/job' } },
+  { state: 'READY_FOR_REVIEW', score_id: null, expected: { kind: 'review', href: '/imports/job/review' } },
   { state: 'CONFIRMED', score_id: 'score', expected: { kind: 'score', href: '/score/score' } },
   { state: 'CONFIRMED', score_id: null, expected: null },
   { state: 'CONFIRMED', expected: null },

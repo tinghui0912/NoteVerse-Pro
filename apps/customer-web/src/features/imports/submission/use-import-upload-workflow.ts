@@ -9,15 +9,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useImportJobDetail,
   useSubmitImportJob,
-} from '@/hooks/queries/use-import-job-queries';
+} from '@/features/imports/queries';
 import { useToast } from '@/hooks/use-toast';
 import { uploadsApi } from '@/lib/api';
 import { storageUsageChanged } from '@/lib/cache-effects/storage';
 import { knownGenres } from '@/lib/score/genres';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
-import type { UploadableFile } from '@/lib/upload/upload-workflow';
-import { importJobDestination } from '@/lib/imports/navigation';
+import type { UploadableFile } from '@/features/imports/submission/upload-types';
+import { importJobDestination, importActivityLocation } from '@/features/imports/routes';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
 const TASK_WAIT_TIMEOUT_MS = 18 * 60 * 1_000;
@@ -125,7 +125,7 @@ class UserFacingUploadError extends Error {
   name = 'UserFacingUploadError';
 }
 
-export function useUploadWorkflow() {
+export function useImportUploadWorkflow() {
   const t = useTranslations('upload');
   const tCommon = useTranslations('common');
   const errors = useTranslations('errors');
@@ -237,7 +237,7 @@ export function useUploadWorkflow() {
       const destination = importJobDestination(job);
       dispatchTask({ type: 'completed' });
       clearFiles();
-      router.push(destination ? destination.href : '/upload#import-activity');
+      router.push(destination ? destination.href : importActivityLocation());
     } else if (job.state === 'FAILED') {
       dispatchTask({
         type: 'failed',

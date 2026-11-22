@@ -35,13 +35,6 @@ export const queryKeys = {
     account: {
         sessions: () => ['account', 'sessions'] as const,
     },
-    importJobs: {
-        all: ['import-jobs'] as const,
-        lists: () => ['import-jobs', 'list'] as const,
-        list: (page: number, pageSize: number) =>
-            ['import-jobs', 'list', { page, pageSize }] as const,
-        detail: (id: string) => ['import-jobs', 'detail', { id }] as const,
-    },
     scores: {
         all: ['scores'] as const,
         details: () => ['scores', 'detail'] as const,
@@ -69,10 +62,6 @@ export const queryKeys = {
         all: ['notifications'] as const,
         list: () => ['notifications', 'list'] as const,
         unreadCount: () => ['notifications', 'unread-count'] as const,
-    },
-    review: {
-        all: ['review'] as const,
-        detail: (jobId: string) => ['review', 'detail', { jobId }] as const,
     },
     storageUsage: {
         all: ['storage-usage'] as const,

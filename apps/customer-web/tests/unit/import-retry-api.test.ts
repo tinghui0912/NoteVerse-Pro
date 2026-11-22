@@ -1,4 +1,4 @@
-import { importJobsApi } from '@/lib/api/import-jobs';
+import { importJobsApi } from '@/features/imports/api/jobs';
 import { afterEach, expect, it, vi } from 'vitest';
 import { customerFetch } from '../helpers/customer-http';
 afterEach(() => vi.unstubAllGlobals());

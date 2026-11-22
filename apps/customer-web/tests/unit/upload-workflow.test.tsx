@@ -1,3 +1,4 @@
+import { importQueryKeys } from '@/features/imports/query-keys';
 // @vitest-environment jsdom
 
 import type { ReactNode } from 'react';
@@ -8,9 +9,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/http/customer-browser-transport';
 import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { queryKeys } from '@/lib/query-client';
-import * as navigation from '@/lib/imports/navigation';
+import * as navigation from '@/features/imports/routes';
 import type { ImportJobRead } from '@/generated/api';
-import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
+import { useImportUploadWorkflow } from '@/features/imports/submission/use-import-upload-workflow';
 import commonMessages from '@/../messages/zh/common.json';
 import zhErrors from '@/../messages/zh/errors.json';
 import uploadMessages from '@/../messages/zh/upload.json';
@@ -26,6 +27,9 @@ vi.mock('@/lib/api', () => ({
   uploadsApi: {
     createUpload: (...args: unknown[]) => createUploadMock(...args),
   },
+}));
+
+vi.mock('@/features/imports/api/jobs', () => ({
   importJobsApi: {
     getImportJob: (...args: unknown[]) => getImportJobMock(...args),
     submitImportJob: (...args: unknown[]) => submitImportJobMock(...args),
@@ -87,7 +91,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('upload terminal navigation', () => {
   it.each([
-    ['READY_FOR_REVIEW', null, '/review/job-1'],
+    ['READY_FOR_REVIEW', null, '/imports/job-1/review'],
     ['CONFIRMED', 'live-score', '/score/live-score'],
     ['CONFIRMED', null, '/upload#import-activity'],
     ['CONFIRMED', undefined, '/upload#import-activity'],
@@ -99,7 +103,7 @@ describe('upload terminal navigation', () => {
       getImportJobMock.mockResolvedValue(job);
       const resolve = vi.spyOn(navigation, 'importJobDestination');
       const client = createQueryClient();
-      const hook = renderHook(() => useUploadWorkflow(), { wrapper: createWrapper(client) });
+      const hook = renderHook(() => useImportUploadWorkflow(), { wrapper: createWrapper(client) });
       act(() => hook.result.current.appendFiles([selectedImage()]));
       await act(async () => { await hook.result.current.startRecognition(); });
       await waitFor(() => expect(pushMock).toHaveBeenCalledWith(href));
@@ -108,7 +112,7 @@ describe('upload terminal navigation', () => {
       expect(hook.result.current.isProcessing).toBe(false);
       expect(hook.result.current.taskError).toBeNull();
       expect(hook.result.current.files).toHaveLength(0);
-      expect(client.getQueryCache().find({ queryKey: queryKeys.importJobs.detail('job-1') })?.isActive()).toBe(false);
+      expect(client.getQueryCache().find({ queryKey: importQueryKeys.jobs.detail('job-1') })?.isActive()).toBe(false);
       hook.unmount();
       client.clear();
     },
@@ -120,12 +124,12 @@ describe('upload terminal navigation', () => {
       submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
       getImportJobMock.mockResolvedValue({ job_id: 'job-1', state, progress: 37 });
       const client = createQueryClient();
-      const hook = renderHook(() => useUploadWorkflow(), { wrapper: createWrapper(client) });
+      const hook = renderHook(() => useImportUploadWorkflow(), { wrapper: createWrapper(client) });
       act(() => hook.result.current.appendFiles([selectedImage()]));
       await act(async () => { await hook.result.current.startRecognition(); });
       await waitFor(() => expect(hook.result.current.taskProgress).toBe(37));
       expect(hook.result.current.isProcessing).toBe(true);
-      expect(client.getQueryCache().find({ queryKey: queryKeys.importJobs.detail('job-1') })?.isActive()).toBe(true);
+      expect(client.getQueryCache().find({ queryKey: importQueryKeys.jobs.detail('job-1') })?.isActive()).toBe(true);
       expect(pushMock).not.toHaveBeenCalled();
       hook.unmount();
       client.clear();
@@ -161,7 +165,7 @@ describe('upload workflow storage quota handling', () => {
     );
     const queryClient = createQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { result } = renderHook(() => useUploadWorkflow(), {
+    const { result } = renderHook(() => useImportUploadWorkflow(), {
       wrapper: createWrapper(queryClient),
     });
 
@@ -196,7 +200,7 @@ describe('upload workflow storage quota handling', () => {
     submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
     const queryClient = createQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { result } = renderHook(() => useUploadWorkflow(), {
+    const { result } = renderHook(() => useImportUploadWorkflow(), {
       wrapper: createWrapper(queryClient),
     });
 

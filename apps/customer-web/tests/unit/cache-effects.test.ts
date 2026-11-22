@@ -1,3 +1,4 @@
+import { importQueryKeys } from '@/features/imports/query-keys';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
 import type { ScoreRead, PerformanceTakesListResponse } from '@/generated/api';
@@ -19,7 +20,7 @@ import {
   importDeleted,
   reviewUpdated,
   reviewConfirmed,
-} from '@/lib/cache-effects/imports';
+} from '@/features/imports/cache';
 import { notificationsChanged } from '@/lib/cache-effects/notifications';
 import { scoreInvitesChanged, scoreMembersChanged, inviteAccepted, pendingInviteDeclined } from '@/lib/cache-effects/collaboration';
 import { libraryOrganizationChanged } from '@/lib/cache-effects/library';
@@ -78,7 +79,7 @@ describe('Score semantic consequences', () => {
     const removed = scoreKeys('a').map((key) => seed(key)); const kept = scoreKeys('b').map((key) => seed(key));
     kept.push(seed(keys.scores.myInvites()), seed(keys.scores.inviteAccess('token')), seed(keys.scores.guestPreview('token')));
     const list = library(); const folders = seed(keys.library.folders());
-    const jobs = seed(keys.importJobs.list(1, 20)); const usage = storage();
+    const jobs = seed(importQueryKeys.jobs.list(1, 20)); const usage = storage();
     await (operation === 'leave' ? scoreLeft(client, 'a') : scoresDeleted(client, ['a']));
     expect(removed.every((key) => client.getQueryState(key) === undefined)).toBe(true);
     expect(kept.every((key) => client.getQueryState(key) !== undefined && !stale(key))).toBe(true);
@@ -96,33 +97,33 @@ describe('Score semantic consequences', () => {
 
 describe('Import semantic consequences', () => {
   it('converges collection plus matching detail and Review without touching other jobs', async () => {
-    const changed = [seed(keys.importJobs.list(1, 20)), seed(keys.importJobs.detail('a')), seed(keys.review.detail('a'))];
-    const others = [seed(keys.importJobs.detail('b')), seed(keys.review.detail('b'))];
+    const changed = [seed(importQueryKeys.jobs.list(1, 20)), seed(importQueryKeys.jobs.detail('a')), seed(importQueryKeys.review('a'))];
+    const others = [seed(importQueryKeys.jobs.detail('b')), seed(importQueryKeys.review('b'))];
     await importJobChanged(client, 'a');
     expect(changed.map(stale)).toEqual([true, true, true]); expect(others.map(stale)).toEqual([false, false]);
   });
   it('uses collection-only convergence for submission and retry', async () => {
-    const list = seed(keys.importJobs.list(1, 20)); const detail = seed(keys.importJobs.detail('a'));
+    const list = seed(importQueryKeys.jobs.list(1, 20)); const detail = seed(importQueryKeys.jobs.detail('a'));
     await importSubmitted(client); expect(stale(list)).toBe(true); expect(stale(detail)).toBe(false);
   });
   it('removes deleted detail/Review and refreshes collections plus storage', async () => {
-    const removed = [seed(keys.importJobs.detail('a')), seed(keys.review.detail('a'))];
-    const other = seed(keys.importJobs.detail('b')); const list = seed(keys.importJobs.list(1, 20)); const usage = storage();
+    const removed = [seed(importQueryKeys.jobs.detail('a')), seed(importQueryKeys.review('a'))];
+    const other = seed(importQueryKeys.jobs.detail('b')); const list = seed(importQueryKeys.jobs.list(1, 20)); const usage = storage();
     await importDeleted(client, 'a');
     expect(removed.map((key) => client.getQueryState(key))).toEqual([undefined, undefined]);
     expect([other, list, usage].map(stale)).toEqual([false, true, true]);
   });
   it('converges Review updates across the matching Job, Review, collection and storage', async () => {
     const changed = [
-      seed(keys.importJobs.list(1, 20)),
-      seed(keys.importJobs.list(2, 20)),
-      seed(keys.importJobs.detail('job-a')),
-      seed(keys.review.detail('job-a')),
+      seed(importQueryKeys.jobs.list(1, 20)),
+      seed(importQueryKeys.jobs.list(2, 20)),
+      seed(importQueryKeys.jobs.detail('job-a')),
+      seed(importQueryKeys.review('job-a')),
       storage(),
     ];
     const unchanged = [
-      seed(keys.importJobs.detail('job-b')),
-      seed(keys.review.detail('job-b')),
+      seed(importQueryKeys.jobs.detail('job-b')),
+      seed(importQueryKeys.review('job-b')),
       library(),
       seed(keys.scores.detail('score')),
     ];
@@ -133,8 +134,8 @@ describe('Import semantic consequences', () => {
     expect(unchanged.map(stale)).toEqual(Array(unchanged.length).fill(false));
   });
   it('combines confirmation projections without changing other Review details', async () => {
-    const changed = [seed(keys.importJobs.list(1, 20)), seed(keys.importJobs.detail('job')), seed(keys.review.detail('job')), library(), seed(keys.scores.detail('score')), storage()];
-    const other = seed(keys.review.detail('other'));
+    const changed = [seed(importQueryKeys.jobs.list(1, 20)), seed(importQueryKeys.jobs.detail('job')), seed(importQueryKeys.review('job')), library(), seed(keys.scores.detail('score')), storage()];
+    const other = seed(importQueryKeys.review('other'));
     await reviewConfirmed(client, 'job', 'score'); expect(changed.map(stale)).toEqual(Array(6).fill(true)); expect(stale(other)).toBe(false);
   });
 });
@@ -181,13 +182,13 @@ it.each([
   { kind: 'score.metadata.changed', scoreId: 'a', revisionId: 'r1' } as const,
   { kind: 'import_jobs.changed', importJobId: 'job' } as const,
 ])('maps typed $kind to its semantic domain', async (change) => {
-  const notice = seed(keys.notifications.list()); const job = seed(keys.importJobs.detail('job')); const detail = seed(keys.scores.detail('a'));
+  const notice = seed(keys.notifications.list()); const job = seed(importQueryKeys.jobs.detail('job')); const detail = seed(keys.scores.detail('a'));
   await applyRealtimeCacheChange(client, { schemaVersion: 1, sequence: 1, changeId: 'id', createdAt: '2026-07-01T00:00:00Z', ...change });
   expect(stale(notice)).toBe(change.kind === 'notifications.changed');
   expect(stale(job)).toBe(change.kind === 'import_jobs.changed'); expect(stale(detail)).toBe(change.kind.startsWith('score.'));
 });
 
 it('broadly resynchronizes all cached server state', async () => {
-  const cached = [library(), storage(), seed(keys.importJobs.detail('job')), seed(keys.notifications.list()), seed(keys.account.sessions())];
+  const cached = [library(), storage(), seed(importQueryKeys.jobs.detail('job')), seed(keys.notifications.list()), seed(keys.account.sessions())];
   await serverStateResyncRequired(client); expect(cached.map(stale)).toEqual(Array(cached.length).fill(true));
 });

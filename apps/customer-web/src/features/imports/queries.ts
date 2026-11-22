@@ -1,11 +1,9 @@
-import { importSubmitted, importDeleted } from '@/lib/cache-effects/imports';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { importJobsApi } from '@/lib/api';
-import { queryKeys } from '@/lib/query-client';
-import type {
-  ImportJobRequestedOptions,
-  ImportJobRead,
-} from '@/generated/api';
+import type { ImportJobRequestedOptions, ImportJobRead } from '@/generated/api';
+import { importJobsApi } from './api/jobs';
+import { importReviewApi } from './api/review';
+import { importQueryKeys } from './query-keys';
+import { importSubmitted, importDeleted, reviewConfirmed, reviewUpdated } from './cache';
 
 const ACTIVE_JOB_STATES = new Set<ImportJobRead['state']>([
   'QUEUED',
@@ -21,7 +19,7 @@ export function useImportJobDetail(
   options?: { enabled?: boolean; refetchInterval?: number | false },
 ) {
   return useQuery({
-    queryKey: queryKeys.importJobs.detail(jobId),
+    queryKey: importQueryKeys.jobs.detail(jobId),
     queryFn: ({ signal }) => importJobsApi.getImportJob(jobId, signal),
     enabled: options?.enabled ?? Boolean(jobId),
     refetchInterval: options?.refetchInterval,
@@ -34,7 +32,7 @@ export function useImportJobList(
   enabled = true,
 ) {
   return useQuery({
-    queryKey: queryKeys.importJobs.list(page, pageSize),
+    queryKey: importQueryKeys.jobs.list(page, pageSize),
     queryFn: ({ signal }) =>
       importJobsApi.listImportJobs(page, pageSize, signal),
     enabled,
@@ -76,5 +74,33 @@ export function useRetryImportJob() {
     mutationFn: importJobsApi.retryImportJob,
     onSuccess: () =>
       importSubmitted(queryClient),
+  });
+}
+
+export function useImportJobReview(jobId: string, enabled = true) {
+  return useQuery({
+    queryKey: importQueryKeys.review(jobId),
+    queryFn: ({ signal }) => importReviewApi.detail(jobId, signal),
+    enabled: enabled && Boolean(jobId),
+  });
+}
+
+export function useConfirmImportJobReview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ jobId, content, displayTitle }: { jobId: string; content: string; displayTitle?: string }) =>
+      importReviewApi.confirm(jobId, { content, display_title: displayTitle }),
+    onSuccess: (response, variables) => reviewConfirmed(queryClient, variables.jobId, response.score_id),
+  });
+}
+
+export function useUpdateImportJobReview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ jobId, content }: { jobId: string; content: string }) =>
+      importReviewApi.update(jobId, { content }),
+    onSuccess: (_response, variables) => reviewUpdated(queryClient, variables.jobId),
   });
 }

@@ -4,13 +4,13 @@ import { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
 import { PageLoading } from '@/components/loading';
 import { PageHeader } from '@/components/page';
-import { ImportActivity } from '@/components/imports/import-activity';
-import { UploadForm } from '@/components/upload/upload-form';
-import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
+import { ImportActivity } from '@/features/imports/activity/import-activity';
+import { UploadForm } from '@/features/imports/submission/upload-form';
+import { useImportUploadWorkflow } from '@/features/imports/submission/use-import-upload-workflow';
 
 function UploadPageContent() {
   const t = useTranslations('upload');
-  const workflow = useUploadWorkflow();
+  const workflow = useImportUploadWorkflow();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

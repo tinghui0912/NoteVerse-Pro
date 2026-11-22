@@ -1,3 +1,4 @@
+import { importQueryKeys } from '@/features/imports/query-keys';
 // @vitest-environment jsdom
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
@@ -7,7 +8,7 @@ import { useUpdateScore } from '@/hooks/queries/use-score-queries';
 import {
   useConfirmImportJobReview,
   useUpdateImportJobReview,
-} from '@/hooks/queries/use-review-queries';
+} from '@/features/imports/queries';
 import { useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/queries/use-notification-queries';
 import { queryKeys as keys } from '@/lib/query-client';
 import type { ScoreRead, NotificationRead, ImportJobReviewRead } from '@/generated/api';
@@ -21,8 +22,10 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/api', () => ({
   scoresApi: { update: api.update },
-  reviewApi: { confirm: api.confirm, update: api.updateReview },
   notificationsApi: { markRead: api.markRead, markAllRead: api.markAllRead },
+}));
+vi.mock('@/features/imports/api/review', () => ({
+  importReviewApi: { confirm: api.confirm, update: api.updateReview },
 }));
 let client: QueryClient;
 beforeEach(() => { vi.resetAllMocks(); client = new QueryClient({ defaultOptions: { mutations: { retry: false } } }); });
@@ -47,7 +50,7 @@ it('converges successful Score PATCH into detail and Library before mutateAsync 
 });
 
 it('converges a local confirmation through Import, Review, Library, Score and storage', async () => {
-  const changed = [keys.importJobs.list(1, 20), keys.importJobs.detail('job'), keys.review.detail('job'), keys.library.scoreList({ page: 1, pageSize: 20 }), keys.scores.detail('score'), keys.storageUsage.current()];
+  const changed = [importQueryKeys.jobs.list(1, 20), importQueryKeys.jobs.detail('job'), importQueryKeys.review('job'), keys.library.scoreList({ page: 1, pageSize: 20 }), keys.scores.detail('score'), keys.storageUsage.current()];
   changed.forEach((key) => client.setQueryData(key, { cached: true }));
   api.confirm.mockResolvedValue({ score_id: 'score' });
   const hook = renderHook(() => useConfirmImportJobReview(), { wrapper });
@@ -72,12 +75,12 @@ it('restores optimistic notification snapshots on command failure then marks the
 
 it('converges a successful Review update before mutateAsync resolves', async () => {
   const changed = [
-    keys.importJobs.list(1, 20),
-    keys.importJobs.detail('job-a'),
-    keys.review.detail('job-a'),
+    importQueryKeys.jobs.list(1, 20),
+    importQueryKeys.jobs.detail('job-a'),
+    importQueryKeys.review('job-a'),
     keys.storageUsage.current(),
   ];
-  const unchanged = [keys.importJobs.detail('job-b'), keys.review.detail('job-b')];
+  const unchanged = [importQueryKeys.jobs.detail('job-b'), importQueryKeys.review('job-b')];
   [...changed, ...unchanged].forEach((key) => client.setQueryData(key, { cached: true }));
   const review: ImportJobReviewRead = {
     job_id: 'job-a',

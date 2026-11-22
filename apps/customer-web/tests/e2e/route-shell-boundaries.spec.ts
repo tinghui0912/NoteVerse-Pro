@@ -95,8 +95,8 @@ test('anonymous users are redirected from app and workspace routes with returnUr
     `/zh/score/${scoreId}`,
     `/zh/score/${scoreId}/edit`,
     `/zh/score/${scoreId}/practice`,
-    `/zh/review/${scoreId}`,
-    `/zh/review/${scoreId}/edit`,
+    `/zh/imports/${scoreId}/review`,
+    `/zh/imports/${scoreId}/review/edit`,
   ];
 
   for (const path of protectedPaths) {

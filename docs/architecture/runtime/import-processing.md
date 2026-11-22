@@ -120,7 +120,7 @@ failure-facts helpers, and callers continue to own their transactions.
 `app.modules.import_jobs.review` owns ImportReviewService, its read model, temporary
 candidate MusicXML updates and original-upload projections. Its API is the ImportJob
 sub-resource `/api/v1/import-jobs/{job_id}/review` (GET/PATCH) with POST `/confirm`.
-The browser workspace remains `/review/:jobId` and `/review/:jobId/edit`.
+The browser workspace remains `/imports/:jobId/review` and `/imports/:jobId/review/edit`.
 
 `app.modules.import_jobs.pipeline` owns step composition, deadline/progress tracking
 and ImportArtifact recording. Shared processing engines stay in `app.processing`;

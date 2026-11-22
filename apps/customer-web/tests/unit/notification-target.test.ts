@@ -67,7 +67,7 @@ describe('typed notification presentation and navigation', () => {
     expect(notificationHref(notification)).toBe('/score/score');
   });
   it('opens review before confirmation and score after confirmation', () => {
-    expect(notificationHref(variants[3])).toBe('/review/job');
+    expect(notificationHref(variants[3])).toBe('/imports/job/review');
     expect(
       notificationHref({
         ...common,

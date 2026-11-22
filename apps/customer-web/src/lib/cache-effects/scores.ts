@@ -1,3 +1,4 @@
+import { importScoreLinksChanged } from '@/features/imports/cache';
 import type { Query, QueryClient } from '@tanstack/react-query';
 import type { GuestPreviewSettingsRead, ScoreRead } from '@/generated/api';
 import { queryKeys } from '@/lib/query-client';
@@ -74,7 +75,7 @@ export async function scoresDeleted(client: QueryClient, scoreIds: readonly stri
   removeScoreCaches(client, scoreIds);
   await Promise.all([
     libraryOrganizationChanged(client),
-    client.invalidateQueries({ queryKey: queryKeys.importJobs.all }),
+    importScoreLinksChanged(client),
     storageUsageChanged(client),
   ]);
 }

@@ -10,19 +10,18 @@ import { useEditorSaveCompletion } from '@/hooks/editor/use-editor-save-completi
 import { useEditorValidationGate } from '@/hooks/editor/use-editor-validation-gate';
 import {useEditorSession} from '@/contexts/editor-session-context';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import { importJobsApi } from '@/lib/api';
+import { importJobsApi } from '@/features/imports/api/jobs';
 import { ensureGenericRenderMusicXmlIdsString, stripAppOwnedGenericRenderMusicXmlIdsString } from '@/lib/musicxml/generic-render-ids';
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { reportUnexpectedClientError } from '@/lib/observability';
-import { useImportJobReview, useUpdateImportJobReview } from '@/hooks/queries/use-review-queries';
+import { useImportJobReview, useUpdateImportJobReview } from '@/features/imports/queries';
+import { importReviewLocation, importConfirmedScoreLocation } from '@/features/imports/routes';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
 export function useReviewEditorDocument({
   jobId,
-  returnUrl,
 }: {
   jobId: string;
-  returnUrl?: string;
 }): EditorWorkspaceDocument {
   const router = useRouter();
   const common = useTranslations('common');
@@ -61,7 +60,7 @@ export function useReviewEditorDocument({
 
   useEffect(() => {
     if (review?.state === 'CONFIRMED' && review.score_id) {
-      router.replace(`/score/${review.score_id}`);
+      router.replace(importConfirmedScoreLocation(review.score_id));
     }
   }, [review?.score_id, review?.state, router]);
 
@@ -108,7 +107,7 @@ export function useReviewEditorDocument({
         onSuccess: async () => {
           await completeSave({
 
-            returnUrl: returnUrl || `/review/${jobId}`,
+            returnUrl: importReviewLocation(jobId),
             beforeNavigate: clearDraft,
           });
         },

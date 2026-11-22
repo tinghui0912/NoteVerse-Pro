@@ -2,7 +2,7 @@ import type { ReviewConfirmRequest, ReviewUpdateRequest } from '@/generated/api'
 import { importJobReviewConfirm, importJobReviewGet, importJobReviewUpdate } from '@/generated/api';
 import { customerTransport, responseBody } from '@/lib/http/customer-browser-transport';
 
-export const reviewApi = {
+export const importReviewApi = {
   detail: (jobId: string, signal?: AbortSignal) =>
     responseBody(importJobReviewGet({ ...customerTransport.authenticated, path: { job_id: jobId }, signal })),
   update: (jobId: string, input: ReviewUpdateRequest) =>

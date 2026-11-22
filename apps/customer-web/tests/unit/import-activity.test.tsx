@@ -1,3 +1,4 @@
+import { importQueryKeys } from '@/features/imports/query-keys';
 // @vitest-environment jsdom
 import React from 'react';
 import {
@@ -15,11 +16,10 @@ import {
 } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, expect, it, vi } from 'vitest';
-import * as navigation from '@/lib/imports/navigation';
-import { ImportJobCard } from '@/components/imports/import-job-card';
-import { ImportActivity } from '@/components/imports/import-activity';
-import { useImportJobList } from '@/hooks/queries/use-import-job-queries';
-import { queryKeys } from '@/lib/query-client';
+import * as navigation from '@/features/imports/routes';
+import { ImportJobCard } from '@/features/imports/activity/import-job-card';
+import { ImportActivity } from '@/features/imports/activity/import-activity';
+import { useImportJobList } from '@/features/imports/queries';
 import messages from '../../messages/en/imports.json';
 import errorMessages from '../../messages/en/errors.json';
 import type { ImportJobRead } from '@/generated/api';
@@ -28,7 +28,7 @@ const api = vi.hoisted(() => ({
   retryImportJob: vi.fn(),
   deleteImportJob: vi.fn(),
 }));
-vi.mock('@/lib/api', () => ({ importJobsApi: api }));
+vi.mock('@/features/imports/api/jobs', () => ({ importJobsApi: api }));
 vi.mock('@/i18n/routing', () => ({
   Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
@@ -102,7 +102,7 @@ it('presents each processing state with only its current commands', async () => 
   }
   expect(
     within(card('READY_FOR_REVIEW')).getByRole('link', { name: 'Review' }),
-  ).toHaveAttribute('href', '/review/READY_FOR_REVIEW');
+  ).toHaveAttribute('href', '/imports/READY_FOR_REVIEW/review');
   expect(
     within(card('FAILED')).getByText(errorMessages.score_recognition_failed),
   ).toBeInTheDocument();
@@ -136,7 +136,7 @@ it('retries the failed process through the API and invalidates the list without 
     ),
   );
   expect(invalidate).toHaveBeenCalledWith({
-    queryKey: queryKeys.importJobs.lists(),
+    queryKey: importQueryKeys.jobs.lists(),
   });
   expect(screen.getByText('FAILED import')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -183,7 +183,7 @@ it.each([
   await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));
   const query = client
     .getQueryCache()
-    .find({ queryKey: queryKeys.importJobs.list(1, 20) })!;
+    .find({ queryKey: importQueryKeys.jobs.list(1, 20) })!;
   const interval = (query.options as QueryObserverOptions).refetchInterval;
   expect(typeof interval).toBe('function');
   if (typeof interval === 'function')

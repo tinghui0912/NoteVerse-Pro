@@ -8,7 +8,7 @@ import { formatApiDateTime } from '@/lib/date-time';
 import { isCustomerErrorCode } from '@/lib/i18n/customer-error-codes';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { ImportJobRead } from '@/generated/api';
-import { importJobDestination } from '@/lib/imports/navigation';
+import { importJobDestination } from '@/features/imports/routes';
 
 export function ImportJobCard({
   job,

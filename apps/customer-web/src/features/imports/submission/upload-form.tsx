@@ -11,7 +11,7 @@ import { UploadPreviewDialog } from './upload-preview-dialog';
 import { InlineLoading } from '@/components/loading';
 import { LoadingSpinner } from '@/components/loading';
 import { RECOMMENDED_SCORE_IMAGE_ACCEPT } from '@/lib/upload/recommended-score-images';
-import type { UploadableFile } from '@/lib/upload/upload-workflow';
+import type { UploadableFile } from '@/features/imports/submission/upload-types';
 import {
   AlertDialog,
   AlertDialogAction,

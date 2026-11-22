@@ -16,7 +16,8 @@ The generated Customer API types, SDK operations and Fetch runtime in
 manually. Run `npm run generate:api` after an approved backend contract
 change; CI runs `npm run check:api` to reject stale output.
 
-`src/lib/api/*` contains feature adapters and generated result projections.
+`src/features/imports/api/*` owns Import submission, job/artifact and Review adapters.
+`src/lib/api/*` contains adapters for other domains and generated result projections.
 HTTP operation definitions belong to generated code, and browser transport
 policy belongs to `src/lib/http/`.
 Frontend view models, form state, browser-only protocol messages, and display
@@ -147,13 +148,19 @@ components/navigation   public nav, app sidebar, settings nav
 components/score        score capability context, score thumbnail, shared score surface
 components/score-preview interactive Verovio preview viewport, controls, and playback shell
 components/score-detail score detail tabs, actions, metadata, versions
-components/review       import review UI
+features/imports        submission, activity, temporary review UI/editor adapter, API/query/cache/routes
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
 components/external     share/invite surfaces
 components/loading      loading primitives
 components/error        error primitives
 ```
+
+Import Review is part of Import. Its browser workspaces are
+`/imports/:jobId/review` and `/imports/:jobId/review/edit`; `/upload` composes
+Import submission and activity. Generic editor capabilities remain shared.
+`features/imports/query-keys.ts` owns the `imports` cache prefix, and
+`features/imports/cache.ts` owns its cache consequences.
 
 Only truly cross-domain primitives should live at component root.
 

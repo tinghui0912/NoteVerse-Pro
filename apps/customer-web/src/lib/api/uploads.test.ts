@@ -1,7 +1,7 @@
 import { afterEach, expect, it } from 'vitest';
 import { customerFetch } from '../../../tests/helpers/customer-http';
 import { uploadsApi } from './uploads';
-import { importJobsApi } from './import-jobs';
+import { importJobsApi } from '@/features/imports/api/jobs';
 
 afterEach(async () => { const {vi} = await import('vitest'); vi.unstubAllGlobals(); });
 it('creates an Upload through the generated multipart collection operation', async () => {

@@ -87,8 +87,8 @@ Score 编辑读取 canonical revision source 并保存新 revision。
 `EditorWorkspaceDocument`。编辑文档 hook 拥有 query、草稿恢复、校验、
 base-revision save target、autosave 与原图 cleanup。
 
-OCR Review 是 job-scoped pipeline。`/review/:jobId` 通过
-`use-review-page-data` 读取数据；`/review/:jobId/edit` 保存临时 job artifact。
+OCR Review 是 job-scoped pipeline。`/imports/:jobId/review` 通过
+`features/imports/review/use-review-page-data` 读取数据；`/imports/:jobId/review/edit` 保存临时 job artifact。
 确认后导航到 Score。Review 的临时产物与 Score revision assets 分属不同契约。
 上传提交与轮询使用 jobs API、job_id 和对应 query keys。
 

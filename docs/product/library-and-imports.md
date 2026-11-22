@@ -72,7 +72,7 @@ Only active jobs keep the list polling.
 defines authorization. Collaboration grants do not transfer Score ownership or
 storage-quota responsibility. Guest Preview remains explicit link sharing.
 
-Import Review is an ImportJob API sub-resource. The `/review/:jobId` workspace and
-its editor remain product navigation routes. Confirmation commits Score/revision
+Import Review is an ImportJob API sub-resource. The `/imports/:jobId/review` workspace and
+the `/imports/:jobId/review/edit` editor are product navigation routes. Confirmation commits Score/revision
 admission, temporary cleanup and navigation enrichment of the retained import-ready-for-review
 notification together. Notification retention does not block confirmation or recreate history.

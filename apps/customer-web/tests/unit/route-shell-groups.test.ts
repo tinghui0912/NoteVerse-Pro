@@ -133,7 +133,7 @@ describe('route shell groups', () => {
     const rootNotFound = readSource('src/app/not-found.tsx');
     const localeError = readSource('src/app/[locale]/error.tsx');
     const editorError = readSource('src/app/[locale]/(workspace)/score/[id]/edit/error.tsx');
-    const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
+    const reviewPage = readSource('src/app/[locale]/(app)/imports/[jobId]/review/page.tsx');
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
     const previewPage = readSource('src/components/external/guest-preview-page.tsx');
@@ -142,7 +142,7 @@ describe('route shell groups', () => {
     const practiceControls = readSource('src/components/practice/practice-controls.tsx');
     const libraryPage = readSource('src/app/[locale]/(app)/library/page.tsx');
     const notificationDialog = readSource('src/components/notifications/notification-center-dialog.tsx');
-    const reviewScoreComparison = readSource('src/components/review/review-score-comparison.tsx');
+    const reviewScoreComparison = readSource('src/features/imports/review/review-score-comparison.tsx');
     const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
     const sessionsPanel = readSource('src/components/settings/sessions-settings-panel.tsx');
     const alert = readSource('src/components/ui/alert.tsx');
@@ -207,7 +207,7 @@ describe('route shell groups', () => {
     const globalLoading = readSource('src/app/[locale]/loading.tsx');
     const loadingIndex = readSource('src/components/loading/index.ts');
     const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
-    const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
+    const reviewPage = readSource('src/app/[locale]/(app)/imports/[jobId]/review/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
     const previewPage = readSource('src/components/external/guest-preview-page.tsx');
     const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
@@ -219,7 +219,7 @@ describe('route shell groups', () => {
     const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
     const scorePreviewViewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const practiceScoreViewer = readSource('src/components/practice/practice-score-viewer.tsx');
-    const reviewScoreComparison = readSource('src/components/review/review-score-comparison.tsx');
+    const reviewScoreComparison = readSource('src/features/imports/review/review-score-comparison.tsx');
 
     expect(globalLoading).toContain('<PageLoading');
     expect(loadingIndex).toContain("export { ResourceLoading }");
@@ -253,17 +253,15 @@ describe('route shell groups', () => {
   });
 
   it('keeps upload workflow primitives out of component modules', () => {
-    expect(existsSync(projectPath('src/lib/upload/upload-workflow.ts'))).toBe(true);
-    expect(existsSync(projectPath('src/components/upload/upload-types.ts'))).toBe(false);
+    expect(existsSync(projectPath('src/features/imports/submission/upload-types.ts'))).toBe(true);
 
-    const uploadForm = readSource('src/components/upload/upload-form.tsx');
-    const uploadPreview = readSource('src/components/upload/upload-preview-dialog.tsx');
-    const uploadHook = readSource('src/hooks/upload/use-upload-workflow.ts');
+    const uploadForm = readSource('src/features/imports/submission/upload-form.tsx');
+    const uploadPreview = readSource('src/features/imports/submission/upload-preview-dialog.tsx');
+    const uploadHook = readSource('src/features/imports/submission/use-import-upload-workflow.ts');
 
-    expect(uploadForm).toContain('@/lib/upload/upload-workflow');
-    expect(uploadPreview).toContain('@/lib/upload/upload-workflow');
-    expect(uploadHook).toContain('@/lib/upload/upload-workflow');
-    expect(uploadHook).not.toContain('@/components/upload');
+    expect(uploadForm).toContain('@/features/imports/submission/upload-types');
+    expect(uploadPreview).toContain('@/features/imports/submission/upload-types');
+    expect(uploadHook).toContain('@/features/imports/submission/upload-types');
   });
 
   it('redirects logout and expired sessions through the same returnUrl helper', () => {
