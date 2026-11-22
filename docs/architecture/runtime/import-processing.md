@@ -35,7 +35,7 @@ progress requires an already PROCESSING Job and cannot start execution.
 Dispatch/pre-execution exhaustion may finish FAILED without `processing_started_at`.
 `confirmed_at` records Score admission in the confirmation transaction; it never
 replaces processing finish. Repeated confirmation preserves it. `updated_at` records
-mutation time. All instants are aware UTC. Database checks enforce state/score/time
+mutation time. All instants are aware UTC. Database checks enforce lifecycle/time/failure-fact
 consistency, complete-or-absent failure taxonomy and progress between zero and 100.
 
 Finalization commits Job state, diagnostics, its ready-for-review/failed notification,

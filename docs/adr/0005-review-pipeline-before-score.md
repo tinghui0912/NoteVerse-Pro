@@ -62,12 +62,14 @@ POST  /api/v1/import-jobs/{job_id}/review/confirm
 - Upload Import Activity displays pending reviews as job cards, separate from Library Scores.
 - Score has no review lifecycle state column.
 - Import-completed notifications route to `/review/:jobId` until confirm. After confirm,
-  the ImportJobConfirmed projector enriches the same import notification with score identity and title for direct score navigation.
+  `admit_import_confirmation_consequences(...)` synchronously enriches the retained
+  import notification with Score identity/title and appends the current realtime consequences
+  inside the confirmation transaction.
 
 Import Review and execution orchestration belong to `app.modules.import_jobs`.
 Shared OMR/MusicXML/text processing engines remain independent capabilities.
 Confirmation creates the Score and delegates initial revision admission to
 RevisionWriter. Score/revision, durable derivative work, source/input accounting,
-Job CONFIRMED state/confirmed_at, temporary artifact/link release, retirement admission and
-ImportJobConfirmed commit as one transaction. Physical deletion is background work.
+Job CONFIRMED state/confirmed_at, temporary artifact/link release, retirement admission,
+notification enrichment and realtime consequences commit as one transaction. Physical deletion is background work.
 The user-facing Review workspace URLs are independent of the API resource namespace.
