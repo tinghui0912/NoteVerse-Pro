@@ -1,10 +1,10 @@
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import { guestPreviewQueryKeys } from '@/features/scores/guest-preview/query-keys';
 import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 import { collaborationQueryKeys } from '@/features/scores/collaboration/query-keys';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 
-import { queryKeys } from '@/lib/query-client';
 
 describe('queryKeys', () => {
   it('builds hierarchical score detail keys', () => {
@@ -58,8 +58,8 @@ describe('queryKeys', () => {
       'member',
       { scoreId: 'score-1' },
     ]);
-    expect(queryKeys.notifications.list()).toEqual(['notifications', 'list']);
-    expect(queryKeys.notifications.unreadCount()).toEqual(['notifications', 'unread-count']);
+    expect(notificationQueryKeys.list()).toEqual(['notifications', 'list']);
+    expect(notificationQueryKeys.unreadCount()).toEqual(['notifications', 'unread-count']);
   });
 
   it('invalidates every revision variant for one score through the revision prefix', async () => {

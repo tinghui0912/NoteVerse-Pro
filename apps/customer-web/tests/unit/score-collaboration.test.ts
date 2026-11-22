@@ -64,33 +64,5 @@ describe('score collaboration invite architecture', () => {
     expect(registerPage).toContain("withReturnUrl('/auth/login', returnUrl)");
   });
 
-  it('composes notification center from pending invites and semantic history', () => {
-    const navActions = readSource('src/components/navigation/nav-actions.tsx');
-    const center = readSource('src/components/notifications/notification-center-dialog.tsx');
-    const notificationsApi = readSource('src/lib/api/notifications.ts');
-    const notificationHooks = readSource('src/hooks/queries/use-notification-queries.ts');
 
-    expect(navActions).toContain('NotificationCenterDialog');
-    expect(navActions).toContain('useMyPendingScoreInvites');
-    expect(navActions).toContain('useNotificationUnreadCount');
-    expect(navActions).toContain('badgeCount = pendingInviteCount + unreadNotificationCount');
-
-    expect(center).toContain('useMyPendingScoreInvites');
-    expect(center).toContain('useMyNotifications');
-    expect(center).toContain('pendingInvitesQuery.isError');
-    expect(center).toContain('notificationsQuery.isError');
-    expect(center).toContain('pendingInvitesQuery.refetch()');
-    expect(center).toContain('notificationsQuery.refetch()');
-    expect(center).toContain("useState<'all' | 'unread'>('all')");
-    expect(center).toContain("updateFilter === 'unread'");
-    expect(center).toContain('notificationPresentation(notification, t)');
-    expect(center).toContain('notificationHref(notification)');
-    expect(center).toContain('router.push(href)');
-
-    expect(notificationsApi).toContain('notificationsList');
-    expect(notificationsApi).toContain('notificationsUnreadCountGet');
-    expect(notificationsApi).toContain('notificationMarkRead');
-    expect(notificationHooks).toContain('queryKeys.notifications.list()');
-    expect(notificationHooks).toContain('queryKeys.notifications.unreadCount()');
-  });
 });

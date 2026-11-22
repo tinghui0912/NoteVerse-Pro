@@ -16,6 +16,7 @@
 - `src/features/scores/collaboration/`：Invite、Membership、self Leave、pending invites 和外部 Invite 页面。
 - `src/features/scores/guest-preview/`：owner credential commands 与独立 public bearer presentation。
 - `src/features/scores/` parent：产品页面组合、Score route locations 和跨生命周期 cache consequences。
+- `src/features/notifications/`：durable Notification history/read-state 的 API、query/cache、presentation、target 与 Center/Bell。
 - `src/app/[locale]/`：route entry、layout、loading/error/not-found 和页面组合。
 - `src/components/`：共享 UI、shell、基础组件和跨领域 presentation。
 - `src/lib/`：跨领域 browser infrastructure 与共享纯能力。
@@ -45,7 +46,7 @@ HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generat
 视图模型、表单状态和浏览器内部消息由前端拥有。API helper 返回稳定类型，
 页面不猜测字段、不通过 `any` 掩盖契约问题。
 
-- Import、Library 和 Score core/Collaboration/Guest Preview 的 query keys、queries 与
+- Import、Library、Notifications 和 Score core/Collaboration/Guest Preview 的 query keys、queries 与
   cache consequences 各有独立 owner。`src/lib/query-client.ts` 配置 QueryClient，并管理其余当前领域的 keys。
   Identity 使用稳定、可序列化的 domain/scope/identity，不放 File 或函数。
 - Query function 在 API helper 支持时传递 AbortSignal，取消失效请求。
@@ -53,6 +54,11 @@ HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generat
 - 页面拥有当前语境的成功提示；API helper 不发 toast，错误由一层展示。
 - 客户端临时状态留在 component、Context 或普通 hook。
 - Next server 在 `next.config.ts` 校验必需的 backend origin；固定 Customer cookie/header identity 使用 generated browser protocol projection。
+
+Notification Center 组合 Collaboration pending actions 与 durable Notification Updates，
+但不接管 Invite API、query keys 或 accept/decline 命令。Bell 合并 pending action contribution
+与 server unread count，不写入新的计数 authority；两处复用同一 query state。
+`notifications.changed` 仅收敛 Notification history/read-state，不代表 pending Invite change。
 
 ## 产品能力、权限与文案
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { NotificationRead } from '@/generated/api';
-import { notificationHref } from '@/lib/notifications/target';
-import { notificationPresentation } from '@/lib/notifications/presentation';
+import { notificationHref } from '@/features/notifications/target';
+import { notificationPresentation } from '@/features/notifications/presentation';
 import en from '../../messages/en/notifications.json';
 import zh from '../../messages/zh/notifications.json';
 

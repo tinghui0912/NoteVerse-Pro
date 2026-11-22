@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getNotificationDateGroupKey,
   groupNotificationsByDate,
-} from '@/lib/notifications/date-groups';
+} from '@/features/notifications/date-groups';
 import type { NotificationRead } from '@/generated/api';
 
 const baseNotification: NotificationRead = {

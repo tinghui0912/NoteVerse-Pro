@@ -22,18 +22,18 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useRouter } from '@/i18n/routing';
 import { useToast } from '@/hooks/use-toast';
-import { groupNotificationsByDate } from '@/lib/notifications/date-groups';
+import { groupNotificationsByDate } from '@/features/notifications/date-groups';
 import { useAcceptMyPendingScoreInvite, useDeclineMyPendingScoreInvite, useMyPendingScoreInvites } from '@/features/scores/collaboration/queries';
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useMyNotifications,
   useNotificationUnreadCount,
-} from '@/hooks/queries/use-notification-queries';
+} from '@/features/notifications/queries';
 import { formatApiDateTime } from '@/lib/date-time';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import { notificationHref } from '@/lib/notifications/target';
-import { notificationPresentation } from '@/lib/notifications/presentation';
+import { notificationHref } from '@/features/notifications/target';
+import { notificationPresentation } from '@/features/notifications/presentation';
 import type { NotificationRead, PendingInviteRead } from '@/generated/api';
 
 interface NotificationCenterDialogProps {

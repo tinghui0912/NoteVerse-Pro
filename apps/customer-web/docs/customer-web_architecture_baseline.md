@@ -21,6 +21,7 @@ change; CI runs `npm run check:api` to reject stale output.
 `src/features/scores/core/api.ts` owns Score/revision/assets operations;
 `collaboration/api.ts` owns Invite/Membership operations and `guest-preview/api.ts`
 owns credential management and public bearer operations, under the same Score feature.
+`src/features/notifications/api.ts` owns durable Notification history and read-state adapters.
 Domains without an explicit feature boundary keep their named adapters under `src/lib/api/*`.
 HTTP operation definitions belong to generated code, and browser transport
 policy belongs to `src/lib/http/`.
@@ -106,7 +107,7 @@ concept and should not be modeled as score revision assets.
 
 ## API and Server State
 
-Product requests go through their domain-owned generated SDK adapters. Import, Library and Score lifecycle slices
+Product requests go through their domain-owned generated SDK adapters. Import, Library, Notifications and Score lifecycle slices
 own these adapters inside their feature boundaries. Shared browser transport lives under
 `src/lib/http/`. Pages and components do not create ad hoc backend product requests.
 
@@ -114,7 +115,7 @@ Rules:
 
 - Next server validates its required backend origin in `next.config.ts`; browser
   protocol identities come from generated constants.
-- Import, Library and each Score lifecycle slice own their query keys, hooks and cache consequences.
+- Import, Library, Notifications and each Score lifecycle slice own their query keys, hooks and cache consequences.
   `src/lib/query-client.ts` configures QueryClient and holds keys for domains with other
   current ownership locations.
 - Mutation hooks invoke domain-owned cache consequences; pages own page-specific success copy.
@@ -166,6 +167,7 @@ features/scores/core    Score detail/capabilities, revisions/assets, editor adap
 features/scores/collaboration Invite/Membership, pending invitations and external Invite page
 features/scores/guest-preview credential owner UI and public bearer presentation
 features/scores         product composition, shared Score routes and lifecycle consequences
+features/notifications  durable history/read-state API/query/cache, presentation/targets and Center/Bell
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
 components/loading      loading primitives
@@ -197,6 +199,14 @@ continues to use `practiceLocation`; interactive score preview and generic edito
 remain shared. Workspace access-denied presentation is a shared state primitive.
 
 Only truly cross-domain primitives should live at component root.
+
+Notifications owns the `notifications` query prefix and optimistic history/read-count
+convergence. Notification Center composes Collaboration-owned pending Invite actions
+with durable Updates; accepting or declining an Invite stays a Collaboration command.
+The Bell combines pending actions with the server unread count. Collaboration requests
+100 pending Invites per page: 0..99 is exact and continuation saturates the badge at
+99+. Bell and Center share the same query state. `notifications.changed` refreshes
+Notification list/count only; realtime transport remains shared infrastructure.
 
 ## MusicXML and Rendering
 

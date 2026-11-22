@@ -1,14 +1,14 @@
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
 // @vitest-environment jsdom
 import React, { type PropsWithChildren } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { NotificationCenterDialog } from '@/components/notifications/notification-center-dialog';
-import { queryKeys } from '@/lib/query-client';
+import { NotificationCenterDialog } from '@/features/notifications/center/notification-center-dialog';
 
 const api = vi.hoisted(() => ({list: vi.fn(), unreadCount: vi.fn(), markAllRead: vi.fn()}));
-vi.mock('@/lib/api', () => ({notificationsApi: api}));
+vi.mock('@/features/notifications/api', () => ({notificationsApi: api}));
 vi.mock('@/features/scores/collaboration/queries', () => ({
 useMyPendingScoreInvites: () => ({data: {pages: [{items: []}]}}),
 useAcceptMyPendingScoreInvite: () => ({mutate: vi.fn()}),
@@ -41,7 +41,7 @@ it('offers global mark-all when the loaded window is read but unloaded history i
   expect(api.list).toHaveBeenCalledOnce();
   await userEvent.click(command);
   await waitFor(() => expect(api.markAllRead).toHaveBeenCalledOnce());
-  expect(client.getQueryData(queryKeys.notifications.unreadCount())).toEqual({count: 0});
+  expect(client.getQueryData(notificationQueryKeys.unreadCount())).toEqual({count: 0});
   expect(screen.queryByRole('button', {name: 'markAllRead'})).not.toBeInTheDocument();
   complete();
   await waitFor(() => expect(api.unreadCount).toHaveBeenCalledTimes(2));

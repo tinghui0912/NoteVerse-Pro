@@ -1,3 +1,4 @@
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 import { libraryQueryKeys } from '@/features/library/query-keys';
 import { importQueryKeys } from '@/features/imports/query-keys';
@@ -11,7 +12,7 @@ import {
   useConfirmImportJobReview,
   useUpdateImportJobReview,
 } from '@/features/imports/queries';
-import { useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/queries/use-notification-queries';
+import { useMarkNotificationRead, useMarkAllNotificationsRead } from '@/features/notifications/queries';
 import { queryKeys as keys } from '@/lib/query-client';
 import type { ScoreRead, NotificationRead, ImportJobReviewRead } from '@/generated/api';
 
@@ -25,7 +26,7 @@ const api = vi.hoisted(() => ({
 vi.mock('@/features/scores/core/api', () => ({
 scoresApi: { update: api.update }
 }));
-vi.mock('@/lib/api', () => ({
+vi.mock('@/features/notifications/api', () => ({
 notificationsApi: { markRead: api.markRead, markAllRead: api.markAllRead }
 }));
 vi.mock('@/features/imports/api/review', () => ({
@@ -65,15 +66,15 @@ it('converges a local confirmation through Import, Review, Library, Score and st
 
 it('restores optimistic notification snapshots on command failure then marks them stale', async () => {
   const notification: NotificationRead = { notification_id: 'notice', kind: 'import.failed', job_id: 'job', import_display_title: null, read_at: null, created_at: '2026-07-01T00:00:00Z' };
-  const list = { pages: [{ items: [notification], next_cursor: null }], pageParams: [undefined] }; client.setQueryData(keys.notifications.list(), list);
-  client.setQueryData(keys.notifications.unreadCount(), { count: 1 });
+  const list = { pages: [{ items: [notification], next_cursor: null }], pageParams: [undefined] }; client.setQueryData(notificationQueryKeys.list(), list);
+  client.setQueryData(notificationQueryKeys.unreadCount(), { count: 1 });
   api.markRead.mockRejectedValue(new Error('Unavailable'));
   const hook = renderHook(() => useMarkNotificationRead(), { wrapper });
   await act(async () => { await expect(hook.result.current.mutateAsync('notice')).rejects.toThrow('Unavailable'); });
-  expect(client.getQueryData(keys.notifications.list())).toEqual(list);
-  expect(client.getQueryData(keys.notifications.unreadCount())).toEqual({ count: 1 });
-  expect(client.getQueryState(keys.notifications.list())?.isInvalidated).toBe(true);
-  expect(client.getQueryState(keys.notifications.unreadCount())?.isInvalidated).toBe(true);
+  expect(client.getQueryData(notificationQueryKeys.list())).toEqual(list);
+  expect(client.getQueryData(notificationQueryKeys.unreadCount())).toEqual({ count: 1 });
+  expect(client.getQueryState(notificationQueryKeys.list())?.isInvalidated).toBe(true);
+  expect(client.getQueryState(notificationQueryKeys.unreadCount())?.isInvalidated).toBe(true);
   hook.unmount();
 });
 
@@ -119,8 +120,8 @@ it.each(['success', 'failure'] as const)('mark-all updates every loaded page and
     { items: [notification], next_cursor: 'second' },
     { items: [{ ...notification, notification_id: 'unread', read_at: null }], next_cursor: 'unloaded' },
   ], pageParams: [undefined, 'second'] };
-  client.setQueryData(keys.notifications.list(), list);
-  client.setQueryData(keys.notifications.unreadCount(), { count: 9 });
+  client.setQueryData(notificationQueryKeys.list(), list);
+  client.setQueryData(notificationQueryKeys.unreadCount(), { count: 9 });
   let finish!: () => void;
   api.markAllRead.mockImplementation(() => new Promise((resolve, reject) => {
     finish = () => outcome === 'success' ? resolve({count: 0}) : reject(new Error('Unavailable'));
@@ -128,21 +129,21 @@ it.each(['success', 'failure'] as const)('mark-all updates every loaded page and
   const hook = renderHook(() => useMarkAllNotificationsRead(), {wrapper});
   act(() => hook.result.current.mutate());
   await waitFor(() => expect(api.markAllRead).toHaveBeenCalledOnce());
-  const optimistic = client.getQueryData<typeof list>(keys.notifications.list())!;
+  const optimistic = client.getQueryData<typeof list>(notificationQueryKeys.list())!;
   expect(optimistic.pages.every(page => page.items.every(item => item.read_at !== null))).toBe(true);
   expect(optimistic.pages[0].items[0].read_at).toBe(notification.read_at);
   expect(optimistic.pageParams).toEqual(list.pageParams);
   expect(optimistic.pages.map(page => page.next_cursor)).toEqual(['second', 'unloaded']);
-  expect(client.getQueryData(keys.notifications.unreadCount())).toEqual({count: 0});
+  expect(client.getQueryData(notificationQueryKeys.unreadCount())).toEqual({count: 0});
   await act(async () => finish());
   await waitFor(() => expect(hook.result.current.isPending).toBe(false));
   if (outcome === 'failure') {
-    expect(client.getQueryData(keys.notifications.list())).toEqual(list);
-    expect(client.getQueryData(keys.notifications.unreadCount())).toEqual({count: 9});
+    expect(client.getQueryData(notificationQueryKeys.list())).toEqual(list);
+    expect(client.getQueryData(notificationQueryKeys.unreadCount())).toEqual({count: 9});
   } else {
-    expect(client.getQueryData(keys.notifications.unreadCount())).toEqual({count: 0});
+    expect(client.getQueryData(notificationQueryKeys.unreadCount())).toEqual({count: 0});
   }
-  expect(client.getQueryState(keys.notifications.list())?.isInvalidated).toBe(true);
-  expect(client.getQueryState(keys.notifications.unreadCount())?.isInvalidated).toBe(true);
+  expect(client.getQueryState(notificationQueryKeys.list())?.isInvalidated).toBe(true);
+  expect(client.getQueryState(notificationQueryKeys.unreadCount())?.isInvalidated).toBe(true);
   hook.unmount();
 });

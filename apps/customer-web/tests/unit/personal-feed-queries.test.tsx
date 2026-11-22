@@ -1,15 +1,15 @@
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { useMyNotifications } from '@/hooks/queries/use-notification-queries';
+import { useMyNotifications } from '@/features/notifications/queries';
 import { usePerformanceTakes } from '@/hooks/queries/use-performance-take-queries';
-import { notificationsApi } from '@/lib/api';
+import { notificationsApi } from '@/features/notifications/api';
 import { performanceTakesApi } from '@/lib/api/performance-takes';
-import { notificationsChanged } from '@/lib/cache-effects/notifications';
-import { queryKeys } from '@/lib/query-client';
-vi.mock('@/lib/api', () => ({ notificationsApi: { list: vi.fn() } }));
+import { notificationsChanged } from '@/features/notifications/cache';
+vi.mock('@/features/notifications/api', () => ({ notificationsApi: { list: vi.fn() } }));
 vi.mock('@/lib/api/performance-takes', () => ({ performanceTakesApi: { listTakes: vi.fn() } }));
 afterEach(() => vi.clearAllMocks());
 function context() {
@@ -32,8 +32,8 @@ it('requests notification continuations only on demand and preserves loaded page
   hook.unmount();
   const invalidate = vi.spyOn(client, 'invalidateQueries');
   await notificationsChanged(client);
-  expect(invalidate).toHaveBeenCalledWith({queryKey: queryKeys.notifications.list()});
-  expect(invalidate).toHaveBeenCalledWith({queryKey: queryKeys.notifications.unreadCount()});
+  expect(invalidate).toHaveBeenCalledWith({queryKey: notificationQueryKeys.list()});
+  expect(invalidate).toHaveBeenCalledWith({queryKey: notificationQueryKeys.unreadCount()});
   client.clear();
 });
 it('uses take continuation and score filter without random-page parameters', async () => {

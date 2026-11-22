@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { Bell, Check, Globe, LayoutDashboard, LogOut, Settings, User } from 'lucide-react';
+import { Check, Globe, LayoutDashboard, LogOut, Settings, User } from 'lucide-react';
 
-import { NotificationCenterDialog } from '@/components/notifications/notification-center-dialog';
+import { NotificationBell } from '@/features/notifications/center/notification-bell';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,8 +16,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/auth-context';
-import { useMyPendingScoreInvites } from '@/features/scores/collaboration/queries';
-import { useNotificationUnreadCount } from '@/hooks/queries/use-notification-queries';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
@@ -88,44 +85,6 @@ export function AuthenticatedNavActions({
       ) : null}
       <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
       <UserMenu triggerClassName="hover:bg-gray-100" />
-    </>
-  );
-}
-
-export function NotificationBell({ buttonClassName }: { buttonClassName?: string }) {
-  const t = useTranslations('notifications');
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const pendingInvites = useMyPendingScoreInvites(true);
-  const unreadNotifications = useNotificationUnreadCount(true);
-  const pendingInviteCount =
-    pendingInvites.data?.pages.reduce(
-      (count, page) => count + (page?.items.length ?? 0),
-      0
-    ) ?? 0;
-  const unreadNotificationCount = unreadNotifications.data?.count ?? 0;
-  const badgeCount = pendingInviteCount + unreadNotificationCount;
-
-  return (
-    <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={t('bellLabel')}
-        className={cn(
-          'relative rounded-full',
-          buttonClassName ?? 'text-white hover:bg-white/20 hover:text-white'
-        )}
-        onClick={() => setIsNotificationsOpen(true)}
-      >
-        <Bell className="h-5 w-5" />
-        {badgeCount > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[11px] font-semibold text-white">
-            {badgeCount > 99 ? '99+' : badgeCount}
-          </span>
-        ) : null}
-      </Button>
-      <NotificationCenterDialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen} />
     </>
   );
 }

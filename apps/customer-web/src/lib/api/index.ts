@@ -1,5 +1,5 @@
 /**
- * Central API module exports.
+ * Named API adapters outside explicit feature boundaries.
  * Feature adapters project generated SDK results; Customer HTTP contracts live in generated code.
  */
 
@@ -9,14 +9,11 @@ export { authApi } from './auth';
 // File API.
 export { uploadsApi } from './uploads';
 
-// XML editing API.
-
-// Sharing API.
-
 // Profile API.
 export { profileApi } from './profile';
 
 // Practice API.
-export { notificationsApi } from './notifications';
 export { practiceApi } from './practice';
+
+// Storage usage API.
 export { storageUsageApi } from './storage-usage';

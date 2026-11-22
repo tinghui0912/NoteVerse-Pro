@@ -1,6 +1,6 @@
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import type { QueryClient, InfiniteData } from '@tanstack/react-query';
 import type { NotificationsListResponse, NotificationsUnreadCountGetResponse } from '@/generated/api';
-import { queryKeys } from '@/lib/query-client';
 
 export type NotificationListResponse = InfiniteData<NotificationsListResponse, string | undefined>;
 type NotificationCountResponse = NotificationsUnreadCountGetResponse;
@@ -60,38 +60,38 @@ function clearUnreadCount(
 
 export async function notificationsChanged(client: QueryClient) {
   await Promise.all([
-    client.invalidateQueries({ queryKey: queryKeys.notifications.list() }),
-    client.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() }),
+    client.invalidateQueries({ queryKey: notificationQueryKeys.list() }),
+    client.invalidateQueries({ queryKey: notificationQueryKeys.unreadCount() }),
   ]);
 }
 
 async function snapshotNotifications(client: QueryClient): Promise<NotificationOptimisticSnapshot> {
   await Promise.all([
-    client.cancelQueries({ queryKey: queryKeys.notifications.list() }),
-    client.cancelQueries({ queryKey: queryKeys.notifications.unreadCount() }),
+    client.cancelQueries({ queryKey: notificationQueryKeys.list() }),
+    client.cancelQueries({ queryKey: notificationQueryKeys.unreadCount() }),
   ]);
   return {
-    previousList: client.getQueryData<NotificationListResponse>(queryKeys.notifications.list()),
-    previousCount: client.getQueryData<NotificationCountResponse>(queryKeys.notifications.unreadCount()),
+    previousList: client.getQueryData<NotificationListResponse>(notificationQueryKeys.list()),
+    previousCount: client.getQueryData<NotificationCountResponse>(notificationQueryKeys.unreadCount()),
   };
 }
 
 export async function notificationReadOptimistically(client: QueryClient, notificationId: string) {
   const snapshot = await snapshotNotifications(client);
   const wasUnread = snapshot.previousList?.pages.some(page => page.items.some((item) => item.notification_id === notificationId && !item.read_at));
-  client.setQueryData<NotificationListResponse>(queryKeys.notifications.list(), (current) => markNotificationReadInList(current, notificationId));
-  if (wasUnread) client.setQueryData<NotificationCountResponse>(queryKeys.notifications.unreadCount(), decrementUnreadCount);
+  client.setQueryData<NotificationListResponse>(notificationQueryKeys.list(), (current) => markNotificationReadInList(current, notificationId));
+  if (wasUnread) client.setQueryData<NotificationCountResponse>(notificationQueryKeys.unreadCount(), decrementUnreadCount);
   return snapshot;
 }
 
 export async function allNotificationsReadOptimistically(client: QueryClient) {
   const snapshot = await snapshotNotifications(client);
-  client.setQueryData<NotificationListResponse>(queryKeys.notifications.list(), markAllNotificationsReadInList);
-  client.setQueryData<NotificationCountResponse>(queryKeys.notifications.unreadCount(), clearUnreadCount);
+  client.setQueryData<NotificationListResponse>(notificationQueryKeys.list(), markAllNotificationsReadInList);
+  client.setQueryData<NotificationCountResponse>(notificationQueryKeys.unreadCount(), clearUnreadCount);
   return snapshot;
 }
 
 export function rollbackNotificationRead(client: QueryClient, snapshot?: NotificationOptimisticSnapshot) {
-  if (snapshot?.previousList !== undefined) client.setQueryData(queryKeys.notifications.list(), snapshot.previousList);
-  if (snapshot?.previousCount !== undefined) client.setQueryData(queryKeys.notifications.unreadCount(), snapshot.previousCount);
+  if (snapshot?.previousList !== undefined) client.setQueryData(notificationQueryKeys.list(), snapshot.previousList);
+  if (snapshot?.previousCount !== undefined) client.setQueryData(notificationQueryKeys.unreadCount(), snapshot.previousCount);
 }

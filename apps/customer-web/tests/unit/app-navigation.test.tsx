@@ -24,9 +24,9 @@ vi.mock('@/i18n/routing', () => ({
 }));
 vi.mock('@/components/navigation', () => ({
   LanguageSwitcher: () => null,
-  NotificationBell: () => null,
   UserMenu: () => null,
 }));
+vi.mock('@/features/notifications/center/notification-bell', () => ({ NotificationBell: () => null }));
 it('separates workspace destinations from the global creation action', () => {
   render(
     <NextIntlClientProvider locale="en" messages={{ common }}>

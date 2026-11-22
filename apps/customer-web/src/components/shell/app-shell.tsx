@@ -1,5 +1,7 @@
 'use client';
 
+import { NotificationBell } from '@/features/notifications/center/notification-bell';
+
 import { useState, type FormEvent, type ReactNode } from 'react';
 import {
   HelpCircle,
@@ -25,7 +27,6 @@ import {
 import { Input } from '@/components/ui/input';
 import {
   LanguageSwitcher,
-  NotificationBell,
   UserMenu,
 } from '@/components/navigation';
 import { BrandLogo } from '@/components/brand';

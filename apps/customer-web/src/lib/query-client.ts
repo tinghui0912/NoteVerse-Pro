@@ -26,11 +26,6 @@ export const queryKeys = {
     account: {
         sessions: () => ['account', 'sessions'] as const,
     },
-    notifications: {
-        all: ['notifications'] as const,
-        list: () => ['notifications', 'list'] as const,
-        unreadCount: () => ['notifications', 'unread-count'] as const,
-    },
     storageUsage: {
         all: ['storage-usage'] as const,
         current: () => ['storage-usage', 'current'] as const,

@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { RealtimeChange } from '@/lib/realtime/generated/events';
 import { importJobChanged } from '@/features/imports/cache';
-import { notificationsChanged } from './notifications';
+import { notificationsChanged } from '@/features/notifications/cache';
 import { scoreDerivedAssetsChanged, scoreMetadataProjectionChanged, scoreRevisionChanged } from '@/features/scores/core/cache';
 
 export function serverStateResyncRequired(client: QueryClient) {

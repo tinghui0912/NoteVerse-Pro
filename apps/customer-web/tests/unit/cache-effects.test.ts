@@ -1,3 +1,4 @@
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import { guestPreviewQueryKeys } from '@/features/scores/guest-preview/query-keys';
 import { collaborationQueryKeys } from '@/features/scores/collaboration/query-keys';
 import { scoreQueryKeys } from '@/features/scores/core/query-keys';
@@ -17,7 +18,7 @@ import {
   reviewUpdated,
   reviewConfirmed,
 } from '@/features/imports/cache';
-import { notificationsChanged } from '@/lib/cache-effects/notifications';
+import { notificationsChanged } from '@/features/notifications/cache';
 import { scoreInvitesChanged, scoreMembersChanged, pendingInvitesChanged } from '@/features/scores/collaboration/cache';
 import { inviteAccepted } from '@/features/scores/consequences';
 import { libraryOrganizationChanged } from '@/features/library/cache';
@@ -142,7 +143,7 @@ describe('Import semantic consequences', () => {
 });
 
 it('keeps notifications and Collaboration collections independent', async () => {
-  const notices = [seed(keys.notifications.list()), seed(keys.notifications.unreadCount())];
+  const notices = [seed(notificationQueryKeys.list()), seed(notificationQueryKeys.unreadCount())];
   const invites = seed(collaborationQueryKeys.invites('a')); const members = seed(collaborationQueryKeys.members('a')); const pending = seed(collaborationQueryKeys.myInvites());
   const detail = seed(scoreQueryKeys.detail('a')); const list = library();
   await notificationsChanged(client);
@@ -183,13 +184,16 @@ it.each([
   { kind: 'score.metadata.changed', scoreId: 'a', revisionId: 'r1' } as const,
   { kind: 'import_jobs.changed', importJobId: 'job' } as const,
 ])('maps typed $kind to its semantic domain', async (change) => {
-  const notice = seed(keys.notifications.list()); const job = seed(importQueryKeys.jobs.detail('job')); const detail = seed(scoreQueryKeys.detail('a'));
+  const unread = seed(notificationQueryKeys.unreadCount()); const pending = seed(collaborationQueryKeys.myInvites());
+  const notice = seed(notificationQueryKeys.list()); const job = seed(importQueryKeys.jobs.detail('job')); const detail = seed(scoreQueryKeys.detail('a'));
   await applyRealtimeCacheChange(client, { schemaVersion: 1, sequence: 1, changeId: 'id', createdAt: '2026-07-01T00:00:00Z', ...change });
   expect(stale(notice)).toBe(change.kind === 'notifications.changed');
+  expect(stale(unread)).toBe(change.kind === 'notifications.changed');
+  expect(stale(pending)).toBe(false);
   expect(stale(job)).toBe(change.kind === 'import_jobs.changed'); expect(stale(detail)).toBe(change.kind.startsWith('score.'));
 });
 
 it('broadly resynchronizes all cached server state', async () => {
-  const cached = [library(), storage(), seed(importQueryKeys.jobs.detail('job')), seed(keys.notifications.list()), seed(keys.account.sessions())];
+  const cached = [library(), storage(), seed(importQueryKeys.jobs.detail('job')), seed(notificationQueryKeys.list()), seed(keys.account.sessions())];
   await serverStateResyncRequired(client); expect(cached.map(stale)).toEqual(Array(cached.length).fill(true));
 });

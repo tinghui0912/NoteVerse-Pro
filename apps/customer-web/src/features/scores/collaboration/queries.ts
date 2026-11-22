@@ -92,7 +92,8 @@ export function useMyPendingScoreInvites(enabled = true) {
   return useInfiniteQuery({
     queryKey: collaborationQueryKeys.myInvites(),
     queryFn: ({ signal, pageParam }) =>
-      collaborationApi.listMyPendingInvites({ signal, cursor: pageParam }),
+      // One page covers the Bell's exact 0..99 / saturated 99+ presentation.
+      collaborationApi.listMyPendingInvites({ signal, cursor: pageParam, limit: 100 }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage?.next_cursor ?? undefined,
     enabled,

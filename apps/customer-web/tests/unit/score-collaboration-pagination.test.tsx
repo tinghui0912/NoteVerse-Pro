@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ScoreCollaborationPanel } from '@/features/scores/collaboration/owner-panel';
-import { NotificationCenterDialog } from '@/components/notifications/notification-center-dialog';
+import { NotificationCenterDialog } from '@/features/notifications/center/notification-center-dialog';
 import { useMyPendingScoreInvites, useScoreInvites, useScoreMembers } from '@/features/scores/collaboration/queries';
 import type { InviteRead, MemberRead, PendingInviteRead } from '@/generated/api';
 import messages from '../../messages/en/scoreCollaboration.json';
@@ -37,7 +37,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string) => (key === 'invitations' ? 'Invitations' : key),
 }));
-vi.mock('@/hooks/queries/use-notification-queries', () => ({
+vi.mock('@/features/notifications/queries', () => ({
   useMyNotifications: () => ({ data: { pages: [{ items: [], next_cursor: null }], pageParams: [undefined] }, isLoading: false, isError: false }),
   useNotificationUnreadCount: () => ({ data: { count: 0 } }),
   useMarkNotificationRead: () => ({ mutate: vi.fn(), isPending: false }),
