@@ -17,11 +17,13 @@ it.each(['delete', 'leave'] as const)('%s converges exactly its lifecycle author
   const library = [libraryQueryKeys.folders(), libraryQueryKeys.scoreList({ page: 1, pageSize: 20 })];
   const storage = queryKeys.storageUsage.current();
   const history = queryKeys.performanceTakes.list();
-  const other = [scoreQueryKeys.detail('other'), collaborationQueryKeys.members('other')];
-  for (const key of [...removed, ...imports, guestSettings, ...bearers, ...library, storage, history, ...other]) client.setQueryData(key, { cached: true });
+  const other = [scoreQueryKeys.detail('other')];
+  const collaboration = [collaborationQueryKeys.myInvites(), collaborationQueryKeys.inviteAccess('opaque'), collaborationQueryKeys.inviteAccess('unmapped'), collaborationQueryKeys.members('other')];
+  for (const key of [...removed, ...imports, guestSettings, ...bearers, ...library, storage, history, ...other, ...collaboration]) client.setQueryData(key, { cached: true });
   if (operation === 'delete') await scoresDeleted(client, ['score']);
   else await scoreLeft(client, 'score');
   expect(removed.every((key) => !client.getQueryState(key))).toBe(true);
+  expect(collaboration.every((key) => client.getQueryState(key)?.isInvalidated === (operation === 'delete'))).toBe(true);
   expect(imports.every((key) => client.getQueryState(key)?.isInvalidated === (operation === 'delete'))).toBe(true);
   expect(bearers.every((key) => client.getQueryState(key)?.isInvalidated === (operation === 'delete'))).toBe(true);
   if (operation === 'delete') expect(client.getQueryState(guestSettings)).toBeUndefined();

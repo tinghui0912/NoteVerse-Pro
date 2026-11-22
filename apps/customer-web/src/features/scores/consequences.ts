@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { removeScoreCoreCaches, scoreDetailChanged } from './core/cache';
-import { inviteAcceptanceChanged, removeScoreCollaborationCaches } from './collaboration/cache';
+import { inviteAcceptanceChanged, removeScoreCollaborationCaches, collaborationParentRemoved } from './collaboration/cache';
 import { removeGuestPreviewSettings, guestPreviewAuthorityChanged } from './guest-preview/cache';
 import { libraryOrganizationChanged } from '@/features/library/cache';
 import { importScoreLinksChanged } from '@/features/imports/cache';
@@ -8,9 +8,9 @@ import { storageUsageChanged } from '@/lib/cache-effects/storage';
 
 export async function scoresDeleted(client: QueryClient, scoreIds: readonly string[]) {
   removeScoreCoreCaches(client, scoreIds);
-  removeScoreCollaborationCaches(client, scoreIds);
   removeGuestPreviewSettings(client, scoreIds);
   await Promise.all([
+    collaborationParentRemoved(client, scoreIds),
     guestPreviewAuthorityChanged(client), libraryOrganizationChanged(client),
     importScoreLinksChanged(client), storageUsageChanged(client),
   ]);

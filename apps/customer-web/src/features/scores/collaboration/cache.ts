@@ -28,3 +28,8 @@ export function removeScoreCollaborationCaches(client: QueryClient, scoreIds: re
     client.removeQueries({ queryKey: collaborationQueryKeys.members(scoreId) });
   }
 }
+
+export async function collaborationParentRemoved(client: QueryClient, scoreIds: readonly string[]) {
+  removeScoreCollaborationCaches(client, scoreIds);
+  await client.invalidateQueries({ queryKey: collaborationQueryKeys.all });
+}

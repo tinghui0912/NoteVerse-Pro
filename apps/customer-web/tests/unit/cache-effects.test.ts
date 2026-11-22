@@ -74,7 +74,7 @@ describe('Score semantic consequences', () => {
   });
   it.each(['leave', 'delete'])('removes only target Score identities for %s', async (operation) => {
     const target = scoreKeys('a').map((key) => seed(key)); const removed = operation === 'delete' ? target : target.slice(0, -1); const kept = [...scoreKeys('b').map((key) => seed(key)), ...(operation === 'leave' ? target.slice(-1) : [])];
-    kept.push(seed(collaborationQueryKeys.myInvites()), seed(collaborationQueryKeys.inviteAccess('token')));
+    const accountInvites = [seed(collaborationQueryKeys.myInvites()), seed(collaborationQueryKeys.inviteAccess('token'))];
     const bearer = seed(guestPreviewQueryKeys.public('token'));
     const list = library(); const folders = seed(libraryQueryKeys.folders());
     const jobs = seed(importQueryKeys.jobs.list(1, 20)); const usage = storage();
@@ -82,7 +82,8 @@ describe('Score semantic consequences', () => {
     expect(removed.every((key) => client.getQueryState(key) === undefined)).toBe(true);
     expect(kept.every((key) => client.getQueryState(key) !== undefined)).toBe(true);
     expect(stale(bearer)).toBe(operation === 'delete');
-    expect(kept.filter((key) => key[0] !== guestPreviewQueryKeys.all[0]).every((key) => !stale(key))).toBe(true);
+    expect(accountInvites.map(stale)).toEqual([operation === 'delete', operation === 'delete']);
+    expect(kept.filter((key) => key[0] !== guestPreviewQueryKeys.all[0]).every((key) => stale(key) === (operation === 'delete' && key[0] === collaborationQueryKeys.all[0]))).toBe(true);
     expect(stale(list)).toBe(true); expect(stale(folders)).toBe(true);
     expect(stale(jobs)).toBe(operation === 'delete'); expect(stale(usage)).toBe(operation === 'delete');
   });
