@@ -125,7 +125,6 @@ def seed_user() -> None:
                         INTEGRATION_PRACTICE_SCORE_ID,
                         user.id,
                         prepared,
-                        None,
                         "integration-initial",
                         RevisionOrigin.IMPORT,
                     ),

@@ -57,26 +57,34 @@ from tests.test_score_revision_services import MUSICXML_1
 
 
 @pytest.fixture
-def confirmation(monkeypatch):
+def confirmation(monkeypatch, request):
     with postgres_schema_database(monkeypatch) as (engine, config):
         command.upgrade(config, "head")
         storage = InMemoryObjectStorage()
+        queued = getattr(request, "param", None) == "queued"
         with Session(engine) as db:
             db.add(User(id=1, email="confirm@example.test", password_hash="hash"))
             db.flush()
             provision_storage_users(db)
             db.flush()
             job = ImportJob(
-                processing_started_at=utc_now(),
-                processing_finished_at=utc_now(),
+                processing_started_at=None if queued else utc_now(),
+                processing_finished_at=None if queued else utc_now(),
                 job_uuid="job",
                 user_id=1,
-                state=ImportJobState.READY_FOR_REVIEW,
+                state=ImportJobState.QUEUED if queued else ImportJobState.READY_FOR_REVIEW,
                 requested_options=encode_requested_options({"display_title": "Etudes"}),
             )
             db.add(job)
             db.flush()
-            db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
+            db.add(
+                ImportDispatch(
+                    job_id=job.id,
+                    status=ImportDispatchStatus.PENDING
+                    if queued
+                    else ImportDispatchStatus.COMPLETED,
+                )
+            )
             for kind, content in ((ImportArtifactKind.REVIEW_MUSICXML, MUSICXML_1),):
                 obj = object_from_bytes(
                     object_key=f"jobs/{kind}",
@@ -124,7 +132,8 @@ def confirmation(monkeypatch):
                 reason="fixture",
                 object_type="upload",
             )
-            admit_import_processing_outcome(db, job, created_at=utc_now())
+            if not queued:
+                admit_import_processing_outcome(db, job, created_at=utc_now())
             db.commit()
 
         def latency_only(*args):
@@ -429,7 +438,7 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
         db.rollback()
         assert snapshot(db) == before
         job = db.scalar(sa.select(ImportJob))
-        assert job.state == ImportJobState.READY_FOR_REVIEW and job.score_id is None
+        assert job.state == ImportJobState.READY_FOR_REVIEW
         assert job.confirmed_at is None
         assert db.scalar(sa.select(Notification)).score_id is None
         assert db.scalar(sa.select(Notification)).score_display_title_snapshot is None
@@ -599,8 +608,8 @@ def test_confirmation_and_deletion_serialize_on_dispatch_before_job(
     with Session(engine) as db:
         job = db.scalar(sa.select(ImportJob))
         if winner == "confirm":
-            assert job.state == ImportJobState.CONFIRMED and job.score_id is not None
-            assert db.scalar(sa.select(Score)).originating_job_id == job.id
+            assert job.state == ImportJobState.CONFIRMED
+            assert db.scalar(sa.select(Score)).created_from_import_job_id == job.id
         else:
             assert job is None and db.scalar(sa.select(Score)) is None
         assert db.scalar(sa.select(ImportArtifact)) is None
@@ -788,3 +797,141 @@ def test_shared_upload_promotions_and_last_input_release_match_semantic_inventor
             db.commit()
         assert db.get(Upload, upload_id) is None
         assert_usage(db, 0, 0)
+
+
+@pytest.mark.parametrize("confirmation", ["queued"], indirect=True)
+def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation, monkeypatch):
+    from app.core.exceptions import ConflictException
+    from app.db.models import ImportJobStep, ScoreDeletionOperation, ScoreDeletionOperationStatus
+    from app.db.models.import_job import ImportJobStepStatus
+    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.modules.import_jobs.dispatch_service import ImportDispatchService
+    from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
+    from app.modules.scores.service import ScoreService
+    from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService
+    from app.modules.scores.deletion_executor import ScoreDeletionExecutor
+    from app.worker.execution import stored_object_retirement as retirement_worker
+    from sqlalchemy.orm import sessionmaker
+
+    engine, storage = confirmation
+    imports = ImportJobService(storage=storage)
+    with Session(engine, expire_on_commit=False) as db:
+        job = db.scalar(sa.select(ImportJob))
+        job_id = job.id
+        dispatch = db.scalar(sa.select(ImportDispatch))
+        upload = db.scalar(sa.select(Upload))
+        storage.put_bytes(
+            key=upload.stored_object.object_key, content=b"original", content_type="image/png"
+        )
+        assert job.state is ImportJobState.QUEUED
+        delivery = ImportDispatchService()
+        payload = delivery.claim(db, dispatch.dispatch_uuid)
+        assert payload is not None
+        db.commit()
+        recorder = ImportExecutionRecorder()
+        recorder.start_execution(db, payload.lease)
+        assert db.get(ImportJob, job_id).state is ImportJobState.PROCESSING
+        recorder.upsert_step(
+            db, payload.lease, "recognition", ImportJobStepStatus.COMPLETED, end_time=utc_now()
+        )
+        recorder.finalize_success(db, payload.lease)
+        delivery.complete(db, payload.lease)
+        db.commit()
+        assert db.get(ImportJob, job_id).state is ImportJobState.READY_FOR_REVIEW
+        review_service = review.ImportReviewService(storage=storage)
+        request = ReviewConfirmRequest(content=MUSICXML_1.decode())
+        result = review_service.confirm(db, "job", 1, request)
+        db.expire_all()
+        job = db.get(ImportJob, job_id)
+        confirmed_at = job.confirmed_at
+        score = db.scalar(sa.select(Score))
+        assert score.created_from_import_job_id == job_id
+        assert imports.detail(db, "job", 1).score_id == result.score_id
+        assert review_service.confirm(db, "job", 1, request).score_id == result.score_id
+
+        def assert_history_without_live_score():
+            db.expire_all()
+            current = db.get(ImportJob, job_id)
+            assert current.state is ImportJobState.CONFIRMED
+            assert current.confirmed_at == confirmed_at
+            assert db.scalar(sa.select(ImportDispatch)).status is ImportDispatchStatus.COMPLETED
+            assert db.scalar(sa.select(ImportJobStep)).status is ImportJobStepStatus.COMPLETED
+            assert db.scalar(sa.select(ImportArtifact)) is None
+            assert db.scalar(sa.select(ImportJobUpload)) is None
+            assert imports.detail(db, "job", 1).score_id is None
+            page, total = imports.list_jobs(db, 1, page=1, page_size=20)
+            assert total == 1 and page[0].score_id is None
+            assert imports.batch_status(db, ["job"], 1)["job"]["score_id"] is None
+            with pytest.raises(ConflictException):
+                review_service.confirm(db, "job", 1, request)
+            db.rollback()
+            assert db.get(ImportJob, job_id).confirmed_at == confirmed_at
+
+        ScoreService(storage=storage).delete(db, result.score_id, 1)
+        assert_history_without_live_score()
+        assert db.scalar(sa.select(sa.func.count()).select_from(Score)) == 1
+        operation = db.scalar(sa.select(ScoreDeletionOperation))
+        deletion = ScoreDeletionDeliveryService()
+        lease = deletion.claim(db, operation.operation_uuid)
+        assert lease is not None
+        db.commit()
+        deleted = ScoreDeletionExecutor(deletion).execute(db, lease)
+        db.commit()
+        assert deleted.scores_deleted == 1
+        assert_history_without_live_score()
+        assert db.scalar(sa.select(Score)) is None
+        assert db.scalar(sa.select(ScoreRevision)) is None
+        assert db.scalar(sa.select(ScoreRevisionSource)) is None
+        assert (
+            db.scalar(sa.select(ScoreDeletionOperation)).status
+            is ScoreDeletionOperationStatus.COMPLETED
+        )
+        assert all(
+            counter.used_bytes == counter.reserved_bytes == 0
+            for counter in db.scalars(sa.select(StorageUsageCounter))
+        )
+        retirements = list(db.scalars(sa.select(StoredObjectRetirement)))
+        assert len(retirements) == 3
+        assert all(storage.exists(row.object_key) for row in retirements)
+        uuids = [row.retirement_uuid for row in retirements]
+        db.rollback()
+    monkeypatch.setattr(retirement_worker, "SessionLocal", sessionmaker(bind=engine))
+    monkeypatch.setattr(retirement_worker, "object_storage", storage)
+    for identity in uuids:
+        assert (
+            retirement_worker.execute_stored_object_retirement_task(None, identity)["status"]
+            == "completed"
+        )
+    with Session(engine) as db:
+        assert all(
+            row.status is StoredObjectRetirementStatus.COMPLETED
+            for row in db.scalars(sa.select(StoredObjectRetirement))
+        )
+        assert db.scalar(sa.select(StoredObject)) is None
+        assert db.get(ImportJob, job_id).confirmed_at == confirmed_at
+
+
+def test_score_creation_provenance_is_unique_and_preserved_by_the_database(confirmation):
+    from sqlalchemy.exc import IntegrityError
+
+    engine, storage = confirmation
+    confirm(engine, storage)
+    with Session(engine) as db:
+        job = db.scalar(sa.select(ImportJob))
+        with pytest.raises(IntegrityError) as duplicate:
+            with db.begin_nested():
+                db.add(
+                    Score(
+                        score_uuid="duplicate",
+                        owner_user_id=1,
+                        display_title="Duplicate",
+                        created_from_import_job_id=job.id,
+                    )
+                )
+                db.flush()
+        assert duplicate.value.orig.sqlstate == "23505"
+        with pytest.raises(IntegrityError) as referenced:
+            with db.begin_nested():
+                db.execute(sa.delete(ImportJob).where(ImportJob.id == job.id))
+        assert referenced.value.orig.sqlstate == "23503"
+        assert db.scalar(sa.select(ImportJob)).state is ImportJobState.CONFIRMED

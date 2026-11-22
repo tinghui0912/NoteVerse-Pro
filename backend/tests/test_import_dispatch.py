@@ -229,7 +229,6 @@ def test_closed_execution_outcome_reconciles_expired_delivery_without_execution(
         score = Score(score_uuid="confirmed-import", owner_user_id=1, display_title="Confirmed")
         db.add(score)
         db.flush()
-        job.score_id = score.id
         job.confirmed_at = utc_now()
     job.processing_started_at = job.processing_finished_at = utc_now()
     job.state = state

@@ -168,7 +168,7 @@ with SessionLocal() as db:
         db.flush()
         prepared = PreparedRevisionSource(revision_uuid, stored, hashlib.sha256(musicxml).hexdigest(),
             "k8s-smoke", "1", reservation.reservation_id)
-        result = revision_writer.write(db, InitialRevisionWrite(score_uuid, user_id, prepared, None,
+        result = revision_writer.write(db, InitialRevisionWrite(score_uuid, user_id, prepared,
             "k8s-smoke-initial", RevisionOrigin.EDIT))
         db.commit()
     except Exception:

@@ -31,7 +31,6 @@ def _queued(job: ImportJob, *, now: datetime) -> None:
     job.processing_last_heartbeat_at = None
     job.processing_finished_at = None
     job.confirmed_at = None
-    job.score_id = None
     clear_failure_facts(job)
     job.updated_at = require_utc(now)
 
@@ -78,17 +77,15 @@ def mark_failed(
     job.progress = 0
     job.processing_finished_at = require_utc(now)
     job.confirmed_at = None
-    job.score_id = None
     set_failure_facts(job, failure, detail=detail)
     job.updated_at = require_utc(now)
 
 
-def mark_confirmed(job: ImportJob, *, score_id: int, now: datetime) -> None:
-    if job.state == ImportJobState.CONFIRMED and job.score_id == score_id:
+def mark_confirmed(job: ImportJob, *, now: datetime) -> None:
+    if job.state == ImportJobState.CONFIRMED:
         return
     if job.state != ImportJobState.READY_FOR_REVIEW:
         raise ValueError("Score confirmation requires an Import ready for review")
-    job.score_id = score_id
     job.state = ImportJobState.CONFIRMED
     job.confirmed_at = require_utc(now)
     clear_failure_facts(job)

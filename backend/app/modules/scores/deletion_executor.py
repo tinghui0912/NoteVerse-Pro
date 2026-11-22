@@ -7,9 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    ImportArtifact,
-    ImportDispatch,
-    ImportJob,
     ImportJobUpload,
     Score,
     ScoreInputAsset,
@@ -65,11 +62,6 @@ class ScoreDeletionExecutor:
             raise ValueError("Deletion operation requires its tombstoned Score")
         score_id = require_persisted_id(score.id, entity="score")
         owner_user_id = score.owner_user_id
-        originating_job = self._single_score_originating_job(
-            db,
-            score_id=score_id,
-            originating_job_id=score.originating_job_id,
-        )
         usage_releases: list[StorageUsageReleaseRecord] = []
         source_rows = list(
             db.execute(
@@ -180,10 +172,6 @@ class ScoreDeletionExecutor:
         representations = list(
             db.scalars(select(StoredObject).where(StoredObject.object_key.in_(storage_keys)))
         )
-        import_cleanup, import_object_ids = self._delete_originating_import_job(
-            db,
-            originating_job,
-        )
         score.head_revision_id = None
         db.delete(score)
         db.flush()
@@ -236,159 +224,10 @@ class ScoreDeletionExecutor:
             db.delete(upload)
             db.flush()
             released_ids.append(stored_object_id)
-        for release in import_cleanup:
-            storage_usage_service.record_release(
-                db,
-                user_id=owner_user_id,
-                category=release.category,
-                bytes_count=release.bytes_count,
-                reason="import_job_deleted",
-                object_type=release.object_type,
-                object_id=release.object_id,
-                storage_key=release.storage_key,
-            )
-        operations = retire_after_release(db, *(released_ids + import_object_ids))
+        operations = retire_after_release(db, *released_ids)
         if not self.delivery.complete(db, lease):
             raise StaleScoreDeletionAttempt("Deletion attempt lost completion authority")
         return ScoreDeletionResult(
             scores_deleted=1,
             object_retirements_queued=len(operations),
-        )
-
-    def _delete_originating_import_job(
-        self,
-        db: Session,
-        job: ImportJob | None,
-    ) -> tuple[list[StorageUsageReleaseRecord], list[int]]:
-        if job is None:
-            return [], []
-        job_id = require_persisted_id(job.id, entity="import job")
-        artifact_rows = list(
-            db.execute(
-                select(
-                    ImportArtifact.artifact_uuid,
-                    StoredObject.object_key,
-                    StoredObject.byte_size,
-                )
-                .join(StoredObject, ImportArtifact.stored_object_id == StoredObject.id)
-                .where(ImportArtifact.job_id == job_id)
-            ).all()
-        )
-        upload_rows = list(
-            db.execute(
-                select(
-                    Upload.id,
-                    Upload.upload_uuid,
-                    StoredObject.id,
-                    StoredObject.object_key,
-                    StoredObject.byte_size,
-                )
-                .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
-                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
-                .where(ImportJobUpload.job_id == job_id)
-            ).all()
-        )
-        cleanup: list[StorageUsageReleaseRecord] = [
-            StorageUsageReleaseRecord(
-                category=StorageUsageCategory.TEMP_IMPORT,
-                bytes_count=size_bytes or 0,
-                object_type="import_artifact",
-                object_id=artifact_uuid,
-                storage_key=storage_key,
-            )
-            for artifact_uuid, storage_key, size_bytes in artifact_rows
-        ]
-        orphan_uploads: list[tuple[int, str, int, str, int]] = []
-        for (
-            upload_id,
-            upload_uuid,
-            stored_object_id,
-            storage_key,
-            size_bytes,
-        ) in upload_rows:
-            other_job_refs = db.execute(
-                select(func.count(ImportJobUpload.id)).where(
-                    ImportJobUpload.upload_id == upload_id,
-                    ImportJobUpload.job_id != job_id,
-                )
-            ).scalar_one()
-            input_refs = db.execute(
-                select(func.count(ScoreInputAsset.id)).where(ScoreInputAsset.upload_id == upload_id)
-            ).scalar_one()
-            if other_job_refs == 0 and input_refs == 0:
-                orphan_uploads.append(
-                    (
-                        upload_id,
-                        upload_uuid,
-                        stored_object_id,
-                        storage_key,
-                        size_bytes or 0,
-                    )
-                )
-        for (
-            _upload_id,
-            upload_uuid,
-            _object_id,
-            storage_key,
-            size_bytes,
-        ) in orphan_uploads:
-            cleanup.append(
-                StorageUsageReleaseRecord(
-                    category=StorageUsageCategory.UPLOAD,
-                    bytes_count=size_bytes,
-                    object_type="upload",
-                    object_id=upload_uuid,
-                    storage_key=storage_key,
-                )
-            )
-        objects = list(
-            db.scalars(
-                select(StoredObject).where(
-                    StoredObject.object_key.in_([key for _, key, _ in artifact_rows])
-                )
-            )
-        )
-        db.delete(job)
-        db.flush()
-        released_ids = [stored_object.id for stored_object in objects]
-        for upload_id, _upload_uuid, object_id, _key, _size in orphan_uploads:
-            upload = db.get(Upload, upload_id)
-            if upload is not None:
-                db.delete(upload)
-                released_ids.append(object_id)
-        return cleanup, released_ids
-
-    def _single_score_originating_job(
-        self,
-        db: Session,
-        *,
-        score_id: int,
-        originating_job_id: int | None,
-    ) -> ImportJob | None:
-        if originating_job_id is None:
-            return None
-        sibling_count = (
-            db.execute(
-                select(func.count(Score.id)).where(
-                    Score.originating_job_id == originating_job_id,
-                    Score.id != score_id,
-                    Score.__table__.c.deleted_at.is_(None),
-                )
-            )
-        ).scalar_one()
-        if sibling_count:
-            return None
-        dispatch = db.scalar(
-            select(ImportDispatch)
-            .where(ImportDispatch.job_id == originating_job_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-        if dispatch is None:
-            raise ValueError("Originating Import job requires its durable dispatch")
-        return db.scalar(
-            select(ImportJob)
-            .where(ImportJob.id == originating_job_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
         )

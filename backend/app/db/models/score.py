@@ -81,11 +81,11 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(metadata_json_type, default=list, nullable=False),
     )
     head_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    originating_job_id: Optional[int] = Field(
+    created_from_import_job_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
             BigInteger,
-            ForeignKey("import_jobs.id", ondelete="SET NULL"),
+            ForeignKey("import_jobs.id", ondelete="RESTRICT"),
             unique=True,
         ),
     )
@@ -186,13 +186,6 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
     created_by_user_id: Optional[int] = Field(
         default=None,
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL")),
-    )
-    created_by_job_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("import_jobs.id", ondelete="SET NULL"),
-        ),
     )
     created_at: datetime = Field(
         default_factory=utc_now,

@@ -140,7 +140,7 @@ def initial(database):
     engine, storage = database
     source = prepare(engine, storage)
     with Session(engine) as db:
-        result = revision_writer.write(db, InitialRevisionWrite("score", 1, source, 1, "initial"))
+        result = revision_writer.write(db, InitialRevisionWrite("score", 1, source, "initial"))
         db.commit()
         return result.revision.revision_uuid
 
@@ -632,7 +632,7 @@ def test_prepared_source_admission_is_fail_closed(database, invalid):
     with Session(engine) as db:
         before = snapshot(db)
         with pytest.raises(ValueError):
-            revision_writer.write(db, InitialRevisionWrite("score", 1, source, 1, "initial"))
+            revision_writer.write(db, InitialRevisionWrite("score", 1, source, "initial"))
         db.rollback()
         assert snapshot(db) == before
 
@@ -692,7 +692,7 @@ def test_writer_rejects_a_receipt_outside_the_canonical_revision_identity(databa
         with pytest.raises(ValueError, match="canonical source identity"):
             revision_writer.write(
                 db,
-                InitialRevisionWrite("score", 1, replace(source, receipt=wrong), 1, "wrong-source"),
+                InitialRevisionWrite("score", 1, replace(source, receipt=wrong), "wrong-source"),
             )
         db.rollback()
         assert db.scalar(sa.select(ScoreRevisionSource)) is None

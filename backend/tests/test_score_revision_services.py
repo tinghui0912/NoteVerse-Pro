@@ -737,7 +737,7 @@ def test_review_confirm_creates_active_score_once(
     assert score.display_title == "Confirmed Score"
     assert score.head_revision_id == revision.id
     assert job.state == ImportJobState.CONFIRMED
-    assert job.score_id == score.id
+    assert score.created_from_import_job_id == job.id
     notification = one_row(session, Notification, import_job_id="job-confirm-review")
     assert notification.score_id == score.score_uuid
     assert notification.score_id == score.score_uuid

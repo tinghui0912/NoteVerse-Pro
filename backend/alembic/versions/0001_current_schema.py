@@ -721,7 +721,6 @@ def upgrade() -> None:
         sa.Column("processing_last_heartbeat_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("processing_finished_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("confirmed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("score_id", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
@@ -740,7 +739,7 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("progress >= 0 AND progress <= 100", name="ck_import_jobs_progress"),
         sa.CheckConstraint(
-            "(state = 'QUEUED' AND processing_started_at IS NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL AND score_id IS NULL) OR (state = 'PROCESSING' AND processing_started_at IS NOT NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL AND score_id IS NULL) OR (state = 'READY_FOR_REVIEW' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL AND score_id IS NULL) OR (state = 'CONFIRMED' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NOT NULL AND score_id IS NOT NULL) OR (state = 'FAILED' AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL AND score_id IS NULL)",
+            "(state = 'QUEUED' AND processing_started_at IS NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL) OR (state = 'PROCESSING' AND processing_started_at IS NOT NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL) OR (state = 'READY_FOR_REVIEW' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL) OR (state = 'CONFIRMED' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NOT NULL) OR (state = 'FAILED' AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL)",
             name="ck_import_jobs_lifecycle",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_import_jobs"),
@@ -1554,23 +1553,25 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("head_revision_id", sa.BigInteger(), nullable=True),
-        sa.Column("originating_job_id", sa.BigInteger(), nullable=True),
+        sa.Column("created_from_import_job_id", sa.BigInteger(), nullable=True),
         sa.Column("metadata_version", sa.Integer(), nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("metadata_version >= 1", name="ck_scores_metadata_version_positive"),
         sa.ForeignKeyConstraint(
-            ["originating_job_id"],
+            ["created_from_import_job_id"],
             ["import_jobs.id"],
-            name="fk_scores_originating_job_id_import_jobs",
-            ondelete="SET NULL",
+            name="fk_scores_created_from_import_job_id_import_jobs",
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["owner_user_id"], ["users.id"], name="fk_scores_owner_user_id_users"
         ),
         sa.PrimaryKeyConstraint("id", name="pk_scores"),
-        sa.UniqueConstraint("originating_job_id", name="uq_scores_originating_job_id"),
+        sa.UniqueConstraint(
+            "created_from_import_job_id", name="uq_scores_created_from_import_job_id"
+        ),
         sa.UniqueConstraint("score_uuid", name="uq_scores_score_uuid"),
     )
     op.create_index(
@@ -1965,15 +1966,8 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("created_by_user_id", sa.BigInteger(), nullable=True),
-        sa.Column("created_by_job_id", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("revision_number >= 1", name="ck_score_revisions_number_positive"),
-        sa.ForeignKeyConstraint(
-            ["created_by_job_id"],
-            ["import_jobs.id"],
-            name="fk_score_revisions_created_by_job_id_import_jobs",
-            ondelete="SET NULL",
-        ),
         sa.ForeignKeyConstraint(
             ["created_by_user_id"],
             ["users.id"],
@@ -2631,15 +2625,6 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_foreign_key(
-        "fk_import_jobs_score_id",
-        "import_jobs",
-        "scores",
-        ["score_id"],
-        ["id"],
-        ondelete="SET NULL",
-        use_alter=True,
-    )
-    op.create_foreign_key(
         "fk_refresh_tokens_replaced_by_token_id_refresh_tokens",
         "refresh_tokens",
         "refresh_tokens",
@@ -2722,7 +2707,6 @@ def downgrade() -> None:
         "refresh_tokens",
         type_="foreignkey",
     )
-    op.drop_constraint("fk_import_jobs_score_id", "import_jobs", type_="foreignkey")
     op.drop_index("idx_score_revision_sources_revision_format", table_name="score_revision_sources")
     op.drop_table("score_revision_sources")
     op.drop_index("idx_practice_activities_revision_completed", table_name="practice_activities")

@@ -129,7 +129,7 @@ Celery structural task protocols belong to `app.task_queue.protocols`.
 Confirmation locks ImportDispatch before ImportJob, prepares the canonical physical source
 write, then reacquires those locks and revalidates admission. Its single business
 transaction creates Score, calls RevisionWriter, promotes retained inputs,
-updates Job CONFIRMED/score link/confirmed_at, transfers accounting and releases temporary Import
+records Score.created_from_import_job_id and Job CONFIRMED/confirmed_at, transfers accounting and releases temporary Import
 artifacts/upload links through ImportJobDeletionService. That release primitive never
 commits and is shared with the customer deletion use case, which owns its commit.
 StoredObject retirement owns physical convergence; confirmation does no storage delete.
@@ -137,7 +137,7 @@ StoredObject retirement owns physical convergence; confirmation does no storage 
 Confirmation enriches the retained `import.ready_for_review` notification with Score identity and
 Score display title in the same business transaction. If retention has removed the notification,
 confirmation succeeds without recreating notification history. No confirmed browser
-realtime type is introduced. Repeated confirmation returns the existing Score without
+realtime type is introduced. Repeated confirmation returns the existing active Score without
 repeating writes, accounting, cleanup or notification/realtime consequences. External
 work remains in the specific durable outboxes; post-commit relays are latency hints.
 
@@ -169,3 +169,13 @@ confirmation admits canonical revision rendering instead of creating render asse
 Artifact physical-write and execution-adoption boundaries require the enum's
 identity before side effects. Raw strings and foreign enum members grant no artifact
 mutation authority; storage-key serialization uses the admitted kind's value.
+
+Confirmed Import history and Dispatch/execution evidence survive the Score lifetime.
+Score owns the unique, nullable `created_from_import_job_id` FK with RESTRICT deletion;
+its initial Revision records origin, actor and immutable source rather than another Import FK.
+Import list/detail/batch-status share a bulk active-Score projection for nullable `score_id`.
+A tombstoned or physically deleted Score has no live link, and CONFIRMED remains terminal:
+confirmation then returns an invalid-state conflict and cannot create another Score.
+Confirmation releases ImportArtifact and ImportJobUpload ownership; retained history is not
+a temporary binary archive. Score deletion cleans only the Score graph and keeps shared
+Upload reference checks without taking ownership of the Import lifecycle.

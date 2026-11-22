@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportJob
+from app.db.models import ImportJob, Score
 from app.db.models.import_job import ImportJobState
 from .public_errors import public_import_job_error_code
 from .repository import ImportJobRepository
@@ -18,6 +18,19 @@ class ImportJobReadModel:
     def __init__(self, repository: ImportJobRepository | None = None) -> None:
         self.repository = repository or ImportJobRepository()
 
+    def live_scores(self, db: Session, jobs: Sequence[ImportJob]) -> dict[int, Score]:
+        return self.repository.live_scores_for_import_jobs(
+            db,
+            {
+                require_persisted_id(job.id, entity="import job")
+                for job in jobs
+                if job.state == ImportJobState.CONFIRMED
+            },
+        )
+
+    def live_score_ids(self, db: Session, jobs: Sequence[ImportJob]) -> dict[int, str]:
+        return {job_id: score.score_uuid for job_id, score in self.live_scores(db, jobs).items()}
+
     def detail(self, db: Session, job: ImportJob) -> ImportJobRead:
         return (self.details_for_jobs(db, [job]))[0]
 
@@ -25,9 +38,7 @@ class ImportJobReadModel:
         if not jobs:
             return []
         job_ids = [require_persisted_id(job.id, entity="import job") for job in jobs]
-        score_uuids = self.repository.score_uuids(
-            db, {job.score_id for job in jobs if job.score_id is not None}
-        )
+        score_uuids = self.live_score_ids(db, jobs)
         digests = self.repository.execution_manifest_digests(
             db, {job.execution_manifest_id for job in jobs if job.execution_manifest_id is not None}
         )
@@ -52,7 +63,7 @@ class ImportJobReadModel:
             result.append(
                 ImportJobRead(
                     job_id=job.job_uuid,
-                    score_id=score_uuids.get(job.score_id) if job.score_id is not None else None,
+                    score_id=score_uuids.get(job_id),
                     state=job.state,
                     progress=job.progress,
                     display_title=options.display_title,

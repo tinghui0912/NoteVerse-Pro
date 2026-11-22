@@ -55,8 +55,16 @@ Pending review jobs open Review. Failed jobs offer backend Retry.
 Delete import is allowed only for READY_FOR_REVIEW and FAILED, with state admission
 checked under the Dispatch then Job locks. Queued/running imports cannot be deleted
 because cancellation is not implemented. Confirmed import history is retained and
-links to its formal Score. Confirmation atomically promotes Score inputs and releases temporary Import ownership,
-while retaining the confirmed Job and Score provenance. Only active jobs keep the list polling.
+can link to its currently active Score. Confirmation atomically promotes Score inputs
+and releases temporary Import ownership,
+while retaining the confirmed Job, Dispatch and execution history. Score owns its optional,
+unique `created_from_import_job_id` provenance; ImportJob does not own a reverse Score link.
+CONFIRMED history is independent of the Score lifetime. Its nullable API `score_id` is a
+bulk read projection of the current active Score. Tombstoning or physically deleting that
+Score removes the navigation link while preserving CONFIRMED and `confirmed_at`; it never
+makes the Import reviewable or permits another confirmation to create a Score.
+Confirmed history retains metadata and provenance, rather than temporary binary archives.
+Only active jobs keep the list polling.
 
 ## Access Authority
 

@@ -11,9 +11,10 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, Score, StoredObject, Upload
+from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, StoredObject, Upload
 from app.db.models.import_job import ImportJobState
 from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.read_model import ImportJobReadModel
 from app.modules.import_jobs.requested_options import decode_requested_options
 from app.modules.import_jobs.review.schemas import (
     ImportJobReviewRead,
@@ -41,8 +42,8 @@ class ImportReviewReadModel:
             raise ResourceNotFoundException("job", job_uuid, CustomerErrorCode.JOB_NOT_FOUND)
         if job.user_id != user_id:
             raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"job_id": job_uuid})
-        if job.state == ImportJobState.CONFIRMED and job.score_id is not None:
-            score = db.get(Score, job.score_id)
+        if job.state == ImportJobState.CONFIRMED:
+            score = ImportJobReadModel().live_scores(db, [job]).get(job.id)
             if score:
                 return ImportJobReviewRead(
                     job_id=job.job_uuid,

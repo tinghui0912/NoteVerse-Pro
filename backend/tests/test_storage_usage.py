@@ -573,7 +573,7 @@ def test_score_deletion_execution_records_delivery_retry_on_failure(
     assert operation.failure_detail == "object storage temporarily unavailable"
 
 
-def test_score_delete_cleans_single_origin_import_job_storage(
+def test_score_delete_keeps_confirmed_history_after_import_binary_release(
     storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
@@ -602,7 +602,6 @@ def test_score_delete_cleans_single_origin_import_job_storage(
         user_id=1,
         state=ImportJobState.CONFIRMED,
         progress=100,
-        score_id=score.id,
     )
     session.add_all(
         [
@@ -624,7 +623,7 @@ def test_score_delete_cleans_single_origin_import_job_storage(
     )
     session.commit()
     session.add(ImportDispatch(job_id=1201))
-    score.originating_job_id = 1201
+    score.created_from_import_job_id = 1201
     session.add(score)
     session.add(ImportJobUpload(job_id=1201, upload_id=1202, page_number=1, sort_order=1))
     session.add(
@@ -677,6 +676,11 @@ def test_score_delete_cleans_single_origin_import_job_storage(
     upload_storage_key = upload.object_key
     review_source_storage_key = review_source.object_key
 
+    from app.modules.import_jobs.deletion_service import ImportJobDeletionService
+
+    confirmed_at = job.confirmed_at
+    ImportJobDeletionService().cleanup_binary_artifacts(session, job, 1)
+    session.commit()
     service = ScoreService(storage=storage)
     service.delete(session, score.score_uuid, 1)
 
@@ -688,7 +692,10 @@ def test_score_delete_cleans_single_origin_import_job_storage(
     assert result.scores_deleted == 1
 
     assert session.get(Score, score.id) is None
-    assert session.get(ImportJob, 1201) is None
+    retained = session.get(ImportJob, 1201)
+    assert retained.state is ImportJobState.CONFIRMED
+    assert retained.confirmed_at == confirmed_at
+    assert session.scalar(select(ImportDispatch).where(ImportDispatch.job_id == 1201)) is not None
     assert session.get(Upload, 1202) is None
     assert storage.exists(source_storage_key)
     from tests.support.retirement import drain_retirements

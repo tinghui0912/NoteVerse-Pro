@@ -27,7 +27,6 @@ def test_fresh_snapshot_schema_and_same_score_references(monkeypatch):
                 "idempotency_key",
                 "origin",
                 "created_by_user_id",
-                "created_by_job_id",
                 "created_at",
             }
         )
@@ -38,7 +37,6 @@ def test_fresh_snapshot_schema_and_same_score_references(monkeypatch):
         } == {
             ("score_id",),
             ("created_by_user_id",),
-            ("created_by_job_id",),
         }
         with Session(engine) as db:
             user = User(

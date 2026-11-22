@@ -96,7 +96,7 @@ def test_ticket_matches_all_durable_admissions_and_outer_rollback_is_atomic(data
     source = prepare(engine, storage)
     with Session(engine) as db:
         before = snapshot(db)
-        result = revision_writer.write(db, InitialRevisionWrite("score", 1, source, 1, "initial"))
+        result = revision_writer.write(db, InitialRevisionWrite("score", 1, source, "initial"))
         work = result.post_commit_work
         assert work is not None
         assert work.score_id == result.revision.score_id
@@ -126,7 +126,7 @@ def test_idempotent_replay_has_no_ticket_or_additional_work(database):
     original = initial(database)
     source = prepare(engine, storage, MUSICXML_2)
     with Session(engine) as db:
-        result = revision_writer.write(db, InitialRevisionWrite("score", 1, source, 1, "initial"))
+        result = revision_writer.write(db, InitialRevisionWrite("score", 1, source, "initial"))
         assert result.post_commit_work is None
         assert result.revision.revision_uuid == original
         db.commit()
@@ -178,7 +178,7 @@ def test_committed_business_success_survives_dispatch_and_coordinator_errors(
                 if operation == "confirm":
                     job = observer.scalar(sa.select(ImportJob))
                     assert job.state is ImportJobState.CONFIRMED
-                    assert job.score_id == work.score_id
+                    assert observer.get(Score, work.score_id).created_from_import_job_id == job.id
             seen.append(work)
             if failure == "coordinator":
                 raise RuntimeError("unexpected coordinator bug")
@@ -273,7 +273,7 @@ def test_confirm_dispatch_failure_preserves_committed_input_ownership_handoff(
     with Session(engine) as db:
         score = db.scalar(sa.select(Score).where(Score.score_uuid == response.score_id))
         job = db.scalar(sa.select(ImportJob))
-        assert job.score_id == score.id and job.state is ImportJobState.CONFIRMED
+        assert score.created_from_import_job_id == job.id and job.state is ImportJobState.CONFIRMED
         assert db.scalar(sa.select(ScoreInputAsset)).score_id == score.id
         assert db.scalar(sa.select(ImportArtifact)) is None
         counters = {

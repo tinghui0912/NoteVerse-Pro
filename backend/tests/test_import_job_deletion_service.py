@@ -89,7 +89,7 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
             score_uuid="confirmed-score",
             display_title="Confirmed",
             owner_user_id=1,
-            originating_job_id=job_id,
+            created_from_import_job_id=job_id,
         )
         db.add(score)
         db.flush()
@@ -99,13 +99,12 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
             revision_number=1,
             content_hash="a" * 64,
             origin="OMR",
-            created_by_job_id=job_id,
         )
         db.add(revision)
         db.flush()
         from app.modules.import_jobs.lifecycle import mark_confirmed
 
-        mark_confirmed(job, score_id=score.id, now=utc_now())
+        mark_confirmed(job, now=utc_now())
         db.commit()
         score_id, revision_id = score.id, revision.id
     storage_usage_service.record_allocation(
@@ -124,9 +123,8 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
     assert db.scalar(select(ImportArtifact)) is None
     if keep_job:
         assert db.get(ImportJob, job_id).state == ImportJobState.CONFIRMED
-        assert db.get(ImportJob, job_id).score_id == score_id
-        assert db.get(Score, score_id).originating_job_id == job_id
-        assert db.get(ScoreRevision, revision_id).created_by_job_id == job_id
+        assert db.get(Score, score_id).created_from_import_job_id == job_id
+        assert db.get(ScoreRevision, revision_id).score_id == score_id
         service.cleanup_binary_artifacts(db, job, 1)
         assert db.get(ImportJob, job_id) is not None
     assert storage.exists(obj.object_key)
@@ -186,7 +184,7 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
         score = Score(score_uuid="locked-score", display_title="Score", owner_user_id=1)
         db.add(score)
         db.flush()
-        values.update(score_id=score.id, confirmed_at=utc_now())
+        values.update(confirmed_at=utc_now())
     db.execute(
         update(ImportJob)
         .where(ImportJob.id == job.id)
@@ -342,13 +340,13 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
             score_uuid="formal-score",
             display_title="Formal",
             owner_user_id=1,
-            originating_job_id=job_id,
+            created_from_import_job_id=job_id,
         )
         db.add(score)
         db.flush()
         from app.modules.import_jobs.lifecycle import mark_confirmed
 
-        mark_confirmed(job, score_id=score.id, now=utc_now())
+        mark_confirmed(job, now=utc_now())
         db.commit()
         score_id = score.id
     db.commit()
@@ -387,5 +385,4 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     retirements = list(db.scalars(select(StoredObjectRetirement)))
     assert len(retirements) == (2 if allowed else 0)
     if state == ImportJobState.CONFIRMED:
-        assert db.get(Score, score_id).originating_job_id == job_id
-        assert db.get(ImportJob, job_id).score_id == score_id
+        assert db.get(Score, score_id).created_from_import_job_id == job_id

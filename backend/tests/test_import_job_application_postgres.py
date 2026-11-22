@@ -522,12 +522,15 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
         score = (
             check.execute(select(Score).where(Score.score_uuid == confirmed.score_id))
         ).scalar_one()
-        assert persisted.state == ImportJobState.CONFIRMED and persisted.score_id == score.id
-        assert score.originating_job_id == job_id
+        assert (
+            persisted.state == ImportJobState.CONFIRMED
+            and score.created_from_import_job_id == persisted.id
+        )
+        assert score.created_from_import_job_id == job_id
         revision = (
             check.execute(select(ScoreRevision).where(ScoreRevision.score_id == score.id))
         ).scalar_one()
-        assert revision.created_by_job_id == job_id
+        assert revision.created_by_user_id == 1 and revision.revision_number == 1
         assert (
             check.scalar(
                 select(func.count())

@@ -97,18 +97,16 @@ def test_processing_outcome_and_confirmation_have_distinct_durable_instants(scor
     recorder.finalize_success(db, lease)
     finished_at = job.processing_finished_at
     assert job.state == ImportJobState.READY_FOR_REVIEW and job.progress == 100
-    assert finished_at >= started_at and job.confirmed_at is None and job.score_id is None
+    assert finished_at >= started_at and job.confirmed_at is None
     notice = db.scalar(select(Notification).where(Notification.import_job_id == job.job_uuid))
     assert notice.kind == NotificationKind.IMPORT_READY_FOR_REVIEW
     assert notice.created_at == finished_at
-    score = Score(score_uuid="confirmed-score", owner_user_id=1, display_title="Score")
-    db.add(score)
-    db.flush()
-    mark_confirmed(job, score_id=score.id, now=finished_at + timedelta(seconds=1))
+    mark_confirmed(job, now=finished_at + timedelta(seconds=1))
     db.commit()
     confirmed_at = job.confirmed_at
     assert job.state == ImportJobState.CONFIRMED and confirmed_at > finished_at
-    mark_confirmed(job, score_id=score.id, now=confirmed_at + timedelta(seconds=1))
+    assert db.scalar(select(Score)) is None
+    mark_confirmed(job, now=confirmed_at + timedelta(seconds=1))
     db.commit()
     assert job.confirmed_at == confirmed_at
     assert job.processing_started_at == started_at and job.processing_finished_at == finished_at
@@ -151,8 +149,8 @@ def test_failure_recovery_clears_only_execution_facts(score_service_session):
     [
         (ImportJobState.PROCESSING, {"processing_started_at": None}),
         (ImportJobState.READY_FOR_REVIEW, {"processing_finished_at": None}),
-        (ImportJobState.CONFIRMED, {"score_id": None}),
         (ImportJobState.CONFIRMED, {"confirmed_at": None}),
+        (ImportJobState.CONFIRMED, {"processing_finished_at": None}),
         (ImportJobState.FAILED, {"failure_code": None}),
         (ImportJobState.FAILED, {"processing_finished_at": None}),
         (
@@ -186,7 +184,7 @@ def test_postgresql_enforces_import_lifecycle_combinations(score_service_session
     if state in {ImportJobState.READY_FOR_REVIEW, ImportJobState.CONFIRMED}:
         mark_ready_for_review(job, now=now)
     if state == ImportJobState.CONFIRMED:
-        mark_confirmed(job, score_id=score.id, now=now)
+        mark_confirmed(job, now=now)
     if state == ImportJobState.FAILED:
         mark_failed(job, failure=FAILURE, detail=None, now=now)
     db.commit()
@@ -202,12 +200,17 @@ def test_confirmed_batch_status_bulk_hydrates_score_identities(score_service_ses
     jobs = []
     for index in range(5):
         job = queued(db, str(index))
-        score = Score(score_uuid=f"score-{index}", owner_user_id=1, display_title="Score")
+        score = Score(
+            score_uuid=f"score-{index}",
+            owner_user_id=1,
+            display_title="Score",
+            created_from_import_job_id=job.id,
+        )
         db.add(score)
         db.flush()
         begin_processing(job, now=utc_now())
         mark_ready_for_review(job, now=utc_now())
-        mark_confirmed(job, score_id=score.id, now=utc_now())
+        mark_confirmed(job, now=utc_now())
         jobs.append(job)
     db.commit()
     job_ids = [job.job_uuid for job in jobs]

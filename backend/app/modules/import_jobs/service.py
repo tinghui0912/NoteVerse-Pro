@@ -134,14 +134,7 @@ class ImportJobService:
         user_id: int,
     ) -> dict[str, ImportJobStatusEntry]:
         jobs = self.repository.batch_status(db, job_uuids, user_id)
-        score_uuids = self.repository.score_uuids(
-            db,
-            {
-                job.score_id
-                for job in jobs
-                if job.state == ImportJobState.CONFIRMED and job.score_id is not None
-            },
-        )
+        score_uuids = self.read_model.live_score_ids(db, jobs)
         return {
             job.job_uuid: {
                 "state": job.state,
@@ -149,7 +142,7 @@ class ImportJobService:
                 "public_code": public_import_job_error_code(job)
                 if job.state == ImportJobState.FAILED
                 else None,
-                "score_id": score_uuids.get(job.score_id)
+                "score_id": score_uuids.get(job.id)
                 if job.state == ImportJobState.CONFIRMED
                 else None,
             }

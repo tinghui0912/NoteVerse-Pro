@@ -32,11 +32,10 @@ def test_read_model_preserves_lifecycle_instants_and_emits_utc():
         job_uuid="job",
         user_id=1,
         state=ImportJobState.CONFIRMED,
-        score_id=1,
         **dict.fromkeys(TIME_FIELDS, source),
     )
     repository = Mock(spec=ImportJobRepository)
-    repository.score_uuids.return_value = {1: "score"}
+    repository.live_scores_for_import_jobs.return_value = {1: Mock(score_uuid="score")}
     repository.execution_manifest_digests.return_value = {}
     repository.uploads_for_jobs.return_value = []
 
@@ -84,3 +83,54 @@ def test_import_lifecycle_openapi_fields_are_date_time_instants():
             assert field not in schema["required"]
             assert {"type": "string", "format": "date-time"} in value["anyOf"]
             assert {"type": "null"} in value["anyOf"]
+
+
+def test_live_navigation_projects_only_confirmed_job_identities_in_one_bulk_query():
+    from app.db.models import Score
+
+    jobs = [
+        ImportJob(
+            id=i,
+            job_uuid=f"job-{i}",
+            user_id=1,
+            state=state,
+            requested_options=encode_requested_options(None),
+        )
+        for i, state in enumerate(
+            [ImportJobState.QUEUED, ImportJobState.CONFIRMED, ImportJobState.FAILED], 1
+        )
+    ]
+    repository = Mock(spec=ImportJobRepository)
+    repository.live_scores_for_import_jobs.return_value = {
+        2: Score(
+            score_uuid="live-score",
+            owner_user_id=1,
+            display_title="Score",
+            created_from_import_job_id=2,
+        )
+    }
+    db = Mock()
+    assert ImportJobReadModel(repository).live_score_ids(db, jobs) == {2: "live-score"}
+    repository.live_scores_for_import_jobs.assert_called_once_with(db, {2})
+
+
+def test_import_history_and_score_creation_have_one_direction_of_relational_ownership():
+    from app.db.models import Score, ScoreRevision
+    from sqlalchemy import UniqueConstraint
+
+    assert {fk.target_fullname for fk in ImportJob.__table__.foreign_keys} == {
+        "users.id",
+        "execution_manifests.id",
+    }
+    provenance = Score.__table__.c.created_from_import_job_id
+    assert provenance.nullable
+    (fk,) = provenance.foreign_keys
+    assert fk.target_fullname == "import_jobs.id" and fk.ondelete == "RESTRICT"
+    assert any(
+        isinstance(constraint, UniqueConstraint) and list(constraint.columns) == [provenance]
+        for constraint in Score.__table__.constraints
+    )
+    assert {fk.target_fullname for fk in ScoreRevision.__table__.foreign_keys} == {
+        "scores.id",
+        "users.id",
+    }

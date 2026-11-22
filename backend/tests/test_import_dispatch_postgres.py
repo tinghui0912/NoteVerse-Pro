@@ -52,7 +52,6 @@ def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch
             "processing_last_heartbeat_at",
             "processing_finished_at",
             "confirmed_at",
-            "score_id",
             "created_at",
             "updated_at",
         }
@@ -288,7 +287,7 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                         score_uuid="confirmed-under-lock",
                         display_title="Confirmed",
                         owner_user_id=1,
-                        originating_job_id=job_id,
+                        created_from_import_job_id=job_id,
                     )
                     worker.add(score)
                     worker.flush()
@@ -298,10 +297,8 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                         revision_number=1,
                         content_hash="a" * 64,
                         origin="OMR",
-                        created_by_job_id=job_id,
                     )
                     worker.add(revision)
-                    current.score_id = score.id
                 current.state = locked_state
                 if locked_state == ImportJobState.QUEUED:
                     current.processing_started_at = current.processing_finished_at = None
@@ -334,10 +331,9 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                         persisted_score = check.scalar(sa.select(Score))
                         assert (
                             persisted_score is not None
-                            and persisted_score.originating_job_id == job_id
+                            and persisted_score.created_from_import_job_id == job_id
                         )
-                        assert check.get(ImportJob, job_id).score_id == persisted_score.id
-                        assert check.scalar(sa.select(ScoreRevision)).created_by_job_id == job_id
+                        assert check.get(ImportJob, job_id).state == ImportJobState.CONFIRMED
                 else:
                     assert error is None
                     assert check.get(ImportJob, job_id) is None

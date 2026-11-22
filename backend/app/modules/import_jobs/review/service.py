@@ -26,6 +26,7 @@ from app.db.models import (
     StorageUsageCategory,
 )
 from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.lifecycle import mark_confirmed
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.notifications import (
@@ -113,8 +114,14 @@ class ImportReviewService:
             raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"job_id": job_uuid})
         if dispatch is None:
             raise RuntimeError("Import job requires a durable dispatch")
-        if job.score_id is not None:
-            score = db.get(Score, job.score_id)
+        if job.state == ImportJobState.CONFIRMED:
+            score = (
+                ImportJobRepository()
+                .live_scores_for_import_jobs(
+                    db, {require_persisted_id(job.id, entity="import job")}
+                )
+                .get(job.id)
+            )
             if score:
                 return ReviewConfirmRead(score_id=score.score_uuid)
         if job.state != ImportJobState.READY_FOR_REVIEW:
@@ -175,8 +182,14 @@ class ImportReviewService:
             ).scalar_one_or_none()
             if job is None:
                 raise ResourceNotFoundException("job", job_uuid, CustomerErrorCode.JOB_NOT_FOUND)
-            if job.score_id is not None:
-                existing = db.get(Score, job.score_id)
+            if job.state == ImportJobState.CONFIRMED:
+                existing = (
+                    ImportJobRepository()
+                    .live_scores_for_import_jobs(
+                        db, {require_persisted_id(job.id, entity="import job")}
+                    )
+                    .get(job.id)
+                )
                 if existing is not None:
                     storage_usage_service.release_reservation(db, reservation.reservation_id)
                     db.commit()
@@ -188,7 +201,7 @@ class ImportReviewService:
                 owner_user_id=user_id,
                 display_title=display_title,
                 genres=[genre.value for genre in genres],
-                originating_job_id=require_persisted_id(job.id, entity="import job"),
+                created_from_import_job_id=require_persisted_id(job.id, entity="import job"),
                 created_at=now,
                 updated_at=now,
             )
@@ -209,7 +222,6 @@ class ImportReviewService:
                     score_uuid,
                     user_id,
                     prepared,
-                    require_persisted_id(job.id, entity="job"),
                     f"job-confirm:{job_uuid}",
                 ),
             )
@@ -218,7 +230,7 @@ class ImportReviewService:
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_id=score_id,
             )
-            mark_confirmed(job, score_id=score_id, now=utc_now())
+            mark_confirmed(job, now=utc_now())
             for promoted in promoted_inputs:
                 if promoted.releases_upload_allocation:
                     storage_usage_service.record_release(

@@ -94,16 +94,18 @@ class ImportJobRepository:
             .all()
         )
 
-    def score_uuids(self, db: Session, score_ids: set[int]) -> dict[int, str]:
-        if not score_ids:
+    def live_scores_for_import_jobs(self, db: Session, job_ids: set[int]) -> dict[int, Score]:
+        if not job_ids:
             return {}
-        return dict(
-            (
-                db.execute(
-                    select(Score.id, Score.score_uuid).where(Score.__table__.c.id.in_(score_ids))
+        return {
+            score.created_from_import_job_id: score
+            for score in db.scalars(
+                select(Score).where(
+                    Score.created_from_import_job_id.in_(job_ids), Score.deleted_at.is_(None)
                 )
-            ).all()
-        )
+            )
+            if score.created_from_import_job_id is not None
+        }
 
     def execution_manifest_digests(self, db: Session, manifest_ids: set[int]) -> dict[int, str]:
         if not manifest_ids:

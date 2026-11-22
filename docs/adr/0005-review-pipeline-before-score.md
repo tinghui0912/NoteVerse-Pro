@@ -16,8 +16,9 @@ OCR output requires human confirmation before it becomes a stable score. Job-sco
    and related job artifacts.
 4. `ImportJob.READY_FOR_REVIEW` means the job has review artifacts and is waiting for human
    confirmation.
-5. `ImportJob.CONFIRMED` means review confirmation created the canonical Score and recorded
-   `ImportJob.score_id`.
+5. `ImportJob.CONFIRMED` records completed review confirmation. Score owns its unique
+   `created_from_import_job_id` relationship to that history. Import Activity projects a
+   live Score link; Score deletion preserves the confirmed history and removes that link.
 6. `/review/:jobId` is the review route.
 7. `/review/:jobId/edit` is a job-scoped editor for the temporary review MusicXML artifact.
 8. Saving in `/review/:jobId/edit` updates the review artifact through `PATCH /import-jobs/{job_id}/review`.
@@ -67,6 +68,6 @@ Import Review and execution orchestration belong to `app.modules.import_jobs`.
 Shared OMR/MusicXML/text processing engines remain independent capabilities.
 Confirmation creates the Score and delegates initial revision admission to
 RevisionWriter. Score/revision, durable derivative work, source/input accounting,
-Job CONFIRMED state/link, temporary artifact/link release, retirement admission and
+Job CONFIRMED state/confirmed_at, temporary artifact/link release, retirement admission and
 ImportJobConfirmed commit as one transaction. Physical deletion is background work.
 The user-facing Review workspace URLs are independent of the API resource namespace.

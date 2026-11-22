@@ -51,7 +51,6 @@ class InitialRevisionWrite:
     score_uuid: str
     actor_user_id: int
     source: PreparedRevisionSource
-    job_id: int | None
     idempotency_key: str
     origin: RevisionOrigin = RevisionOrigin.OMR
 
@@ -170,7 +169,6 @@ class RevisionWriter:
             idempotency_key=key,
             origin=origin,
             created_by_user_id=command.actor_user_id,
-            created_by_job_id=command.job_id if isinstance(command, InitialRevisionWrite) else None,
             created_at=now,
         )
         db.add(revision)

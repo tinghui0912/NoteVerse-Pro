@@ -16,7 +16,6 @@ test('score detail uses lightweight hero layout and lazy playback', async ({ pag
     genres: ['classical'],
     metadata_version: 1, head_revision_number: 1,
     head_revision_id: revisionId,
-    originating_job_id: 'job-1',
     metadata: null,
     derived_assets: {
       preview: { status: 'pending', asset_id: null },

@@ -69,11 +69,11 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
         ),
         CheckConstraint("progress >= 0 AND progress <= 100", name="ck_import_jobs_progress"),
         CheckConstraint(
-            "(state = 'QUEUED' AND processing_started_at IS NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL AND score_id IS NULL) OR "
-            "(state = 'PROCESSING' AND processing_started_at IS NOT NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL AND score_id IS NULL) OR "
-            "(state = 'READY_FOR_REVIEW' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL AND score_id IS NULL) OR "
-            "(state = 'CONFIRMED' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NOT NULL AND score_id IS NOT NULL) OR "
-            "(state = 'FAILED' AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL AND score_id IS NULL)",
+            "(state = 'QUEUED' AND processing_started_at IS NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL) OR "
+            "(state = 'PROCESSING' AND processing_started_at IS NOT NULL AND processing_finished_at IS NULL AND confirmed_at IS NULL) OR "
+            "(state = 'READY_FOR_REVIEW' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL) OR "
+            "(state = 'CONFIRMED' AND processing_started_at IS NOT NULL AND processing_finished_at IS NOT NULL AND confirmed_at IS NOT NULL) OR "
+            "(state = 'FAILED' AND processing_finished_at IS NOT NULL AND confirmed_at IS NULL)",
             name="ck_import_jobs_lifecycle",
         ),
         UniqueConstraint(
@@ -123,18 +123,6 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     )
     confirmed_at: Optional[datetime] = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
-    )
-    score_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            BigInteger,
-            ForeignKey(
-                "scores.id",
-                name="fk_import_jobs_score_id",
-                use_alter=True,
-                ondelete="SET NULL",
-            ),
-        ),
     )
     created_at: datetime = Field(
         default_factory=utc_now,
