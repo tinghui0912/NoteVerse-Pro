@@ -74,7 +74,7 @@ def test_score_access_contract_exposes_current_channels_and_workspace_filters(
     client: TestClient,
 ) -> None:
     from app.db.models.score_access import AccessOrigin
-    from app.modules.score_access.policy import ScoreAction
+    from app.modules.score_access.actions import ScoreAction
 
     assert {origin.value for origin in AccessOrigin} == {"OWNER", "MEMBERSHIP"}
     assert {action.value for action in ScoreAction} == {

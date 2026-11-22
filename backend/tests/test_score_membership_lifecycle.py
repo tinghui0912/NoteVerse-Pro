@@ -19,7 +19,8 @@ from app.modules.library.schemas import (
     LibraryScoreBatchFavoriteRequest,
 )
 from app.modules.library.service import LibraryService
-from app.modules.score_access.policy import ScoreAction, ScoreAccessPolicy
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.collaboration.schemas import InviteCreateRequest
 from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.membership_service import MembershipService

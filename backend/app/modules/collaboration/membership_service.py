@@ -8,7 +8,8 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import Score, ScoreMembership
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.collaboration.repository import CollaborationRepository
 from app.modules.collaboration.read_model import CollaborationReadModel
 from app.modules.collaboration.pagination import DEFAULT_PAGE_SIZE

@@ -87,7 +87,8 @@ from app.modules.scores.service import ScoreService
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.collaboration.schemas import InviteCreateRequest
 from app.modules.collaboration.invite_lifecycle import hash_invite_token
 from app.modules.collaboration.invitation_service import InvitationService

@@ -25,7 +25,8 @@ from app.modules.performance_takes.schemas import (
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
 )
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.shared.error_codes import CustomerErrorCode
 from app.storage.factory import object_storage
 

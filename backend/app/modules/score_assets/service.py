@@ -16,7 +16,8 @@ from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
 from app.db.models.score import RenderAssetKind
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRecord, ScoreAssetRepository
 from app.modules.score_assets.schemas import (
     AssetAccessRead,

@@ -10,7 +10,8 @@ from app.db.models import Score, ScoreMembership, ScoreRevision, User
 from app.db.models.score import RevisionOrigin
 from app.db.models.score_access import MembershipRole
 from app.main import app
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from tests.test_score_revision_services import score_service_session as score_service_session
 
 

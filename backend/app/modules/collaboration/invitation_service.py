@@ -17,7 +17,8 @@ from app.modules.collaboration.invite_lifecycle import (
     effective_invite_status,
     require_pending_invite,
 )
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.mail.outbox_service import queue_mail
 from app.modules.mail.templates.score_invites import build_invite_email, invite_role_label
 from app.modules.collaboration.pagination import DEFAULT_PAGE_SIZE

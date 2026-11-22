@@ -21,7 +21,8 @@ from app.modules.guest_previews.schemas import (
     GuestPreviewRead,
 )
 from app.modules.playback.delivery import PlaybackDeliveryReadModel
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.storage_objects.reads import StoredObjectDelivery
 from app.shared.error_codes import CustomerErrorCode

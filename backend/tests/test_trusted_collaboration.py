@@ -22,7 +22,8 @@ from app.db.models import (
 from app.db.models.score_access import MembershipRole, AccessOrigin, InviteTerminalOutcome
 from app.db.models.score import RevisionSourceFormat
 from app.main import app
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.service import ScoreService
 from app.modules.revisions.service import RevisionService

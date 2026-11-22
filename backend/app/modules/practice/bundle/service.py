@@ -9,7 +9,8 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.shared.error_codes import CustomerErrorCode

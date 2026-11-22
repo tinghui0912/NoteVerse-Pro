@@ -17,7 +17,8 @@ from app.modules.metadata.event_codec import (
 )
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.processing.musicxml import (
     MusicXMLMetadata,
 )

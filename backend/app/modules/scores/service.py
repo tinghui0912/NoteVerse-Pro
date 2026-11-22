@@ -31,7 +31,8 @@ from app.modules.scores.schemas import (
     ScoreUpdateRequest,
 )
 from app.modules.metadata.service import MetadataProjectionService
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage

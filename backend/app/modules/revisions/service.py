@@ -37,7 +37,8 @@ from app.modules.revisions.schemas import (
     RevisionRead,
     RevisionRestoreRequest,
 )
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
 from app.modules.storage_usage.service import storage_usage_service

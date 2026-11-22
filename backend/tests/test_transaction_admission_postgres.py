@@ -342,3 +342,25 @@ def test_folder_unrelated_failures_keep_the_original_error(
         db.rollback()
     with Session(engine) as db:
         assert sorted(db.scalars(select(ScoreLibraryFolder.name))) == ["F", "G"]
+
+
+@pytest.mark.parametrize("role", [None, *MembershipRole])
+def test_batch_deletion_eligibility_matches_delete_action_semantics(batch_database, role):
+    from app.modules.score_access.actions import ScoreAction, semantics_for
+    from app.modules.score_access.roles import owner_capabilities, membership_capabilities
+
+    engine, _ = batch_database
+    caps = owner_capabilities() if role is None else membership_capabilities(role)
+    allowed = getattr(caps, semantics_for(ScoreAction.DELETE).capability)
+    with Session(engine) as db:
+        if role is not None:
+            db.add(ScoreMembership(score_id=1, user_id=2, role=role, created_by_user_id=1))
+            db.commit()
+        user_id = 1 if role is None else 2
+        if allowed:
+            assert len(ScoreLifecycleService().admit_deletions(db, ["score-1"], user_id)) == 1
+        else:
+            with pytest.raises(UnauthorizedException) as denied:
+                ScoreLifecycleService().admit_deletions(db, ["score-1"], user_id)
+            assert denied.value.code is semantics_for(ScoreAction.DELETE).denial_code
+        db.rollback()

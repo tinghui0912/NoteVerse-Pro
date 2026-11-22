@@ -15,7 +15,8 @@ from app.modules.fingering.execution import (
     fingering_execution_service,
 )
 from app.modules.fingering.schemas import FingeringRequest, FingeringResultRead
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.processing.engines.fingering import PianoplayerFingeringEngine
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.shared.error_codes import CustomerErrorCode

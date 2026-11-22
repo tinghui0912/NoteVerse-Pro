@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import enum
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,21 +14,11 @@ from app.db.models import (
 from app.db.models.score_access import (
     AccessOrigin,
 )
+from app.modules.score_access.actions import ScoreAction, semantics_for
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_access.roles import membership_capabilities, owner_capabilities
 from app.modules.score_access.queries import active_score_predicate, active_membership_predicate
 from app.shared.error_codes import CustomerErrorCode
-
-
-class ScoreAction(str, enum.Enum):
-    VIEW = "VIEW"
-    EDIT = "EDIT"
-    DELETE = "DELETE"
-    LEAVE = "LEAVE"
-    MANAGE_GUEST_PREVIEWS = "MANAGE_GUEST_PREVIEWS"
-    MANAGE_MEMBERS = "MANAGE_MEMBERS"
-    DOWNLOAD = "DOWNLOAD"
-    PRACTICE = "PRACTICE"
 
 
 @dataclass(frozen=True)
@@ -115,19 +104,11 @@ class ScoreAccessPolicy:
         score_uuid: str,
         action: ScoreAction,
     ) -> None:
-        allowed = {
-            ScoreAction.VIEW: access.capabilities.can_view,
-            ScoreAction.EDIT: access.capabilities.can_edit,
-            ScoreAction.DELETE: access.capabilities.can_delete,
-            ScoreAction.LEAVE: access.capabilities.can_leave,
-            ScoreAction.MANAGE_GUEST_PREVIEWS: access.capabilities.can_manage_guest_previews,
-            ScoreAction.MANAGE_MEMBERS: access.capabilities.can_manage_members,
-            ScoreAction.DOWNLOAD: access.capabilities.can_download,
-            ScoreAction.PRACTICE: access.capabilities.can_practice,
-        }[action]
+        spec = semantics_for(action)
+        allowed = getattr(access.capabilities, spec.capability)
         if not allowed:
             raise UnauthorizedException(
-                _denial_code(action), {"score_id": score_uuid, "action": action.value}
+                spec.denial_code, {"score_id": score_uuid, "action": action.value}
             )
 
     def _revision(self, db: Session, score: Score, revision_uuid: str | None) -> ScoreRevision:
@@ -147,17 +128,3 @@ class ScoreAccessPolicy:
                 "revision", revision_uuid or "head", CustomerErrorCode.REVISION_NOT_FOUND
             )
         return revision
-
-
-def _denial_code(action: ScoreAction) -> CustomerErrorCode:
-    if action == ScoreAction.EDIT:
-        return CustomerErrorCode.NO_EDIT_ACCESS
-    if action == ScoreAction.DELETE:
-        return CustomerErrorCode.NO_DELETE_ACCESS
-    if action == ScoreAction.MANAGE_GUEST_PREVIEWS:
-        return CustomerErrorCode.NO_GUEST_PREVIEW_ACCESS
-    if action == ScoreAction.DOWNLOAD:
-        return CustomerErrorCode.NO_DOWNLOAD_ACCESS
-    if action == ScoreAction.PRACTICE:
-        return CustomerErrorCode.NO_PRACTICE_ACCESS
-    return CustomerErrorCode.NO_ACCESS

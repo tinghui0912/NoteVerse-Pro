@@ -8,7 +8,8 @@ from app.core.exceptions import ConflictException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models.practice_activity import PracticeActivity
 from app.modules.practice.bundle.repository import PracticeBundleRepository
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 from .schemas import PracticeActivityCreateRequest, PracticeActivityRead

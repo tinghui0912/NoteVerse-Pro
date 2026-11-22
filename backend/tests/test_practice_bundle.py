@@ -11,7 +11,7 @@ import pytest
 from app.modules.practice.bundle.compiler import PracticeBundleCompiler
 from app.modules.practice.bundle.domain import PracticeBundleRepresentation, PracticeBundleRef
 from app.modules.practice.bundle.service import PracticeBundleService
-from app.modules.score_access.policy import ScoreAction
+from app.modules.score_access.actions import ScoreAction
 from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
 

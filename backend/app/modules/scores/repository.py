@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import (
-    ImportJob,
     Score,
     ScoreRevision,
 )
@@ -81,8 +80,3 @@ class ScoreRepository:
             .scalars()
             .all()
         )
-
-    def originating_job(self, db: Session, job_id: int | None) -> ImportJob | None:
-        if job_id is None:
-            return None
-        return db.get(ImportJob, job_id)

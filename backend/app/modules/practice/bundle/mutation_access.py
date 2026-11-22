@@ -9,11 +9,8 @@ from app.db.models import (
     ScoreRevision,
     ScoreMembership,
 )
-from app.modules.score_access.policy import (
-    ScoreRevisionAccessContext,
-    ScoreAccessPolicy,
-    ScoreAction,
-)
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreRevisionAccessContext, ScoreAccessPolicy
 from app.shared.error_codes import CustomerErrorCode
 
 
