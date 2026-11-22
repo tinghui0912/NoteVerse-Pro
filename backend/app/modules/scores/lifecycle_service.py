@@ -9,6 +9,7 @@ from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreDeletionOperation
 from app.modules.scores.repository import ScoreRepository
+from app.modules.score_access.actions import ScoreAction, semantics_for
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 
@@ -31,7 +32,7 @@ class ScoreLifecycleService:
         for score in scores:
             if score.owner_user_id != user_id:
                 raise UnauthorizedException(
-                    CustomerErrorCode.NO_DELETE_ACCESS, {"score_id": score.score_uuid}
+                    semantics_for(ScoreAction.DELETE).denial_code, {"score_id": score.score_uuid}
                 )
         now = utc_now()
         traceparent, tracestate = get_async_trace_context()
