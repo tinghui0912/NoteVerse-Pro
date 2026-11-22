@@ -37,5 +37,5 @@ export async function reviewConfirmed(client: QueryClient, jobId: string, scoreI
 
 
 export function importScoreLinksChanged(client: QueryClient) {
-  return client.invalidateQueries({ queryKey: importQueryKeys.jobs.all });
+  return client.invalidateQueries({ queryKey: importQueryKeys.all });
 }
