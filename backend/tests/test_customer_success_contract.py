@@ -25,7 +25,6 @@ from app.shared.api_model import ApiModel
 
 
 BODYLESS_COMMANDS = {
-    "authLogin",
     "authLogout",
     "authRefresh",
     "authRegister",

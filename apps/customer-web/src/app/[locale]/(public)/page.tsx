@@ -1,4 +1,4 @@
-﻿
+
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
@@ -9,7 +9,7 @@ import { ArrowRight, UploadCloud, Edit, Share2, Music, Download, CheckCircle } f
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { AnimatedSection } from '@/components/marketing/animated-section';
 import { MarketingFooter } from '@/components/marketing/marketing-footer';
 
@@ -103,7 +103,7 @@ export default function HomePage() {
   const t = useTranslations('home');
   const tPricing = useTranslations('pricing');
   const locale = useLocale();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthentication();
   const formatPrice = (price: number) => new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'CNY',

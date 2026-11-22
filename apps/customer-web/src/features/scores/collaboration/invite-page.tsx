@@ -10,7 +10,7 @@ import { ResourceLoadError } from '@/components/states';
 import { InlineLoading } from '@/components/loading';
 import { ResourceLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { Link } from '@/i18n/routing';
 import { useAcceptScoreInvite, useScoreInviteAccess } from '@/features/scores/collaboration/queries';
 import { ApiError } from '@/lib/http/customer-browser-transport';
@@ -68,7 +68,7 @@ export default function InvitePage({ token }: { token: string }) {
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, principal } = useAuthentication();
   const inviteQuery = useScoreInviteAccess(token);
   const acceptInvite = useAcceptScoreInvite();
   const invite = inviteQuery.data ?? null;
@@ -78,7 +78,7 @@ export default function InvitePage({ token }: { token: string }) {
   const returnUrl = new URL(currentUrl, 'http://noteverse.local');
   returnUrl.searchParams.set('accept', '1');
   const loginHref = `/auth/login?returnUrl=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}`;
-  const userEmail = user?.email.toLowerCase() ?? null;
+  const userEmail = principal?.email.toLowerCase() ?? null;
   const targetEmail = invite?.email.toLowerCase() ?? null;
   const emailMatches = !targetEmail || !userEmail || targetEmail === userEmail;
   const refreshedAfterLoginRef = React.useRef(false);

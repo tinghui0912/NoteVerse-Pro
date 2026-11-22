@@ -11,10 +11,10 @@ import type { RegisterRequest } from '@/generated/api';
  * Log in a user.
  * @param email User email address.
  * @param password User password.
- * @returns No response body. Session cookies are managed by the backend.
+ * @returns The authenticated Account principal; the backend also establishes session cookies.
  */
 async function login(email: string, password: string) {
-  return responseComplete(authLogin({
+  return responseBody(authLogin({
     ...customerTransport.public, body: {
       username: email,
       password: password,
@@ -61,7 +61,7 @@ async function requestPasswordReset(
  * Reset a password.
  * @param newPassword New password.
  * @param token Password reset token.
- * @param locale Locale used for localized response messaging.
+ * @param locale Locale used for the password-reset security email.
  */
 async function resetPassword(
   newPassword: string,
@@ -77,7 +77,7 @@ async function resetPassword(
   }));
 }
 
-export const authApi = {
+export const authenticationApi = {
   login,
   register,
   verifyEmail,

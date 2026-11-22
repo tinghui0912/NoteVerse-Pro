@@ -47,7 +47,7 @@ describe('route shell groups', () => {
 
   it('keeps auth flows in a dedicated AuthShell route group', () => {
     expect(existsSync(projectPath('src/app/[locale]/(auth)/layout.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/(auth)/auth/login/page.tsx'))).toBe(true);
+    expect(existsSync(projectPath('src/features/authentication/login/login-page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(auth)/auth/register/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(auth)/auth/forgot-password/page.tsx'))).toBe(true);
     expect(existsSync(projectPath('src/app/[locale]/(auth)/auth/reset-password/page.tsx'))).toBe(true);
@@ -215,7 +215,7 @@ describe('route shell groups', () => {
     const libraryPage = readSource('src/features/library/library-page.tsx');
     const librarySidebar = readSource('src/features/library/components/library-sidebar.tsx');
     const uploadPage = readSource('src/app/[locale]/(app)/upload/page.tsx');
-    const loginPage = readSource('src/app/[locale]/(auth)/auth/login/page.tsx');
+    const loginPage = readSource('src/features/authentication/login/login-page.tsx');
     const securityPanel = readSource('src/features/account/security/security-settings-panel.tsx');
     const scorePreviewViewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const practiceScoreViewer = readSource('src/components/practice/practice-score-viewer.tsx');
@@ -265,11 +265,11 @@ describe('route shell groups', () => {
   });
 
   it('redirects logout and expired sessions through the same returnUrl helper', () => {
-    const authContext = readSource('src/contexts/auth-context.tsx');
+    const documentNavigation = readSource('src/features/authentication/session/document-navigation.ts');
     const apiClient = readSource('src/lib/http/customer-browser-transport.ts');
 
-    expect(authContext).toContain('getCurrentLoginHref');
-    expect(authContext).toContain('window.location.assign(getCurrentLoginHref())');
+    expect(documentNavigation).toContain('getCurrentLoginHref');
+    expect(documentNavigation).toContain('window.location.assign(getCurrentLoginHref())');
     expect(apiClient).toContain('getCurrentLoginHref');
     expect(apiClient).toContain('window.location.href = getCurrentLoginHref()');
   });

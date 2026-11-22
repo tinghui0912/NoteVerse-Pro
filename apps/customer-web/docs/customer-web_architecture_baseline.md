@@ -23,6 +23,7 @@ change; CI runs `npm run check:api` to reject stale output.
 owns credential management and public bearer operations, under the same Score feature.
 `src/features/notifications/api.ts` owns durable Notification history and read-state adapters.
 `src/features/account/profile`, `security` and `sessions` own current-user Account adapters.
+`src/features/authentication/api.ts` owns login, logout, registration and recovery adapters.
 Domains without an explicit feature boundary keep their named adapters under `src/lib/api/*`.
 HTTP operation definitions belong to generated code, and browser transport
 policy belongs to `src/lib/http/`.
@@ -173,6 +174,7 @@ features/account/profile current profile/Avatar adapters, forms and crop applica
 features/account/security security overview, password/email-change workflow and confirmation
 features/account/sessions authenticated refresh-session inventory/revocation and presentation
 features/account        Account query identities and cross-lifecycle cache consequences
+features/authentication browser session/principal, auth entry flows and safe return navigation
 components/settings    cross-domain SettingsShell and Billing/Storage presentation
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
@@ -214,7 +216,7 @@ The Bell combines pending actions with the server unread count. Collaboration re
 99+. Bell and Center share the same query state. `notifications.changed` refreshes
 Notification list/count only; realtime transport remains shared infrastructure.
 
-Account Profile hydrates AuthContext's current principal; there is no parallel profile
+Account Profile hydrates Authentication's current principal; there is no parallel profile
 query cache. Account Security owns authenticated password/email-change workflows,
 including the application behind `/auth/confirm-email-change`. Password change refreshes
 security and session projections. Email confirmation refreshes security and the current
@@ -222,8 +224,25 @@ principal; optional profile refresh failure does not reverse confirmation succes
 Account Sessions owns session inventory and revocation, requesting at most 100 rows.
 `account/query-keys.ts` owns `account/security` and `account/sessions` identities.
 SettingsShell composes Account and non-Account tabs; Billing remains outside Account.
-Authentication login/register/verification/recovery, AuthProvider and shared AuthCard
-retain their current owners. Only email-change confirmation belongs to Account Security.
+Authentication owns browser session/principal lifecycle and login, registration, verification
+and password recovery under `features/authentication`. Its five auth routes are thin entries;
+Account email-change confirmation remains Account Security. Shared `AuthCard` is presentation
+used by both lifecycles.
+
+`AuthenticationProvider` consumes the Account Profile read adapter for bootstrap; there is
+no duplicate principal query cache. Status distinguishes `bootstrapping`, `authenticated`,
+`anonymous` (Profile 401) and `unavailable` (unexpected bootstrap failure). A transient refresh
+failure preserves a known principal and rejects with observability. Login establishes cookies
+and returns canonical `ProfileUserRead` in the same 200 response, so the browser establishes
+its principal without a second Profile GET. QueryClient wraps Authentication, which wraps
+Realtime; only authenticated state enables the stream.
+
+Logout success and password-reset completion clear the principal and private QueryClient
+state. Identity switches also clear prior principal server-state. Reset revokes existing
+sessions and clears this browser's session/refresh/CSRF cookies before returning 204.
+Authentication owns parser-validated same-origin app-relative `returnUrl` intent, including
+backslash/open-redirect rejection. Next proxy's cookie-existence check is only a soft routing
+gate; backend authentication and the canonical principal read remain authoritative.
 
 ## MusicXML and Rendering
 

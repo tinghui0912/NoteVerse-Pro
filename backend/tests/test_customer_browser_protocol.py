@@ -223,7 +223,13 @@ def test_login_refresh_logout_use_canonical_customer_cookie_identity():
     from app.modules.auth.dependencies import get_auth_service, get_session_service
 
     app = create_app()
-    auth = SimpleNamespace(login=Mock(return_value=("access-one", "refresh-one")))
+    from app.modules.auth.service import LoginResult
+    from app.modules.account.schemas import ProfileUserRead
+
+    principal = ProfileUserRead(id=1, email="user@example.com", display_name="User", is_active=True)
+    auth = SimpleNamespace(
+        login=Mock(return_value=LoginResult("access-one", "refresh-one", principal))
+    )
     sessions = SimpleNamespace(
         refresh_session=Mock(return_value=("access-two", "refresh-two")),
         revoke_refresh_token=Mock(),
@@ -246,10 +252,10 @@ def test_login_refresh_logout_use_canonical_customer_cookie_identity():
     with TestClient(app, base_url="https://testserver") as client:
         login = client.post(
             f"{protocol.CUSTOMER_API_PREFIX}/auth/login",
-            data={"username": "user@example.test", "password": "secret"},
+            data={"username": "user@example.com", "password": "secret"},
         )
-        assert login.status_code == 204
-        assert login.content == b""
+        assert login.status_code == 200
+        assert login.json() == principal.model_dump(mode="json")
         assert set(cookies(login)) == expected
         csrf_before = client.cookies[protocol.CSRF_COOKIE_NAME]
         assert cookies(login)[protocol.AUTH_COOKIE_NAME]["httponly"]

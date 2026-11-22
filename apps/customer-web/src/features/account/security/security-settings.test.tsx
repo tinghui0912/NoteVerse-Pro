@@ -8,13 +8,13 @@ import { SecuritySettingsPanel } from './security-settings-panel';
 import { PasswordSettingsForm } from './password-settings-form';
 import { accountQueryKeys } from '../query-keys';
 
-const fake = vi.hoisted(() => ({toast: vi.fn(), api: {getSecurityOverview: vi.fn(), requestEmailChange: vi.fn(), changePassword: vi.fn()}}));
+const fake = vi.hoisted(() => ({locale: 'en', toast: vi.fn(), api: {getSecurityOverview: vi.fn(), requestEmailChange: vi.fn(), changePassword: vi.fn()}}));
 vi.mock('./api', () => ({accountSecurityApi: fake.api}));
 vi.mock('@/hooks/use-toast', () => ({useToast: () => ({toast: fake.toast})}));
-vi.mock('next-intl', () => ({useLocale: () => 'en', useTranslations: () => (key: string) => key}));
+vi.mock('next-intl', () => ({useLocale: () => fake.locale, useTranslations: () => (key: string) => key}));
 vi.mock('@/i18n/routing', () => ({routing: {defaultLocale: 'en'}, Link: ({children}: PropsWithChildren) => <>{children}</>}));
 let client: QueryClient;
-beforeEach(() => { vi.resetAllMocks(); client = new QueryClient({defaultOptions: {queries: {retry: false}}}); });
+beforeEach(() => { vi.resetAllMocks(); fake.locale = 'en'; client = new QueryClient({defaultOptions: {queries: {retry: false}}}); });
 afterEach(() => client.clear());
 const wrapper = ({children}: PropsWithChildren) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 
@@ -50,7 +50,7 @@ it.each(['mismatch', 'short', 'success'] as const)('handles password %s before p
   fireEvent.change(screen.getByLabelText('confirmPasswordLabel'), {target: {value: kind === 'mismatch' ? 'different' : password}});
   await userEvent.click(screen.getByRole('button', {name: 'password.save'}));
   if (kind === 'success') {
-    await waitFor(() => expect(fake.api.changePassword).toHaveBeenCalledWith('current-password', '123456'));
+    await waitFor(() => expect(fake.api.changePassword).toHaveBeenCalledWith('current-password', '123456', 'en'));
     await waitFor(() => expect(client.getQueryState(accountQueryKeys.sessions())?.isInvalidated).toBe(true));
     expect(client.getQueryState(accountQueryKeys.security())?.isInvalidated).toBe(true);
   } else {
@@ -58,4 +58,14 @@ it.each(['mismatch', 'short', 'success'] as const)('handles password %s before p
     expect(fake.toast).toHaveBeenCalledWith(expect.objectContaining({title: kind === 'mismatch' ? 'passwordMismatchTitle' : 'passwordTooShortTitle'}));
     expect(client.getQueryState(accountQueryKeys.security())?.isInvalidated).toBe(false);
   }
+});
+
+it.each(['en', 'zh'] as const)('uses %s UI locale for password-change notification admission', async (locale) => {
+  fake.locale = locale;
+  render(<PasswordSettingsForm />, {wrapper});
+  fireEvent.change(screen.getByLabelText('currentPassword'), {target: {value: 'current-password'}});
+  fireEvent.change(screen.getByLabelText('newPassword'), {target: {value: '123456'}});
+  fireEvent.change(screen.getByLabelText('confirmPasswordLabel'), {target: {value: '123456'}});
+  fireEvent.submit(screen.getByLabelText('newPassword').closest('form')!);
+  await waitFor(() => expect(fake.api.changePassword).toHaveBeenCalledWith('current-password', '123456', locale));
 });

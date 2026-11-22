@@ -26,6 +26,7 @@ from app.modules.auth.schemas import (
 from app.modules.auth.session_cookies import clear_session_cookies, set_session_cookies
 from app.modules.auth.sessions_service import SessionService
 from app.modules.auth.service import AuthService
+from app.modules.account.schemas import ProfileUserRead
 from app.shared.error_codes import CustomerErrorCode
 
 
@@ -35,9 +36,7 @@ router = APIRouter()
 @router.post(
     "/login",
     operation_id="authLogin",
-    status_code=204,
-    response_model=None,
-    response_class=Response,
+    response_model=ProfileUserRead,
 )
 def login_access_token(
     request: Request,
@@ -45,17 +44,16 @@ def login_access_token(
     db: Session = Depends(deps.get_db),
     form_data: OAuth2PasswordRequestForm = Depends(),
     auth_service: AuthService = Depends(get_auth_service),
-) -> Response:
-    access_token, refresh_token = auth_service.login(
+) -> ProfileUserRead:
+    result = auth_service.login(
         db,
         form_data.username,
         form_data.password,
         user_agent=request.headers.get("user-agent"),
         ip_address=client_address(request),
     )
-    set_session_cookies(response, access_token, refresh_token)
-    response.status_code = 204
-    return response
+    set_session_cookies(response, result.access_token, result.refresh_token)
+    return result.principal
 
 
 @router.post(
@@ -177,7 +175,9 @@ def reset_password(
     password_reset_service: PasswordResetService = Depends(get_password_reset_service),
 ) -> Response:
     password_reset_service.reset_password(db, request)
-    return Response(status_code=204)
+    response = Response(status_code=204)
+    clear_session_cookies(response)
+    return response
 
 
 __all__ = ["router"]

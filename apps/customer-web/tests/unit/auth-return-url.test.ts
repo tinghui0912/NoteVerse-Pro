@@ -5,7 +5,7 @@ import {
   getLoginPath,
   getSafeReturnUrl,
   withReturnUrl,
-} from '@/lib/auth/return-url';
+} from '@/features/authentication/return-url';
 
 describe('auth return url helpers', () => {
   it('accepts only relative same-origin return URLs', () => {

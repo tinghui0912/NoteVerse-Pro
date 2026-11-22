@@ -37,7 +37,7 @@ it.each(['password', 'session', 'others', 'email-request'] as const)('%s converg
     password: useChangePassword(), session: useRevokeSession(), others: useRevokeOtherSessions(), request: useRequestEmailChange(),
   }), {wrapper});
   await act(async () => {
-    if (action === 'password') await hook.result.current.password.mutateAsync({currentPassword: 'current', newPassword: 'new-password'});
+    if (action === 'password') await hook.result.current.password.mutateAsync({currentPassword: 'current', newPassword: 'new-password', locale: 'en'});
     else if (action === 'session') await hook.result.current.session.mutateAsync(2);
     else if (action === 'others') await hook.result.current.others.mutateAsync();
     else await hook.result.current.request.mutateAsync({new_email: 'new@example.com', current_password: 'current', locale: 'en'});
@@ -46,7 +46,7 @@ it.each(['password', 'session', 'others', 'email-request'] as const)('%s converg
   expect(client.getQueryState(sessions)?.isInvalidated).toBe(action !== 'email-request');
   expect(unrelated.every(key => !client.getQueryState(key)?.isInvalidated)).toBe(true);
   expect(client.getQueryData(security)).toEqual(old);
-  if (action === 'password') expect(api.security.changePassword).toHaveBeenCalledWith('current', 'new-password');
+  if (action === 'password') expect(api.security.changePassword).toHaveBeenCalledWith('current', 'new-password', 'en');
   if (action === 'session') expect(api.sessions.revokeSession).toHaveBeenCalledWith(2);
   if (action === 'others') expect(api.sessions.revokeOtherSessions).toHaveBeenCalledOnce();
   if (action === 'email-request') expect(api.security.requestEmailChange).toHaveBeenCalledWith({new_email: 'new@example.com', current_password: 'current', locale: 'en'});
@@ -56,7 +56,7 @@ it('does not mark projections changed when password verification fails', async (
   for (const key of [accountQueryKeys.security(), accountQueryKeys.sessions()]) client.setQueryData(key, {});
   api.security.changePassword.mockRejectedValue(new Error('rejected'));
   const hook = renderHook(() => useChangePassword(), {wrapper});
-  await act(async () => { await expect(hook.result.current.mutateAsync({currentPassword: 'bad', newPassword: 'new-password'})).rejects.toThrow('rejected'); });
+  await act(async () => { await expect(hook.result.current.mutateAsync({currentPassword: 'bad', newPassword: 'new-password', locale: 'en'})).rejects.toThrow('rejected'); });
   expect([accountQueryKeys.security(), accountQueryKeys.sessions()].every(key => !client.getQueryState(key)?.isInvalidated)).toBe(true);
 });
 

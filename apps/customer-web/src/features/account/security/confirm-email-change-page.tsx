@@ -11,7 +11,7 @@ import { Link } from '@/i18n/routing';
 import { accountSecurityApi } from './api';
 import { accountSecurityChanged } from '../cache';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { ApiError } from '@/lib/http/customer-browser-transport';
 import { translateErrorCode } from '@/lib/i18n/error-message';
@@ -34,7 +34,7 @@ function confirmEmailChangeOnce(token: string) {
 
 export default function ConfirmEmailChangePage() {
   const client = useQueryClient();
-  const { refreshUser, isLoading: principalLoading } = useAuth();
+  const { refreshPrincipal, isLoading: principalLoading } = useAuthentication();
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
   const searchParams = useSearchParams();
@@ -52,7 +52,7 @@ export default function ConfirmEmailChangePage() {
       .then(async () => {
         if (!isMounted) return;
         // Confirmation is authoritative; projection refresh failures cannot undo it.
-        const results = await Promise.allSettled([accountSecurityChanged(client), refreshUser()]);
+        const results = await Promise.allSettled([accountSecurityChanged(client), refreshPrincipal()]);
         for (const result of results) {
           if (result.status === 'rejected') reportUnexpectedClientError(result.reason, {
             area: 'account', action: 'refresh_after_email_confirmation',
@@ -76,7 +76,7 @@ export default function ConfirmEmailChangePage() {
     return () => {
       isMounted = false;
     };
-  }, [t, tErrors, token, client, refreshUser, principalLoading]);
+  }, [t, tErrors, token, client, refreshPrincipal, principalLoading]);
 
   if (state === 'confirming') {
     return (

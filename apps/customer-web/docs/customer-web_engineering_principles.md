@@ -20,6 +20,7 @@
 - `src/features/account/profile/`：current Profile、Avatar API、表单与 512x512 PNG crop。
 - `src/features/account/security/`：Security overview、password/email-change workflow 与 confirmation。
 - `src/features/account/sessions/`：authenticated refresh-session inventory、revoke 和 presentation。
+- `src/features/authentication/`：browser session/principal、login/register/verification/recovery 与 safe returnUrl。
 - `src/app/[locale]/`：route entry、layout、loading/error/not-found 和页面组合。
 - `src/components/`：共享 UI、shell、基础组件和跨领域 presentation。
 - `src/lib/`：跨领域 browser infrastructure 与共享纯能力。
@@ -63,12 +64,24 @@ Notification Center 组合 Collaboration pending actions 与 durable Notificatio
 与 server unread count，不写入新的计数 authority；两处复用同一 query state。
 `notifications.changed` 仅收敛 Notification history/read-state，不代表 pending Invite change。
 
-Account Profile read adapter 同时 hydrate AuthContext；current user 不另建 TanStack profile cache。
+Account Profile read adapter 同时 hydrate Authentication principal；current user 不另建 TanStack profile cache。
 `features/account/cache.ts` 组合 Account projection consequences：password change 收敛 security
 与 sessions，email confirmation 收敛 security 并尝试刷新 current principal；后续 refresh 失败
 不改变 confirmation 成功。Sessions 请求显式限制为 100，device label 仅作 User-Agent presentation。
-SettingsShell 只负责跨 Account/Billing 的导航与布局。Authentication login/register/verification/recovery、
-AuthProvider、AuthCard 保持当前 owner，不属于 Account feature；email-change confirmation 由 Account Security 拥有。
+SettingsShell 只负责跨 Account/Billing 的导航与布局。Authentication feature 拥有 session/principal
+和五个 auth entry flows；route files 仅组合 feature。email-change confirmation 仍由 Account Security 拥有，
+AuthCard 仅为两个 lifecycle 共享的 presentation。
+
+Authentication 状态区分 bootstrapping、authenticated、anonymous 与 unavailable。Profile 401 才确认
+anonymous；bootstrap 的 network/5xx failure 必须报告并投影 unavailable。已有 principal 的 transient
+refresh failure 保留身份并 reject/report。Login 200 在设置 session cookies 的同时返回 canonical
+ProfileUserRead，直接建立 principal，不再发第二次 Profile GET。
+
+Logout 成功、password reset 和 principal switch 清除私有 QueryClient server-state。Reset 撤销所有
+既有 sessions，并清除当前 browser session/refresh/CSRF cookies。returnUrl 必须是 URL parser 验证的
+same-origin app-relative path intent；拒绝 external/backslash open redirects。Next proxy 只作 cookie
+existence soft gate，不是 authenticated principal authority。QueryClient → Authentication → Realtime
+保持 provider 顺序；Realtime 只依赖 Authentication public state。
 
 ## 产品能力、权限与文案
 

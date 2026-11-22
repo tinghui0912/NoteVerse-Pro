@@ -3,14 +3,14 @@ import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { queryKeys } from '@/lib/query-client';
 import { accountQueryKeys } from './query-keys';
-import { authApi } from '@/lib/api/auth';
+import { authenticationApi } from '@/features/authentication/api';
 
-it('owns Security and Sessions identities while AuthContext holds the current profile', () => {
+it('owns Security and Sessions identities while Authentication holds the current principal', () => {
   expect(accountQueryKeys).toEqual({all: ['account'], security: expect.any(Function), sessions: expect.any(Function)});
   expect(accountQueryKeys.security()).toEqual(['account', 'security']);
   expect(accountQueryKeys.sessions()).toEqual(['account', 'sessions']);
   expect(queryKeys).not.toHaveProperty('account');
-  expect(authApi).not.toHaveProperty('confirmEmailChange');
+  expect(authenticationApi).not.toHaveProperty('confirmEmailChange');
 });
 
 it('has explicit Profile, Security and Sessions owners and shared Settings composition', () => {

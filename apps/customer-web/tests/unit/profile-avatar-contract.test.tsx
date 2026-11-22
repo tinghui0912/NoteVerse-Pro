@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { PropsWithChildren } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { AccountAvatarUploadResponse, AccountProfileGetResponse } from '@/generated/api';
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { AuthenticationProvider, useAuthentication } from '@/features/authentication/session/authentication-context';
 import { profileApi } from '@/features/account/profile/api';
 
 const filename = `1_${'a'.repeat(64)}_${'b'.repeat(32)}.jpg`;
@@ -13,8 +15,8 @@ it('keeps the server-provided browser resource URL in the authenticated user', a
   const payload = { user: { id: 1, email: 'user@example.test', display_name: 'User', is_active: true, avatar_url: avatarUrl, created_at: '2026-11-13T00:00:00Z' } } satisfies AccountProfileGetResponse;
   const send = vi.fn<typeof fetch>(async () => Response.json(payload));
   vi.stubGlobal('fetch', send);
-  const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
-  await waitFor(() => expect(result.current.user?.avatar).toBe(avatarUrl));
+  const { result } = renderHook(() => useAuthentication(), { wrapper: ({children}: PropsWithChildren) => <QueryClientProvider client={new QueryClient()}><AuthenticationProvider>{children}</AuthenticationProvider></QueryClientProvider> });
+  await waitFor(() => expect(result.current.principal?.avatar_url).toBe(avatarUrl));
   expect(result.current.isAuthenticated).toBe(true);
 });
 

@@ -1,4 +1,4 @@
-﻿
+
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
 import { Link } from '@/i18n/routing';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { cn } from '@/lib/utils';
 import { MarketingFooter } from '@/components/marketing/marketing-footer';
 
@@ -56,7 +56,7 @@ const pricingTiers = [
 export default function SubscriptionsPage() {
   const t = useTranslations('pricing');
   const locale = useLocale();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthentication();
   const formatPrice = (price: number) => new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'CNY',

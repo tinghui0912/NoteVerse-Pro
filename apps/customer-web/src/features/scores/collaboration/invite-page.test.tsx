@@ -10,7 +10,7 @@ const invite: InviteAccessRead = { invite_id: 'invite', score_id: 'score', score
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => Object.assign((key: string) => key, { has: () => false }) }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: state.push }), useSearchParams: () => new URLSearchParams(window.location.search) }));
 vi.mock('@/i18n/routing', () => ({ Link: ({ children, href }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href={href}>{children}</a> }));
-vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ isAuthenticated: state.authenticated, isLoading: false, user: { email: state.email } }) }));
+vi.mock('@/features/authentication/session/authentication-context', () => ({ useAuthentication: () => ({ isAuthenticated: state.authenticated, isLoading: false, principal: { email: state.email } }) }));
 vi.mock('./queries', () => ({
   useScoreInviteAccess: () => ({ data: invite, isLoading: false, error: null, refetch: state.refetch }),
   useAcceptScoreInvite: () => ({ isPending: false, error: null, mutate: (token: string, callbacks: { onSuccess: (data: { score_id: string }) => void }) => { state.accept(token); callbacks.onSuccess({ score_id: 'score' }); } }),

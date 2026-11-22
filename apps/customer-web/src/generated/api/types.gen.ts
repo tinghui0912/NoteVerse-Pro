@@ -3184,7 +3184,7 @@ export type AuthLoginResponses = {
     /**
      * Successful Response
      */
-    204: void;
+    200: ProfileUserRead;
 };
 
 export type AuthLoginResponse = AuthLoginResponses[keyof AuthLoginResponses];

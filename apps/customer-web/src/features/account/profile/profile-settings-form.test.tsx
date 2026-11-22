@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { AccountProfileGetResponse } from '@/generated/api';
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { AuthenticationProvider, useAuthentication } from '@/features/authentication/session/authentication-context';
 import { ProfileSettingsForm } from './profile-settings-form';
 
 const fake = vi.hoisted(() => ({api: {getProfile: vi.fn(), updateProfile: vi.fn(), uploadAvatar: vi.fn()}, toast: vi.fn()}));
@@ -18,10 +18,10 @@ let client: QueryClient;
 beforeEach(() => {vi.resetAllMocks(); fake.api.getProfile.mockResolvedValue(profile('Original')); client = new QueryClient({defaultOptions: {queries: {retry: false}}});});
 afterEach(() => client.clear());
 function Principal() {
-  const {user} = useAuth();
-  return <><output aria-label="principal-name">{user?.name}</output><output aria-label="principal-avatar">{user?.avatar}</output></>;
+  const {principal} = useAuthentication();
+  return <><output aria-label="principal-name">{principal?.display_name}</output><output aria-label="principal-avatar">{principal?.avatar_url}</output></>;
 }
-const wrapper = ({children}: PropsWithChildren) => <QueryClientProvider client={client}><AuthProvider><Principal />{children}</AuthProvider></QueryClientProvider>;
+const wrapper = ({children}: PropsWithChildren) => <QueryClientProvider client={client}><AuthenticationProvider><Principal />{children}</AuthenticationProvider></QueryClientProvider>;
 
 it.each([true, false])('refreshes the principal only after a successful profile write (success=%s)', async (success) => {
   if (success) fake.api.updateProfile.mockImplementation(async () => {fake.api.getProfile.mockResolvedValue(profile('Updated'));});

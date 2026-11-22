@@ -9,7 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import React, { useState } from 'react';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { BrandLogo } from '@/components/brand';
 import { ClientOnly } from '@/components/client-only';
 import { AuthenticatedNavActions, LanguageSwitcher } from './nav-actions';
@@ -23,7 +23,7 @@ const publicNavItems = [
 export function PublicNav() {
   const t = useTranslations('common');
   const pathname = usePathname();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuthentication();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (

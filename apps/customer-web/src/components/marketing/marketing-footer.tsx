@@ -4,14 +4,14 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 
 import { BrandLogo } from '@/components/brand';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 
 export function MarketingFooter() {
   const tHome = useTranslations('home');
   const tCommon = useTranslations('common');
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuthentication();
 
   const ctaLink = isAuthenticated ? '/upload' : '/auth/login';
 

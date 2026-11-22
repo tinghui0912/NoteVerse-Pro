@@ -9,7 +9,7 @@ import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { useUploadAvatar, useUpdateProfile } from '@/features/account/profile/queries';
 import { useToast } from '@/hooks/use-toast';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
@@ -20,14 +20,14 @@ export function ProfileSettingsForm() {
   const tAuth = useTranslations('auth');
   const tCommon = useTranslations('common');
   const tErrors = useTranslations('errors');
-  const { user, setUser, refreshUser } = useAuth();
+  const { principal, replacePrincipal, refreshPrincipal } = useAuthentication();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [usernameDraft, setUsernameDraft] = useState<string | null>(null);
-  const username = usernameDraft ?? user?.name ?? '';
-  const email = user?.email ?? '';
+  const username = usernameDraft ?? principal?.display_name ?? '';
+  const email = principal?.email ?? '';
   const avatarMutation = useUploadAvatar();
   const profileMutation = useUpdateProfile();
 
@@ -54,8 +54,8 @@ export function ProfileSettingsForm() {
         if (result?.avatar_url) {
           const avatarUrlWithCacheBuster = `${result.avatar_url}?t=${Date.now()}`;
 
-          if (user) {
-            setUser({ ...user, avatar: avatarUrlWithCacheBuster });
+          if (principal) {
+            replacePrincipal({ ...principal, avatar_url: avatarUrlWithCacheBuster });
           }
 
           toast({
@@ -76,11 +76,11 @@ export function ProfileSettingsForm() {
 
   const handleUpdateProfile = () => {
     profileMutation.mutate(
-      { display_name: username !== user?.name ? username : undefined },
+      { display_name: username !== principal?.display_name ? username : undefined },
       {
         onSuccess: async () => {
           setUsernameDraft(null);
-          await refreshUser();
+          await refreshPrincipal();
           toast({
             title: t('profileSuccess'),
             description: t('profileUpdated'),
@@ -105,7 +105,7 @@ export function ProfileSettingsForm() {
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <Avatar className="h-28 w-28">
-                <AvatarImage src={user?.avatar || undefined} />
+                <AvatarImage src={principal?.avatar_url || undefined} />
                 <AvatarFallback>
                   <User className="h-10 w-10 text-gray-400" />
                 </AvatarFallback>

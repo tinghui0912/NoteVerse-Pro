@@ -5,6 +5,7 @@ from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
 import ast
 import inspect
 from dataclasses import fields
+from datetime import UTC, datetime
 from textwrap import dedent
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -31,6 +32,8 @@ from app.core.generated.customer_browser_protocol import (
 )
 from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware
 from app.main import _csrf_settings, create_app
+from app.modules.auth.service import LoginResult
+from app.modules.account.schemas import ProfileUserRead
 from app.modules.auth.dependencies import (
     get_auth_service,
     get_email_change_service,
@@ -44,7 +47,20 @@ from app.modules.auth.dependencies import (
 def customer():
     app = create_app()
     service = SimpleNamespace(
-        login=Mock(return_value=("access", "refresh")),
+        login=Mock(
+            return_value=LoginResult(
+                "access",
+                "refresh",
+                ProfileUserRead(
+                    id=1,
+                    email="member@example.com",
+                    display_name="Member",
+                    avatar_url=None,
+                    is_active=True,
+                    created_at=datetime(2026, 1, 1, tzinfo=UTC),
+                ),
+            )
+        ),
         refresh_session=Mock(return_value=("access-rotated", "refresh-rotated")),
         revoke_refresh_token=Mock(),
         register=Mock(),
@@ -108,7 +124,9 @@ def test_public_auth_operations_accept_stale_cookies_without_csrf(
     if identity == "authRefresh":
         client.cookies.set(REFRESH_COOKIE_NAME, "refresh-cookie")
     response = client.post(routes[identity].path, **payload)
-    expected_status = 200 if identity in {"authEmailVerify", "authEmailChangeConfirm"} else 204
+    expected_status = (
+        200 if identity in {"authLogin", "authEmailVerify", "authEmailChangeConfirm"} else 204
+    )
     assert response.status_code == expected_status, response.text
     if expected_status == 204:
         assert response.content == b""

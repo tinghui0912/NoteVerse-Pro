@@ -8,7 +8,7 @@ const transport = vi.hoisted(() => ({
   auth: { isAuthenticated: true, isLoading: false },
   source: { addEventListener: vi.fn(), close: vi.fn() }, create: vi.fn(),
 }));
-vi.mock('@/contexts/auth-context', () => ({ useAuth: () => transport.auth }));
+vi.mock('@/features/authentication/session/authentication-context', () => ({ useAuthentication: () => transport.auth }));
 vi.mock('@/lib/realtime/event-source', () => ({ createRealtimeEventSource: transport.create }));
 vi.mock('@/lib/cache-effects/realtime', () => ({ applyRealtimeCacheChange: vi.fn(), serverStateResyncRequired: vi.fn() }));
 beforeEach(() => {

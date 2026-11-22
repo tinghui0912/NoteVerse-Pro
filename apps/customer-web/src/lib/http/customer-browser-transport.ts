@@ -4,7 +4,7 @@ import { authRefresh, type CustomerErrorCode, type ApiErrorResponse } from '@/ge
 import { createClient, type RequestResult } from '@/generated/api/client';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/generated/browser-protocol';
 import { isCustomerErrorCode } from '@/lib/i18n/customer-error-codes';
-import { getCurrentLoginHref } from '@/lib/auth/return-url';
+import { getCurrentLoginHref } from '@/features/authentication/return-url';
 import { reportClientError } from '@/lib/observability';
 
 export class ApiError extends Error {

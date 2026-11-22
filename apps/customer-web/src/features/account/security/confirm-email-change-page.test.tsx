@@ -4,7 +4,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { AccountProfileGetResponse } from '@/generated/api';
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { AuthenticationProvider, useAuthentication } from '@/features/authentication/session/authentication-context';
 import { ApiError } from '@/lib/http/customer-browser-transport';
 import { accountQueryKeys } from '../query-keys';
 import ConfirmEmailChangePage from './confirm-email-change-page';
@@ -31,11 +31,11 @@ beforeEach(() => {
 });
 afterEach(() => client.clear());
 function Principal() {
-  const {user, isLoading} = useAuth();
-  return <output aria-label="principal">{isLoading ? 'bootstrapping' : user?.email ?? 'anonymous'}</output>;
+  const {principal, isLoading} = useAuthentication();
+  return <output aria-label="principal">{isLoading ? 'bootstrapping' : principal?.email ?? 'anonymous'}</output>;
 }
 function Wrapper({children}: PropsWithChildren) {
-  return <StrictMode><QueryClientProvider client={client}><AuthProvider><Principal />{children}</AuthProvider></QueryClientProvider></StrictMode>;
+  return <StrictMode><QueryClientProvider client={client}><AuthenticationProvider><Principal />{children}</AuthenticationProvider></QueryClientProvider></StrictMode>;
 }
 
 it.each(['authenticated', 'anonymous', 'refresh-failure'] as const)('confirms once and preserves success for %s', async (mode) => {
@@ -45,15 +45,23 @@ it.each(['authenticated', 'anonymous', 'refresh-failure'] as const)('confirms on
   else fake.profile.mockResolvedValue(profile('old@example.com'));
   const view = render(<ConfirmEmailChangePage />, {wrapper: Wrapper});
   await waitFor(() => expect(screen.getByLabelText('principal')).toHaveTextContent(mode === 'anonymous' ? 'anonymous' : 'old@example.com'));
+  client.setQueryData(accountQueryKeys.security(), {security: {email: 'old@example.com'}});
+  client.setQueryData(accountQueryKeys.sessions(), {sessions: []});
   const bootstrapReads = fake.profile.mock.calls.length;
   if (mode === 'authenticated') fake.profile.mockResolvedValue(profile('new@example.com'));
   if (mode === 'refresh-failure') fake.profile.mockRejectedValue(new Error('transient profile failure'));
+  await waitFor(() => expect(fake.confirm).toHaveBeenCalledOnce());
   await act(async () => complete());
   expect(await screen.findByRole('heading', {name: 'emailChangeConfirmedTitle'})).toBeVisible();
   expect(fake.profile.mock.calls.length).toBeGreaterThan(bootstrapReads);
   expect(screen.getByLabelText('principal')).toHaveTextContent(mode === 'authenticated' ? 'new@example.com' : mode === 'anonymous' ? 'anonymous' : 'old@example.com');
-  expect(client.getQueryState(accountQueryKeys.security())?.isInvalidated).toBe(true);
-  expect(client.getQueryState(accountQueryKeys.sessions())?.isInvalidated).toBe(false);
+  if (mode === 'anonymous') {
+    expect(client.getQueryState(accountQueryKeys.security())).toBeUndefined();
+    expect(client.getQueryState(accountQueryKeys.sessions())).toBeUndefined();
+  } else {
+    expect(client.getQueryState(accountQueryKeys.security())?.isInvalidated).toBe(true);
+    expect(client.getQueryState(accountQueryKeys.sessions())?.isInvalidated).toBe(false);
+  }
   view.rerender(<ConfirmEmailChangePage />);
   expect(fake.confirm).toHaveBeenCalledOnce();
   expect(fake.confirm).toHaveBeenCalledWith(fake.token);
@@ -93,6 +101,6 @@ it('shows invalid/expired confirmation failure without changing Account projecti
   render(<ConfirmEmailChangePage />, {wrapper: Wrapper});
   expect(await screen.findByRole('heading', {name: 'emailChangeFailedTitle'})).toBeVisible();
   expect(screen.getByText('emailChangeLinkInvalid')).toBeVisible();
-  expect(client.getQueryState(accountQueryKeys.security())?.isInvalidated).toBe(false);
+  expect(client.getQueryState(accountQueryKeys.security())?.isInvalidated ?? false).toBe(false);
   expect(fake.confirm).toHaveBeenCalledOnce();
 });

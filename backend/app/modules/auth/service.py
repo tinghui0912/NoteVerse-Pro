@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from sqlmodel import select
 from sqlalchemy.orm import Session
 
@@ -10,7 +12,16 @@ from app.core.exceptions import AuthenticationException
 from app.db.model_utils import require_persisted_id
 from app.db.models.user import User
 from app.modules.auth.sessions_service import SessionService
+from app.modules.account.schemas import ProfileUserRead
+from app.modules.account.profile_service import ProfileService
 from app.shared.error_codes import CustomerErrorCode
+
+
+@dataclass(frozen=True)
+class LoginResult:
+    access_token: str
+    refresh_token: str
+    principal: ProfileUserRead
 
 
 class AuthService:
@@ -28,7 +39,7 @@ class AuthService:
         user_agent: str | None = None,
         ip_address: str | None = None,
         device_id: str | None = None,
-    ) -> tuple[str, str]:
+    ) -> LoginResult:
         normalized_email = email.strip().lower()
         result = db.execute(select(User).where(User.email == normalized_email))
         user = result.scalars().one_or_none()
@@ -50,5 +61,6 @@ class AuthService:
             ip_address=ip_address,
             device_id=device_id,
         )
+        principal = ProfileService().profile_payload(user).user
         db.commit()
-        return access_token, refresh_token
+        return LoginResult(access_token, refresh_token, principal)

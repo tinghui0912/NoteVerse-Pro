@@ -1,12 +1,17 @@
 const DEFAULT_LOGIN_PATH = '/auth/login';
 const LOCALE_PATTERN = /^\/(zh|en)(\/|$)/;
 
+const RETURN_URL_ORIGIN = 'https://noteverse.local';
+
 export function getSafeReturnUrl(value: string | null | undefined, fallback = '/library'): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return fallback;
+  try {
+    const parsed = new URL(value, RETURN_URL_ORIGIN);
+    if (parsed.origin !== RETURN_URL_ORIGIN) return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
     return fallback;
   }
-
-  return value;
 }
 
 export function getLoginPath(pathname: string): string {

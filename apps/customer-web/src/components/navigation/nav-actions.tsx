@@ -15,12 +15,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
 export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
-  const { user, logout } = useAuth();
+  const { principal, logout } = useAuthentication();
   const t = useTranslations('common');
 
   return (
@@ -28,7 +28,7 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className={cn('relative h-10 w-10 rounded-full', triggerClassName)}>
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user?.avatar || undefined} alt={user?.name || ''} />
+            <AvatarImage src={principal?.avatar_url || undefined} alt={principal?.display_name || ''} />
             <AvatarFallback>
               <User className="h-5 w-5" />
             </AvatarFallback>
@@ -38,7 +38,7 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.name}</p>
+            <p className="text-sm font-medium leading-none">{principal?.display_name}</p>
             <p className="text-xs leading-none text-muted-foreground">{t('premiumUser')}</p>
           </div>
         </DropdownMenuLabel>

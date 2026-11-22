@@ -56,8 +56,8 @@ describe('score collaboration invite architecture', () => {
   });
 
   it('preserves invite returnUrl through login and registration', () => {
-    const loginPage = readSource('src/app/[locale]/(auth)/auth/login/page.tsx');
-    const registerPage = readSource('src/app/[locale]/(auth)/auth/register/page.tsx');
+    const loginPage = readSource('src/features/authentication/login/login-page.tsx');
+    const registerPage = readSource('src/features/authentication/registration/register-page.tsx');
 
     expect(loginPage).toContain("withReturnUrl('/auth/register', returnUrl)");
     expect(loginPage).toContain('router.push(getSafeReturnUrl(returnUrl))');

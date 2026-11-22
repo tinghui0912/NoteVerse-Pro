@@ -5668,7 +5668,14 @@
           "required": true
         },
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileUserRead"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "422": {

@@ -1,7 +1,7 @@
 'use client';
 
 import { type FormEvent, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ export function PasswordSettingsForm({
   embedded = false,
   showHeader = true,
 }: PasswordSettingsFormProps = {}) {
+  const locale = useLocale();
   const t = useTranslations('settings');
   const tAuth = useTranslations('auth');
   const tErrors = useTranslations('errors');
@@ -51,7 +52,7 @@ export function PasswordSettingsForm({
     }
 
     passwordMutation.mutate(
-      { currentPassword, newPassword },
+      { currentPassword, newPassword, locale: locale === 'en' ? 'en' : 'zh' },
       {
         onSuccess: () => {
           toast({

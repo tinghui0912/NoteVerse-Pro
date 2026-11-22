@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { createRealtimeEventSource } from '@/lib/realtime/event-source';
 import {
   parseRealtimeChange,
@@ -14,7 +14,7 @@ import {
 import { applyRealtimeCacheChange, serverStateResyncRequired } from '@/lib/cache-effects/realtime';
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuthentication();
   const queryClient = useQueryClient();
 
   useEffect(() => {
