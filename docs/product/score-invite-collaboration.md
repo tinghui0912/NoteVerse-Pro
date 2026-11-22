@@ -93,3 +93,8 @@ deduplication define deterministic behavior. A production environment separately
 verifies sender-domain configuration, deliverability and browser login/return
 behavior. Realtime co-editing is not part of this collaboration contract; score
 revision conflict detection remains authoritative for saves.
+
+The Customer Score product composes separate core, Collaboration and Guest Preview
+lifecycle owners under `features/scores`. Notification Center consumes pending Invite
+data and actions from Collaboration. Score editor saves return to Score detail;
+Invite login-return behavior remains part of the external Invite experience.

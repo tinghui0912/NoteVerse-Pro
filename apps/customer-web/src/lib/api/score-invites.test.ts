@@ -1,8 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { customerFetch } from '../../../tests/helpers/customer-http';
-import { scoreInvitesApi } from './score-invites';
+import { collaborationApi } from '@/features/scores/collaboration/api';
 afterEach(() => vi.unstubAllGlobals());
-it.each([scoreInvitesApi.listInvites.bind(null, 'score'), scoreInvitesApi.listMembers.bind(null, 'score'), scoreInvitesApi.listMyPendingInvites])('passes opaque continuation through generated queries', async (list) => {
+it.each([collaborationApi.listInvites.bind(null, 'score'), collaborationApi.listMembers.bind(null, 'score'), collaborationApi.listMyPendingInvites])('passes opaque continuation through generated queries', async (list) => {
   const send = customerFetch({ items: [], next_cursor: 'next' });
   const signal = new AbortController().signal;
   const result = await list({ limit: 25, cursor: 'opaque+/=?', signal });

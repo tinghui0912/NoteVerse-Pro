@@ -9,10 +9,10 @@ import { queryKeys } from '@/lib/query-client';
 
 const api = vi.hoisted(() => ({list: vi.fn(), unreadCount: vi.fn(), markAllRead: vi.fn()}));
 vi.mock('@/lib/api', () => ({notificationsApi: api}));
-vi.mock('@/hooks/queries/use-score-queries', () => ({
-  useMyPendingScoreInvites: () => ({data: {pages: [{items: []}]}}),
-  useAcceptMyPendingScoreInvite: () => ({mutate: vi.fn()}),
-  useDeclineMyPendingScoreInvite: () => ({mutate: vi.fn()}),
+vi.mock('@/features/scores/collaboration/queries', () => ({
+useMyPendingScoreInvites: () => ({data: {pages: [{items: []}]}}),
+useAcceptMyPendingScoreInvite: () => ({mutate: vi.fn()}),
+useDeclineMyPendingScoreInvite: () => ({mutate: vi.fn()})
 }));
 vi.mock('@/hooks/use-toast', () => ({useToast: () => ({toast: vi.fn()})}));
 vi.mock('@/i18n/routing', () => ({routing: {defaultLocale: 'en'}, useRouter: () => ({push: vi.fn()})}));

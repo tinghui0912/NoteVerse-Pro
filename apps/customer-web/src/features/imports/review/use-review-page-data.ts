@@ -8,7 +8,7 @@ import { importJobsApi } from '@/features/imports/api/jobs';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import {importEditorMusicXml} from '@/lib/editor-musicxml';
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
-import { importConfirmedScoreLocation } from '@/features/imports/routes';
+import { scoreLocation } from '@/features/scores/routes';
 import type { ReviewArtifactRead } from '@/generated/api';
 
 function useReviewArtifacts(jobId: string | null, artifacts: ReviewArtifactRead[]) {
@@ -72,7 +72,7 @@ export function useReviewPageData(jobId: string) {
 
   useEffect(() => {
     if (review?.state === 'CONFIRMED' && review.score_id) {
-      router.replace(importConfirmedScoreLocation(review.score_id));
+      router.replace(scoreLocation(review.score_id));
     }
   }, [review?.score_id, review?.state, router]);
 
@@ -113,7 +113,7 @@ export function useReviewPageData(jobId: string) {
     }, {
     onSuccess: (response) => {
       if (response.score_id) {
-        router.push(importConfirmedScoreLocation(response.score_id));
+        router.push(scoreLocation(response.score_id));
       }
     },
     });

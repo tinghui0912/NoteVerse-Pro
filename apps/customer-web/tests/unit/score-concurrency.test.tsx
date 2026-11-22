@@ -1,3 +1,4 @@
+import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 // @vitest-environment jsdom
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -5,11 +6,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { ScoreInfoPanel } from '@/components/score-detail/score-info-panel';
-import { ScoreVersionsPanel } from '@/components/score-detail/score-versions-panel';
-import { useCreateRevision, useScoreDetail } from '@/hooks/queries/use-score-queries';
+import { ScoreInfoPanel } from '@/features/scores/core/detail/score-info-panel';
+import { ScoreVersionsPanel } from '@/features/scores/core/detail/score-versions-panel';
+import { useCreateRevision, useScoreDetail } from '@/features/scores/core/queries';
 import type { ScoreRead } from '@/generated/api';
-import { queryKeys } from '@/lib/query-client';
 import common from '../../messages/en/common.json';
 import score from '../../messages/en/score.json';
 import scoreStyles from '../../messages/en/scoreStyles.json';
@@ -30,20 +30,20 @@ vi.mock('@/i18n/routing', () => ({
     <a href={href}>{children}</a>
   ),
 }));
-vi.mock('@/lib/api', () => ({
-  scoresApi: {
+vi.mock('@/features/scores/core/api', () => ({
+scoresApi: {
     detail: api.detail,
     update: api.update,
     restoreRevision: api.restore,
     createRevision: api.create,
-  },
+  }
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: api.toast }) }));
-vi.mock('@/components/score/score-capability-context', () => ({
+vi.mock('@/features/scores/core/components/score-capability-context', () => ({
   useScoreCapabilities: () => ({ capabilities: { can_edit: true } }),
 }));
-vi.mock('@/hooks/queries/use-score-queries', async (original) => ({
-  ...(await original<typeof import('@/hooks/queries/use-score-queries')>()),
+vi.mock('@/features/scores/core/queries', async (original) => ({
+  ...(await original<typeof import('@/features/scores/core/queries')>()),
   useScoreRevisions: () => ({
     data: {
       pages: [
@@ -106,7 +106,7 @@ beforeEach(() => {
   client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
   });
-  client.setQueryData(queryKeys.scores.detail('score'), initial);
+  client.setQueryData(scoreQueryKeys.detail('score'), initial);
   api.detail.mockResolvedValue(initial);
 });
 afterEach(() => client.clear());
@@ -159,7 +159,7 @@ it('uses the returned metadata token for a following title or genre edit', async
     expected_metadata_version: 2,
   });
   await waitFor(() =>
-    expect(client.getQueryData<ScoreRead>(queryKeys.scores.detail('score'))?.metadata_version).toBe(
+    expect(client.getQueryData<ScoreRead>(scoreQueryKeys.detail('score'))?.metadata_version).toBe(
       3,
     ),
   );
@@ -176,8 +176,8 @@ it('invalidates notation representations then refetches head facts without inven
       expected_head_revision_id: 'r5',
     });
   });
-  expect(client.getQueryState(queryKeys.scores.detail('score'))?.isInvalidated).toBe(true);
-  expect(client.getQueryData(queryKeys.scores.detail('score'))).toEqual(initial);
+  expect(client.getQueryState(scoreQueryKeys.detail('score'))?.isInvalidated).toBe(true);
+  expect(client.getQueryData(scoreQueryKeys.detail('score'))).toEqual(initial);
   const detail = renderHook(() => useScoreDetail('score'), { wrapper });
   await waitFor(() => expect(detail.result.current.data?.head_revision_number).toBe(6));
   expect(detail.result.current.data?.head_revision_id).toBe('r6');

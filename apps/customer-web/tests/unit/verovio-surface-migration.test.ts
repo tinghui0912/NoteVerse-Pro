@@ -1,4 +1,4 @@
-﻿import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -8,7 +8,7 @@ const projectPath = (path: string) => resolve(process.cwd(), path);
 
 describe('Verovio listen surfaces', () => {
   it('renders Guest Preview as server-rendered images and dedicated audio', () => {
-    const page = readSource('src/components/external/guest-preview-page.tsx');
+    const page = readSource('src/features/scores/guest-preview/public-page.tsx');
     expect(page).toMatch(/<Image\s+unoptimized\b/);
     expect(page).toContain('guestPreviewApi.pageUrl');
     expect(page).toContain('guestPreviewApi.playbackUrl');
@@ -17,7 +17,7 @@ describe('Verovio listen surfaces', () => {
   it('removes the old listen modal preview path', () => {
     expect(existsSync(projectPath('src/components/score/listen-modal.tsx'))).toBe(false);
     const source = readSource('src/components/editor/editor-page-modals.tsx');
-    const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
+    const actions = readSource('src/features/scores/core/detail/score-hero-actions.tsx');
 
     expect(source).not.toContain('ListenModal');
     expect(source).not.toContain('ScorePreview');
@@ -25,9 +25,9 @@ describe('Verovio listen surfaces', () => {
   });
 
   it('renders score detail as a lightweight details page with cover playback', () => {
-    const page = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
-    const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
-    const playback = readSource('src/components/score-detail/score-cover-playback-button.tsx');
+    const page = readSource('src/features/scores/score-detail-page.tsx');
+    const actions = readSource('src/features/scores/core/detail/score-hero-actions.tsx');
+    const playback = readSource('src/features/scores/core/detail/score-cover-playback-button.tsx');
     expect(page).toContain('<ScoreDetailHero');
     expect(page).toContain('<ScoreDetailTabs');
     expect(page).toContain('<ScoreBreadcrumbs');
@@ -41,10 +41,10 @@ describe('Verovio listen surfaces', () => {
   });
 
   it('keeps fingering generation as an editor action instead of a score detail action', () => {
-    const scoreActions = readSource('src/components/score-detail/score-hero-actions.tsx');
+    const scoreActions = readSource('src/features/scores/core/detail/score-hero-actions.tsx');
     const editorSidebar = readSource('src/components/editor/editor-sidebar.tsx');
-    const editorDocument = readSource('src/hooks/editor/use-editor-document.ts');
-    const scoreApi = readSource('src/lib/api/scores.ts');
+    const editorDocument = readSource('src/features/scores/core/editor/use-score-editor-document.ts');
+    const scoreApi = readSource('src/features/scores/core/api.ts');
 
     expect(scoreActions).not.toContain('useGenerateScoreFingering');
     expect(scoreActions).not.toContain("t('generateFingering')");

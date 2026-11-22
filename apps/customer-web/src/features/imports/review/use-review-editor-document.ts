@@ -15,7 +15,8 @@ import { ensureGenericRenderMusicXmlIdsString, stripAppOwnedGenericRenderMusicXm
 import { deleteDraft, loadDraft, type DraftEntry } from '@/lib/editor/draft-storage';
 import { reportUnexpectedClientError } from '@/lib/observability';
 import { useImportJobReview, useUpdateImportJobReview } from '@/features/imports/queries';
-import { importReviewLocation, importConfirmedScoreLocation } from '@/features/imports/routes';
+import { scoreLocation } from '@/features/scores/routes';
+import { importReviewLocation } from '@/features/imports/routes';
 import type { EditorWorkspaceDocument } from '@/types/editor-workspace';
 
 export function useReviewEditorDocument({
@@ -60,7 +61,7 @@ export function useReviewEditorDocument({
 
   useEffect(() => {
     if (review?.state === 'CONFIRMED' && review.score_id) {
-      router.replace(importConfirmedScoreLocation(review.score_id));
+      router.replace(scoreLocation(review.score_id));
     }
   }, [review?.score_id, review?.state, router]);
 

@@ -19,9 +19,9 @@ describe('score collaboration invite architecture', () => {
   });
 
   it('uses invite/member APIs for collaboration for authenticated collaboration', () => {
-    const panel = readSource('src/components/score-detail/score-collaboration-panel.tsx');
-    const api = readSource('src/lib/api/score-invites.ts');
-    const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
+    const panel = readSource('src/features/scores/collaboration/owner-panel.tsx');
+    const api = readSource('src/features/scores/collaboration/api.ts');
+    const scorePage = readSource('src/features/scores/score-detail-page.tsx');
 
     expect(panel).toContain('useScoreInvites');
     expect(panel).toContain('useScoreMembers');
@@ -38,11 +38,11 @@ describe('score collaboration invite architecture', () => {
   });
 
   it('keeps preview and invite semantics separate', () => {
-    const previewPanel = readSource('src/components/score-detail/score-guest-preview-panel.tsx');
+    const previewPanel = readSource('src/features/scores/guest-preview/owner-panel.tsx');
     const collaborationPanel = readSource(
-      'src/components/score-detail/score-collaboration-panel.tsx'
+      'src/features/scores/collaboration/owner-panel.tsx'
     );
-    const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
+    const invitePage = readSource('src/features/scores/collaboration/invite-page.tsx');
 
     expect(previewPanel).not.toContain('MembershipRole');
     expect(previewPanel).not.toContain('EDITOR');
@@ -52,7 +52,7 @@ describe('score collaboration invite architecture', () => {
     expect(collaborationPanel).toContain('membershipRoleTranslationKey');
     expect(invitePage).toContain("searchParams.get('accept') === '1'");
     expect(invitePage).toContain('acceptInvite.mutate');
-    expect(invitePage).toContain('router.push(`/score/${scoreId}`)');
+    expect(invitePage).toContain('router.push(scoreLocation(scoreId))');
   });
 
   it('preserves invite returnUrl through login and registration', () => {

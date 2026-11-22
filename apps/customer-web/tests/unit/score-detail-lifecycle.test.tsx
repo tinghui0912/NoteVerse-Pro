@@ -1,3 +1,4 @@
+import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 import { libraryQueryKeys } from '@/features/library/query-keys';
 // @vitest-environment jsdom
 import React from 'react';
@@ -6,10 +7,9 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
-import ScorePage from '@/app/[locale]/(app)/score/[id]/page';
+import ScorePage from '@/features/scores/score-detail-page';
 import common from '../../messages/en/common.json';
 import scoreText from '../../messages/en/score.json';
-import { queryKeys } from '@/lib/query-client';
 import type { ScoreRead } from '@/generated/api';
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -28,11 +28,13 @@ vi.mock('@/i18n/routing', () => ({
     <a href={href}>{children}</a>
   ),
 }));
-vi.mock('@/lib/api', () => ({
-  scoresApi: { batchDelete: (ids: string[]) => mocks.remove(ids) },
-  scoreInvitesApi: { leaveScore: (id: string) => mocks.leave(id) },
+vi.mock('@/features/scores/core/api', () => ({
+scoresApi: { batchDelete: (ids: string[]) => mocks.remove(ids) }
 }));
-vi.mock('@/hooks/score-detail/use-score-detail-summary', () => ({
+vi.mock('@/features/scores/collaboration/api', () => ({
+collaborationApi: { leaveScore: (id: string) => mocks.leave(id) }
+}));
+vi.mock('@/features/scores/core/detail/use-score-detail-summary', () => ({
   useScoreDetailSummary: () => ({
     score: mocks.score,
     scoreError: mocks.error,
@@ -41,22 +43,22 @@ vi.mock('@/hooks/score-detail/use-score-detail-summary', () => ({
     revisionAssets: { render_assets: [], revision_sources: [] },
   }),
 }));
-vi.mock('@/components/score-detail/score-info-panel', () => ({
+vi.mock('@/features/scores/core/detail/score-info-panel', () => ({
   ScoreInfoPanel: () => null,
 }));
-vi.mock('@/components/score-detail/score-versions-panel', () => ({
+vi.mock('@/features/scores/core/detail/score-versions-panel', () => ({
   ScoreVersionsPanel: () => null,
 }));
-vi.mock('@/components/score-detail/score-guest-preview-panel', () => ({
+vi.mock('@/features/scores/guest-preview/owner-panel', () => ({
   ScoreGuestPreviewPanel: () => null,
 }));
-vi.mock('@/components/score-detail/score-collaboration-panel', () => ({
+vi.mock('@/features/scores/collaboration/owner-panel', () => ({
   ScoreCollaborationPanel: () => null,
 }));
-vi.mock('@/components/score-detail/score-hero-actions', () => ({
+vi.mock('@/features/scores/core/detail/score-hero-actions', () => ({
   ScoreHeroActions: () => null,
 }));
-vi.mock('@/components/score-detail/score-detail-hero', () => ({
+vi.mock('@/features/scores/core/detail/score-detail-hero', () => ({
   ScoreDetailHero: ({
     title,
     actions,
@@ -108,7 +110,6 @@ async function page() {
   const client = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
   });
-  const params = Promise.resolve({ id: 'score' });
   await act(async () => {
     render(
       <QueryClientProvider client={client}>
@@ -116,7 +117,7 @@ async function page() {
           locale="en"
           messages={{ common, score: scoreText, errors: {} }}
         >
-          <ScorePage params={params} />
+          <ScorePage scoreId="score" />
         </NextIntlClientProvider>
       </QueryClientProvider>,
     );
@@ -160,7 +161,7 @@ it('leaves through current-user membership, clears authorized detail and returns
   mocks.score!.capabilities.can_delete = false;
   mocks.score!.capabilities.can_leave = true;
   const client = await page();
-  client.setQueryData(queryKeys.scores.detail('score'), { data: mocks.score });
+  client.setQueryData(scoreQueryKeys.detail('score'), { data: mocks.score });
   const invalidate = vi.spyOn(client, 'invalidateQueries');
   await userEvent.click(screen.getByRole('button', { name: 'Leave score' }));
   const dialog = within(screen.getByRole('alertdialog'));
@@ -171,7 +172,7 @@ it('leaves through current-user membership, clears authorized detail and returns
     expect(mocks.push).toHaveBeenCalledWith('/library?view=shared_with_me'),
   );
   expect(mocks.leave).toHaveBeenCalledWith('score');
-  expect(client.getQueryData(queryKeys.scores.detail('score'))).toBeUndefined();
+  expect(client.getQueryData(scoreQueryKeys.detail('score'))).toBeUndefined();
   expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   client.clear();
 });

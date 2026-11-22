@@ -1,7 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useScoreDetail } from '@/hooks/queries/use-score-queries';
+import { useScoreDetail } from '@/features/scores/core/queries';
 
 /** Route metadata and revision pinning only; never admits a Practice Bundle. */
 export function usePracticeRouteScore(scoreId: string) {

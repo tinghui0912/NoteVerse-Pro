@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { scoreEditLocation } from '@/features/scores/routes';
 
 const projectPath = (path: string) => resolve(process.cwd(), path);
 const readSource = (path: string) => readFileSync(projectPath(path), 'utf8');
@@ -31,10 +32,10 @@ describe('score workspace routes', () => {
   });
 
   it('routes score detail actions into score workspaces', () => {
-    const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
+    const actions = readSource('src/features/scores/core/detail/score-hero-actions.tsx');
     const scoreEditor = readSource('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx');
 
-    expect(actions).toContain('/score/${scoreId}/edit');
+    expect(scoreEditLocation('score')).toBe('/score/score/edit');
     expect(actions).toContain("practiceLocation(scoreId, 'setup', revisionId)");
     expect(scoreEditor).toContain('<EditorWorkspacePage');
     expect(actions).not.toContain('/editor/${scoreId}');
@@ -50,10 +51,10 @@ describe('score workspace routes', () => {
   });
 
   it('centralizes view/share capabilities without a score shell wrapper', () => {
-    const surface = readSource('src/components/score/score-surface.tsx');
-    const capabilityContext = readSource('src/components/score/score-capability-context.tsx');
-    const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
-    const metadata = readSource('src/components/score-detail/score-info-panel.tsx');
+    const surface = readSource('src/features/scores/core/components/score-surface.tsx');
+    const capabilityContext = readSource('src/features/scores/core/components/score-capability-context.tsx');
+    const actions = readSource('src/features/scores/core/detail/score-hero-actions.tsx');
+    const metadata = readSource('src/features/scores/core/detail/score-info-panel.tsx');
 
     expect(existsSync(projectPath('src/components/score-shell'))).toBe(false);
     expect(surface).toContain('ScoreSurface');

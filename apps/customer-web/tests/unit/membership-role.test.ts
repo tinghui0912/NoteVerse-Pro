@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MembershipRole } from '@/generated/api';
-import { membershipRoleTranslationKey, selectableMembershipRoles } from '@/lib/membership-role';
+import { membershipRoleTranslationKey, selectableMembershipRoles } from '@/features/scores/collaboration/roles';
 import en from '../../messages/en/scoreCollaboration.json';
 import zh from '../../messages/zh/scoreCollaboration.json';
 

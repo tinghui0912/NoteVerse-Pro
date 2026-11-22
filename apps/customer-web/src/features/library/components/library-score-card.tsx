@@ -1,7 +1,7 @@
 'use client';
 
 import { FolderInput, MoreVertical, Star, Trash2, LogOut } from 'lucide-react';
-import { ScoreThumbnail } from '@/components/score/score-thumbnail';
+import { ScoreThumbnail } from '@/features/scores/core/components/score-thumbnail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';

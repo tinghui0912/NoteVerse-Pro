@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { expect, it } from 'vitest';
 import type { ImportJobRead, ImportJobReviewRead } from '@/generated/api';
-import { scoresDeleted, scoreLeft } from '@/lib/cache-effects/scores';
+import { scoresDeleted, scoreLeft } from '@/features/scores/consequences';
 import { importQueryKeys } from './query-keys';
 
 it.each(['delete', 'leave'] as const)(

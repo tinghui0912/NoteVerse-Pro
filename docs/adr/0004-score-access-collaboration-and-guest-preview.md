@@ -89,3 +89,13 @@ no-store. Images can still be copied by browsers; this is not DRM.
 
 Collaboration Invite is the authenticated membership entrance. It is independent of
 Guest Preview and of any future personal practice sharing authorization.
+
+## Frontend ownership
+
+The Customer Score product has distinct `features/scores/core`,
+`features/scores/collaboration` and `features/scores/guest-preview` lifecycle owners.
+Each owns its API/query/cache presentation boundary. Parent Score composition combines
+those surfaces and named cross-lifecycle cache consequences. Frontend capability
+presentation consumes backend `ScoreCapabilities`; it does not infer authorization
+from Membership roles. The public Guest Preview surface consumes bearer presentation
+without ambient authenticated Score capabilities.

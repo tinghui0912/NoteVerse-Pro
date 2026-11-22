@@ -20,7 +20,9 @@ import { usePracticeWorkspace } from '@/contexts/practice-workspace-context';
 import { AcousticEngine } from '@/lib/practice/acoustic/model/acoustic-engine';
 const admission = vi.hoisted(() => ({ request: vi.fn(), supported: true, events: [] as string[], revision: 'revision-id' as string | null, scoreId: 'score-id' }));
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeBundle: (...args: unknown[]) => admission.request(...args) } }));
-vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { head_revision_id: 'head-id', capabilities: { can_practice: true } }, isError: false }) }));
+vi.mock('@/features/scores/core/queries', () => ({
+useScoreDetail: () => ({ data: { head_revision_id: 'head-id', capabilities: { can_practice: true } }, isError: false })
+}));
 vi.mock('@/lib/practice/input-capability', () => ({
   evaluatePracticeInputCapabilities: () => { admission.events.push('capability'); return {}; },
   getSelectedInputCapability: () => ({ supported: admission.supported }),

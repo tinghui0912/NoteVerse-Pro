@@ -12,6 +12,10 @@
   adapters、API、query keys、queries、cache consequences 和 routes/route state。
 - `src/features/imports/`：Import submission、activity/job lifecycle 与 Review/editor adapter。
 - `src/features/library/`：个人 folders、favorite、organization、浏览和批量 Move/Favorite。
+- `src/features/scores/core/`：Score detail/capability、revision/assets、editor adapter 和下载。
+- `src/features/scores/collaboration/`：Invite、Membership、self Leave、pending invites 和外部 Invite 页面。
+- `src/features/scores/guest-preview/`：owner credential commands 与独立 public bearer presentation。
+- `src/features/scores/` parent：产品页面组合、Score route locations 和跨生命周期 cache consequences。
 - `src/app/[locale]/`：route entry、layout、loading/error/not-found 和页面组合。
 - `src/components/`：共享 UI、shell、基础组件和跨领域 presentation。
 - `src/lib/`：跨领域 browser infrastructure 与共享纯能力。
@@ -23,12 +27,14 @@
 驱动整棵 React 树重渲染。
 
 Library 的复杂选择、folder/dialog 状态和 query coordination 属于 Library feature。
-Score Delete 和 membership Leave 仍由各自领域拥有，Library 页面仅调用这些命令。
+Score Delete 和 membership Leave 仍由各自领域拥有，Library 页面仅调用这些命令。Score parent consequences 组合各 lifecycle cache owner，
+local cache 不相互依赖。Score deletion 失效 Guest Preview 和 Import 域；Leave 不改变
+这两项 authority。Frontend 只消费 backend ScoreCapabilities，不从角色重新推导授权。
 
 ## API、类型与服务端状态
 
 Customer HTTP 请求通过 OpenAPI generated SDK operation 发起；method、path、
-path params、query 与 body encoding 由 generated code 拥有。Import 和 Library 的
+path params、query 与 body encoding 由 generated code 拥有。Import、Library 与 Score 各生命周期的
 API adapter 位于各自 feature，其余领域使用各自明确的当前 adapter owner。
 Adapter 只进行前端语义适配和 generated result 投影。统一 browser transport 管理
 credentials、CSRF、refresh/retry、redirect、AbortSignal、错误与 observability。
@@ -39,8 +45,8 @@ HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generat
 视图模型、表单状态和浏览器内部消息由前端拥有。API helper 返回稳定类型，
 页面不猜测字段、不通过 `any` 掩盖契约问题。
 
-- Import 和 Library 的 query keys、queries 与 cache consequences 由各自 feature
-  拥有。`src/lib/query-client.ts` 配置 QueryClient，并管理其余当前领域的 keys。
+- Import、Library 和 Score core/Collaboration/Guest Preview 的 query keys、queries 与
+  cache consequences 各有独立 owner。`src/lib/query-client.ts` 配置 QueryClient，并管理其余当前领域的 keys。
   Identity 使用稳定、可序列化的 domain/scope/identity，不放 File 或函数。
 - Query function 在 API helper 支持时传递 AbortSignal，取消失效请求。
 - Mutation 的领域 hook 调用所属领域的 cache consequence；跨领域调用不复制目标领域的 keys。
@@ -89,7 +95,8 @@ Verovio。详情、分享和公开页面使用后端 render assets 与 playback 
   其它 program 回退到 piano，产品不宣称完整乐器保真。
 
 Score 工作区使用 `/score/:id`、`/score/:id/edit`、`/score/:id/practice`。
-Score 编辑读取 canonical revision source 并保存新 revision。
+Score 编辑读取 canonical revision source 并保存新 revision；Score-specific adapter 位于
+`features/scores/core/editor`，保存返回 canonical Score detail，不接受自定义 returnUrl。
 `EditorWorkspacePage` 组合共享编辑器 UI，source hook 返回
 `EditorWorkspaceDocument`。编辑文档 hook 拥有 query、草稿恢复、校验、
 base-revision save target、autosave 与原图 cleanup。

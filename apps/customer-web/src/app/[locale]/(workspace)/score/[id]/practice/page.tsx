@@ -24,7 +24,7 @@ import { ResourceInterruptionDialog } from '@/components/practice/resource-inter
 import { PracticeStatus } from '@/components/practice/practice-status';
 import { PracticeDeviceStatusPopover } from '@/components/practice/practice-device-status-popover';
 import { PracticeSkipControl } from '@/components/practice/practice-skip-control';
-import { ScoreSurface } from '@/components/score/score-surface';
+import { ScoreSurface } from '@/features/scores/core/components/score-surface';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { planPractice } from '@/lib/practice/planning/practice-plan';
 import type { PracticeIntent } from '@/lib/practice/planning/intent';

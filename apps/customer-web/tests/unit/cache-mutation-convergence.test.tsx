@@ -1,3 +1,4 @@
+import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 import { libraryQueryKeys } from '@/features/library/query-keys';
 import { importQueryKeys } from '@/features/imports/query-keys';
 // @vitest-environment jsdom
@@ -5,7 +6,7 @@ import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { useUpdateScore } from '@/hooks/queries/use-score-queries';
+import { useUpdateScore } from '@/features/scores/core/queries';
 import {
   useConfirmImportJobReview,
   useUpdateImportJobReview,
@@ -21,9 +22,11 @@ const api = vi.hoisted(() => ({
   markRead: vi.fn(),
   markAllRead: vi.fn(),
 }));
+vi.mock('@/features/scores/core/api', () => ({
+scoresApi: { update: api.update }
+}));
 vi.mock('@/lib/api', () => ({
-  scoresApi: { update: api.update },
-  notificationsApi: { markRead: api.markRead, markAllRead: api.markAllRead },
+notificationsApi: { markRead: api.markRead, markAllRead: api.markAllRead }
 }));
 vi.mock('@/features/imports/api/review', () => ({
   importReviewApi: { confirm: api.confirm, update: api.updateReview },
@@ -44,14 +47,14 @@ it('converges successful Score PATCH into detail and Library before mutateAsync 
   client.setQueryData(list, { items: [] }); api.update.mockResolvedValue(score);
   const hook = renderHook(() => useUpdateScore(), { wrapper });
   await act(async () => { await hook.result.current.mutateAsync({ scoreId: 'score', display_title: 'New title', expected_metadata_version: 1 }); });
-  expect(client.getQueryData(keys.scores.detail('score'))).toEqual(score);
+  expect(client.getQueryData(scoreQueryKeys.detail('score'))).toEqual(score);
   expect(client.getQueryState(list)?.isInvalidated).toBe(true);
   expect(api.update).toHaveBeenCalledWith('score', { display_title: 'New title', expected_metadata_version: 1 });
   hook.unmount();
 });
 
 it('converges a local confirmation through Import, Review, Library, Score and storage', async () => {
-  const changed = [importQueryKeys.jobs.list(1, 20), importQueryKeys.jobs.detail('job'), importQueryKeys.review('job'), libraryQueryKeys.scoreList({ page: 1, pageSize: 20 }), keys.scores.detail('score'), keys.storageUsage.current()];
+  const changed = [importQueryKeys.jobs.list(1, 20), importQueryKeys.jobs.detail('job'), importQueryKeys.review('job'), libraryQueryKeys.scoreList({ page: 1, pageSize: 20 }), scoreQueryKeys.detail('score'), keys.storageUsage.current()];
   changed.forEach((key) => client.setQueryData(key, { cached: true }));
   api.confirm.mockResolvedValue({ score_id: 'score' });
   const hook = renderHook(() => useConfirmImportJobReview(), { wrapper });

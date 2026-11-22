@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, CUSTOMER_API_PREFIX } from '@/generated/browser-protocol';
 import { customerRoutes } from '@/generated/customer-routes';
 import { guestPageUrl, guestPlaybackUrl, realtimeEventsUrl, scorePlaybackUrl } from '@/lib/api/native-resource-urls';
-import { scoreThumbnailUrl } from '@/lib/score-detail/thumbnail';
+import { scoreThumbnailUrl } from '@/features/scores/core/detail/thumbnail';
 import { createRealtimeEventSource } from '@/lib/realtime/event-source';
 import proxy from '@/proxy';
 import config from '../../next.config';

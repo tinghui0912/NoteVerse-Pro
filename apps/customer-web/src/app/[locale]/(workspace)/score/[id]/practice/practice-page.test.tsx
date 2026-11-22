@@ -46,7 +46,9 @@ vi.mock('@/hooks/practice/use-practice-resource-binding', () => ({ usePracticeRe
   fake.leaseEnabled(Boolean(owner)); return { snapshot: { state: deviceReady ? 'READY' : 'FAULTED', health: {}, roots: {}, issue: null },
     rootHealth: health.port, borrow: () => deviceReady ? borrowedDevices() : null };
 } }));
-vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: fake.scoreRequest }));
+vi.mock('@/features/scores/core/queries', () => ({
+useScoreDetail: fake.scoreRequest
+}));
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeBundle: fake.sourceRequest, createActivity: fake.activity } }));
 vi.mock('@/lib/observability', () => ({ reportClientError: fake.reportError }));
 vi.mock('@/lib/practice/step/step-platform', () => ({ browserStepPlatform: (...args: unknown[]) => fake.step(...args) }));

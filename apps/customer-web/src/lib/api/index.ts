@@ -17,9 +17,6 @@ export { uploadsApi } from './uploads';
 export { profileApi } from './profile';
 
 // Practice API.
-export { guestPreviewApi } from './guest-previews';
 export { notificationsApi } from './notifications';
 export { practiceApi } from './practice';
-export { scoreInvitesApi } from './score-invites';
-export { scoresApi } from './scores';
 export { storageUsageApi } from './storage-usage';

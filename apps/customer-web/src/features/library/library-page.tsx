@@ -1,4 +1,5 @@
 'use client';
+import { scoreLocation } from '@/features/scores/routes';
 
 import React, { useMemo, useState } from 'react';
 import { Music, Star, User, Users } from 'lucide-react';
@@ -6,12 +7,10 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { LibraryBulkActions } from '@/features/library/components/library-bulk-actions';
 import { LibraryDeleteFolderDialog } from '@/features/library/components/library-delete-folder-dialog';
-import { ScoreDeleteDialog } from '@/components/score/score-delete-dialog';
-import {
-  useDeleteScores,
-  useLeaveScore,
-} from '@/hooks/queries/use-score-queries';
-import { ScoreLeaveDialog } from '@/components/score/score-leave-dialog';
+import { ScoreDeleteDialog } from '@/features/scores/core/components/score-delete-dialog';
+import { useDeleteScores } from '@/features/scores/core/queries';
+import { useLeaveScore } from '@/features/scores/collaboration/queries';
+import { ScoreLeaveDialog } from '@/features/scores/collaboration/leave-dialog';
 import { LibraryScoreCard } from '@/features/library/components/library-score-card';
 import { LibraryMoveScoresDialog } from '@/features/library/components/library-move-scores-dialog';
 import { LibraryFilterBar } from '@/features/library/components/library-filter-bar';
@@ -472,7 +471,7 @@ export default function LibraryPage({ params }: { params: LibrarySearchParams })
                   selected={selectedScoreSet.has(score.score_id)}
                   favoritePending={favoriteScores.isPending}
                   movePending={moveScores.isPending}
-                  onOpen={() => router.push(`/score/${score.score_id}`)}
+                  onOpen={() => router.push(scoreLocation(score.score_id))}
                   onToggleSelection={(checked) =>
                     toggleScoreSelection(score.score_id, checked)
                   }

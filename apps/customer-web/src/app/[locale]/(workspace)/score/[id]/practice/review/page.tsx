@@ -1,4 +1,5 @@
 'use client';
+import { scoreLocation } from '@/features/scores/routes';
 
 import { completedContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 
@@ -308,7 +309,7 @@ export default function PracticeReviewPage({
       workspace.clearReviewSession();
       router.push(
         target === 'score'
-          ? `/score/${id}`
+          ? scoreLocation(id)
           : practiceLocation(
               id,
               'setup',

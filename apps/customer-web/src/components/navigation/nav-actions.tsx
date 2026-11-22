@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/auth-context';
-import { useMyPendingScoreInvites } from '@/hooks/queries/use-score-queries';
+import { useMyPendingScoreInvites } from '@/features/scores/collaboration/queries';
 import { useNotificationUnreadCount } from '@/hooks/queries/use-notification-queries';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { cn } from '@/lib/utils';

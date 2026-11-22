@@ -18,6 +18,9 @@ change; CI runs `npm run check:api` to reject stale output.
 
 `src/features/imports/api/*` owns Import submission, job/artifact and Review adapters.
 `src/features/library/api.ts` owns Library folders, collection reads and organization commands.
+`src/features/scores/core/api.ts` owns Score/revision/assets operations;
+`collaboration/api.ts` owns Invite/Membership operations and `guest-preview/api.ts`
+owns credential management and public bearer operations, under the same Score feature.
 Domains without an explicit feature boundary keep their named adapters under `src/lib/api/*`.
 HTTP operation definitions belong to generated code, and browser transport
 policy belongs to `src/lib/http/`.
@@ -103,7 +106,7 @@ concept and should not be modeled as score revision assets.
 
 ## API and Server State
 
-Product requests go through their domain-owned generated SDK adapters. Import and Library
+Product requests go through their domain-owned generated SDK adapters. Import, Library and Score lifecycle slices
 own these adapters inside their feature boundaries. Shared browser transport lives under
 `src/lib/http/`. Pages and components do not create ad hoc backend product requests.
 
@@ -111,13 +114,13 @@ Rules:
 
 - Next server validates its required backend origin in `next.config.ts`; browser
   protocol identities come from generated constants.
-- Import and Library own their query keys, hooks and cache consequences in their features.
+- Import, Library and each Score lifecycle slice own their query keys, hooks and cache consequences.
   `src/lib/query-client.ts` configures QueryClient and holds keys for domains with other
   current ownership locations.
 - Mutation hooks invoke domain-owned cache consequences; pages own page-specific success copy.
 - Realtime score events invalidate score detail, revision assets, versions, and list queries
   through the shared provider.
-- Downloads go through `useDownload` and typed asset collections, not page-local URL
+- Score downloads go through `useScoreDownload` and typed asset collections, not page-local URL
   construction.
 
 ## Loading and Error States
@@ -156,14 +159,15 @@ Current ownership includes:
 components/brand        logo and brand marks
 components/shell        route shell implementations
 components/navigation   public nav, app sidebar, settings nav
-components/score        score capability context, score thumbnail, shared score surface
 components/score-preview interactive Verovio preview viewport, controls, and playback shell
-components/score-detail score detail tabs, actions, metadata, versions
 features/imports        submission, activity, Review UI/editor adapter, API/query/cache/routes
 features/library        personal folders/favorites/organization, browsing, API/query/cache/route state
+features/scores/core    Score detail/capabilities, revisions/assets, editor adapter and downloads
+features/scores/collaboration Invite/Membership, pending invitations and external Invite page
+features/scores/guest-preview credential owner UI and public bearer presentation
+features/scores         product composition, shared Score routes and lifecycle consequences
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
-components/external     share/invite surfaces
 components/loading      loading primitives
 components/error        error primitives
 ```
@@ -179,6 +183,18 @@ Its thin `/library` route resolves search parameters and renders the feature pag
 Library invokes Score deletion and membership Leave through their existing command owners;
 its API and query hooks do not own either lifecycle command. Library query identities
 and the distinct score-row/organization cache consequences belong to `features/library`.
+
+Score core keys use `scores`; Collaboration keys use `score-collaboration`;
+Guest Preview settings and bearer keys use `guest-preview`. The parent product consequence
+owner composes Score deletion, membership Leave and Invite acceptance across local cache
+owners. Leave preserves Guest Preview authority and Import provenance; deletion refreshes
+those authorities as well as Library and StorageUsage. Public token projections are
+invalidated by their domain prefix without a Score-to-token reverse map.
+
+Score editor saves return to `scoreLocation(scoreId)`. The `/score/:id`, `/score/:id/edit`,
+`/invite/:token` and `/preview/:token` entries compose feature owners. Practice navigation
+continues to use `practiceLocation`; interactive score preview and generic editor machinery
+remain shared. Workspace access-denied presentation is a shared state primitive.
 
 Only truly cross-domain primitives should live at component root.
 

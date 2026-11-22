@@ -1,6 +1,7 @@
 'use client';
+import { scoreLocation } from '@/features/scores/routes';
 
-import { membershipRoleTranslationKey } from '@/lib/membership-role';
+import { membershipRoleTranslationKey } from '@/features/scores/collaboration/roles';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Bell, Check, MailPlus, X } from 'lucide-react';
@@ -22,11 +23,7 @@ import { cn } from '@/lib/utils';
 import { useRouter } from '@/i18n/routing';
 import { useToast } from '@/hooks/use-toast';
 import { groupNotificationsByDate } from '@/lib/notifications/date-groups';
-import {
-  useAcceptMyPendingScoreInvite,
-  useDeclineMyPendingScoreInvite,
-  useMyPendingScoreInvites,
-} from '@/hooks/queries/use-score-queries';
+import { useAcceptMyPendingScoreInvite, useDeclineMyPendingScoreInvite, useMyPendingScoreInvites } from '@/features/scores/collaboration/queries';
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -75,7 +72,7 @@ export function NotificationCenterDialog({ open, onOpenChange }: NotificationCen
       onSuccess: (response) => {
         toast({ title: t('accepted'), description: t('acceptedDescription') });
         onOpenChange(false);
-        router.push(`/score/${response?.score_id ?? invite.score_id}`);
+        router.push(scoreLocation(response?.score_id ?? invite.score_id));
       },
       onError: (error) => {
         toast({

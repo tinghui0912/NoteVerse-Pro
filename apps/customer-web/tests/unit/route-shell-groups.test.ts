@@ -72,7 +72,7 @@ describe('route shell groups', () => {
     const publicShell = readSource('src/components/shell/public-shell.tsx');
     const publicNav = readSource('src/components/navigation/public-nav.tsx');
     const inviteLayout = readSource('src/app/[locale]/(invite)/layout.tsx');
-    const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
+    const invitePage = readSource('src/features/scores/collaboration/invite-page.tsx');
 
     expect(publicShell).toContain('<PublicNav');
     expect(publicNav).toContain("href: '/subscriptions'");
@@ -134,11 +134,11 @@ describe('route shell groups', () => {
     const localeError = readSource('src/app/[locale]/error.tsx');
     const editorError = readSource('src/app/[locale]/(workspace)/score/[id]/edit/error.tsx');
     const reviewPage = readSource('src/app/[locale]/(app)/imports/[jobId]/review/page.tsx');
-    const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
+    const scorePage = readSource('src/features/scores/score-detail-page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
-    const previewPage = readSource('src/components/external/guest-preview-page.tsx');
+    const previewPage = readSource('src/features/scores/guest-preview/public-page.tsx');
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
-    const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
+    const invitePage = readSource('src/features/scores/collaboration/invite-page.tsx');
     const practiceControls = readSource('src/components/practice/practice-controls.tsx');
     const libraryPage = readSource('src/features/library/library-page.tsx');
     const notificationDialog = readSource('src/components/notifications/notification-center-dialog.tsx');
@@ -206,11 +206,11 @@ describe('route shell groups', () => {
 
     const globalLoading = readSource('src/app/[locale]/loading.tsx');
     const loadingIndex = readSource('src/components/loading/index.ts');
-    const scorePage = readSource('src/app/[locale]/(app)/score/[id]/page.tsx');
+    const scorePage = readSource('src/features/scores/score-detail-page.tsx');
     const reviewPage = readSource('src/app/[locale]/(app)/imports/[jobId]/review/page.tsx');
     const editorWorkspace = readSource('src/components/editor/editor-workspace-page.tsx');
-    const previewPage = readSource('src/components/external/guest-preview-page.tsx');
-    const invitePage = readSource('src/app/[locale]/(invite)/invite/[token]/page.tsx');
+    const previewPage = readSource('src/features/scores/guest-preview/public-page.tsx');
+    const invitePage = readSource('src/features/scores/collaboration/invite-page.tsx');
     const practicePage = readSource('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx');
     const libraryPage = readSource('src/features/library/library-page.tsx');
     const librarySidebar = readSource('src/features/library/components/library-sidebar.tsx');

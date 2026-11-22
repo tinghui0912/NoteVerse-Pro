@@ -5,7 +5,9 @@ import { usePracticeRouteScore } from './use-practice-route-score';
 const fake = vi.hoisted(() => ({ replace: vi.fn(), query: '', api: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: fake.replace }),
   usePathname: () => '/score/score/practice/setup', useSearchParams: () => new URLSearchParams(fake.query) }));
-vi.mock('@/hooks/queries/use-score-queries', () => ({ useScoreDetail: () => ({ data: { head_revision_id: 'head', capabilities: { can_practice: true } } }) }));
+vi.mock('@/features/scores/core/queries', () => ({
+useScoreDetail: () => ({ data: { head_revision_id: 'head', capabilities: { can_practice: true } } })
+}));
 vi.mock('@/lib/api', () => ({ practiceApi: { getPracticeBundle: fake.api } }));
 beforeEach(() => { fake.query = ''; fake.replace.mockReset(); fake.api.mockReset(); });
 it('pins metadata head identity without admitting a source', async () => {

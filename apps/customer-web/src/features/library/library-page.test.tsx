@@ -60,9 +60,11 @@ vi.mock('next-intl', () => ({
       { has: () => false },
     ),
 }));
-vi.mock('@/hooks/queries/use-score-queries', () => ({
-  useDeleteScores: () => ({ mutate: mocks.deleteScores, reset: vi.fn() }),
-  useLeaveScore: () => ({ mutate: mocks.leaveScore, reset: vi.fn() }),
+vi.mock('@/features/scores/core/queries', () => ({
+useDeleteScores: () => ({ mutate: mocks.deleteScores, reset: vi.fn() })
+}));
+vi.mock('@/features/scores/collaboration/queries', () => ({
+useLeaveScore: () => ({ mutate: mocks.leaveScore, reset: vi.fn() })
 }));
 vi.mock('@/features/library/queries', () => ({
   useLibraryFolders: () => ({

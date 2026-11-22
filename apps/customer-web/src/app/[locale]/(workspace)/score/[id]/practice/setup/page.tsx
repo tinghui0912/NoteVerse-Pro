@@ -1,4 +1,5 @@
 'use client';
+import { scoreLocation } from '@/features/scores/routes';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useParams } from 'next/navigation';
@@ -103,7 +104,7 @@ export default function PracticeSetupPage() {
   return <main className="mx-auto max-w-2xl space-y-6 p-6" data-testid="practice-setup">
     <nav aria-label={t('backToScore')}>
       <button type="button" className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
-        onClick={() => router.push(`/score/${params.id}`)}>
+        onClick={() => router.push(scoreLocation(params.id))}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />{t('backToScore')}
       </button>
     </nav>

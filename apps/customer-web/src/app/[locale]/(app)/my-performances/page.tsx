@@ -1,4 +1,5 @@
 'use client';
+import { scoreLocation } from '@/features/scores/routes';
 import { microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
 
 import { recordingMediaExtension } from '@/lib/practice/recording/media-admission';
@@ -132,7 +133,7 @@ function PerformanceTakeCard({
   const scoreDisplayTitleNode =
     take.can_open_score && take.linked_score_id ? (
       <Link
-        href={`/score/${take.linked_score_id}`}
+        href={scoreLocation(take.linked_score_id)}
         className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
       >
         {scoreDisplayTitle}

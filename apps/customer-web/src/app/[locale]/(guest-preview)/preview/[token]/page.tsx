@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { GuestPreviewPage } from '@/components/external/guest-preview-page';
+import { GuestPreviewPage } from '@/features/scores/guest-preview/public-page';
 
 export const metadata: Metadata = { robots: { index: false, follow: false, noarchive: true } };
 

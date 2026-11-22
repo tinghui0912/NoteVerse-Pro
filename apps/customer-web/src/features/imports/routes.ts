@@ -1,3 +1,4 @@
+import { scoreLocation } from '@/features/scores/routes';
 import type { ImportJobRead } from '@/generated/api';
 
 export function importActivityLocation() {
@@ -12,13 +13,9 @@ export function importReviewEditLocation(jobId: string): `/imports/${string}/rev
   return `/imports/${encodeURIComponent(jobId)}/review/edit`;
 }
 
-export function importConfirmedScoreLocation(scoreId: string): `/score/${string}` {
-  return `/score/${encodeURIComponent(scoreId)}`;
-}
-
 export type ImportJobDestination =
   | { kind: 'review'; href: ReturnType<typeof importReviewLocation> }
-  | { kind: 'score'; href: ReturnType<typeof importConfirmedScoreLocation> };
+  | { kind: 'score'; href: ReturnType<typeof scoreLocation> };
 
 export function importJobDestination(
   job: Pick<ImportJobRead, 'job_id' | 'state' | 'score_id'>,
@@ -28,7 +25,7 @@ export function importJobDestination(
     case 'READY_FOR_REVIEW':
       return { kind: 'review', href: importReviewLocation(job.job_id) };
     case 'CONFIRMED':
-      return job.score_id ? { kind: 'score', href: importConfirmedScoreLocation(job.score_id) } : null;
+      return job.score_id ? { kind: 'score', href: scoreLocation(job.score_id) } : null;
     case 'QUEUED':
     case 'PROCESSING':
     case 'FAILED':

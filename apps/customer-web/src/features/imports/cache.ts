@@ -1,6 +1,6 @@
+import { scoreDetailChanged } from '@/features/scores/core/cache';
 import { importQueryKeys } from '@/features/imports/query-keys';
 import type { QueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/query-client';
 import { libraryScoresChanged } from '@/features/library/cache';
 import { storageUsageChanged } from '@/lib/cache-effects/storage';
 
@@ -30,7 +30,7 @@ export async function reviewConfirmed(client: QueryClient, jobId: string, scoreI
   await Promise.all([
     importJobChanged(client, jobId),
     libraryScoresChanged(client),
-    client.invalidateQueries({ queryKey: queryKeys.scores.detail(scoreId), exact: true }),
+    scoreDetailChanged(client, scoreId),
     storageUsageChanged(client),
   ]);
 }

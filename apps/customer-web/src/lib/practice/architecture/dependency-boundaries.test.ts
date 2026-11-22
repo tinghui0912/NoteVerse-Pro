@@ -2908,7 +2908,7 @@ it('browser execution and Review consume workspace-owned representations rather 
     'lib/practice/bundle/bundle-representation.ts',
     'lib/api/practice.ts',
     'hooks/practice/use-performance-take-export-bundle.ts',
-    'hooks/queries/use-score-queries.ts',
+    'features/scores/core/queries.ts',
   ].map((file) => normalize(path.join(sourceRoot, file)));
   for (const file of [
     executionPage,

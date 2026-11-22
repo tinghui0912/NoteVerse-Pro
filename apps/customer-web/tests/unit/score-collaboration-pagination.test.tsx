@@ -1,18 +1,14 @@
+import { collaborationQueryKeys } from '@/features/scores/collaboration/query-keys';
 // @vitest-environment jsdom
 import React, { type PropsWithChildren } from 'react';
 import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ScoreCollaborationPanel } from '@/components/score-detail/score-collaboration-panel';
+import { ScoreCollaborationPanel } from '@/features/scores/collaboration/owner-panel';
 import { NotificationCenterDialog } from '@/components/notifications/notification-center-dialog';
-import {
-  useMyPendingScoreInvites,
-  useScoreInvites,
-  useScoreMembers,
-} from '@/hooks/queries/use-score-queries';
+import { useMyPendingScoreInvites, useScoreInvites, useScoreMembers } from '@/features/scores/collaboration/queries';
 import type { InviteRead, MemberRead, PendingInviteRead } from '@/generated/api';
-import { queryKeys } from '@/lib/query-client';
 import messages from '../../messages/en/scoreCollaboration.json';
 
 const api = vi.hoisted(() => ({
@@ -26,7 +22,12 @@ const api = vi.hoisted(() => ({
   acceptMyPendingInvite: vi.fn(),
   declineMyPendingInvite: vi.fn(),
 }));
-vi.mock('@/lib/api', () => ({ scoreInvitesApi: api, scoresApi: {} }));
+vi.mock('@/features/scores/collaboration/api', () => ({
+collaborationApi: api
+}));
+vi.mock('@/features/scores/core/api', () => ({
+scoresApi: {}
+}));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/i18n/routing', () => ({
   routing: { defaultLocale: 'en' },
@@ -223,10 +224,10 @@ it.each(['ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'] as const)(
     await userEvent.type(screen.getByLabelText('email'), 'local@example.com');
     await userEvent.click(screen.getByRole('button', { name: 'createInvite' }));
     await screen.findByRole('button', { name: 'copy' });
-    await waitFor(() => expect(client.isFetching({queryKey: queryKeys.scores.invites('score')})).toBe(0));
+    await waitFor(() => expect(client.isFetching({queryKey: collaborationQueryKeys.invites('score')})).toBe(0));
     // The local token remains in component state while the authoritative page changes.
     await act(async () => {
-      client.setQueryData(queryKeys.scores.invites('score'), {
+      client.setQueryData(collaborationQueryKeys.invites('score'), {
         pages: [page([{ ...invite('local'), status }])],
         pageParams: [undefined],
       });
