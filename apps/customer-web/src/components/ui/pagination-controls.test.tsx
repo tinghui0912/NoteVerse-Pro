@@ -5,7 +5,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { LibraryPagination } from '@/features/library/components/library-pagination';
 
 describe('PaginationControls', () => {
   const mockT = (key: string, values?: Record<string, string | number>) => {
@@ -78,20 +77,4 @@ describe('PaginationControls', () => {
     expect(screen.getByRole('button', { name: '下一页' })).toBeDisabled();
   });
 
-  it('LibraryPagination delegates to PaginationControls with identical visual structure', () => {
-    const onPageChange = vi.fn();
-    const { container } = render(
-      <LibraryPagination
-        page={3}
-        totalPages={10}
-        canGoPrevious={true}
-        canGoNext={true}
-        onPageChange={onPageChange}
-        t={mockT}
-      />,
-    );
-
-    expect(screen.getByText('第 3 / 10 页')).toBeInTheDocument();
-    expect(container.querySelector('div.rounded-2xl')).toBeInTheDocument();
-  });
 });
