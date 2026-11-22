@@ -17,7 +17,7 @@ function nodes(source: ts.Node): ts.Node[] {
 
 function isCacheOwner(file: string) {
   const path = relative(root, file).replaceAll('\\', '/');
-  return path.startsWith('lib/cache-effects/') || path === 'features/imports/cache.ts';
+  return path.startsWith('lib/cache-effects/') || path === 'features/imports/cache.ts' || path === 'features/library/cache.ts';
 }
 
 it('keeps server-state cache mutation and cache inspection inside semantic effects', () => {
@@ -34,11 +34,11 @@ it('keeps server-state cache mutation and cache inspection inside semantic effec
 });
 
 it('limits semantic effects to cache mechanics, query identities and generated representations', () => {
-  for (const file of [...files(resolve(root, 'lib/cache-effects')), resolve(root, 'features/imports/cache.ts')]) {
+  for (const file of [...files(resolve(root, 'lib/cache-effects')), resolve(root, 'features/imports/cache.ts'), resolve(root, 'features/library/cache.ts')]) {
     const source = parse(file);
     for (const statement of source.statements.filter(ts.isImportDeclaration)) {
       const modulePath = (statement.moduleSpecifier as ts.StringLiteral).text;
-      expect(modulePath === '@tanstack/react-query' || modulePath === '@/lib/query-client' || modulePath === '@/generated/api' || modulePath === '@/lib/realtime/generated/events' || modulePath.startsWith('./') || modulePath.startsWith('@/lib/cache-effects/') || modulePath === '@/features/imports/cache' || modulePath === '@/features/imports/query-keys').toBe(true);
+      expect(modulePath === '@tanstack/react-query' || modulePath === '@/lib/query-client' || modulePath === '@/generated/api' || modulePath === '@/lib/realtime/generated/events' || modulePath.startsWith('./') || modulePath.startsWith('@/lib/cache-effects/') || modulePath === '@/features/imports/cache' || modulePath === '@/features/imports/query-keys' || modulePath === '@/features/library/cache' || modulePath === '@/features/library/query-keys').toBe(true);
       if (modulePath === '@/generated/api' || modulePath === '@/lib/realtime/generated/events') expect(statement.importClause?.isTypeOnly).toBe(true);
     }
     const calls = nodes(source).filter(ts.isCallExpression);

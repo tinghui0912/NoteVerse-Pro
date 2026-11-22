@@ -1,3 +1,4 @@
+import { libraryQueryKeys } from '@/features/library/query-keys';
 import { importQueryKeys } from '@/features/imports/query-keys';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { QueryClient, type QueryKey } from '@tanstack/react-query';
@@ -23,7 +24,7 @@ import {
 } from '@/features/imports/cache';
 import { notificationsChanged } from '@/lib/cache-effects/notifications';
 import { scoreInvitesChanged, scoreMembersChanged, inviteAccepted, pendingInviteDeclined } from '@/lib/cache-effects/collaboration';
-import { libraryOrganizationChanged } from '@/lib/cache-effects/library';
+import { libraryOrganizationChanged } from '@/features/library/cache';
 import { performanceTakeDeleted, performanceTakeSaved } from '@/lib/cache-effects/performance-takes';
 import { applyRealtimeCacheChange, serverStateResyncRequired } from '@/lib/cache-effects/realtime';
 import { accountSessionsChanged } from '@/lib/cache-effects/account';
@@ -35,7 +36,7 @@ afterEach(() => client.clear());
 const seed = (key: QueryKey, data: unknown = { cached: true }) => { client.setQueryData(key, data); return key; };
 const stale = (key: QueryKey) => client.getQueryState(key)?.isInvalidated;
 const scoreKeys = (id: string) => [keys.scores.detail(id), keys.scores.revisions(id), keys.scores.revision(id, 'r1'), keys.scores.revisionAssets(id), keys.scores.revisionAssets(id, 'r1'), keys.scores.revisionAssets(id, 'r2'), keys.scores.invites(id), keys.scores.members(id), keys.scores.guestPreviewSettings(id)];
-const library = () => seed(keys.library.scoreList({ page: 1, pageSize: 20 }));
+const library = () => seed(libraryQueryKeys.scoreList({ page: 1, pageSize: 20 }));
 const storage = () => seed(keys.storageUsage.current());
 const score = { score_id: 'a', display_title: 'Renamed', genres: [], head_revision_id: 'r1', metadata: null, input_assets: [], metadata_version: 2, head_revision_number: 2,
   capabilities: { can_view: true, can_edit: true, can_delete: true, can_leave: false, can_manage_members: true, can_manage_guest_previews: true, can_download: true, can_practice: true },
@@ -44,7 +45,7 @@ const score = { score_id: 'a', display_title: 'Renamed', genres: [], head_revisi
 describe('Score semantic consequences', () => {
   it('replaces the exact PATCH representation and makes Library scores stale', async () => {
     const target = seed(keys.scores.detail('a')); const other = seed(keys.scores.detail('b'));
-    const list = library(); const folders = seed(keys.library.folders());
+    const list = library(); const folders = seed(libraryQueryKeys.folders());
     await scoreUpdated(client, score);
     expect(client.getQueryData(target)).toEqual(score);
     expect([target, other, list, folders].map(stale)).toEqual([false, false, true, false]);
@@ -78,7 +79,7 @@ describe('Score semantic consequences', () => {
   it.each(['leave', 'delete'])('removes only target Score identities for %s', async (operation) => {
     const removed = scoreKeys('a').map((key) => seed(key)); const kept = scoreKeys('b').map((key) => seed(key));
     kept.push(seed(keys.scores.myInvites()), seed(keys.scores.inviteAccess('token')), seed(keys.scores.guestPreview('token')));
-    const list = library(); const folders = seed(keys.library.folders());
+    const list = library(); const folders = seed(libraryQueryKeys.folders());
     const jobs = seed(importQueryKeys.jobs.list(1, 20)); const usage = storage();
     await (operation === 'leave' ? scoreLeft(client, 'a') : scoresDeleted(client, ['a']));
     expect(removed.every((key) => client.getQueryState(key) === undefined)).toBe(true);
@@ -153,7 +154,7 @@ it('keeps notifications and Collaboration collections independent', async () => 
 });
 
 it('converges Library organization, persisted storage and account sessions within their domains', async () => {
-  const list = library(); const folders = seed(keys.library.folders()); const usage = storage(); const sessions = seed(keys.account.sessions());
+  const list = library(); const folders = seed(libraryQueryKeys.folders()); const usage = storage(); const sessions = seed(keys.account.sessions());
   await libraryOrganizationChanged(client); expect([list, folders, usage].map(stale)).toEqual([true, true, false]);
   await storageUsageChanged(client); expect(stale(usage)).toBe(true); expect(stale(sessions)).toBe(false);
   await accountSessionsChanged(client); expect(stale(sessions)).toBe(true);

@@ -1,9 +1,10 @@
-﻿'use client';
+'use client';
+
+import { libraryQueryKeys } from '@/features/library/query-keys';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { libraryApi } from '@/lib/api';
-import { queryKeys } from '@/lib/query-client';
-import { libraryOrganizationChanged } from '@/lib/cache-effects/library';
+import { libraryApi } from '@/features/library/api';
+import { libraryOrganizationChanged } from '@/features/library/cache';
 import type {
   LibraryScoreBatchMoveRequest,
   LibraryScoreBatchFavoriteRequest,
@@ -15,7 +16,7 @@ import type {
 
 export function useLibraryFolders() {
   return useQuery({
-    queryKey: queryKeys.library.folders(),
+    queryKey: libraryQueryKeys.folders(),
     queryFn: ({ signal }) => libraryApi.folders(signal),
   });
 }
@@ -29,7 +30,7 @@ export function useLibraryScores(params: {
   pageSize: number;
 }) {
   return useQuery({
-    queryKey: queryKeys.library.scoreList(params),
+    queryKey: libraryQueryKeys.scoreList(params),
     queryFn: ({ signal }) =>
       libraryApi.scores(
         {

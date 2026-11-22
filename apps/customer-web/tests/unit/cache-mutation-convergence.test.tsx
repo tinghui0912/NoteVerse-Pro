@@ -1,3 +1,4 @@
+import { libraryQueryKeys } from '@/features/library/query-keys';
 import { importQueryKeys } from '@/features/imports/query-keys';
 // @vitest-environment jsdom
 import type { ReactNode } from 'react';
@@ -39,7 +40,7 @@ const score: ScoreRead = {
 };
 
 it('converges successful Score PATCH into detail and Library before mutateAsync resolves', async () => {
-  const list = keys.library.scoreList({ page: 1, pageSize: 20 });
+  const list = libraryQueryKeys.scoreList({ page: 1, pageSize: 20 });
   client.setQueryData(list, { items: [] }); api.update.mockResolvedValue(score);
   const hook = renderHook(() => useUpdateScore(), { wrapper });
   await act(async () => { await hook.result.current.mutateAsync({ scoreId: 'score', display_title: 'New title', expected_metadata_version: 1 }); });
@@ -50,7 +51,7 @@ it('converges successful Score PATCH into detail and Library before mutateAsync 
 });
 
 it('converges a local confirmation through Import, Review, Library, Score and storage', async () => {
-  const changed = [importQueryKeys.jobs.list(1, 20), importQueryKeys.jobs.detail('job'), importQueryKeys.review('job'), keys.library.scoreList({ page: 1, pageSize: 20 }), keys.scores.detail('score'), keys.storageUsage.current()];
+  const changed = [importQueryKeys.jobs.list(1, 20), importQueryKeys.jobs.detail('job'), importQueryKeys.review('job'), libraryQueryKeys.scoreList({ page: 1, pageSize: 20 }), keys.scores.detail('score'), keys.storageUsage.current()];
   changed.forEach((key) => client.setQueryData(key, { cached: true }));
   api.confirm.mockResolvedValue({ score_id: 'score' });
   const hook = renderHook(() => useConfirmImportJobReview(), { wrapper });

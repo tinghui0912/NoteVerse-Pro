@@ -1,3 +1,4 @@
+import { libraryQueryKeys } from '@/features/library/query-keys';
 // @vitest-environment jsdom
 import React from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
@@ -7,14 +8,13 @@ import {
   useLibraryScores,
   useFavoriteLibraryScores,
   useMoveLibraryScores,
-} from '@/hooks/queries/use-library-queries';
-import { queryKeys } from '@/lib/query-client';
+} from '@/features/library/queries';
 const api = vi.hoisted(() => ({
   scores: vi.fn(),
   batchFavorite: vi.fn(),
   batchMove: vi.fn(),
 }));
-vi.mock('@/lib/api', () => ({ libraryApi: api }));
+vi.mock('@/features/library/api', () => ({ libraryApi: api }));
 it('queries workspace pages and refreshes organization after mutations', async () => {
   api.scores.mockResolvedValue({ data: [{ score_id: 'shared' }] });
   api.batchFavorite.mockResolvedValue({ data: { updated: 1 } });
@@ -64,6 +64,6 @@ it('queries workspace pages and refreshes organization after mutations', async (
     score_ids: ['shared'],
     target_folder_id: null,
   });
-  expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.library.all });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   client.clear();
 });

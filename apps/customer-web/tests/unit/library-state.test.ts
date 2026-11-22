@@ -1,11 +1,11 @@
+import { sortedLibraryFolders } from '@/features/library/folders';
 import { describe, expect, it } from 'vitest';
 import {
   buildLibraryHref,
   normalizeLibraryView,
-  sortedLibraryFolders,
   normalizeLibrarySort,
   normalizePage,
-} from '@/lib/library/state';
+} from '@/features/library/route-state';
 import type { LibraryFolderRead } from '@/generated/api';
 
 function folder(

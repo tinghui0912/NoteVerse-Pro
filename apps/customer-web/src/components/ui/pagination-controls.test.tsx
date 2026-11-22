@@ -5,7 +5,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { LibraryPagination } from '@/components/library/library-pagination';
+import { LibraryPagination } from '@/features/library/components/library-pagination';
 
 describe('PaginationControls', () => {
   const mockT = (key: string, values?: Record<string, string | number>) => {

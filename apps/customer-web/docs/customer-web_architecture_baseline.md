@@ -17,7 +17,8 @@ manually. Run `npm run generate:api` after an approved backend contract
 change; CI runs `npm run check:api` to reject stale output.
 
 `src/features/imports/api/*` owns Import submission, job/artifact and Review adapters.
-`src/lib/api/*` contains adapters for other domains and generated result projections.
+`src/features/library/api.ts` owns Library folders, collection reads and organization commands.
+Domains without an explicit feature boundary keep their named adapters under `src/lib/api/*`.
 HTTP operation definitions belong to generated code, and browser transport
 policy belongs to `src/lib/http/`.
 Frontend view models, form state, browser-only protocol messages, and display
@@ -102,15 +103,18 @@ concept and should not be modeled as score revision assets.
 
 ## API and Server State
 
-All product API calls belong under `src/lib/api/*`. Pages and components should not create
-ad hoc `fetch` calls for backend product data.
+Product requests go through their domain-owned generated SDK adapters. Import and Library
+own these adapters inside their feature boundaries. Shared browser transport lives under
+`src/lib/http/`. Pages and components do not create ad hoc backend product requests.
 
 Rules:
 
 - Next server validates its required backend origin in `next.config.ts`; browser
   protocol identities come from generated constants.
-- React Query keys are created through `src/lib/query-client.ts`.
-- Mutations own cache invalidation; pages own page-specific success copy.
+- Import and Library own their query keys, hooks and cache consequences in their features.
+  `src/lib/query-client.ts` configures QueryClient and holds keys for domains with other
+  current ownership locations.
+- Mutation hooks invoke domain-owned cache consequences; pages own page-specific success copy.
 - Realtime score events invalidate score detail, revision assets, versions, and list queries
   through the shared provider.
 - Downloads go through `useDownload` and typed asset collections, not page-local URL
@@ -139,7 +143,14 @@ exception messages to users. User-facing error copy should be classified and loc
 
 ## Component Ownership
 
-Keep UI ownership explicit:
+An explicit `src/features/<domain>/` boundary owns domain UI, application adapters,
+API adapters, query keys, query hooks, cache consequences and route state/locations.
+`src/app/` owns route entry points and page composition. `src/lib/` owns shared browser
+infrastructure and shared pure capabilities; `src/components/` owns shared UI, shells,
+primitives and cross-domain presentation. Domains without a feature boundary retain
+their named current owners; these locations do not define a universal domain layout.
+
+Current ownership includes:
 
 ```text
 components/brand        logo and brand marks
@@ -148,7 +159,8 @@ components/navigation   public nav, app sidebar, settings nav
 components/score        score capability context, score thumbnail, shared score surface
 components/score-preview interactive Verovio preview viewport, controls, and playback shell
 components/score-detail score detail tabs, actions, metadata, versions
-features/imports        submission, activity, temporary review UI/editor adapter, API/query/cache/routes
+features/imports        submission, activity, Review UI/editor adapter, API/query/cache/routes
+features/library        personal folders/favorites/organization, browsing, API/query/cache/route state
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
 components/external     share/invite surfaces
@@ -161,6 +173,12 @@ Import Review is part of Import. Its browser workspaces are
 Import submission and activity. Generic editor capabilities remain shared.
 `features/imports/query-keys.ts` owns the `imports` cache prefix, and
 `features/imports/cache.ts` owns its cache consequences.
+
+Library owns personal organization and browsing, including batch Move/Favorite.
+Its thin `/library` route resolves search parameters and renders the feature page.
+Library invokes Score deletion and membership Leave through their existing command owners;
+its API and query hooks do not own either lifecycle command. Library query identities
+and the distinct score-row/organization cache consequences belong to `features/library`.
 
 Only truly cross-domain primitives should live at component root.
 

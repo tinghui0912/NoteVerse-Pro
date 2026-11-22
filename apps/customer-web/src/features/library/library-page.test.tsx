@@ -3,9 +3,9 @@ import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import scoreMessages from '../../../../../messages/en/score.json';
-import messages from '../../../../../messages/en/library.json';
-import LibraryPage from './page';
+import scoreMessages from '@/../messages/en/score.json';
+import messages from '@/../messages/en/library.json';
+import LibraryPage from './library-page';
 import type { LibraryFolderRead, LibraryScoreRead } from '@/generated/api';
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => ({
   scores: [] as LibraryScoreRead[],
   deleteScores: vi.fn(),
   leaveScore: vi.fn(),
+  totalPages: 1,
+  scoresLoading: false,
+  scoresError: null as Error | null,
+  refetch: vi.fn(),
 }));
 const folders: LibraryFolderRead[] = [
   {
@@ -60,16 +64,18 @@ vi.mock('@/hooks/queries/use-score-queries', () => ({
   useDeleteScores: () => ({ mutate: mocks.deleteScores, reset: vi.fn() }),
   useLeaveScore: () => ({ mutate: mocks.leaveScore, reset: vi.fn() }),
 }));
-vi.mock('@/hooks/queries/use-library-queries', () => ({
+vi.mock('@/features/library/queries', () => ({
   useLibraryFolders: () => ({
     data: { folders, all_count: 10 },
     isLoading: false,
     isError: false,
   }),
-  useLibraryScores: () => ({
-    data: { items: mocks.scores, page: 1, page_size: 20, total: mocks.scores.length, total_pages: 1 },
-    isLoading: false,
-    isError: false,
+  useLibraryScores: (params: { page: number }) => ({
+    data: { items: mocks.scores, page: params.page, page_size: 20, total: mocks.scores.length * mocks.totalPages, total_pages: mocks.totalPages },
+    isLoading: mocks.scoresLoading,
+    isError: Boolean(mocks.scoresError),
+    error: mocks.scoresError,
+    refetch: mocks.refetch,
   }),
   useCreateLibraryFolder: () => ({ mutate: mocks.create }),
   useUpdateLibraryFolder: () => ({ mutate: mocks.update }),
@@ -81,9 +87,8 @@ vi.mock('@/hooks/queries/use-library-queries', () => ({
 async function openPage(
   query: { view?: string; folder?: string } = { folder: 'a' },
 ) {
-  const params = Promise.resolve(query);
   await act(async () => {
-    render(<LibraryPage searchParams={params} />);
+    render(<LibraryPage params={query} />);
   });
 }
 
@@ -100,6 +105,9 @@ describe('Library folder organization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.scores = [];
+    mocks.totalPages = 1;
+    mocks.scoresLoading = false;
+    mocks.scoresError = null;
     Element.prototype.scrollIntoView = vi.fn();
   });
 
@@ -366,4 +374,48 @@ describe('Library folder organization', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Alpha' }));
     expect(mocks.push).toHaveBeenCalledWith('/library?folder=a');
   });
+
+  it.each([
+    { view: 'favorites' }, { folder: 'a' }, { search: 'bach' },
+    { sort: 'name_asc' }, { page: '2' },
+  ])('clears selection when the collection scope changes to %o', async (next) => {
+    seedScores();
+    const page = render(<LibraryPage params={{ view: 'all' }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Batch operations' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    expect(screen.getByRole('checkbox', { name: 'Select all' })).toBeChecked();
+    page.rerender(<LibraryPage params={{ view: 'all', ...next }} />);
+    expect(screen.queryByRole('checkbox', { name: 'Select all' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Batch operations' }));
+    expect(screen.getByRole('checkbox', { name: 'Select all' })).not.toBeChecked();
+  });
+
+  it('selects only the visible page and preserves filters during pagination', async () => {
+    seedScores();
+    mocks.totalPages = 3;
+    render(<LibraryPage params={{ view: 'all', search: 'bach', sort: 'name_asc', page: '2' }} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Batch operations' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Favorite' }));
+    expect(mocks.favorite).toHaveBeenCalledWith({ score_ids: ['owner', 'member'], is_favorite: true }, expect.anything());
+    await userEvent.click(screen.getByRole('button', { name: messages.cancelBatchEdit }));
+    await userEvent.click(screen.getByRole('button', { name: messages.nextPage }));
+    expect(mocks.push).toHaveBeenCalledWith('/library?view=all&search=bach&sort=name_asc&page=3');
+  });
+
+  it('renders loading independently of the collection error state', async () => {
+    mocks.scoresLoading = true;
+    await openPage();
+    expect(screen.getByText(messages.loadingScores)).toBeInTheDocument();
+    expect(screen.queryByText(messages.scoresLoadFailed)).not.toBeInTheDocument();
+  });
+
+  it('offers a retry for collection query failure', async () => {
+    mocks.scoresError = new Error('database unavailable');
+    await openPage();
+    expect(screen.getByText(messages.scoresLoadFailed)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: messages.retry }));
+    expect(mocks.refetch).toHaveBeenCalledOnce();
+  });
+
 });

@@ -1,7 +1,7 @@
 import { importQueryKeys } from '@/features/imports/query-keys';
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
-import { libraryScoresChanged } from '@/lib/cache-effects/library';
+import { libraryScoresChanged } from '@/features/library/cache';
 import { storageUsageChanged } from '@/lib/cache-effects/storage';
 
 export function importSubmitted(client: QueryClient) {

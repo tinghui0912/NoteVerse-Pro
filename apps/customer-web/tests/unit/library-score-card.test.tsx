@@ -3,7 +3,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
-import { LibraryScoreCard } from '@/components/library/library-score-card';
+import { LibraryScoreCard } from '@/features/library/components/library-score-card';
 import messages from '../../messages/en/library.json';
 import type { LibraryScoreRead } from '@/generated/api';
 const score: LibraryScoreRead = {

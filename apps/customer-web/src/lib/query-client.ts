@@ -18,15 +18,6 @@ export const queryClient = new QueryClient({
         },
     },
 });
-export interface LibraryScoreQueryFilters {
-    view?: string;
-    folderId?: string;
-    search?: string;
-    sort?: string;
-    page: number;
-    pageSize: number;
-}
-
 /**
  * Query keys follow [domain, scope, identity/filter]. Prefix factories are
  * used for broad invalidation; leaf factories own complete cache identity.
@@ -51,12 +42,6 @@ export const queryKeys = {
         invites: (scoreId: string) => ['scores', 'invite', { scoreId }] as const,
         inviteAccess: (token: string) => ['scores', 'invite-access', { token }] as const,
         members: (scoreId: string) => ['scores', 'member', { scoreId }] as const,
-    },
-    library: {
-        all: ['library'] as const,
-        folders: () => ['library', 'folders'] as const,
-        scores: () => ['library', 'scores'] as const,
-        scoreList: (filters: LibraryScoreQueryFilters) => ['library', 'scores', filters] as const,
     },
     notifications: {
         all: ['notifications'] as const,

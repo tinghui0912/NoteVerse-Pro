@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
-import { libraryOrganizationChanged } from './library';
+import { libraryOrganizationChanged } from '@/features/library/cache';
 
 export function scoreInvitesChanged(client: QueryClient, scoreId: string) {
   return client.invalidateQueries({ queryKey: queryKeys.scores.invites(scoreId) });

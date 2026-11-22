@@ -3,7 +3,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
-import { LibraryMoveScoresDialog } from '@/components/library/library-move-scores-dialog';
+import { LibraryMoveScoresDialog } from '@/features/library/components/library-move-scores-dialog';
 import messages from '../../messages/en/library.json';
 
 it('offers root and flat folders when moving scores', async () => {

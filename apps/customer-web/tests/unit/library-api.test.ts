@@ -1,4 +1,4 @@
-import { libraryApi } from '@/lib/api/library';
+import { libraryApi } from '@/features/library/api';
 import { afterEach, expect, it, vi } from 'vitest';
 import { customerFetch } from '../helpers/customer-http';
 afterEach(() => vi.unstubAllGlobals());

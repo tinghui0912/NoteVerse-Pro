@@ -18,7 +18,6 @@ export { profileApi } from './profile';
 
 // Practice API.
 export { guestPreviewApi } from './guest-previews';
-export { libraryApi } from './library';
 export { notificationsApi } from './notifications';
 export { practiceApi } from './practice';
 export { scoreInvitesApi } from './score-invites';

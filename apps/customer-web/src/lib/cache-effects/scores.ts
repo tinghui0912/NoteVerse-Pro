@@ -2,7 +2,7 @@ import { importScoreLinksChanged } from '@/features/imports/cache';
 import type { Query, QueryClient } from '@tanstack/react-query';
 import type { GuestPreviewSettingsRead, ScoreRead } from '@/generated/api';
 import { queryKeys } from '@/lib/query-client';
-import { libraryOrganizationChanged, libraryScoresChanged } from './library';
+import { libraryOrganizationChanged, libraryScoresChanged } from '@/features/library/cache';
 import { storageUsageChanged } from './storage';
 
 function scoreIdentity(query: Query): string | undefined {

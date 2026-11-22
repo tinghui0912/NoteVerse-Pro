@@ -1,5 +1,4 @@
 import type {
-  LibraryFolderRead,
   LibrarySort,
   LibraryView,
 } from '@/generated/api';
@@ -66,8 +65,11 @@ export function normalizeLibraryView(value: string | undefined): LibraryView {
     : 'all';
 }
 
-export function sortedLibraryFolders(folders: LibraryFolderRead[]) {
-  return [...folders].sort(
-    (a, b) => a.position - b.position || a.name.localeCompare(b.name),
-  );
+
+export interface LibrarySearchParams {
+  view?: string;
+  folder?: string;
+  search?: string;
+  sort?: string;
+  page?: string;
 }

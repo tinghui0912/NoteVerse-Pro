@@ -1,3 +1,4 @@
+import { libraryQueryKeys } from '@/features/library/query-keys';
 // @vitest-environment jsdom
 import React from 'react';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
@@ -139,7 +140,7 @@ it('uses the Score deletion command and returns an owner to Created by me', asyn
   await userEvent.click(dialog.getByRole('button', { name: 'Delete score' }));
   await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith(['score']));
   expect(mocks.push).toHaveBeenCalledWith('/library?view=created_by_me');
-  expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.library.all });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   client.clear();
 });
 it('does not offer owner deletion for a collaborator', async () => {
@@ -171,7 +172,7 @@ it('leaves through current-user membership, clears authorized detail and returns
   );
   expect(mocks.leave).toHaveBeenCalledWith('score');
   expect(client.getQueryData(queryKeys.scores.detail('score'))).toBeUndefined();
-  expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.library.all });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   client.clear();
 });
 it('returns load errors to Library', async () => {
