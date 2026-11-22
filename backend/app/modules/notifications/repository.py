@@ -4,6 +4,8 @@ from datetime import datetime
 
 from sqlalchemy import delete, func, select, update, tuple_
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlmodel import col
 
 from app.db.models import Notification
@@ -13,6 +15,28 @@ notification_created_col = Notification.__table__.c.created_at
 
 
 class NotificationRepository:
+    def admit_deduplicated(
+        self, db: Session, notification: Notification
+    ) -> tuple[Notification, bool]:
+        key = notification.dedupe_key
+        if key is None:
+            raise ValueError("Deduplicated admission requires a notification key")
+        insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
+        while True:
+            created = db.scalars(
+                insert(Notification)
+                .values(notification.model_dump(exclude={"id"}))
+                .on_conflict_do_nothing(index_elements=["dedupe_key"])
+                .returning(Notification)
+            ).one_or_none()
+            if created is not None:
+                return created, True
+            existing = self.by_dedupe_key(db, key)
+            if existing is not None:
+                return existing, False
+            # Retention can remove the winner between conflict detection and lookup.
+            # Retry atomic admission, rather than assuming that the absent row is durable.
+
     def list_for_user(
         self,
         db: Session,

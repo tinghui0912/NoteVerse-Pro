@@ -8,12 +8,11 @@ from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
-# These services accept a caller identity and act on an existing score or one
-# of its revisions. Authorization must be delegated to ScoreAccessPolicy rather
-# than reconstructed from owner or membership tables.
+# Individual Score/revision operations delegate to ScoreAccessPolicy. Personal
+# Library batches use its shared SQL eligibility predicate; deletion batches
+# validate the complete locked set against the owner-only lifecycle rule.
 PROTECTED_SERVICE_MODULES = (
     "app/modules/fingering/service.py",
-    "app/modules/library/service.py",
     "app/modules/metadata/service.py",
     "app/modules/playback/delivery.py",
     "app/modules/practice/bundle/service.py",
@@ -23,7 +22,6 @@ PROTECTED_SERVICE_MODULES = (
     "app/modules/collaboration/invitation_service.py",
     "app/modules/collaboration/membership_service.py",
     "app/modules/guest_previews/service.py",
-    "app/modules/scores/lifecycle_service.py",
     "app/modules/scores/service.py",
 )
 
@@ -88,3 +86,42 @@ def test_guest_preview_dependencies_own_presentation_authorization_and_demand_pr
         assert revision_dependencies <= {
             "app.modules.revisions.derived_asset_retention_service",
         }
+
+
+def test_library_batch_resolution_consumes_shared_access_eligibility() -> None:
+    path = BACKEND_ROOT / "app/modules/library/repository.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    assert any(
+        isinstance(node, ast.ImportFrom)
+        and node.module == "app.modules.score_access.queries"
+        and any(alias.name == "accessible_score_predicate" for alias in node.names)
+        for node in ast.walk(tree)
+    )
+    resolver = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "mutation_scores"
+    )
+    assert any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "accessible_score_predicate"
+        for node in ast.walk(resolver)
+    )
+
+
+def test_score_batch_admission_has_a_caller_owned_transaction() -> None:
+    path = BACKEND_ROOT / "app/modules/scores/lifecycle_service.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    admission = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "admit_deletions"
+    )
+    calls = {
+        node.func.attr
+        for node in ast.walk(admission)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+    assert "lock_active_deletion_set" in calls
+    assert not calls & {"commit", "rollback", "send_task", "dispatch_best_effort"}

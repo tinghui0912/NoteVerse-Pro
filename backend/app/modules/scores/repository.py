@@ -14,6 +14,17 @@ active_score_filter = col(Score.deleted_at).is_(None)
 
 
 class ScoreRepository:
+    def lock_active_deletion_set(self, db: Session, score_uuids: list[str]) -> list[Score]:
+        return list(
+            db.scalars(
+                select(Score)
+                .where(Score.score_uuid.in_(score_uuids), active_score_filter)
+                .order_by(Score.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        )
+
     def get(
         self,
         db: Session,

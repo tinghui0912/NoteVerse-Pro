@@ -24,12 +24,13 @@ class NotificationService:
         self.repository = repository or NotificationRepository()
 
     def _admit(self, db: Session, notification: Notification) -> Notification:
-        if notification.dedupe_key:
-            existing = self.repository.by_dedupe_key(db, notification.dedupe_key)
-            if existing is not None:
-                return existing
-        db.add(notification)
-        db.flush()
+        if notification.dedupe_key is not None:
+            notification, created = self.repository.admit_deduplicated(db, notification)
+            if not created:
+                return notification
+        else:
+            db.add(notification)
+            db.flush()
         publish_change(
             db,
             recipient_user_id=notification.recipient_user_id,

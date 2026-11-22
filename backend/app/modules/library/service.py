@@ -1,8 +1,14 @@
 from __future__ import annotations
 from sqlalchemy.orm import Session
-from app.core.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException
+from sqlalchemy.exc import IntegrityError
+import sqlite3
+from app.core.exceptions import (
+    ResourceAlreadyExistsException,
+    ResourceNotFoundException,
+    UnauthorizedException,
+)
 from app.db.model_utils import require_persisted_id
-from app.db.models import ScoreLibraryOrganization, ScoreLibraryFolder
+from app.db.models import ScoreLibraryFolder
 from app.modules.library.repository import LibraryRepository
 from app.modules.library.read_model import LibraryReadModel
 from app.modules.library.schemas import (
@@ -16,24 +22,19 @@ from app.modules.library.schemas import (
     LibrarySort,
     LibraryView,
 )
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.scores.repository import ScoreRepository
 from app.shared.time import utc_now
+from app.shared.error_codes import CustomerErrorCode
 
 
 class LibraryService:
     def __init__(
         self,
         repository: LibraryRepository | None = None,
-        score_repository: ScoreRepository | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.repository = repository or LibraryRepository()
-        self.score_repository = score_repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.access_policy = access_policy or ScoreAccessPolicy()
 
     def folder_overview(self, db: Session, user_id: int) -> LibraryFolderOverviewRead:
         folders = self.repository.folders(db, user_id)
@@ -69,9 +70,11 @@ class LibraryService:
         db.add(folder)
         try:
             db.commit()
-        except Exception as exc:
+        except IntegrityError as exc:
             db.rollback()
-            raise ResourceAlreadyExistsException("library_folder") from exc
+            if duplicate_folder_name(exc):
+                raise ResourceAlreadyExistsException("library_folder") from exc
+            raise
         return self._folder_read(db, user_id, folder.folder_uuid)
 
     def update_folder(
@@ -91,9 +94,11 @@ class LibraryService:
         folder.updated_at = utc_now()
         try:
             db.commit()
-        except Exception as exc:
+        except IntegrityError as exc:
             db.rollback()
-            raise ResourceAlreadyExistsException("library_folder") from exc
+            if duplicate_folder_name(exc):
+                raise ResourceAlreadyExistsException("library_folder") from exc
+            raise
         return self._folder_read(db, user_id, folder.folder_uuid)
 
     def delete_folder(self, db: Session, user_id: int, folder_uuid: str) -> None:
@@ -131,12 +136,18 @@ class LibraryService:
     def batch_move(self, db: Session, user_id: int, request: LibraryScoreBatchMoveRequest) -> int:
         try:
             folder = self._optional_folder(db, user_id, request.target_folder_id, lock=True)
-            rows = self._organizations_for_mutation(db, user_id, request.score_ids)
-            for row in rows:
-                row.folder_id = (
-                    require_persisted_id(folder.id, entity="library folder") if folder else None
-                )
-                row.updated_at = utc_now()
+            ids = self._mutation_score_ids(db, user_id, request.score_ids)
+            rows = self.repository.upsert_organizations(
+                db,
+                user_id,
+                ids,
+                now=utc_now(),
+                changes={
+                    "folder_id": require_persisted_id(folder.id, entity="library folder")
+                    if folder
+                    else None
+                },
+            )
             db.commit()
             return len(rows)
         except Exception:
@@ -147,32 +158,33 @@ class LibraryService:
         self, db: Session, user_id: int, request: LibraryScoreBatchFavoriteRequest
     ) -> int:
         try:
-            rows = self._organizations_for_mutation(db, user_id, request.score_ids)
-            for row in rows:
-                row.is_favorite = request.is_favorite
-                row.updated_at = utc_now()
+            ids = self._mutation_score_ids(db, user_id, request.score_ids)
+            rows = self.repository.upsert_organizations(
+                db,
+                user_id,
+                ids,
+                now=utc_now(),
+                changes={"is_favorite": request.is_favorite},
+            )
             db.commit()
             return len(rows)
         except Exception:
             db.rollback()
             raise
 
-    def _organizations_for_mutation(
-        self, db: Session, user_id: int, score_uuids: list[str]
-    ) -> list[ScoreLibraryOrganization]:
-        rows = []
-        for uuid in sorted(set(score_uuids)):
-            self.access_policy.authorize_score(db, uuid, ScoreAction.VIEW, user_id=user_id)
-            score = self.score_repository.get(db, uuid, lock=True)
-            if score is None:
-                raise ResourceNotFoundException("score", uuid)
-            score_id = require_persisted_id(score.id, entity="score")
-            row = self.repository.organization(db, user_id, score_id)
-            if row is None:
-                row = ScoreLibraryOrganization(user_id=user_id, score_id=score_id)
-                db.add(row)
-            rows.append(row)
-        return rows
+    def _mutation_score_ids(self, db: Session, user_id: int, score_uuids: list[str]) -> list[int]:
+        requested = sorted(set(score_uuids))
+        # Preferences grant no access. Admission reads current access; later revocation or
+        # deletion remains enforced by the Library read predicate, without Score row locks.
+        rows = self.repository.mutation_scores(db, user_id, requested)
+        found = {uuid for _, uuid, _ in rows}
+        for uuid in requested:
+            if uuid not in found:
+                raise ResourceNotFoundException("score", uuid, CustomerErrorCode.SCORE_NOT_FOUND)
+        for _, uuid, accessible in rows:
+            if not accessible:
+                raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"score_id": uuid})
+        return [identity for identity, _, _ in rows]
 
     def _optional_folder(
         self, db: Session, user_id: int, folder_uuid: str | None, *, lock: bool = False
@@ -189,3 +201,17 @@ class LibraryService:
             if folder.folder_id == folder_uuid:
                 return folder
         raise ResourceNotFoundException("library_folder", folder_uuid)
+
+
+def duplicate_folder_name(error: IntegrityError) -> bool:
+    original = error.orig
+    if getattr(original, "sqlstate", None) == "23505":
+        return (
+            getattr(getattr(original, "diag", None), "constraint_name", None)
+            == "uq_score_library_folders_user_name"
+        )
+    return (
+        getattr(original, "sqlite_errorcode", None) == sqlite3.SQLITE_CONSTRAINT_UNIQUE
+        and str(original)
+        == "UNIQUE constraint failed: score_library_folders.user_id, score_library_folders.name"
+    )

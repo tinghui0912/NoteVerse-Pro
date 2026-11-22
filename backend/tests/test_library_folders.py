@@ -135,11 +135,12 @@ def test_library_search_and_name_sort_use_resource_display_titles(workspace):
     )
 
 
-def test_owned_and_shared_scores_need_no_organization_row(workspace):
+def test_owned_and_shared_scores_need_no_organization_row(workspace, monkeypatch):
     sync, db, scores, member = workspace
     service = LibraryService()
-    service.access_policy.authorize_score = Mock(
-        side_effect=AssertionError("list must use SQL access eligibility")
+    monkeypatch.setattr(
+        "app.modules.score_access.policy.ScoreAccessPolicy.authorize_score",
+        Mock(side_effect=AssertionError("list must use SQL access eligibility")),
     )
     for view, expected in [
         (LibraryView.ALL, ["A", "B"]),

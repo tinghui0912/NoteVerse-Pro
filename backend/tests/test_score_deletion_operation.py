@@ -27,7 +27,6 @@ from app.db.models import (
     StoredObjectRetirement,
 )
 from app.main import app
-from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.deletion_delivery import (
     ScoreDeletionDeliveryService,
@@ -431,27 +430,32 @@ def test_postgres_operation_constraints_indexes_and_retention(postgres_score):
 
 @pytest.mark.asyncio
 async def test_postgres_concurrent_admission_creates_one_operation(postgres_score, monkeypatch):
+    from app.modules.scores.repository import ScoreRepository
+    from app.core.exceptions import ResourceNotFoundException
+
     engine = create_engine(postgres_score.url)
-    barrier, arrivals = __import__("threading").Barrier(2), 0
+    barrier = __import__("threading").Barrier(2)
 
-    class ConcurrentPolicy(ScoreAccessPolicy):
-        def authorize_score(self, *args, **kwargs):
-            nonlocal arrivals
-            result = super().authorize_score(*args, **kwargs)
-            arrivals += 1
+    class ConcurrentRepository(ScoreRepository):
+        def lock_active_deletion_set(self, *args, **kwargs):
             barrier.wait(10)
-            return result
+            return super().lock_active_deletion_set(*args, **kwargs)
 
-    service = ScoreLifecycleService(access_policy=ConcurrentPolicy())
+    service = ScoreLifecycleService(repository=ConcurrentRepository())
 
     def delete():
         with Session(engine, expire_on_commit=False) as db:
-            service.delete_score(db, "deletion-score", 1)
+            try:
+                service.delete_score(db, "deletion-score", 1)
+                return "deleted"
+            except ResourceNotFoundException:
+                return "not_found"
 
     try:
-        await asyncio.wait_for(
+        results = await asyncio.wait_for(
             asyncio.gather(asyncio.to_thread(delete), asyncio.to_thread(delete)), 20
         )
+        assert sorted(results) == ["deleted", "not_found"]
         with Session(engine) as db:
             assert db.scalar(select(func.count()).select_from(ScoreDeletionOperation)) == 1
             assert (db.get(Score, 500)).deleted_at is not None

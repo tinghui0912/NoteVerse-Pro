@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from typing import TypeAlias
+from datetime import datetime
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from sqlalchemy import func, select, and_
 from sqlalchemy.orm import Session
@@ -60,6 +63,52 @@ class LibraryRepository:
                 )
             )
         ).scalar_one_or_none()
+
+    def mutation_scores(
+        self, db: Session, user_id: int, score_uuids: list[str]
+    ) -> list[tuple[int, str, bool]]:
+        rows = db.execute(
+            select(
+                Score.id, Score.score_uuid, accessible_score_predicate(user_id).label("accessible")
+            )
+            .where(Score.score_uuid.in_(score_uuids), Score.deleted_at.is_(None))
+            .order_by(Score.id)
+        ).all()
+        return [(row.id, row.score_uuid, row.accessible) for row in rows]
+
+    def upsert_organizations(
+        self,
+        db: Session,
+        user_id: int,
+        score_ids: list[int],
+        *,
+        now: datetime,
+        changes: dict[str, int | bool | None],
+    ) -> list[ScoreLibraryOrganization]:
+        if not score_ids:
+            return []
+        insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
+        statement = (
+            insert(ScoreLibraryOrganization)
+            .values(
+                [
+                    {
+                        "user_id": user_id,
+                        "score_id": score_id,
+                        "created_at": now,
+                        "updated_at": now,
+                        **changes,
+                    }
+                    for score_id in sorted(score_ids)
+                ]
+            )
+            .on_conflict_do_update(
+                index_elements=["user_id", "score_id"],
+                set_={**changes, "updated_at": now},
+            )
+            .returning(ScoreLibraryOrganization)
+        )
+        return list(db.scalars(statement.execution_options(populate_existing=True)))
 
     @staticmethod
     def _organization_join(user_id: int):

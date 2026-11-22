@@ -211,3 +211,63 @@ def test_mark_all_read_uses_collection_scope_beyond_an_already_read_page(notific
             row.read_at is not None
             for row in service.list_for_user(db, 1, cursor=page.next_cursor).items
         )
+
+
+def test_concurrent_notification_dedupe_preserves_both_caller_transactions(notifications):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.db.models import ScoreLibraryFolder
+
+    barrier = Barrier(2)
+
+    def admit(index):
+        with Session(notifications, expire_on_commit=False) as db:
+            db.add(ScoreLibraryFolder(user_id=1, name=f"before-{index}"))
+            db.flush()
+            barrier.wait(10)
+            notice = NotificationService().admit_import_failed(
+                db,
+                recipient_user_id=1,
+                import_job_id="same-job",
+                import_display_title="Score",
+                created_at=utc_now(),
+            )
+            db.add(ScoreLibraryFolder(user_id=1, name=f"after-{index}"))
+            db.commit()
+            return notice.notification_uuid
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(admit, i) for i in (0, 1)]
+        ids = [future.result(20) for future in futures]
+    assert ids[0] == ids[1]
+    with Session(notifications) as db:
+        assert db.scalar(sa.select(sa.func.count()).select_from(Notification)) == 1
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 1
+        assert sorted(db.scalars(sa.select(ScoreLibraryFolder.name))) == [
+            "after-0",
+            "after-1",
+            "before-0",
+            "before-1",
+        ]
+
+
+def test_notifications_without_dedupe_key_are_independent_admissions(notifications):
+    from app.db.models import NotificationKind
+
+    with Session(notifications) as db:
+        service = NotificationService()
+        rows = [
+            service._admit(
+                db,
+                Notification(
+                    recipient_user_id=1,
+                    kind=NotificationKind.IMPORT_FAILED,
+                    import_job_id="same-job",
+                ),
+            )
+            for _ in range(2)
+        ]
+        assert rows[0].notification_uuid != rows[1].notification_uuid
+        db.commit()
+        assert db.scalar(sa.select(sa.func.count()).select_from(Notification)) == 2
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2

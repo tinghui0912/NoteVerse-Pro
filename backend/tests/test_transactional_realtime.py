@@ -57,7 +57,7 @@ def test_notification_admission_propagates_publication_failure_without_owning_tr
     persist = Mock(side_effect=failure)
     monkeypatch.setattr(notifications, "publish_change", persist)
     repository = Mock()
-    repository.by_dedupe_key.return_value = None
+    repository.admit_deduplicated.side_effect = lambda _db, notification: (notification, True)
     with pytest.raises(RuntimeError) as raised:
         notifications.NotificationService(repository).admit_import_failed(
             db,
@@ -67,8 +67,7 @@ def test_notification_admission_propagates_publication_failure_without_owning_tr
             created_at=notifications.utc_now(),
         )
     assert raised.value is failure
-    db.add.assert_called_once()
-    db.flush.assert_called_once()
+    repository.admit_deduplicated.assert_called_once()
     persist.assert_called_once()
     db.commit.assert_not_called()
     db.rollback.assert_not_called()

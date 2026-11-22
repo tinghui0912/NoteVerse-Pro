@@ -10,7 +10,6 @@ from sqlmodel import col
 from app.core.exceptions import (
     ConflictException,
     ResourceNotFoundException,
-    UnauthorizedException,
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
@@ -54,7 +53,6 @@ class ScoreService:
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.lifecycle_service = lifecycle_service or ScoreLifecycleService(
             repository=self.repository,
-            access_policy=self.access_policy,
         )
 
     def get(self, db: Session, score_uuid: str, user_id: int) -> ScoreRead:
@@ -64,14 +62,7 @@ class ScoreService:
         return self._read(db, access.score, access.capabilities)
 
     def batch_delete(self, db: Session, score_uuids: list[str], user_id: int) -> int:
-        removed = 0
-        for score_uuid in score_uuids:
-            try:
-                self.delete(db, score_uuid, user_id)
-            except (ResourceNotFoundException, UnauthorizedException):
-                continue
-            removed += 1
-        return removed
+        return self.lifecycle_service.delete_scores(db, score_uuids, user_id)
 
     def update(
         self,
