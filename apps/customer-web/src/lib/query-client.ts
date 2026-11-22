@@ -23,9 +23,6 @@ export const queryClient = new QueryClient({
  * used for broad invalidation; leaf factories own complete cache identity.
  */
 export const queryKeys = {
-    account: {
-        sessions: () => ['account', 'sessions'] as const,
-    },
     storageUsage: {
         all: ['storage-usage'] as const,
         current: () => ['storage-usage', 'current'] as const,

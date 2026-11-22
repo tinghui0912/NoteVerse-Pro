@@ -1,4 +1,4 @@
-import { authEmailChangeConfirm, authEmailVerify, authLogin, authLogout, authPasswordReset, authPasswordResetRequest, authRegister } from '@/generated/api';
+import { authEmailVerify, authLogin, authLogout, authPasswordReset, authPasswordResetRequest, authRegister } from '@/generated/api';
 import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
 /**
  * Authentication API wrapper.
@@ -45,10 +45,6 @@ async function verifyEmail(token: string) {
   return responseBody(authEmailVerify({ ...customerTransport.public, body: { token } }));
 }
 
-async function confirmEmailChange(token: string) {
-  return responseBody(authEmailChangeConfirm({ ...customerTransport.public, body: { token } }));
-}
-
 async function requestPasswordReset(
   email: string,
   locale: 'en' | 'zh' = 'zh'
@@ -85,7 +81,6 @@ export const authApi = {
   login,
   register,
   verifyEmail,
-  confirmEmailChange,
   requestPasswordReset,
   resetPassword,
   logout,

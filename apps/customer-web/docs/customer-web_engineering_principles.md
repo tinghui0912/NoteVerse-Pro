@@ -17,6 +17,9 @@
 - `src/features/scores/guest-preview/`：owner credential commands 与独立 public bearer presentation。
 - `src/features/scores/` parent：产品页面组合、Score route locations 和跨生命周期 cache consequences。
 - `src/features/notifications/`：durable Notification history/read-state 的 API、query/cache、presentation、target 与 Center/Bell。
+- `src/features/account/profile/`：current Profile、Avatar API、表单与 512x512 PNG crop。
+- `src/features/account/security/`：Security overview、password/email-change workflow 与 confirmation。
+- `src/features/account/sessions/`：authenticated refresh-session inventory、revoke 和 presentation。
 - `src/app/[locale]/`：route entry、layout、loading/error/not-found 和页面组合。
 - `src/components/`：共享 UI、shell、基础组件和跨领域 presentation。
 - `src/lib/`：跨领域 browser infrastructure 与共享纯能力。
@@ -46,7 +49,7 @@ HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generat
 视图模型、表单状态和浏览器内部消息由前端拥有。API helper 返回稳定类型，
 页面不猜测字段、不通过 `any` 掩盖契约问题。
 
-- Import、Library、Notifications 和 Score core/Collaboration/Guest Preview 的 query keys、queries 与
+- Import、Library、Notifications、Account 和 Score core/Collaboration/Guest Preview 的 query keys、queries 与
   cache consequences 各有独立 owner。`src/lib/query-client.ts` 配置 QueryClient，并管理其余当前领域的 keys。
   Identity 使用稳定、可序列化的 domain/scope/identity，不放 File 或函数。
 - Query function 在 API helper 支持时传递 AbortSignal，取消失效请求。
@@ -59,6 +62,13 @@ Notification Center 组合 Collaboration pending actions 与 durable Notificatio
 但不接管 Invite API、query keys 或 accept/decline 命令。Bell 合并 pending action contribution
 与 server unread count，不写入新的计数 authority；两处复用同一 query state。
 `notifications.changed` 仅收敛 Notification history/read-state，不代表 pending Invite change。
+
+Account Profile read adapter 同时 hydrate AuthContext；current user 不另建 TanStack profile cache。
+`features/account/cache.ts` 组合 Account projection consequences：password change 收敛 security
+与 sessions，email confirmation 收敛 security 并尝试刷新 current principal；后续 refresh 失败
+不改变 confirmation 成功。Sessions 请求显式限制为 100，device label 仅作 User-Agent presentation。
+SettingsShell 只负责跨 Account/Billing 的导航与布局。Authentication login/register/verification/recovery、
+AuthProvider、AuthCard 保持当前 owner，不属于 Account feature；email-change confirmation 由 Account Security 拥有。
 
 ## 产品能力、权限与文案
 

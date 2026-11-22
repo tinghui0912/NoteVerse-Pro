@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/auth-context';
-import { useUploadAvatar, useUpdateProfile } from '@/hooks/queries/use-profile-mutations';
+import { useUploadAvatar, useUpdateProfile } from '@/features/account/profile/queries';
 import { useToast } from '@/hooks/use-toast';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
-import { AvatarCropperModal } from '@/components/settings/avatar-cropper-modal';
+import { AvatarCropperModal } from '@/features/account/profile/avatar-cropper-modal';
 
 export function ProfileSettingsForm() {
   const t = useTranslations('settings');

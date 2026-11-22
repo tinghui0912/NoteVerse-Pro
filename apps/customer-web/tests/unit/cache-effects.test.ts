@@ -1,3 +1,4 @@
+import { accountQueryKeys } from '@/features/account/query-keys';
 import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import { guestPreviewQueryKeys } from '@/features/scores/guest-preview/query-keys';
 import { collaborationQueryKeys } from '@/features/scores/collaboration/query-keys';
@@ -24,7 +25,7 @@ import { inviteAccepted } from '@/features/scores/consequences';
 import { libraryOrganizationChanged } from '@/features/library/cache';
 import { performanceTakeDeleted, performanceTakeSaved } from '@/lib/cache-effects/performance-takes';
 import { applyRealtimeCacheChange, serverStateResyncRequired } from '@/lib/cache-effects/realtime';
-import { accountSessionsChanged } from '@/lib/cache-effects/account';
+import { accountSessionsChanged } from '@/features/account/cache';
 import { storageUsageChanged } from '@/lib/cache-effects/storage';
 
 let client: QueryClient;
@@ -155,7 +156,7 @@ it('keeps notifications and Collaboration collections independent', async () => 
 });
 
 it('converges Library organization, persisted storage and account sessions within their domains', async () => {
-  const list = library(); const folders = seed(libraryQueryKeys.folders()); const usage = storage(); const sessions = seed(keys.account.sessions());
+  const list = library(); const folders = seed(libraryQueryKeys.folders()); const usage = storage(); const sessions = seed(accountQueryKeys.sessions());
   await libraryOrganizationChanged(client); expect([list, folders, usage].map(stale)).toEqual([true, true, false]);
   await storageUsageChanged(client); expect(stale(usage)).toBe(true); expect(stale(sessions)).toBe(false);
   await accountSessionsChanged(client); expect(stale(sessions)).toBe(true);
@@ -194,6 +195,6 @@ it.each([
 });
 
 it('broadly resynchronizes all cached server state', async () => {
-  const cached = [library(), storage(), seed(importQueryKeys.jobs.detail('job')), seed(notificationQueryKeys.list()), seed(keys.account.sessions())];
+  const cached = [library(), storage(), seed(importQueryKeys.jobs.detail('job')), seed(notificationQueryKeys.list()), seed(accountQueryKeys.sessions())];
   await serverStateResyncRequired(client); expect(cached.map(stale)).toEqual(Array(cached.length).fill(true));
 });

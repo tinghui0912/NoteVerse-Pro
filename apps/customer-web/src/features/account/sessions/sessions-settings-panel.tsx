@@ -2,8 +2,6 @@
 
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useQuery } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/query-client';
 import { Monitor, ShieldCheck, Smartphone } from 'lucide-react';
 
 import { InlineLoading } from '@/components/loading';
@@ -11,14 +9,11 @@ import { SectionLoading } from '@/components/loading';
 import { EmptyState } from '@/components/states';
 import { SectionErrorState } from '@/components/states';
 import { Button } from '@/components/ui/button';
-import { useRevokeOtherSessions, useRevokeSession } from '@/hooks/queries/use-profile-mutations';
+import { useRevokeOtherSessions, useRevokeSession, useAccountSessions } from '@/features/account/sessions/queries';
 import { useToast } from '@/hooks/use-toast';
-import { profileApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 import type { SessionSummary } from '@/generated/api';
-
-const sessionsQueryKey = queryKeys.account.sessions();
 
 function deviceLabel(session: SessionSummary, fallback: string): string {
   const agent = session.user_agent ?? '';
@@ -46,10 +41,7 @@ export function SessionsSettingsPanel() {
   const locale = useLocale();
   const { toast } = useToast();
 
-  const sessionsQuery = useQuery({
-    queryKey: sessionsQueryKey,
-    queryFn: () => profileApi.getSessions(),
-  });
+  const sessionsQuery = useAccountSessions();
 
   const sessions = useMemo(
     () => sessionsQuery.data?.sessions ?? [],

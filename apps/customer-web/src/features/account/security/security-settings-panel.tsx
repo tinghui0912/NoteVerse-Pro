@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useQuery } from '@tanstack/react-query';
 import { Check, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 
 import { InlineLoading } from '@/components/loading';
@@ -11,10 +10,9 @@ import { SectionErrorState } from '@/components/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PasswordSettingsForm } from '@/components/settings/password-settings-form';
-import { useRequestEmailChange } from '@/hooks/queries/use-profile-mutations';
+import { PasswordSettingsForm } from '@/features/account/security/password-settings-form';
+import { useRequestEmailChange, useAccountSecurity } from '@/features/account/security/queries';
 import { useToast } from '@/hooks/use-toast';
-import { profileApi } from '@/lib/api';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { formatApiDateTime } from '@/lib/date-time';
 import type { SecurityOverview } from '@/generated/api';
@@ -229,10 +227,7 @@ function SecurityContent({ security }: { security: SecurityOverview }) {
 
 export function SecuritySettingsPanel() {
   const t = useTranslations('settings');
-  const securityQuery = useQuery({
-    queryKey: ['account', 'security'],
-    queryFn: () => profileApi.getSecurityOverview(),
-  });
+  const securityQuery = useAccountSecurity();
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

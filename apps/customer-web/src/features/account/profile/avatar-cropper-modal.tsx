@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getCroppedAvatarFile } from '@/components/settings/crop-image';
+import { getCroppedAvatarFile } from '@/features/account/profile/crop-image';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;

@@ -9,9 +9,6 @@ export { authApi } from './auth';
 // File API.
 export { uploadsApi } from './uploads';
 
-// Profile API.
-export { profileApi } from './profile';
-
 // Practice API.
 export { practiceApi } from './practice';
 

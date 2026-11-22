@@ -143,8 +143,8 @@ describe('route shell groups', () => {
     const libraryPage = readSource('src/features/library/library-page.tsx');
     const notificationDialog = readSource('src/features/notifications/center/notification-center-dialog.tsx');
     const reviewScoreComparison = readSource('src/features/imports/review/review-score-comparison.tsx');
-    const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
-    const sessionsPanel = readSource('src/components/settings/sessions-settings-panel.tsx');
+    const securityPanel = readSource('src/features/account/security/security-settings-panel.tsx');
+    const sessionsPanel = readSource('src/features/account/sessions/sessions-settings-panel.tsx');
     const alert = readSource('src/components/ui/alert.tsx');
 
     expect(resourceLoadError).toContain('function ResourceLoadError');
@@ -216,7 +216,7 @@ describe('route shell groups', () => {
     const librarySidebar = readSource('src/features/library/components/library-sidebar.tsx');
     const uploadPage = readSource('src/app/[locale]/(app)/upload/page.tsx');
     const loginPage = readSource('src/app/[locale]/(auth)/auth/login/page.tsx');
-    const securityPanel = readSource('src/components/settings/security-settings-panel.tsx');
+    const securityPanel = readSource('src/features/account/security/security-settings-panel.tsx');
     const scorePreviewViewport = readSource('src/components/score-preview/score-preview-viewport.tsx');
     const practiceScoreViewer = readSource('src/components/practice/practice-score-viewer.tsx');
     const reviewScoreComparison = readSource('src/features/imports/review/review-score-comparison.tsx');

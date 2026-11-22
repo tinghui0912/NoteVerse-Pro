@@ -22,6 +22,7 @@ change; CI runs `npm run check:api` to reject stale output.
 `collaboration/api.ts` owns Invite/Membership operations and `guest-preview/api.ts`
 owns credential management and public bearer operations, under the same Score feature.
 `src/features/notifications/api.ts` owns durable Notification history and read-state adapters.
+`src/features/account/profile`, `security` and `sessions` own current-user Account adapters.
 Domains without an explicit feature boundary keep their named adapters under `src/lib/api/*`.
 HTTP operation definitions belong to generated code, and browser transport
 policy belongs to `src/lib/http/`.
@@ -107,7 +108,7 @@ concept and should not be modeled as score revision assets.
 
 ## API and Server State
 
-Product requests go through their domain-owned generated SDK adapters. Import, Library, Notifications and Score lifecycle slices
+Product requests go through their domain-owned generated SDK adapters. Import, Library, Notifications, Account and Score lifecycle slices
 own these adapters inside their feature boundaries. Shared browser transport lives under
 `src/lib/http/`. Pages and components do not create ad hoc backend product requests.
 
@@ -115,7 +116,7 @@ Rules:
 
 - Next server validates its required backend origin in `next.config.ts`; browser
   protocol identities come from generated constants.
-- Import, Library, Notifications and each Score lifecycle slice own their query keys, hooks and cache consequences.
+- Import, Library, Notifications, Account and each Score lifecycle slice own their query keys, hooks and cache consequences.
   `src/lib/query-client.ts` configures QueryClient and holds keys for domains with other
   current ownership locations.
 - Mutation hooks invoke domain-owned cache consequences; pages own page-specific success copy.
@@ -168,6 +169,11 @@ features/scores/collaboration Invite/Membership, pending invitations and externa
 features/scores/guest-preview credential owner UI and public bearer presentation
 features/scores         product composition, shared Score routes and lifecycle consequences
 features/notifications  durable history/read-state API/query/cache, presentation/targets and Center/Bell
+features/account/profile current profile/Avatar adapters, forms and crop application
+features/account/security security overview, password/email-change workflow and confirmation
+features/account/sessions authenticated refresh-session inventory/revocation and presentation
+features/account        Account query identities and cross-lifecycle cache consequences
+components/settings    cross-domain SettingsShell and Billing/Storage presentation
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
 components/loading      loading primitives
@@ -207,6 +213,17 @@ The Bell combines pending actions with the server unread count. Collaboration re
 100 pending Invites per page: 0..99 is exact and continuation saturates the badge at
 99+. Bell and Center share the same query state. `notifications.changed` refreshes
 Notification list/count only; realtime transport remains shared infrastructure.
+
+Account Profile hydrates AuthContext's current principal; there is no parallel profile
+query cache. Account Security owns authenticated password/email-change workflows,
+including the application behind `/auth/confirm-email-change`. Password change refreshes
+security and session projections. Email confirmation refreshes security and the current
+principal; optional profile refresh failure does not reverse confirmation success.
+Account Sessions owns session inventory and revocation, requesting at most 100 rows.
+`account/query-keys.ts` owns `account/security` and `account/sessions` identities.
+SettingsShell composes Account and non-Account tabs; Billing remains outside Account.
+Authentication login/register/verification/recovery, AuthProvider and shared AuthCard
+retain their current owners. Only email-change confirmation belongs to Account Security.
 
 ## MusicXML and Rendering
 

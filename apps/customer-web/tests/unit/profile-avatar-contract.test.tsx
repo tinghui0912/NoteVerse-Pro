@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { AccountAvatarUploadResponse, AccountProfileGetResponse } from '@/generated/api';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
-import { profileApi } from '@/lib/api/profile';
+import { profileApi } from '@/features/account/profile/api';
 
 const filename = `1_${'a'.repeat(64)}_${'b'.repeat(32)}.jpg`;
 const avatarUrl = `/api/v1/me/avatars/${filename}`;
