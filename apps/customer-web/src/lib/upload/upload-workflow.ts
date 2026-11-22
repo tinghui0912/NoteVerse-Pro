@@ -7,11 +7,3 @@ export interface UploadableFile {
   status: UploadFileStatus;
   error?: string;
 }
-
-export function getCompletedJobRoute(
-  jobId: string,
-  scoreId: string | null | undefined,
-  state: string
-) {
-  return state === 'READY_FOR_REVIEW' ? `/review/${jobId}` : `/score/${scoreId}`;
-}

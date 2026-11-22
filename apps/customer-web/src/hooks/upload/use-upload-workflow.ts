@@ -16,10 +16,8 @@ import { storageUsageChanged } from '@/lib/cache-effects/storage';
 import { knownGenres } from '@/lib/score/genres';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';
-import {
-  getCompletedJobRoute,
-  type UploadableFile,
-} from '@/lib/upload/upload-workflow';
+import type { UploadableFile } from '@/lib/upload/upload-workflow';
+import { importJobDestination } from '@/lib/imports/navigation';
 
 const TASK_POLL_INTERVAL_MS = 2_000;
 const TASK_WAIT_TIMEOUT_MS = 18 * 60 * 1_000;
@@ -220,7 +218,10 @@ export function useUploadWorkflow() {
     const job = statusResponse;
     if (!job || !currentJobId) return;
 
-    if (Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS) {
+    if (
+      (job.state === 'QUEUED' || job.state === 'PROCESSING') &&
+      Date.now() - pollStartTime > TASK_WAIT_TIMEOUT_MS
+    ) {
       const description = t('processingTimeoutDesc');
       toast({
         title: t('processingTimeout'),
@@ -232,17 +233,12 @@ export function useUploadWorkflow() {
     }
 
     dispatchTask({ type: 'progress', progress: job.progress || 0 });
-    const state = String(job.state).toUpperCase();
-    if (state === 'READY_FOR_REVIEW' || state === 'CONFIRMED') {
-      const completedScoreId = job.score_id;
-      if (state === 'CONFIRMED' && !completedScoreId) {
-        dispatchTask({ type: 'failed', message: t('taskProcessingFailed') });
-        return;
-      }
+    if (job.state === 'READY_FOR_REVIEW' || job.state === 'CONFIRMED') {
+      const destination = importJobDestination(job);
       dispatchTask({ type: 'completed' });
       clearFiles();
-      router.push(getCompletedJobRoute(job.job_id, completedScoreId, state));
-    } else if (state === 'FAILED') {
+      router.push(destination ? destination.href : '/upload#import-activity');
+    } else if (job.state === 'FAILED') {
       dispatchTask({
         type: 'failed',
         message: translateTaskError(job.public_code, t('taskProcessingFailed')),

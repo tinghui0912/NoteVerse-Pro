@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { importJobDestination } from '@/lib/imports/navigation';
 
 const projectPath = (path: string) => resolve(process.cwd(), path);
 const readSource = (path: string) => readFileSync(projectPath(path), 'utf8');
@@ -35,14 +36,15 @@ describe('score workspace routes', () => {
 
   it('routes score detail actions into score workspaces', () => {
     const actions = readSource('src/components/score-detail/score-hero-actions.tsx');
-    const upload = readSource('src/lib/upload/upload-workflow.ts');
     const reviewPage = readSource('src/app/[locale]/(app)/review/[jobId]/page.tsx');
     const scoreEditor = readSource('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx');
     const reviewEditor = readSource('src/app/[locale]/(workspace)/review/[jobId]/edit/page.tsx');
 
     expect(actions).toContain('/score/${scoreId}/edit');
     expect(actions).toContain("practiceLocation(scoreId, 'setup', revisionId)");
-    expect(upload).toContain('/review/${jobId}');
+    expect(importJobDestination({ job_id: 'job', state: 'READY_FOR_REVIEW', score_id: null })).toEqual({
+      kind: 'review', href: '/review/job',
+    });
     expect(reviewPage).toContain('/review/${jobId}/edit');
     expect(scoreEditor).toContain('<EditorWorkspacePage');
     expect(reviewEditor).toContain('<EditorWorkspacePage');

@@ -8,6 +8,7 @@ import { formatApiDateTime } from '@/lib/date-time';
 import { isCustomerErrorCode } from '@/lib/i18n/customer-error-codes';
 import { translateErrorCode } from '@/lib/i18n/error-message';
 import type { ImportJobRead } from '@/generated/api';
+import { importJobDestination } from '@/lib/imports/navigation';
 
 export function ImportJobCard({
   job,
@@ -24,6 +25,7 @@ export function ImportJobCard({
 }) {
   const t = useTranslations('imports');
   const errors = useTranslations('errors');
+  const destination = importJobDestination(job);
   const active = job.state === 'QUEUED' || job.state === 'PROCESSING';
   return (
     <Card>
@@ -49,9 +51,11 @@ export function ImportJobCard({
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          {job.state === 'READY_FOR_REVIEW' ? (
+          {destination ? (
             <Button asChild>
-              <Link href={`/review/${job.job_id}`}>{t('review')}</Link>
+              <Link href={destination.href}>
+                {t(destination.kind === 'review' ? 'review' : 'openScore')}
+              </Link>
             </Button>
           ) : null}
           {job.state === 'FAILED' ? (
@@ -62,11 +66,6 @@ export function ImportJobCard({
           {job.state === 'FAILED' || job.state === 'READY_FOR_REVIEW' ? (
             <Button variant="outline" disabled={deletePending} onClick={onDelete}>
               {t('deleteImport')}
-            </Button>
-          ) : null}
-          {job.state === 'CONFIRMED' && job.score_id ? (
-            <Button asChild>
-              <Link href={`/score/${job.score_id}`}>{t('openScore')}</Link>
             </Button>
           ) : null}
         </div>

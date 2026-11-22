@@ -2,13 +2,14 @@
 
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/http/customer-browser-transport';
 import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { queryKeys } from '@/lib/query-client';
-import { getCompletedJobRoute } from '@/lib/upload/upload-workflow';
+import * as navigation from '@/lib/imports/navigation';
+import type { ImportJobRead } from '@/generated/api';
 import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
 import commonMessages from '@/../messages/zh/common.json';
 import zhErrors from '@/../messages/zh/errors.json';
@@ -82,13 +83,54 @@ beforeEach(() => {
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
 });
 
-describe('upload score navigation', () => {
-  it('routes review jobs and completed scores to their product pages', () => {
-    expect(getCompletedJobRoute('review-job', null, 'READY_FOR_REVIEW')).toBe('/review/review-job');
-    expect(getCompletedJobRoute('result-job', 'result-score', 'CONFIRMED')).toBe(
-      '/score/result-score',
-    );
-  });
+afterEach(() => vi.restoreAllMocks());
+
+describe('upload terminal navigation', () => {
+  it.each([
+    ['READY_FOR_REVIEW', null, '/review/job-1'],
+    ['CONFIRMED', 'live-score', '/score/live-score'],
+    ['CONFIRMED', null, '/upload#import-activity'],
+    ['CONFIRMED', undefined, '/upload#import-activity'],
+  ] satisfies [ImportJobRead['state'], string | null | undefined, string][])(
+    'finishes %s with score %s at %s', async (state, score_id, href) => {
+      createUploadMock.mockResolvedValue({ upload_id: 'upload-1' });
+      submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
+      const job = { job_id: 'job-1', state, score_id, progress: 100 };
+      getImportJobMock.mockResolvedValue(job);
+      const resolve = vi.spyOn(navigation, 'importJobDestination');
+      const client = createQueryClient();
+      const hook = renderHook(() => useUploadWorkflow(), { wrapper: createWrapper(client) });
+      act(() => hook.result.current.appendFiles([selectedImage()]));
+      await act(async () => { await hook.result.current.startRecognition(); });
+      await waitFor(() => expect(pushMock).toHaveBeenCalledWith(href));
+      expect(resolve).toHaveBeenCalledWith(job);
+      expect(pushMock).toHaveBeenCalledTimes(1);
+      expect(hook.result.current.isProcessing).toBe(false);
+      expect(hook.result.current.taskError).toBeNull();
+      expect(hook.result.current.files).toHaveLength(0);
+      expect(client.getQueryCache().find({ queryKey: queryKeys.importJobs.detail('job-1') })?.isActive()).toBe(false);
+      hook.unmount();
+      client.clear();
+    },
+  );
+
+  it.each(['QUEUED', 'PROCESSING'] satisfies ImportJobRead['state'][])(
+    'continues polling %s without navigation', async (state) => {
+      createUploadMock.mockResolvedValue({ upload_id: 'upload-1' });
+      submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
+      getImportJobMock.mockResolvedValue({ job_id: 'job-1', state, progress: 37 });
+      const client = createQueryClient();
+      const hook = renderHook(() => useUploadWorkflow(), { wrapper: createWrapper(client) });
+      act(() => hook.result.current.appendFiles([selectedImage()]));
+      await act(async () => { await hook.result.current.startRecognition(); });
+      await waitFor(() => expect(hook.result.current.taskProgress).toBe(37));
+      expect(hook.result.current.isProcessing).toBe(true);
+      expect(client.getQueryCache().find({ queryKey: queryKeys.importJobs.detail('job-1') })?.isActive()).toBe(true);
+      expect(pushMock).not.toHaveBeenCalled();
+      hook.unmount();
+      client.clear();
+    },
+  );
 });
 
 describe('upload error messages', () => {

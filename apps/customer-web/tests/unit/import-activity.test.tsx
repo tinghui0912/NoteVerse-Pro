@@ -15,6 +15,8 @@ import {
 } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, expect, it, vi } from 'vitest';
+import * as navigation from '@/lib/imports/navigation';
+import { ImportJobCard } from '@/components/imports/import-job-card';
 import { ImportActivity } from '@/components/imports/import-activity';
 import { useImportJobList } from '@/hooks/queries/use-import-job-queries';
 import { queryKeys } from '@/lib/query-client';
@@ -201,3 +203,23 @@ it.each([null, 'private_provider_failure'])('uses product fallback for an unmapp
   expect(within(title.parentElement!).getByText(messages.failed)).toBeInTheDocument();
   expect(screen.queryByText('private_provider_failure')).not.toBeInTheDocument();
 });
+
+
+it.each([null, undefined, 'live-score'])(
+  'projects confirmed history with live score %s through the shared destination resolver', (score_id) => {
+    const resolve = vi.spyOn(navigation, 'importJobDestination');
+    const confirmed = { ...job('CONFIRMED'), score_id };
+    const { wrapper, client } = harness();
+    render(<ImportJobCard job={confirmed} retryPending={false} deletePending={false} onRetry={vi.fn()} onDelete={vi.fn()} />, { wrapper });
+    expect(resolve).toHaveBeenCalledWith(confirmed);
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    if (score_id) {
+      expect(screen.getByRole('link', { name: 'Open score' })).toHaveAttribute('href', '/score/live-score');
+    } else {
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    resolve.mockRestore();
+    client.clear();
+  },
+);
