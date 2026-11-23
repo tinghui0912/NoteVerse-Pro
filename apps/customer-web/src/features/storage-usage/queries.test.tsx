@@ -25,3 +25,8 @@ it('reads the current projection with an AbortSignal and converges through the d
   expect(client.getQueryState(['unrelated'])?.isInvalidated).toBe(false);
   client.clear();
 });
+
+it('identifies the current usage projection under Storage Usage', () => {
+  expect(storageUsageQueryKeys.all).toEqual(['storage-usage']);
+  expect(storageUsageQueryKeys.current()).toEqual(['storage-usage', 'current']);
+});

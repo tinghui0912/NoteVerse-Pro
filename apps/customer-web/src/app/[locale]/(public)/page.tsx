@@ -41,32 +41,14 @@ const features = [
   },
 ];
 
-const testimonials = [
-  {
-    name: 'testimonial1Name',
-    role: 'testimonial1Role',
-    quote: 'testimonial1Quote',
-    avatar: placeholderImages['avatar-1'].url,
-  },
-  {
-    name: 'testimonial2Name',
-    role: 'testimonial2Role',
-    quote: 'testimonial2Quote',
-    avatar: placeholderImages['avatar-2'].url,
-  },
-   {
-    name: 'testimonial3Name',
-    role: 'testimonial3Role',
-    quote: 'testimonial3Quote',
-    avatar: placeholderImages['avatar-3'].url,
-  },
-];
-
 export default function HomePage() {
   const t = useTranslations('home');
   const tPlans = useTranslations('plans');
   const { isAuthenticated } = useAuthentication();
-  const ctaLink = isAuthenticated ? '/upload' : '/auth/login';
+  const ctaLink = isAuthenticated ? '/upload' : '/auth/register';
+  const ctaLabel = isAuthenticated ? t('uploadScore') : tPlans('getStarted');
+  const planCtaHref = isAuthenticated ? '/library' : '/auth/register';
+  const planCtaLabel = tPlans(isAuthenticated ? 'openApp' : 'getStarted');
 
   return (
     <main className="bg-gray-50">
@@ -95,12 +77,13 @@ export default function HomePage() {
               {t('heroSubtitle')}
             </p>
              <div className="mt-8 flex flex-col items-start justify-start gap-4 sm:flex-row">
-                <Button 
+                <Button
+                  asChild
                   size="lg"
                   className="group bg-orange-500 px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-orange-600"
                 >
                   <Link href={ctaLink} className="flex items-center">
-                    {tPlans('getStarted')}
+                    {ctaLabel}
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
@@ -152,10 +135,10 @@ export default function HomePage() {
               {features.map((feature, index) => (
                 <Card
                   key={index}
-                  className={`rounded-lg p-6 transition-all duration-300 group ${
+                  className={`rounded-lg p-6 ${
                     feature.highlighted
                       ? 'border-orange-200 bg-orange-50 text-gray-900 shadow-sm'
-                      : 'bg-gray-50 text-gray-900 hover:-translate-y-1 hover:shadow-lg'
+                      : 'bg-gray-50 text-gray-900'
                   }`}
                 >
                   <div className="space-y-4">
@@ -164,44 +147,10 @@ export default function HomePage() {
                     <p className="text-gray-600">
                       {t(feature.description as never)}
                     </p>
-                    <a href="#" className="flex items-center gap-2 text-sm font-semibold text-orange-600 transition-all group-hover:gap-3">
-                      {t('viewDetails')}
-                      <ArrowRight className="w-4 h-4" />
-                    </a>
                   </div>
                 </Card>
               ))}
             </div>
-          </div>
-        </div>
-      </AnimatedSection>
-
-      {/* Testimonials Section */}
-      <AnimatedSection className="py-24 sm:py-32 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row justify-between items-start gap-8 mb-12">
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200">
-                {t('testimonialsTag')}
-              </div>
-              <h2 className="text-4xl sm:text-5xl font-medium text-gray-900 leading-tight">
-                {t('testimonialsTitle')}
-              </h2>
-            </div>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="space-y-6 rounded-lg bg-white p-8 shadow-sm">
-                <p className="text-gray-600">&ldquo;{t(testimonial.quote as never) || testimonial.quote}&rdquo;</p>
-                <div className="flex items-center gap-4">
-                  <Image src={testimonial.avatar} alt={t(testimonial.name as never)} width={48} height={48} className="w-12 h-12 rounded-full object-cover" />
-                  <div>
-                    <p className="font-semibold text-gray-900">{t(testimonial.name as never) || testimonial.name}</p>
-                    <p className="text-sm text-gray-500">{t(testimonial.role as never) || testimonial.role}</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
           </div>
         </div>
       </AnimatedSection>
@@ -212,17 +161,11 @@ export default function HomePage() {
             <h2 className="mb-6 text-4xl font-medium text-gray-900">{tPlans('title')}</h2>
             <p className="text-lg text-gray-600">{tPlans('subtitle')}</p>
           </div>
-          <div className="mx-auto mt-12 max-w-md"><FreeAccessCard /></div>
+          <div className="mx-auto mt-12 max-w-md"><FreeAccessCard ctaHref={planCtaHref} ctaLabel={planCtaLabel} /></div>
         </div>
       </AnimatedSection>
 
-      <MarketingFooter />
+      <MarketingFooter ctaHref={ctaLink} ctaLabel={ctaLabel} />
     </main>
   );
 }
-
-    
-
-    
-
-    

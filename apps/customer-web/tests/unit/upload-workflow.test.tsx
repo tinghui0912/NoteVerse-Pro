@@ -147,7 +147,7 @@ describe('upload error messages', () => {
 
   it('maps storage quota errors to a user-facing message', () => {
     expect(translateErrorCode(tErrors, 'storage_quota_exceeded', '操作失败')).toBe(
-      '存储空间不足，请删除不需要的内容或升级方案。',
+      zhErrors.storage_quota_exceeded,
     );
   });
 
@@ -178,11 +178,11 @@ describe('upload workflow storage quota handling', () => {
 
     expect(result.current.files[0]).toMatchObject({
       status: 'error',
-      error: '存储空间不足，请删除不需要的内容或升级方案。',
+      error: zhErrors.storage_quota_exceeded,
     });
     expect(toastMock).toHaveBeenCalledWith({
       title: '提交失败',
-      description: '存储空间不足，请删除不需要的内容或升级方案。',
+      description: zhErrors.storage_quota_exceeded,
       variant: 'destructive',
     });
     expect(submitImportJobMock).not.toHaveBeenCalled();

@@ -11,8 +11,6 @@
     "plans": "方案"
   },
   "allRightsReserved": "版权所有",
-  "privacyPolicy": "隐私政策",
-  "termsOfService": "服务条款",
   "settings": "设置",
   "openApp": "打开应用",
   "returnToApp": "返回应用",
@@ -26,8 +24,6 @@
   "download": "下载",
   "refresh": "刷新",
   "edit": "编辑",
-  "upgrade": "升级",
-  "freePlan": "免费版",
   "add": "插入",
   "delete": "删除",
   "cancel": "取消",
@@ -76,5 +72,6 @@
   "accessDenied": "无权访问",
   "editAccessDeniedDesc": "你没有编辑这份乐谱的权限。",
   "reviewAccessDeniedDesc": "你没有审核这份乐谱的权限。",
-  "loadMore": "加载更多"
+  "loadMore": "加载更多",
+  "accountAvatar": "账户头像"
 }

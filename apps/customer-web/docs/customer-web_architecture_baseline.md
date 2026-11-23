@@ -41,7 +41,8 @@ src/app/[locale]/
   (auth)/        login, register, password recovery, email verification
   (app)/         authenticated product pages
   (workspace)/   focused editor, practice, and review-edit surfaces
-  (external)/    share and invite entry points
+  (guest-preview)/ anonymous Guest Preview presentation
+  (invite)/      Collaboration Invite access entry
 ```
 
 Rules:
@@ -51,12 +52,12 @@ Rules:
 - Public/help pages keep public navigation; logged-in state changes the right-side user area
   but does not turn them into AppShell pages.
 - Auth pages use a low-distraction Auth shell.
-- External pages are not AppShell pages. They expose only the actions allowed by the share,
-  or invite contract.
+- Guest Preview and Invite entries use their dedicated presentation shells and expose
+  only their respective bearer or Collaboration actions.
 
 ## Score Detail Model
 
-Score detail and share detail pages are lightweight detail pages, not full
+Score detail and Guest Preview pages are lightweight detail pages, not full
 browser score-player pages.
 
 They use:
@@ -103,8 +104,8 @@ ScoreRevisionAssets
 ```
 
 Playback audio is delivered through playback endpoints rather than by exposing MusicXML to
-external visitors. External share payloads only include revision sources when the
-server-side policy allows download. Import-job review artifacts are a separate pipeline
+external visitors. Guest Preview payloads expose presentation only and never include
+revision sources. Import-job review artifacts are a separate pipeline
 concept and should not be modeled as score revision assets.
 
 ## API and Server State
@@ -138,9 +139,11 @@ components/loading/
   SectionLoading
   InlineLoading
 
-components/error/
+components/states/
   ErrorState
-  ResourceErrorState
+  ResourceLoadError
+  SectionErrorState
+  EmptyState
   NotFoundState
 ```
 
@@ -180,7 +183,7 @@ components/settings    cross-domain Account/Storage settings navigation
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
 components/loading      loading primitives
-components/error        error primitives
+components/states       error, empty and access-denied presentation
 ```
 
 Import Review is part of Import. Its browser workspaces are

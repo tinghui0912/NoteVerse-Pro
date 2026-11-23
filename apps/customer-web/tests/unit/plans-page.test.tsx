@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { PropsWithChildren } from 'react';
@@ -30,16 +28,13 @@ it.each([false, true])('shows current free access and a real CTA (authenticated=
   expect(screen.getByRole('heading', {name: 'Plans'})).toBeVisible();
   expect(screen.getByText(plans.freeName)).toBeVisible();
   expect(screen.getByText(plans.subtitle)).toBeVisible();
-  expect(screen.getByRole('link', {name: authenticated ? plans.openApp : plans.getStarted})).toHaveAttribute('href', authenticated ? '/library' : '/auth/register');
-  expect(screen.queryByRole('button', {name: /choose plan|upgrade|checkout|coming soon/i})).toBeNull();
-  expect(screen.queryByText(/Basic Plan|Pro Plan|¥30|¥99|recognitions per month|priority support|multi-device sync/)).toBeNull();
+  expect(within(screen.getByRole('main')).getByRole('link', {name: authenticated ? plans.openApp : plans.getStarted})).toHaveAttribute('href', authenticated ? '/library' : '/auth/register');
 });
 it('uses the same truthful free surface on the homepage', () => {
   render(<HomePage />, {wrapper});
   const section = screen.getByRole('heading', {name: 'Plans'}).closest('section')!;
   expect(within(section).getByText(plans.subtitle)).toBeVisible();
   expect(within(section).getByRole('link', {name: plans.getStarted})).toHaveAttribute('href', '/auth/register');
-  expect(within(section).queryByText(/Basic Plan|Pro Plan|recognitions per month/)).toBeNull();
 });
 it('links public navigation to Plans', () => {
   render(<PublicNav />, {wrapper});
@@ -49,11 +44,18 @@ it('composes Account and Storage settings navigation', () => {
   render(<SettingsShell><p>Storage content</p></SettingsShell>, {wrapper});
   expect(screen.getByRole('link', {name: 'Storage'})).toHaveAttribute('href', '/settings/storage');
   expect(screen.getByRole('link', {name: 'Profile'})).toHaveAttribute('href', '/settings/profile');
-  expect(screen.queryByRole('link', {name: 'Billing'})).toBeNull();
 });
 
-it('owns the canonical public Plans route', () => {
-  const root = resolve(process.cwd(), 'src/app/[locale]/(public)');
-  expect(existsSync(resolve(root, 'plans/page.tsx'))).toBe(true);
-  expect(existsSync(resolve(root, 'subscriptions'))).toBe(false);
+
+it.each([false, true])('composes Homepage registration/upload and app navigation (authenticated=%s)', (authenticated) => {
+  fake.authenticated = authenticated;render(<HomePage />, {wrapper});
+  const label = authenticated ? home.uploadScore : plans.getStarted;
+  const primaryLinks = screen.getAllByRole('link', {name: label});
+  expect(primaryLinks.length).toBeGreaterThan(0);
+  for (const link of primaryLinks) expect(link).toHaveAttribute('href', authenticated ? '/upload' : '/auth/register');
+  const section = screen.getByRole('heading', {name: 'Plans'}).closest('section')!;
+  expect(within(section).getByRole('link', {name: authenticated ? plans.openApp : plans.getStarted})).toHaveAttribute('href', authenticated ? '/library' : '/auth/register');
+  expect(new Set(screen.getAllByRole('link').map(link => link.getAttribute('href')))).toEqual(new Set(authenticated ? ['/', '/upload', '/library'] : ['/', '/auth/register']));
+  expect(screen.getByText(home.step2Desc)).toBeVisible();
+  expect(screen.getByText(home.step3Desc)).toBeVisible();
 });

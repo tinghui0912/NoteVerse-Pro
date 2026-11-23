@@ -4,16 +4,12 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 
 import { BrandLogo } from '@/components/brand';
-import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 
-export function MarketingFooter() {
+export function MarketingFooter({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
   const tHome = useTranslations('home');
   const tCommon = useTranslations('common');
-  const { isAuthenticated } = useAuthentication();
-
-  const ctaLink = isAuthenticated ? '/upload' : '/auth/login';
 
   return (
     <footer className="border-t border-gray-200 bg-white py-12 text-gray-900" id="contact">
@@ -22,12 +18,12 @@ export function MarketingFooter() {
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {tHome('ctaTitle')}
           </h2>
-          <Link href={ctaLink}>
-            <Button className="group bg-orange-500 px-6 py-3 font-semibold text-white hover:bg-orange-600">
-              {tHome('ctaButton')}
+          <Button asChild className="group bg-orange-500 px-6 py-3 font-semibold text-white hover:bg-orange-600">
+            <Link href={ctaHref}>
+              {ctaLabel}
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
         <div className="border-t border-gray-200 pt-8">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
@@ -35,14 +31,6 @@ export function MarketingFooter() {
             <p className="text-sm text-gray-500">
               © {new Date().getFullYear()} NoteVerse Pro. {tCommon('allRightsReserved')}
             </p>
-            <div className="flex space-x-6 text-sm text-gray-500">
-              <a href="#" className="transition-colors hover:text-gray-950">
-                {tCommon('privacyPolicy')}
-              </a>
-              <a href="#" className="transition-colors hover:text-gray-950">
-                {tCommon('termsOfService')}
-              </a>
-            </div>
           </div>
         </div>
       </div>

@@ -1,68 +1,31 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
-import { describe, expect, it } from 'vitest';
-import { scoreEditLocation } from '@/features/scores/routes';
-
-const projectPath = (path: string) => resolve(process.cwd(), path);
-const readSource = (path: string) => readFileSync(projectPath(path), 'utf8');
-
-describe('score workspace routes', () => {
-  it('keeps score as the product route family', () => {
-    expect(existsSync(projectPath('src/app/[locale]/(app)/score/[id]/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/review/page.tsx'))).toBe(true);
-    expect(existsSync(projectPath('src/app/[locale]/(workspace)/score/[id]/practice/summary/page.tsx'))).toBe(false);
-    expect(existsSync(projectPath('src/app/[locale]/(guest-preview)/preview/[token]/page.tsx'))).toBe(true);
-
-    expect(existsSync(projectPath('src/app/[locale]/results'))).toBe(false);
-    expect(existsSync(projectPath('src/app/[locale]/editor'))).toBe(false);
-    expect(existsSync(projectPath('src/app/[locale]/practice'))).toBe(false);
-  });
-
-  it('protects score as one route family instead of standalone editor and practice pages', () => {
-    const proxy = readSource('src/proxy.ts');
-
-    expect(proxy).toContain("'/score'");
-    expect(proxy).not.toContain("'/preview'");
-    expect(proxy).not.toContain("'/results'");
-    expect(proxy).not.toContain("'/editor'");
-    expect(proxy).not.toContain("'/practice'");
-  });
-
-  it('routes score detail actions into score workspaces', () => {
-    const actions = readSource('src/features/scores/core/detail/score-hero-actions.tsx');
-    const scoreEditor = readSource('src/app/[locale]/(workspace)/score/[id]/edit/page.tsx');
-
-    expect(scoreEditLocation('score')).toBe('/score/score/edit');
-    expect(actions).toContain("practiceLocation(scoreId, 'setup', revisionId)");
-    expect(scoreEditor).toContain('<EditorWorkspacePage');
-    expect(actions).not.toContain('/editor/${scoreId}');
-    expect(actions).not.toContain('/practice/${scoreId}');
-  });
-
-  it('places preview presentation in its dedicated route and shell', () => {
-    const page = readSource('src/app/[locale]/(guest-preview)/preview/[token]/page.tsx');
-    const layout = readSource('src/app/[locale]/(guest-preview)/layout.tsx');
-    expect(page).toContain('<GuestPreviewPage token={token}');
-    expect(page).toContain('noarchive: true');
-    expect(layout).toContain('<LanguageSwitcher');
-  });
-
-  it('centralizes view/share capabilities without a score shell wrapper', () => {
-    const surface = readSource('src/features/scores/core/components/score-surface.tsx');
-    const capabilityContext = readSource('src/features/scores/core/components/score-capability-context.tsx');
-    const actions = readSource('src/features/scores/core/detail/score-hero-actions.tsx');
-    const metadata = readSource('src/features/scores/core/detail/score-info-panel.tsx');
-
-    expect(existsSync(projectPath('src/components/score-shell'))).toBe(false);
-    expect(surface).toContain('ScoreSurface');
-    expect(capabilityContext).toContain('ScoreCapabilityContext.Provider');
-    expect(capabilityContext).toContain('resolveScoreCapabilities');
-    expect(capabilityContext).toContain('useScoreCapabilities');
-    expect(actions).toContain('useScoreCapabilities');
-    expect(metadata).toContain('useScoreCapabilities');
-    expect(actions).not.toContain('capabilities?:');
-  });
+import { NextRequest } from 'next/server';
+import { expect, it, vi } from 'vitest';
+import { AUTH_COOKIE_NAME } from '@/generated/browser-protocol';
+import proxy from '@/proxy';
+import { scoreLocation, scoreEditLocation } from '@/features/scores/routes';
+import { guestPreviewLocation } from '@/features/scores/guest-preview/routes';
+import { practiceLocation } from '@/lib/practice/configuration/practice-location';
+vi.mock('next-intl/navigation', () => ({createNavigation: () => ({})}));
+vi.mock('next-intl/middleware', () => ({default: () => () => new Response(null, {status: 200})}));
+it('builds encoded Score detail and editor locations', () => {
+  expect(scoreLocation('score/id')).toBe('/score/score%2Fid');
+  expect(scoreEditLocation('score/id')).toBe('/score/score%2Fid/edit');
+});
+it('pins Practice navigation to the requested revision', () => {
+  expect(practiceLocation('score/id', 'setup', 'revision/id')).toBe('/score/score%2Fid/practice/setup?practiceRevisionId=revision%2Fid');
+  expect(practiceLocation('score', 'practice')).toBe('/score/score/practice');
+});
+it('builds localized Guest Preview destinations', () => {
+  expect(guestPreviewLocation('bearer/id', 'en')).toBe('/preview/bearer%2Fid');
+  expect(guestPreviewLocation('bearer/id', 'zh')).toBe('/zh/preview/bearer%2Fid');
+});
+it.each(['/score/score', '/score/score/edit', '/score/score/practice'])('gates %s and preserves its local return intent', (path) => {
+  const response = proxy(new NextRequest(`https://customer.test/zh${path}`));
+  const login = new URL(response.headers.get('location')!);
+  expect(login.pathname).toBe('/zh/auth/login');
+  expect(login.searchParams.get('returnUrl')).toBe(`/zh${path}`);
+  expect(proxy(new NextRequest(`https://customer.test/zh${path}`, {headers: {cookie: `${AUTH_COOKIE_NAME}=session`}})).status).toBe(200);
+});
+it.each(['/preview/token', '/invite/token'])('allows the anonymous access entry %s', path => {
+  expect(proxy(new NextRequest(`https://customer.test/en${path}`)).status).toBe(200);
 });

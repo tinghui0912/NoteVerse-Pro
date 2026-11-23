@@ -32,25 +32,32 @@ Current feature modules:
 app/modules/
 |-- account
 |-- auth
+|-- collaboration
 |-- durable_work
-|-- files
+|-- fingering
+|-- guest_previews
 |-- import_jobs
 |-- library
 |-- mail
 |-- metadata
+|-- model_assets
 |-- notifications
 |-- ops
+|-- performance_takes
+|-- platform_operators
 |-- playback
 |-- practice
 |-- realtime
+|-- rendering
 |-- revisions
-|-- review
+|-- scheduler_lock
+|-- scheduler_observability
 |-- score_access
 |-- score_assets
-|-- collaboration
-|-- guest_previews
 |-- scores
-`-- storage_usage
+|-- storage_objects
+|-- storage_usage
+`-- uploads
 ```
 
 ## 3. Canonical Score Domain
@@ -167,9 +174,9 @@ review output.
 
 Own stable score resources and immutable revision creation:
 
-- score list/detail/update/delete/archive;
-- score title, genres, state, and version;
-- head and approved revision pointers;
+- score list/detail/update and durable deletion;
+- Score display title, genres and metadata version;
+- the current head revision pointer;
 - first score creation after review confirmation yields canonical MusicXML;
 - revision append, same-base no-op detection, base-revision conflict checks, and
   idempotent save retries.
@@ -193,7 +200,7 @@ Revision source IDs and render asset IDs replace task ID plus file kind addressi
 Owns typed, rebuildable metadata projections:
 
 - measure count;
-- duration;
+- notation title and primary key;
 - part count;
 - key, meter, and tempo events;
 - extractor status, version, and failure state.
@@ -219,12 +226,13 @@ services.
 
 ### `modules/guest_previews`
 
-Owns Score-level stable-token settings and presentation-only bearer delivery.
-Only the owner reads the token or toggles access. Every bearer request resolves the
-current Score head; missing derivatives remain unavailable. No historical revision
-is pinned. No MusicXML, download, Practice, Library entry, redemption or persistent
-account relationship is available. Tokens are excluded from generic Score responses
-and logs.
+Owns hash-only `GuestPreviewCredential` rows and presentation-only bearer delivery.
+Score stores no raw token. Owner issue/rotate commands reveal plaintext once; settings
+contain enabled state and issue time. Revoke deletes the credential, and re-enable issues
+a fresh credential. Credential mutations serialize on the active Score parent.
+
+See the canonical [Guest Preview credential and presentation contract](../../docs/adr/0004-score-access-collaboration-and-guest-preview.md)
+for secret handling, current-head delivery and owner command semantics.
 
 ### `modules/practice`
 
@@ -388,9 +396,6 @@ Use the project response and exception conventions:
 Customer successes use direct typed representations, explicit pagination resources
 and bodyless 204 commands. Frontend owns localized success presentation. Customer
 application errors use `ApiErrorResponse`; Control Plane owns its independent
-response contract. Customer successes use direct typed representations, explicit pagination resources
-and bodyless 204 commands. Frontend owns localized success presentation. Customer
-application errors use `ApiErrorResponse`; Control Plane owns its independent
 response contract. Avoid local one-off JSON error shapes.
 
 Score-facing responses should include backend-computed capabilities where the UI needs
@@ -458,7 +463,7 @@ Before finalizing backend work, check:
 - no job ID used as a score route identity after a score exists;
 - no canonical MusicXML mutation that overwrites an existing revision source;
 - owner/member operations delegate to `modules/score_access`; Guest Preview owns exact presentation authorization;
-- raw Guest Preview tokens belong only to Score and owner-only settings responses;
+- Guest Preview plaintext is revealed once by owner issue/rotate commands; persistence stores only its hash;
 - revision-bound PracticeScoreArtifact/source delivery preserves immutable revision
   identity while active Practice execution remains browser-local;
 - no direct durable file path construction outside `app/storage`;

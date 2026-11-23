@@ -11,8 +11,6 @@
     "plans": "Plans"
   },
   "allRightsReserved": "All rights reserved",
-  "privacyPolicy": "Privacy Policy",
-  "termsOfService": "Terms of Service",
   "settings": "Settings",
   "openApp": "Open app",
   "returnToApp": "Back to app",
@@ -26,8 +24,6 @@
   "download": "Download",
   "refresh": "Refresh",
   "edit": "Edit",
-  "upgrade": "Upgrade",
-  "freePlan": "Free Plan",
   "add": "Insert",
   "delete": "Delete",
   "cancel": "Cancel",
@@ -76,5 +72,6 @@
   "accessDenied": "Access denied",
   "editAccessDeniedDesc": "You do not have permission to edit this score.",
   "reviewAccessDeniedDesc": "You do not have permission to review this score.",
-  "loadMore": "Load more"
+  "loadMore": "Load more",
+  "accountAvatar": "Account avatar"
 }

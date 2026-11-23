@@ -57,7 +57,7 @@ it('shows an error and leaves manual retry available', async () => {
   expect(screen.getByText(enSettings.storage.loadFailed)).toBeVisible();
   await userEvent.click(screen.getByRole('button', {name: 'Refresh'}));expect(fake.refetch).toHaveBeenCalledOnce();
 });
-it('localizes the no-capacity state without suggesting a paid upgrade', () => {
+it('localizes the zero-capacity state', () => {
   fake.query.mockReturnValue(quota(0, 0, 0, 0));panel('zh');
   expect(screen.getByText(zhSettings.storage.noCapacity)).toBeVisible();
   expect(screen.queryByText(zhSettings.storage.nearLimit)).toBeNull();

@@ -141,9 +141,10 @@ OCR Review 是 job-scoped pipeline。`/imports/:jobId/review` 通过
 确认后导航到 Score。Review 的临时产物与 Score revision assets 分属不同契约。
 上传提交与轮询使用 jobs API、job_id 和对应 query keys。
 
-分享入口组合 auth/access、权限操作、允许的下载和可取消图片请求。
-`/share/[shareId]` 可在 auth 初始化后匿名加载授权数据，具体动作受服务端
-capability 控制。Review 校验、确认、对比图和 carousel 也由专属 hook/component
+`/preview/:token` 由 `features/scores/guest-preview` 提供独立的匿名图片与试听展示；
+它不提供下载、编辑或 Practice authority。`/invite/:token` 由 `features/scores/collaboration`
+拥有，读取当前邀请并通过登录后的 recipient command 接受。两类入口使用各自的 route shell。
+Review 校验、确认、对比图和 carousel 也由专属 hook/component
 拥有，页面只组合这些接口。
 
 ## Practice

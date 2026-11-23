@@ -39,7 +39,7 @@
   "score_metadata_conflict": "乐谱信息已更改，请刷新后重试。",
   "revision_conflict": "这份乐谱已在其他地方更新，请刷新后重试。",
   "revision_content_invalid": "乐谱内容无效，请检查后重试。",
-  "storage_quota_exceeded": "存储空间不足，请删除不需要的内容或升级方案。",
+  "storage_quota_exceeded": "可用存储容量不足，请查看存储用量或删除不再需要的内容。",
   "quota_check_unavailable": "暂时无法确认存储空间，请稍后再试。",
   "current_password_required": "请输入当前密码。",
   "current_password_wrong": "当前密码错误。",

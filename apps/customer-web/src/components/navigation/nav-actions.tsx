@@ -29,7 +29,7 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
         <Button variant="ghost" className={cn('relative h-10 w-10 rounded-full', triggerClassName)}>
           <Avatar className="h-9 w-9">
             <AvatarImage src={principal?.avatar_url || undefined} alt={principal?.display_name || ''} />
-            <AvatarFallback>
+            <AvatarFallback role="img" aria-label={t('accountAvatar')}>
               <User className="h-5 w-5" />
             </AvatarFallback>
           </Avatar>

@@ -39,7 +39,7 @@
   "score_metadata_conflict": "Score information has changed. Refresh and try again.",
   "revision_conflict": "This score was updated elsewhere. Please refresh and try again.",
   "revision_content_invalid": "The score content is invalid. Please check it and try again.",
-  "storage_quota_exceeded": "Storage space is full. Delete unused content or upgrade your plan.",
+  "storage_quota_exceeded": "Storage capacity is unavailable. Check your storage usage or remove content you no longer need.",
   "quota_check_unavailable": "Storage space could not be checked right now. Please try again later.",
   "current_password_required": "Please enter your current password.",
   "current_password_wrong": "The current password is incorrect.",

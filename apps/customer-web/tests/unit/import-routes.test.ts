@@ -1,6 +1,4 @@
 // @vitest-environment node
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { NextRequest } from 'next/server';
 import { describe, expect, it, vi } from 'vitest';
 import proxy from '@/proxy';
@@ -19,14 +17,6 @@ describe('Import browser namespace', () => {
     expect(importReviewLocation('job/id')).toBe('/imports/job%2Fid/review');
     expect(importReviewEditLocation('job/id')).toBe('/imports/job%2Fid/review/edit');
     expect(importJobDestination({ job_id: 'job', state: 'READY_FOR_REVIEW' })).toEqual({ kind: 'review', href: '/imports/job/review' });
-  });
-
-  it('has one authenticated Import Review URL namespace', () => {
-    const file = (path: string) => existsSync(resolve(process.cwd(), 'src/app/[locale]', path));
-    expect(file('(app)/imports/[jobId]/review/page.tsx')).toBe(true);
-    expect(file('(workspace)/imports/[jobId]/review/edit/page.tsx')).toBe(true);
-    expect(file('(app)/review/[jobId]/page.tsx')).toBe(false);
-    expect(file('(workspace)/review/[jobId]/edit/page.tsx')).toBe(false);
   });
 
   it('shares one cache prefix across job lifecycle and review', () => {

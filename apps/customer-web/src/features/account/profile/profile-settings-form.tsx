@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Camera, Crown, Save, User } from 'lucide-react';
+import { Camera, Save, User } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { InlineLoading } from '@/components/loading';
@@ -18,7 +18,6 @@ import { AvatarCropperModal } from '@/features/account/profile/avatar-cropper-mo
 export function ProfileSettingsForm() {
   const t = useTranslations('settings');
   const tAuth = useTranslations('auth');
-  const tCommon = useTranslations('common');
   const tErrors = useTranslations('errors');
   const { principal, replacePrincipal, refreshPrincipal } = useAuthentication();
   const { toast } = useToast();
@@ -130,10 +129,6 @@ export function ProfileSettingsForm() {
                   <Camera className="h-4 w-4" />
                 )}
               </Button>
-            </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-sm font-medium text-orange-600">
-              <Crown className="h-4 w-4" />
-              {tCommon('freePlan')}
             </div>
           </div>
 
