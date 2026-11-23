@@ -7,15 +7,15 @@ dependencies = []
 
 [dependency-groups]
 core = [
-  "pydantic[email]==2.14.1",
-  "pydantic-settings==2.16.0",
-  "loguru==0.7.3",
+  "pydantic[email]==2.14.4",
+  "pydantic-settings==2.16.3",
+  "loguru==0.8.0",
 ]
 db = [
   { include-group = "core" },
-  "sqlmodel==0.0.48",
+  "sqlmodel==0.0.50",
   "asyncpg==0.32.0",
-  "psycopg[binary]==3.3.6",
+  "psycopg[binary]==3.3.9",
   "greenlet==3.5.6",
 ]
 cache = [
@@ -24,60 +24,60 @@ cache = [
 ]
 celery = [
   { include-group = "cache" },
-  "celery==5.6.3",
+  "celery==5.7.0",
 ]
 tracing = [
-  "opentelemetry-api==1.45.1",
-  "opentelemetry-sdk==1.45.1",
-  "opentelemetry-exporter-otlp-proto-grpc==1.45.1",
+  "opentelemetry-api==1.45.2",
+  "opentelemetry-sdk==1.45.2",
+  "opentelemetry-exporter-otlp-proto-grpc==1.45.2",
 ]
 http = [
   { include-group = "core" },
   { include-group = "tracing" },
-  "fastapi==0.146.0",
+  "fastapi==0.165.0",
   "uvicorn[standard]==0.54.0",
-  "python-multipart==0.0.32",
+  "python-multipart==0.0.34",
   "prometheus-client==0.26.0",
   "opentelemetry-instrumentation-fastapi==0.66b1",
 ]
 auth = [
   { include-group = "core" },
   "PyJWT[crypto]==2.15.1",
-  "pwdlib[argon2]==0.3.1",
+  "pwdlib[argon2]==0.4.2",
 ]
 storage = [
   { include-group = "core" },
-  "boto3==1.43.114",
-  "alibabacloud-oss-v2==1.4.0",
+  "boto3==1.44.7",
+  "alibabacloud-oss-v2==1.4.1",
 ]
 image = [
   "Pillow==13.0.0",
 ]
 fingering = [
-  "numpy==2.3.5",
+  "numpy==2.5.5",
   "pianoplayer==3.0.2",
 ]
 practice-score = [
   "partitura==1.9.0",
 ]
 render = [
-  "numpy==2.3.5",
-  "verovio==6.3.0",
+  "numpy==2.5.5",
+  "verovio==6.4.1",
 ]
 ocr = [
   "paddleocr==3.7.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
 migrations = [
   { include-group = "db" },
-  "alembic==1.20.0",
+  "alembic==1.20.1",
 ]
 quality-tools = [
   "httpx==0.28.1",
-  "pytest==9.1.1",
-  "pytest-asyncio==1.4.0",
+  "pytest==9.2.0",
+  "pytest-asyncio==1.5.0",
   "pytest-cov==7.1.0",
-  "ruff==0.17.1",
-  "mypy==2.4.0",
+  "ruff==0.17.6",
+  "mypy==2.4.1",
   "pre-commit==4.7.0",
 ]
 api = [
@@ -93,7 +93,7 @@ api = [
 ]
 beat = [
   { include-group = "celery" },
-  "psycopg[binary]==3.3.6",
+  "psycopg[binary]==3.3.9",
 ]
 worker-app = [
   { include-group = "db" },
@@ -106,10 +106,10 @@ worker-app = [
 worker = [
   { include-group = "worker-app" },
   { include-group = "ocr" },
-  "torch==2.6.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "paddlepaddle==3.2.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "accelerate==1.8.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
-  "fire==0.7.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "torch==2.15.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "paddlepaddle==3.3.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "accelerate==1.16.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "fire==0.7.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "Levenshtein==0.27.5; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "pyparsing==3.3.3; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "tqdm==4.70.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
