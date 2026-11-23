@@ -2,18 +2,17 @@
   "nav": {
     "home": "首页",
     "features": "功能",
-    "pricing": "定价",
     "library": "乐谱库",
     "myPerformances": "我的演奏",
     "help": "帮助",
     "login": "登录",
     "getStarted": "注册",
-    "upload": "上传"
+    "upload": "上传",
+    "plans": "方案"
   },
   "allRightsReserved": "版权所有",
   "privacyPolicy": "隐私政策",
   "termsOfService": "服务条款",
-  "premiumUser": "高级版用户",
   "settings": "设置",
   "openApp": "打开应用",
   "returnToApp": "返回应用",

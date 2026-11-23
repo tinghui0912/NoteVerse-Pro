@@ -20,6 +20,7 @@
 - `src/features/account/profile/`：current Profile、Avatar API、表单与 512x512 PNG crop。
 - `src/features/account/security/`：Security overview、password/email-change workflow 与 confirmation。
 - `src/features/account/sessions/`：authenticated refresh-session inventory、revoke 和 presentation。
+- `src/features/storage-usage/`：Storage Usage API、query identity、queries、cache consequence 与 quota presentation。
 - `src/features/authentication/`：browser session/principal、login/register/verification/recovery 与 safe returnUrl。
 - `src/app/[locale]/`：route entry、layout、loading/error/not-found 和页面组合。
 - `src/components/`：共享 UI、shell、基础组件和跨领域 presentation。
@@ -68,7 +69,12 @@ Account Profile read adapter 同时 hydrate Authentication principal；current u
 `features/account/cache.ts` 组合 Account projection consequences：password change 收敛 security
 与 sessions，email confirmation 收敛 security 并尝试刷新 current principal；后续 refresh 失败
 不改变 confirmation 成功。Sessions 请求显式限制为 100，device label 仅作 User-Agent presentation。
-SettingsShell 只负责跨 Account/Billing 的导航与布局。Authentication feature 拥有 session/principal
+SettingsShell 只负责跨 Account/Storage 的导航与布局。Storage settings 位于 `/settings/storage`，
+显示 server quota、used、reserved 与 available；available_bytes 来自服务端，百分比仅为 presentation。
+零 quota 显示无容量状态。StorageUsage 通过 local mutation consequence 和手动 Refresh 收敛，
+普通跨 session 变更没有专用 realtime event。当前不存在 Billing/Subscription frontend bounded context；
+公开 `/plans` 仅描述免费可用与付费方案未开放，不复制 quota default 或承诺虚构商业权益。
+StoragePlanPolicy 是存储 quota policy，不是 commercial feature entitlement。Authentication feature 拥有 session/principal
 和五个 auth entry flows；route files 仅组合 feature。email-change confirmation 仍由 Account Security 拥有，
 AuthCard 仅为两个 lifecycle 共享的 presentation。
 

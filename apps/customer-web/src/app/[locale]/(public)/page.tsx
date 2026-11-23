@@ -1,16 +1,17 @@
 
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { ArrowRight, UploadCloud, Edit, Share2, Music, Download, CheckCircle } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { ArrowRight, UploadCloud, Edit, Share2, Music, Download } from 'lucide-react';
 import Image from 'next/image';
 import { Link } from '@/i18n/routing';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { AnimatedSection } from '@/components/marketing/animated-section';
+import { FreeAccessCard } from '@/components/marketing/free-access-card';
 import { MarketingFooter } from '@/components/marketing/marketing-footer';
 
 const features = [
@@ -61,55 +62,10 @@ const testimonials = [
   },
 ];
 
-const pricingTiers = [
-  {
-    name: 'freeName',
-    price: 0,
-    priceDetails: 'month',
-    features: ['freeFeature1', 'freeFeature2', 'freeFeature3'],
-    cta: 'startForFree',
-    available: true,
-  },
-  {
-    name: 'basicName',
-    price: 30,
-    priceDetails: 'month',
-    features: [
-      'basicFeature1',
-      'basicFeature2',
-      'basicFeature3',
-      'basicFeature4',
-    ],
-    cta: 'choosePlan',
-    popular: true,
-    available: false,
-  },
-  {
-    name: 'proName',
-    price: 99,
-    priceDetails: 'month',
-    features: [
-      'proFeature1',
-      'proFeature2',
-      'proFeature3',
-      'proFeature4',
-    ],
-    cta: 'choosePlan',
-    available: false,
-  },
-];
-
 export default function HomePage() {
   const t = useTranslations('home');
-  const tPricing = useTranslations('pricing');
-  const locale = useLocale();
+  const tPlans = useTranslations('plans');
   const { isAuthenticated } = useAuthentication();
-  const formatPrice = (price: number) => new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'CNY',
-    maximumFractionDigits: 0,
-  }).format(price);
-
   const ctaLink = isAuthenticated ? '/upload' : '/auth/login';
 
   return (
@@ -144,7 +100,7 @@ export default function HomePage() {
                   className="group bg-orange-500 px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-orange-600"
                 >
                   <Link href={ctaLink} className="flex items-center">
-                    {tPricing('startForFree')}
+                    {tPlans('getStarted')}
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
@@ -250,69 +206,16 @@ export default function HomePage() {
         </div>
       </AnimatedSection>
 
-      {/* Pricing Section */}
-       <AnimatedSection id="pricing" className="py-24 sm:py-32 bg-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-           <div className="text-center">
-            <h2 className="text-4xl sm:text-5xl font-medium text-gray-900 leading-tight mb-6">
-              {tPricing('title')}
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              {tPricing('subtitle')}
-            </p>
+      <AnimatedSection id="plans" className="bg-white py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="mb-6 text-4xl font-medium text-gray-900">{tPlans('title')}</h2>
+            <p className="text-lg text-gray-600">{tPlans('subtitle')}</p>
           </div>
-          <div className="mt-16 grid lg:grid-cols-3 gap-8 items-stretch">
-            {pricingTiers.map((tier) => (
-              <Card key={tier.name} className={`flex flex-col rounded-lg shadow-sm ${tier.popular ? 'relative border-2 border-orange-500' : 'bg-gray-50'}`}>
-                 {tier.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    {tPricing('popular')}
-                  </div>
-                )}
-                <CardHeader className="text-center pt-12 pb-8">
-                  <CardTitle className="text-2xl font-bold">{tPricing(tier.name as never)}</CardTitle>
-                  <p className="text-gray-500 mt-2">
-                    <span className="text-4xl font-bold text-gray-900">
-                      {formatPrice(tier.price)}
-                    </span>
-                    <span className="text-gray-500">
-                      {tPricing(tier.priceDetails as never)}
-                    </span>
-                  </p>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  <ul className="space-y-4">
-                    {tier.features.map((feature, i) => (
-                      <li key={i} className="flex items-center">
-                        <CheckCircle className="mr-3 h-5 w-5 text-green-500 shrink-0" />
-                        <span className="text-gray-600">
-                          {tPricing(feature as never)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-                <CardFooter className="p-6">
-                  {tier.available ? (
-                    <Button
-                      asChild
-                      size="lg"
-                      className="w-full border border-orange-500 bg-white text-orange-500 shadow-sm transition-colors hover:bg-orange-50"
-                    >
-                      <Link href={isAuthenticated ? '/upload' : '/auth/login'}>{tPricing(tier.cta as never)}</Link>
-                    </Button>
-                  ) : (
-                    <Button disabled size="lg" className="w-full">
-                      {tPricing('comingSoon')}
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+          <div className="mx-auto mt-12 max-w-md"><FreeAccessCard /></div>
         </div>
       </AnimatedSection>
-      
+
       <MarketingFooter />
     </main>
   );

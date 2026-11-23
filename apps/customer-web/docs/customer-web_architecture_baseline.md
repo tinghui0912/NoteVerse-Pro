@@ -37,7 +37,7 @@ Routes are grouped by user intent, not simply by login state:
 
 ```text
 src/app/[locale]/
-  (public)/      marketing, pricing, and help pages
+  (public)/      marketing, plans, and help pages
   (auth)/        login, register, password recovery, email verification
   (app)/         authenticated product pages
   (workspace)/   focused editor, practice, and review-edit surfaces
@@ -175,7 +175,8 @@ features/account/security security overview, password/email-change workflow and 
 features/account/sessions authenticated refresh-session inventory/revocation and presentation
 features/account        Account query identities and cross-lifecycle cache consequences
 features/authentication browser session/principal, auth entry flows and safe return navigation
-components/settings    cross-domain SettingsShell and Billing/Storage presentation
+features/storage-usage storage API/query identity/query/cache and quota presentation
+components/settings    cross-domain Account/Storage settings navigation
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
 components/loading      loading primitives
@@ -223,7 +224,16 @@ security and session projections. Email confirmation refreshes security and the 
 principal; optional profile refresh failure does not reverse confirmation success.
 Account Sessions owns session inventory and revocation, requesting at most 100 rows.
 `account/query-keys.ts` owns `account/security` and `account/sessions` identities.
-SettingsShell composes Account and non-Account tabs; Billing remains outside Account.
+SettingsShell composes Account and Storage tabs. `features/storage-usage` owns the
+`storage-usage` query prefix, authenticated usage read adapter, query, quota presentation
+and semantic cache consequence. `/settings/storage` is a thin feature entry. Local
+storage-affecting commands refresh usage through this owner; manual Refresh reads server
+state. Ordinary cross-session storage changes do not have a realtime event.
+
+There is no Billing/Subscription frontend bounded context. Public `/plans` and the homepage
+present free access and state that paid plans/upgrades are unavailable, without prices,
+feature matrices or a duplicated quota default. StoragePlanPolicy is storage quota policy,
+not commercial feature entitlement.
 Authentication owns browser session/principal lifecycle and login, registration, verification
 and password recovery under `features/authentication`. Its five auth routes are thin entries;
 Account email-change confirmation remains Account Security. Shared `AuthCard` is presentation

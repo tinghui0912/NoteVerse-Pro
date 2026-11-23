@@ -16,7 +16,7 @@ const namespaces = [
   'errors',
   'library',
   'practice',
-  'pricing',
+  'plans',
   'help',
   'metadata',
   'scoreStyles',

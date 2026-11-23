@@ -2,18 +2,17 @@
   "nav": {
     "home": "Home",
     "features": "Features",
-    "pricing": "Pricing",
     "library": "Library",
     "help": "Help",
     "login": "Log In",
     "getStarted": "Sign Up",
     "upload": "Upload",
-    "myPerformances": "My Performances"
+    "myPerformances": "My Performances",
+    "plans": "Plans"
   },
   "allRightsReserved": "All rights reserved",
   "privacyPolicy": "Privacy Policy",
   "termsOfService": "Terms of Service",
-  "premiumUser": "Premium User",
   "settings": "Settings",
   "openApp": "Open app",
   "returnToApp": "Back to app",

@@ -16,7 +16,7 @@ import { AuthenticatedNavActions, LanguageSwitcher } from './nav-actions';
 
 const publicNavItems = [
   { label: 'nav.home' as const, href: '/' as const },
-  { label: 'nav.pricing' as const, href: '/subscriptions' as const },
+  { label: 'nav.plans' as const, href: '/plans' as const },
   { label: 'nav.help' as const, href: '/help' as const },
 ] as const;
 

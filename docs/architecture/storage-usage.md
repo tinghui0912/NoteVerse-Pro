@@ -15,6 +15,11 @@ Plan defaults and non-null user overrides are nonnegative. Entitlements referenc
 an existing plan; entitlement and account identities reference their User with
 delete cascade. The baseline seeds `FREE` with `104857600` bytes (100 MiB).
 
+StoragePlanPolicy is storage-quota policy; UserStorageEntitlement is one user's
+storage entitlement. Neither is billing, payment or subscription authority, and
+`plan_code` does not grant recognition allowances, editing features, sharing limits,
+support or device entitlements. `FREE` is the only seeded storage policy.
+
 ## Effective entitlement
 
 ```text

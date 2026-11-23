@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 
 test('anonymous users can access public and external shells without AppShell sidebar', async ({ page }) => {
   await mockGuestPreview(page, 'shell-preview');
-  for (const path of ['/en/subscriptions', '/en/help', '/en/preview/shell-preview']) {
+  for (const path of ['/en/plans', '/en/help', '/en/preview/shell-preview']) {
     await page.goto(path);
     await expect(page).not.toHaveURL(/\/auth\/login/);
     await expect(page.getByRole('link', { name: 'Upload' })).toHaveCount(0);
@@ -47,7 +47,7 @@ test('invite routes use InviteShell instead of public marketing navigation', asy
   await expect(page).not.toHaveURL(/\/auth\/login/);
   await expect(page.getByRole('heading', { name: 'Invite Shell Score' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Upload' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Pricing' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Plans' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Log In', exact: true })).toBeVisible();
 });
 
@@ -62,7 +62,7 @@ test('auth routes use the focused AuthShell instead of app or marketing navigati
     await expect(page).not.toHaveURL(/\/auth\/login\?returnUrl=/);
     await expect(page.getByRole('link', { name: 'Upload' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Settings' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Pricing' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Plans' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Return Home' })).toBeVisible();
   }
 });

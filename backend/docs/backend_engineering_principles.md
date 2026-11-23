@@ -33,7 +33,6 @@ app/modules/
 |-- account
 |-- auth
 |-- durable_work
-|-- billing
 |-- files
 |-- import_jobs
 |-- library

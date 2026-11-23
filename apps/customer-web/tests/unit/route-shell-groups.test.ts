@@ -75,7 +75,7 @@ describe('route shell groups', () => {
     const invitePage = readSource('src/features/scores/collaboration/invite-page.tsx');
 
     expect(publicShell).toContain('<PublicNav');
-    expect(publicNav).toContain("href: '/subscriptions'");
+    expect(publicNav).toContain("href: '/plans'");
     expect(publicNav).toContain("href: '/help'");
     expect(publicNav).toContain('<AuthenticatedNavActions />');
     expect(publicNav).toContain('returnToApp');
@@ -86,7 +86,7 @@ describe('route shell groups', () => {
 
     for (const publicPage of [
       'src/app/[locale]/(public)/page.tsx',
-      'src/app/[locale]/(public)/subscriptions/page.tsx',
+      'src/app/[locale]/(public)/plans/page.tsx',
       'src/app/[locale]/(public)/help/page.tsx',
     ]) {
       const source = readSource(publicPage);
