@@ -1,3 +1,4 @@
+import { principalIndependentQueryMeta } from '@/lib/query-auth-scope';
 import { guestPreviewQueryKeys } from '@/features/scores/guest-preview/query-keys';
 import { guestPreviewSettingsUpdated } from '@/features/scores/guest-preview/cache';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,6 +7,7 @@ import { guestPreviewApi } from '@/features/scores/guest-preview/api';
 export function useGuestPreview(token: string) {
   return useQuery({
     queryKey: guestPreviewQueryKeys.public(token),
+    meta: principalIndependentQueryMeta,
     queryFn: ({ signal }) => guestPreviewApi.read(token, signal),
     enabled: Boolean(token),
     staleTime: 0,

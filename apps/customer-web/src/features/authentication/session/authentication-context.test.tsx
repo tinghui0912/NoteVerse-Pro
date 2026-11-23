@@ -12,6 +12,8 @@ import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import { collaborationQueryKeys } from '@/features/scores/collaboration/query-keys';
 import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 import { accountQueryKeys } from '@/features/account/query-keys';
+import { guestPreviewQueryKeys } from '@/features/scores/guest-preview/query-keys';
+import { principalIndependentQueryMeta } from '@/lib/query-auth-scope';
 import { queryKeys } from '@/lib/query-client';
 
 const fake = vi.hoisted(() => ({profile: vi.fn(), login: vi.fn(), logout: vi.fn(), navigate: vi.fn(), report: vi.fn()}));
@@ -24,8 +26,13 @@ let client: QueryClient;
 beforeEach(() => {vi.resetAllMocks(); client = new QueryClient({defaultOptions: {queries: {retry: false}}});});
 afterEach(() => client.clear());
 const wrapper = ({children}: PropsWithChildren) => <QueryClientProvider client={client}><AuthenticationProvider>{children}</AuthenticationProvider></QueryClientProvider>;
-const privateKeys = () => [libraryQueryKeys.folders(), notificationQueryKeys.list(), collaborationQueryKeys.myInvites(), scoreQueryKeys.detail('score'), accountQueryKeys.security(), accountQueryKeys.sessions(), storageUsageQueryKeys.current(), queryKeys.performanceTakes.list()];
+const privateKeys = () => [libraryQueryKeys.folders(), notificationQueryKeys.list(), collaborationQueryKeys.myInvites(), scoreQueryKeys.detail('score'), accountQueryKeys.security(), accountQueryKeys.sessions(), storageUsageQueryKeys.current(), queryKeys.performanceTakes.list(), guestPreviewQueryKeys.settings('score'), collaborationQueryKeys.inviteAccess('token')];
 function seedPrivateState() {for (const key of privateKeys()) client.setQueryData(key, {private: 'A'});}
+const bearerKey = guestPreviewQueryKeys.public('bearer');
+async function seedBearerState() {
+  await client.fetchQuery({queryKey: bearerKey, meta: principalIndependentQueryMeta, queryFn: async () => ({display_title: 'Guest Score'})});
+}
+function expectBearerRetained() {expect(client.getQueryData(bearerKey)).toEqual({display_title: 'Guest Score'});}
 const anonymous = () => new ApiError(401, 'token_invalid_expired');
 
 it.each(['authenticated', 'anonymous', 'server-error', 'network-error'] as const)('discovers bootstrap %s without redirecting', async (kind) => {
@@ -47,6 +54,7 @@ it.each(['success', 'unauthorized', 'unavailable'] as const)('refreshes an estab
   const hook = renderHook(() => useAuthentication(), {wrapper});
   await waitFor(() => expect(hook.result.current.isAuthenticated).toBe(true));
   seedPrivateState();
+  await seedBearerState();
   const updated = {...principal, email: 'updated@example.com'};
   const failure = kind === 'unauthorized' ? anonymous() : new Error('transient failure');
   if (kind === 'success') fake.profile.mockResolvedValue({user: updated});
@@ -58,6 +66,7 @@ it.each(['success', 'unauthorized', 'unavailable'] as const)('refreshes an estab
   expect(hook.result.current.principal).toEqual(kind === 'success' ? updated : kind === 'unauthorized' ? null : principal);
   expect(hook.result.current.status).toBe(kind === 'unauthorized' ? 'anonymous' : 'authenticated');
   expect(privateKeys().every(key => client.getQueryState(key) === undefined)).toBe(kind === 'unauthorized');
+  expectBearerRetained();
   expect(fake.report).toHaveBeenCalledTimes(kind === 'unavailable' ? 1 : 0);
 });
 
@@ -66,6 +75,7 @@ it('establishes login directly from its principal body and clears previous princ
   const hook = renderHook(() => useAuthentication(), {wrapper});
   await waitFor(() => expect(hook.result.current.status).toBe('anonymous'));
   seedPrivateState();
+  await seedBearerState();
   const next = {...principal, id: 2, email: 'b@example.com'};
   fake.login.mockResolvedValue(next);
   await act(async () => hook.result.current.signIn('b@example.com', 'password'));
@@ -73,6 +83,7 @@ it('establishes login directly from its principal body and clears previous princ
   expect(hook.result.current.status).toBe('authenticated');
   expect(fake.profile).toHaveBeenCalledOnce();
   expect(fake.login).toHaveBeenCalledWith('b@example.com', 'password');
+  expectBearerRetained();
   expect(privateKeys().every(key => !client.getQueryState(key))).toBe(true);
 });
 
@@ -81,6 +92,7 @@ it.each([true, false])('logs out and clears principal/server state only on serve
   const hook = renderHook(() => useAuthentication(), {wrapper});
   await waitFor(() => expect(hook.result.current.isAuthenticated).toBe(true));
   seedPrivateState();
+  await seedBearerState();
   if (!success) fake.logout.mockRejectedValue(new Error('offline'));
   await act(async () => {
     if (success) await hook.result.current.logout();
@@ -88,6 +100,7 @@ it.each([true, false])('logs out and clears principal/server state only on serve
   });
   expect(hook.result.current.status).toBe(success ? 'anonymous' : 'authenticated');
   expect(privateKeys().every(key => !client.getQueryState(key))).toBe(success);
+  expectBearerRetained();
   expect(fake.navigate).toHaveBeenCalledTimes(success ? 1 : 0);
 });
 
@@ -112,4 +125,28 @@ it('does not restore a cleared principal from an earlier in-flight refresh', asy
   await act(async () => {resolve({user: principal}); await pending;});
   expect(hook.result.current.status).toBe('anonymous');
   expect(hook.result.current.principal).toBeNull();
+});
+
+it('removes sensitive bootstrap state on anonymous discovery and retains bearer data', async () => {
+  seedPrivateState();
+  await seedBearerState();
+  fake.profile.mockRejectedValue(anonymous());
+  const hook = renderHook(() => useAuthentication(), {wrapper});
+  await waitFor(() => expect(hook.result.current.status).toBe('anonymous'));
+  expect(privateKeys().every(key => !client.getQueryState(key))).toBe(true);
+  expectBearerRetained();
+});
+
+it('removes A private state before establishing B and retains bearer data', async () => {
+  fake.profile.mockResolvedValue({user: principal});
+  const hook = renderHook(() => useAuthentication(), {wrapper});
+  await waitFor(() => expect(hook.result.current.principal?.id).toBe(1));
+  seedPrivateState();
+  await seedBearerState();
+  const next = {...principal, id: 2, email: 'b@example.com'};
+  fake.login.mockResolvedValue(next);
+  await act(async () => hook.result.current.signIn(next.email, 'password'));
+  expect(hook.result.current.principal).toEqual(next);
+  expect(privateKeys().every(key => !client.getQueryState(key))).toBe(true);
+  expectBearerRetained();
 });

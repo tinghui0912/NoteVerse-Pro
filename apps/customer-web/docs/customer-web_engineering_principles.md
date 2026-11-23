@@ -83,7 +83,13 @@ anonymous；bootstrap 的 network/5xx failure 必须报告并投影 unavailable�
 refresh failure 保留身份并 reject/report。Login 200 在设置 session cookies 的同时返回 canonical
 ProfileUserRead，直接建立 principal，不再发第二次 Profile GET。
 
-Logout 成功、password reset 和 principal switch 清除私有 QueryClient server-state。Reset 撤销所有
+Principal transition 先取消并移除 principal-sensitive queries，再发布新的 principal；mutation cache 单独清理。
+未标记的 query 默认 principal-sensitive。`src/lib/query-auth-scope.ts` 统一定义 typed `authScope` metadata，
+只有显式 `principal-independent` 的 query 保留自身 lifecycle。Guest Preview bearer read 与 principal 无关，
+可声明该标记；owner settings 和使用 optional current user 的 Invite inspection 仍随 principal 清理。
+不能仅凭 public transport 判断 scope。
+
+Logout 成功、password reset 和 principal switch 按上述 scope 清理 server-state。Reset 撤销所有
 既有 sessions，并清除当前 browser session/refresh/CSRF cookies。returnUrl 必须是 URL parser 验证的
 same-origin app-relative path intent；拒绝 external/backslash open redirects。Next proxy 只作 cookie
 existence soft gate，不是 authenticated principal authority。QueryClient → Authentication → Realtime

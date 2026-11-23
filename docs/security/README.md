@@ -14,8 +14,9 @@ boundaries. Operational incident procedures belong in `../operations/`.
 
 Login establishes session cookies and returns the canonical authenticated principal.
 Password reset invalidates existing sessions and clears the current browser's session,
-refresh and CSRF cookies. Authentication clears private client server-state when leaving
-or switching a principal. Return navigation accepts only parser-validated same-origin
+refresh and CSRF cookies. Authentication clears principal-sensitive client server-state when leaving
+or switching a principal; explicitly principal-independent bearer resources retain their
+own credential and cache lifecycle. Return navigation accepts only parser-validated same-origin
 app-relative paths; external and backslash-based redirect targets are rejected. The Next
 proxy checks cookie existence as a routing gate, while backend session validation remains
 the authentication authority.

@@ -38,7 +38,7 @@ it('limits semantic effects to cache mechanics, query identities and generated r
     const source = parse(file);
     for (const statement of source.statements.filter(ts.isImportDeclaration)) {
       const modulePath = (statement.moduleSpecifier as ts.StringLiteral).text;
-      expect(modulePath === '@tanstack/react-query' || modulePath === '@/lib/query-client' || modulePath === '@/generated/api' || modulePath === '@/lib/realtime/generated/events' || modulePath.startsWith('./') || modulePath.startsWith('@/lib/cache-effects/') || /^@\/features\/(?:[^/]+\/)+(?:cache|query-keys)$/.test(modulePath)).toBe(true);
+      expect(modulePath === '@tanstack/react-query' || modulePath === '@/lib/query-client' || modulePath === '@/lib/query-auth-scope' || modulePath === '@/generated/api' || modulePath === '@/lib/realtime/generated/events' || modulePath.startsWith('./') || modulePath.startsWith('@/lib/cache-effects/') || /^@\/features\/(?:[^/]+\/)+(?:cache|query-keys)$/.test(modulePath)).toBe(true);
       if (modulePath === '@/generated/api' || modulePath === '@/lib/realtime/generated/events') expect(statement.importClause?.isTypeOnly).toBe(true);
     }
     const calls = nodes(source).filter(ts.isCallExpression);

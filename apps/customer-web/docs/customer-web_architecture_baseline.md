@@ -250,8 +250,17 @@ and returns canonical `ProfileUserRead` in the same 200 response, so the browser
 its principal without a second Profile GET. QueryClient wraps Authentication, which wraps
 Realtime; only authenticated state enables the stream.
 
-Logout success and password-reset completion clear the principal and private QueryClient
-state. Identity switches also clear prior principal server-state. Reset revokes existing
+Principal transitions cancel and remove principal-sensitive queries and clear mutation
+cache state before publishing the next principal. Unmarked queries are principal-sensitive.
+`src/lib/query-auth-scope.ts` owns the typed `authScope` metadata; only an explicit
+`principal-independent` marker preserves a query across transitions. Guest Preview bearer
+reads use this marker because their representation depends on the credential, not the
+principal. Guest Preview owner settings and optional-user Invite inspection remain
+principal-sensitive, regardless of transport. Independent resources retain their own
+invalidation and credential lifecycle.
+
+Logout success and password-reset completion clear the principal. Identity switches clear
+prior principal-sensitive server-state using the same scope rules. Reset revokes existing
 sessions and clears this browser's session/refresh/CSRF cookies before returning 204.
 Authentication owns parser-validated same-origin app-relative `returnUrl` intent, including
 backslash/open-redirect rejection. Next proxy's cookie-existence check is only a soft routing
