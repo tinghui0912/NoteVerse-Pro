@@ -38,11 +38,7 @@ class ImportJobMaintenanceService:
             try:
                 with db.begin_nested():
                     blob = db.get(StoredObject, upload.stored_object_id)
-                    if blob is None:
-                        db.delete(upload)
-                        deleted += 1
-                        continue
-                    if upload.uploader_user_id is not None and blob.byte_size:
+                    if blob is not None and upload.uploader_user_id is not None and blob.byte_size:
                         storage_usage_service.record_release(
                             db,
                             user_id=upload.uploader_user_id,
@@ -54,8 +50,9 @@ class ImportJobMaintenanceService:
                             storage_key=blob.object_key,
                         )
                     db.delete(upload)
-                    retire_after_release(db, blob.id)
-                    deleted += 1
+                    if blob is not None:
+                        retire_after_release(db, blob.id)
+                deleted += 1
             except Exception as exc:
                 logger.bind(
                     event="import_job.orphan_upload_delete_failed",
@@ -63,8 +60,6 @@ class ImportJobMaintenanceService:
                     stored_object_id=upload.stored_object_id,
                     exception_type=type(exc).__name__,
                 ).opt(exception=exc).warning("Orphan upload deletion failed")
-        if deleted:
-            db.commit()
         return deleted
 
 

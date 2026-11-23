@@ -356,9 +356,20 @@ for concurrency recovery. They do not commit or roll back the outer transaction.
 Constraint errors are classified in the service at flush; the request boundary owns
 rollback. Repositories, read models, and policies do not own commits.
 
+Periodic maintenance transaction ownership lives in worker execution. Single bounded
+cleanup operations use one worker-owned transaction. Lock-scoped cleanup uses one
+transaction per semantic lock unit: a Realtime recipient stream or a Score's derived
+assets. Candidate discovery uses a short read Session without mutation locks. Maintenance
+services mutate and flush but do not commit or roll back their outer transaction.
+Import orphan cleanup isolates each item with a SAVEPOINT inside its worker-owned batch.
+A later lock-unit failure rolls back that unit and fails the scan; earlier committed
+units remain committed. Scheduler observations are persisted independently.
+
 External-I/O and durable protocol coordinators use explicit phase transactions;
 a database transaction does not span an external system. Upload, revision writes,
 Import confirmation, and Score deletion retain their domain protocol boundaries.
+Durable-delivery recovery commits lease/state changes and releases database locks before
+broker dispatch; terminal retention cleanup has its own worker-owned transaction.
 
 Routers should only:
 

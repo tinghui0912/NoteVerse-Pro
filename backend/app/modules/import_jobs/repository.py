@@ -189,5 +189,6 @@ class ImportJobRepository:
                     input_asset_id.is_(None),
                     Upload.created_at < cutoff,
                 )
+                .order_by(Upload.id)
             ).scalars()
         )

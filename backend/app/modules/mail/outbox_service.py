@@ -389,7 +389,6 @@ class MailOutboxService:
                 col(MailOutbox.completed_at) < cutoff,
             )
         )
-        db.commit()
         return int(result.rowcount or 0)
 
     @staticmethod

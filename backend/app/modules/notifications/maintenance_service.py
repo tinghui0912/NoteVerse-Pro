@@ -33,8 +33,6 @@ class NotificationMaintenanceService:
         cutoff = utc_now() - timedelta(days=days)
         result = db.execute(delete(Notification).where(Notification.created_at < cutoff))
         deleted = int(result.rowcount or 0)
-        if deleted:
-            db.commit()
         return deleted
 
 

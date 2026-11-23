@@ -12,9 +12,9 @@ from app.db.models import User, RealtimeChange, RealtimeStreamState
 from app.shared.realtime import RealtimeChangeKind
 from app.modules.realtime.publisher import publish_change
 from app.modules.realtime.replay import read_page
-from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
+from tests.support.maintenance import configure_maintenance
 
 
 @pytest.fixture
@@ -27,6 +27,11 @@ def database(monkeypatch):
             )
             db.commit()
         yield engine
+
+
+@pytest.fixture
+def retention_worker(database, monkeypatch):
+    return configure_maintenance(monkeypatch, database)
 
 
 def publish(db, recipient, job="job"):
@@ -57,16 +62,26 @@ def wait_until_blocked(engine, owner, waiting):
             assert monotonic() < deadline
 
 
-def test_retention_waits_for_replay_page_and_next_page_reports_the_gap(stream):
+def test_retention_waits_for_replay_page_and_next_page_reports_the_gap(
+    stream, retention_worker, monkeypatch
+):
     engine = stream
     ready = Event()
     pid = []
 
+    original = retention_worker.realtime_maintenance_service.cleanup_recipient
+
+    def cleanup_recipient(db, recipient_user_id, *, cutoff):
+        pid.append(db.scalar(sa.text("SELECT pg_backend_pid()")))
+        ready.set()
+        return original(db, recipient_user_id, cutoff=cutoff)
+
+    monkeypatch.setattr(
+        retention_worker.realtime_maintenance_service, "cleanup_recipient", cleanup_recipient
+    )
+
     def cleanup():
-        with Session(engine) as db:
-            pid.append(db.scalar(sa.text("SELECT pg_backend_pid()")))
-            ready.set()
-            return RealtimeMaintenanceService().cleanup_expired_changes(db)
+        return retention_worker.execute_realtime_maintenance()["expired_changes_deleted"]
 
     with ThreadPoolExecutor(max_workers=1) as pool:
         with Session(engine) as db:
@@ -98,26 +113,28 @@ def test_retention_waits_for_replay_page_and_next_page_reports_the_gap(stream):
         assert [row.sequence for row in live.changes] == [sequence] and live.reason is None
 
 
-def test_retention_floor_and_deletion_roll_back_together(stream, monkeypatch):
+def test_retention_floor_and_deletion_roll_back_together(stream, retention_worker, monkeypatch):
+    original = retention_worker.realtime_maintenance_service.cleanup_recipient
+
+    def interrupted(db, recipient_user_id, *, cutoff):
+        assert original(db, recipient_user_id, cutoff=cutoff) == 2
+        raise RuntimeError("retention interrupted")
+
+    monkeypatch.setattr(
+        retention_worker.realtime_maintenance_service, "cleanup_recipient", interrupted
+    )
+    with pytest.raises(RuntimeError, match="retention interrupted"):
+        retention_worker.execute_realtime_maintenance()
     with Session(stream) as db:
-
-        def interrupted_commit():
-            db.flush()
-            raise RuntimeError("retention interrupted")
-
-        monkeypatch.setattr(db, "commit", interrupted_commit)
-        with pytest.raises(RuntimeError, match="retention interrupted"):
-            RealtimeMaintenanceService().cleanup_expired_changes(db)
-        db.rollback()
         assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 0
         assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2
 
 
-def test_retention_without_expired_rows_keeps_the_floor(stream):
+def test_retention_without_expired_rows_keeps_the_floor(stream, retention_worker):
     with Session(stream) as db:
         db.execute(sa.update(RealtimeChange).values(created_at=utc_now()))
         db.commit()
-        assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 0
+        assert retention_worker.execute_realtime_maintenance()["expired_changes_deleted"] == 0
         assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 0
 
 
@@ -197,30 +214,24 @@ def test_recipient_replay_allows_another_recipient_to_publish(stream):
                 reader.rollback()
 
 
-def test_recipient_retention_allows_another_recipient_to_publish(stream):
+def test_recipient_retention_allows_another_recipient_to_publish(
+    stream, retention_worker, monkeypatch
+):
     ready, release = Event(), Event()
+    original = retention_worker.realtime_maintenance_service.cleanup_recipient
 
-    class RetentionSession(Session):
-        def commit(self):
-            assert self.get(RealtimeStreamState, 1).replay_floor_sequence == 2
-            assert (
-                self.scalar(
-                    sa.select(sa.func.count())
-                    .select_from(RealtimeChange)
-                    .where(RealtimeChange.recipient_user_id == 1)
-                )
-                == 0
-            )
-            ready.set()
-            assert release.wait(15)
-            super().commit()
+    def paused(db, recipient_user_id, *, cutoff):
+        count = original(db, recipient_user_id, cutoff=cutoff)
+        db.expire_all()
+        assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 2
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 0
+        ready.set()
+        assert release.wait(15)
+        return count
 
-    def cleanup():
-        with RetentionSession(stream) as db:
-            return RealtimeMaintenanceService().cleanup_expired_changes(db)
-
+    monkeypatch.setattr(retention_worker.realtime_maintenance_service, "cleanup_recipient", paused)
     with ThreadPoolExecutor(max_workers=2) as pool:
-        cleaning = pool.submit(cleanup)
+        cleaning = pool.submit(retention_worker.execute_realtime_maintenance)
         try:
             assert ready.wait(10)
             assert pool.submit(publish_independently, stream, 2).result(10) == 1
@@ -229,7 +240,7 @@ def test_recipient_retention_allows_another_recipient_to_publish(stream):
                 assert observer.get(RealtimeStreamState, 2).high_watermark_sequence == 1
         finally:
             release.set()
-        assert cleaning.result(10) == 2
+        assert cleaning.result(10) == {"expired_changes_deleted": 2}
 
 
 def test_replay_uses_recipient_local_watermark(database):
@@ -246,14 +257,15 @@ def test_replay_uses_recipient_local_watermark(database):
         assert read_page(db, 2, 4, limit=100).reason is None
 
 
-def test_retention_advances_only_the_recipient_floor(database):
+def test_retention_advances_only_the_recipient_floor(database, retention_worker):
     with Session(database) as db:
         for _ in range(20):
             publish(db, 1).created_at = utc_now() - timedelta(days=30)
         for _ in range(2):
             publish(db, 2)
         db.commit()
-        assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 20
+        assert retention_worker.execute_realtime_maintenance()["expired_changes_deleted"] == 20
+        db.expire_all()
         first = db.get(RealtimeStreamState, 1)
         second = db.get(RealtimeStreamState, 2)
         assert (first.high_watermark_sequence, first.replay_floor_sequence) == (20, 20)
@@ -290,55 +302,61 @@ def test_publication_failure_rolls_back_sequence_allocation(database, monkeypatc
         db.commit()
 
 
-def test_retention_commits_each_recipient_independently(stream, monkeypatch):
+def test_retention_commits_each_recipient_independently(stream, retention_worker, monkeypatch):
+    from app.db.models import SchedulerHeartbeat
+
     with Session(stream) as db:
         publish(db, 2).created_at = utc_now() - timedelta(days=30)
         db.commit()
-        original = db.commit
-        calls = 0
+    original = retention_worker.realtime_maintenance_service.cleanup_recipient
 
-        def interrupted_second_commit():
-            nonlocal calls
-            calls += 1
-            if calls == 2:
-                db.flush()
-                raise RuntimeError("second recipient interrupted")
-            original()
+    def interrupted(db, recipient_user_id, *, cutoff):
+        count = original(db, recipient_user_id, cutoff=cutoff)
+        if recipient_user_id == 2:
+            raise RuntimeError("second recipient interrupted")
+        return count
 
-        monkeypatch.setattr(db, "commit", interrupted_second_commit)
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            retention_worker.realtime_maintenance_service, "cleanup_recipient", interrupted
+        )
         with pytest.raises(RuntimeError, match="second recipient interrupted"):
-            RealtimeMaintenanceService().cleanup_expired_changes(db)
-        db.rollback()
+            retention_worker.execute_realtime_maintenance()
     with Session(stream) as observer:
         assert observer.get(RealtimeStreamState, 1).replay_floor_sequence == 2
         assert observer.get(RealtimeStreamState, 2).replay_floor_sequence == 0
-        assert (
-            observer.scalar(
-                sa.select(sa.func.count())
-                .select_from(RealtimeChange)
-                .where(RealtimeChange.recipient_user_id == 1)
-            )
-            == 0
-        )
-        assert (
-            observer.scalar(
-                sa.select(sa.func.count())
-                .select_from(RealtimeChange)
-                .where(RealtimeChange.recipient_user_id == 2)
-            )
-            == 1
-        )
+        assert list(observer.scalars(sa.select(RealtimeChange.recipient_user_id))) == [2]
+        heartbeat = observer.scalar(sa.select(SchedulerHeartbeat))
+        assert heartbeat.failure_count == 1 and heartbeat.success_count == 0
+    assert retention_worker.execute_realtime_maintenance() == {"expired_changes_deleted": 1}
+    with Session(stream) as observer:
+        assert observer.get(RealtimeStreamState, 2).replay_floor_sequence == 1
+        assert observer.scalar(sa.select(RealtimeChange)) is None
 
 
-def test_retention_processes_a_bounded_recipient_batch(stream, monkeypatch):
+def test_retention_processes_a_bounded_recipient_batch(stream, retention_worker, monkeypatch):
     from app.modules.realtime import maintenance_service
 
     monkeypatch.setattr(maintenance_service, "RETENTION_RECIPIENT_BATCH_SIZE", 1)
     with Session(stream) as db:
         publish(db, 2).created_at = utc_now() - timedelta(days=30)
         db.commit()
-        assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 2
+        assert retention_worker.execute_realtime_maintenance()["expired_changes_deleted"] == 2
+        db.expire_all()
         assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 2
         assert db.get(RealtimeStreamState, 2).replay_floor_sequence == 0
-        assert RealtimeMaintenanceService().cleanup_expired_changes(db) == 1
+        assert retention_worker.execute_realtime_maintenance()["expired_changes_deleted"] == 1
+        db.expire_all()
         assert db.get(RealtimeStreamState, 2).replay_floor_sequence == 1
+
+
+def test_recipient_service_leaves_commit_to_its_caller(stream):
+    from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
+
+    service = RealtimeMaintenanceService()
+    with Session(stream) as db:
+        assert service.cleanup_recipient(db, 1, cutoff=service.retention_cutoff()) == 2
+        db.rollback()
+    with Session(stream) as db:
+        assert db.get(RealtimeStreamState, 1).replay_floor_sequence == 0
+        assert db.scalar(sa.select(sa.func.count()).select_from(RealtimeChange)) == 2

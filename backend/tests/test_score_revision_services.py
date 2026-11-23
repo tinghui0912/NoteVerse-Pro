@@ -1296,6 +1296,7 @@ def test_derived_asset_retention_protects_current_head_only(
         score_id=34,
     )
 
+    session.commit()
     assert result.rendered_pages_deleted == 4
     assert result.playback_assets_deleted == 4
     assert count_rows(session, ScoreRenderAsset, kind=RenderAssetKind.RENDERED_PAGE) == 1
@@ -2086,9 +2087,9 @@ def test_notification_maintenance_removes_events_older_than_retention(
 
 def test_realtime_maintenance_removes_events_older_than_retention(
     score_service_session: tuple[Session, InMemoryObjectStorage],
+    monkeypatch,
 ) -> None:
     session, _storage = score_service_session
-    service = RealtimeMaintenanceService()
     now = utc_now()
 
     from app.modules.realtime.publisher import publish_change
@@ -2105,9 +2106,10 @@ def test_realtime_maintenance_removes_events_older_than_retention(
         change.created_at = now - timedelta(days=age)
     session.commit()
 
-    result = service.run(session)
+    from tests.support.maintenance import configure_maintenance
 
-    assert result.expired_changes_deleted == 1
+    worker = configure_maintenance(monkeypatch, session.get_bind())
+    assert worker.execute_realtime_maintenance() == {"expired_changes_deleted": 1}
     remaining = all_rows(session, RealtimeChange)
     assert [event.score_id for event in remaining] == ["fresh-score"]
 
@@ -2119,7 +2121,7 @@ def test_realtime_maintenance_rejects_non_positive_retention(
     service = RealtimeMaintenanceService()
 
     with pytest.raises(ValueError, match="realtime change retention days must be positive"):
-        service.cleanup_expired_changes(session, retention_days=0)
+        service.retention_cutoff(retention_days=0)
 
 
 @pytest.mark.parametrize("expected", ["missing-revision", "other-score-revision"])

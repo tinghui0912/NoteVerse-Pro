@@ -26,24 +26,12 @@ class DerivedAssetRetentionResult:
 
 
 class DerivedAssetRetentionService:
-    def cleanup_due_scores(self, db: Session) -> DerivedAssetRetentionResult:
-        scores = list(
-            db.execute(select(Score.id).where(Score.__table__.c.deleted_at.is_(None))).scalars()
+    def candidate_score_ids(self, db: Session) -> list[int]:
+        return list(
+            db.scalars(
+                select(Score.id).where(Score.__table__.c.deleted_at.is_(None)).order_by(Score.id)
+            )
         )
-        total = DerivedAssetRetentionResult()
-        for score_id in scores:
-            result = self.cleanup_for_score(
-                db,
-                score_id=score_id,
-            )
-            total = DerivedAssetRetentionResult(
-                rendered_pages_deleted=total.rendered_pages_deleted + result.rendered_pages_deleted,
-                playback_assets_deleted=total.playback_assets_deleted
-                + result.playback_assets_deleted,
-                object_retirements_queued=total.object_retirements_queued
-                + result.object_retirements_queued,
-            )
-        return total
 
     def cleanup_for_score(
         self,
@@ -106,7 +94,7 @@ class DerivedAssetRetentionService:
         operations = retire_after_release(
             db, *(asset.stored_object_id for asset in rendered_pages + playback_assets)
         )
-        db.commit()
+        db.flush()
         return DerivedAssetRetentionResult(
             rendered_pages_deleted=len(rendered_pages),
             playback_assets_deleted=len(playback_assets),

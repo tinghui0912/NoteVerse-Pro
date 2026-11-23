@@ -73,7 +73,7 @@ def test_head_projection_and_playback_do_not_read_other_revision(revisions):
 
 @pytest.mark.parametrize("enabled", [False, True])
 @pytest.mark.parametrize("mode", ["async", "sync", "daily"])
-def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode):
+def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode, monkeypatch):
     db, storage, score, rows = revisions
     keys = seed_assets(db, storage, rows)
     if enabled:
@@ -84,7 +84,16 @@ def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode):
     elif mode == "sync":
         result = cleanup.cleanup_for_score(db, score_id=score.id)
     else:
-        result = cleanup.cleanup_due_scores(db)
+        from tests.support.maintenance import configure_maintenance
+        from app.modules.revisions.derived_asset_retention_service import (
+            DerivedAssetRetentionResult,
+        )
+
+        db.commit()
+        worker = configure_maintenance(monkeypatch, db.get_bind())
+        result = DerivedAssetRetentionResult(**worker.execute_derived_asset_cleanup())
+    db.commit()
+    db.expire_all()
     protected = {rows[2].id}
     assert result.rendered_pages_deleted == result.playback_assets_deleted == 3 - len(protected)
     assert result.object_retirements_queued == 2 * (3 - len(protected))
@@ -147,6 +156,7 @@ def test_background_retention_disposes_old_head_while_new_derivatives_are_pendin
     )
     assert db.scalar(select(ScoreRenderAsset)) is not None
     DerivedAssetRetentionService().cleanup_for_score(db, score_id=score.id)
+    db.commit()
     assert db.scalar(select(ScoreRenderAsset)) is None
     assert db.scalar(select(ScorePlaybackAsset)) is None
     assert all(storage.exists(key) for key in keys.values())

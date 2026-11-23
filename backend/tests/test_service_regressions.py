@@ -302,7 +302,7 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
     assert release_usage.call_args.kwargs["storage_key"] == "blobs/or/orphan.png"
     db.delete.assert_any_call(upload)
     assert [call.args[0] for call in db.delete.call_args_list] == [upload]
-    db.commit.assert_called_once()
+    db.commit.assert_not_called()
 
 
 def test_import_job_submission_persists_without_contacting_celery() -> None:
