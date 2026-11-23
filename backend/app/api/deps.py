@@ -32,6 +32,18 @@ def get_db() -> Generator[Session, None]:
     yield from get_session()
 
 
+def get_command_db(
+    db: Session = Depends(get_db, scope="function"),
+) -> Generator[Session, None, None]:
+    """Own the outer transaction for an explicitly selected pure-DB HTTP command."""
+    try:
+        yield db
+        db.commit()
+    except BaseException:
+        db.rollback()
+        raise
+
+
 def get_current_user(
     session: Session = Depends(get_db, scope="function"),
     session_cookie: str | None = Cookie(

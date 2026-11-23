@@ -1,6 +1,7 @@
 from datetime import UTC
 from datetime import datetime
-from unittest.mock import Mock, call
+from unittest.mock import Mock
+from sqlalchemy.orm import Session
 
 from sqlalchemy import select
 
@@ -73,27 +74,21 @@ def test_repository_mark_all_read_reports_affected_set_size(score_service_sessio
     assert repository.unread_count(db, 2) == 1
 
 
-def test_mark_all_read_returns_count_observed_after_commit(monkeypatch):
+def test_mark_all_read_reports_the_unread_projection_inside_the_caller_transaction(monkeypatch):
     now = datetime(2026, 3, 1, tzinfo=UTC)
     clock = Mock(return_value=now)
     monkeypatch.setattr("app.modules.notifications.service.utc_now", clock)
     repository = Mock(spec=NotificationRepository)
-    repository.mark_all_read_for_user = Mock(return_value=250)
-    repository.unread_count = Mock(return_value=1)
-    db = Mock()
-    db.commit = Mock()
-    calls = Mock()
-    calls.attach_mock(repository.mark_all_read_for_user, "mutate")
-    calls.attach_mock(db.commit, "commit")
-    calls.attach_mock(repository.unread_count, "count")
-
+    repository.mark_all_read_for_user.return_value = 250
+    repository.unread_count.return_value = 1
+    db = Mock(spec=Session)
     monkeypatch.setattr("app.modules.notifications.service.publish_change", Mock())
+
     result = NotificationService(repository).mark_all_read(db, 7)
 
-    assert calls.mock_calls == [
-        call.mutate(db, 7, read_at=now),
-        call.commit(),
-        call.count(db, 7),
-    ]
+    repository.mark_all_read_for_user.assert_called_once_with(db, 7, read_at=now)
+    repository.unread_count.assert_called_once_with(db, 7)
+    db.commit.assert_not_called()
+    db.rollback.assert_not_called()
     clock.assert_called_once_with()
     assert result.count == 1

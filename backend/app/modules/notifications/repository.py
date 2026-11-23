@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, func, select, update, tuple_
+from sqlalchemy import func, select, update, tuple_
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -87,7 +87,3 @@ class NotificationRepository:
         return (
             db.execute(select(Notification).where(Notification.dedupe_key == dedupe_key))
         ).scalar_one_or_none()
-
-    def delete_older_than(self, db: Session, cutoff: datetime) -> int:
-        result = db.execute(delete(Notification).where(Notification.created_at < cutoff))
-        return int(result.rowcount or 0)

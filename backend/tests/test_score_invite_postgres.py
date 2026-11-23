@@ -1,8 +1,8 @@
 """Invitation commands contend on the current row and preserve the winning terminal state."""
 
+from contextlib import contextmanager
 from datetime import timedelta
 from queue import Queue
-from unittest.mock import patch
 from threading import Thread
 from time import monotonic
 
@@ -11,6 +11,7 @@ from alembic import command
 from sqlalchemy import select, text, func
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_command_db
 from app.core.exceptions import ValidationException
 from app.db.models import User, ScoreInvite, ScoreMembership
 from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
@@ -99,8 +100,7 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
 
         ready, result = Queue(), Queue()
         with Session(engine, expire_on_commit=False) as winning:
-            with patch.object(winning, "commit", side_effect=winning.flush):
-                actor_command(winning, first)
+            actor_command(winning, first)
             winning_pid = winning.scalar(text("SELECT pg_backend_pid()"))
 
             def second_command():
@@ -111,6 +111,7 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                         assert cached.terminal_outcome is None
                         ready.put(db.scalar(text("SELECT pg_backend_pid()")))
                         actor_command(db, second)
+                        db.commit()
                     result.put(None)
                 except BaseException as exc:
                     result.put(exc)
@@ -236,17 +237,17 @@ def test_invite_outcome_and_notification_share_one_transaction(monkeypatch, acti
                 monkeypatch.setattr(target, name, fail)
 
             def execute():
-                if action == "accept":
-                    service.accept_invite(db, "token", 2)
-                else:
-                    service.decline_pending_invite(db, "invitation", 2)
+                with contextmanager(get_command_db)(db):
+                    if action == "accept":
+                        service.accept_invite(db, "token", 2)
+                    else:
+                        service.decline_pending_invite(db, "invitation", 2)
 
             if boundary == "success":
                 execute()
             else:
                 with pytest.raises(RuntimeError, match="invite admission interrupted"):
                     execute()
-                db.rollback()
         with Session(engine) as db:
             invite = db.scalar(select(ScoreInvite))
             notice = db.scalar(select(Notification))

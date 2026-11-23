@@ -4,7 +4,6 @@ from datetime import timedelta
 from queue import Queue
 from threading import Thread
 from time import monotonic
-from unittest.mock import patch
 
 import pytest
 from sqlalchemy import func, select, text
@@ -72,7 +71,6 @@ def run_command(db, action, member_id):
     invitations, members = InvitationService(), MembershipService()
     if action == "delete":
         ScoreLifecycleService().admit_deletions(db, ["shared"], 1)
-        db.commit()
     elif action == "create":
         invitations.create_invite(
             db,
@@ -124,8 +122,7 @@ def test_parent_lifecycle_serializes_collaboration_commands(parent_graph, action
     first, second = ("delete", action) if delete_first else (action, "delete")
     ready, result = Queue(), Queue()
     with Session(engine, expire_on_commit=False) as winner:
-        with patch.object(winner, "commit", side_effect=winner.flush):
-            run_command(winner, first, member_id)
+        run_command(winner, first, member_id)
         winner_pid = winner.scalar(text("SELECT pg_backend_pid()"))
 
         def contender():
@@ -140,6 +137,7 @@ def test_parent_lifecycle_serializes_collaboration_commands(parent_graph, action
                     assert cached[0].deleted_at is None
                     ready.put(db.scalar(text("SELECT pg_backend_pid()")))
                     run_command(db, second, member_id)
+                    db.commit()
                 result.put(None)
             except BaseException as exc:
                 result.put(exc)

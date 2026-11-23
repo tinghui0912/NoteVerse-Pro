@@ -95,7 +95,7 @@ class GuestPreviewService:
                 score_id=score_id, token_hash=guest_preview_token_hash(token), issued_at=issued_at
             )
         )
-        db.commit()
+        db.flush()
         return GuestPreviewCredentialIssuedRead(token=token, issued_at=issued_at)
 
     def revoke_credential(self, db: Session, score_uuid: str, user_id: int) -> None:
@@ -103,7 +103,7 @@ class GuestPreviewService:
         credential = self._credential(db, require_persisted_id(score.id, entity="score"), lock=True)
         if credential is not None:
             db.delete(credential)
-        db.commit()
+        db.flush()
 
     def rotate_credential(
         self, db: Session, score_uuid: str, user_id: int
@@ -116,7 +116,7 @@ class GuestPreviewService:
         issued_at = utc_now()
         credential.token_hash = guest_preview_token_hash(token)
         credential.issued_at = issued_at
-        db.commit()
+        db.flush()
         return GuestPreviewCredentialIssuedRead(token=token, issued_at=issued_at)
 
     def read(self, db: Session, token: str) -> GuestPreviewRead:

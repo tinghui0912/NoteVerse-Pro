@@ -69,9 +69,8 @@ class LibraryService:
         )
         db.add(folder)
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
-            db.rollback()
             if duplicate_folder_name(exc):
                 raise ResourceAlreadyExistsException("library_folder") from exc
             raise
@@ -93,9 +92,8 @@ class LibraryService:
             folder.position = request.position
         folder.updated_at = utc_now()
         try:
-            db.commit()
+            db.flush()
         except IntegrityError as exc:
-            db.rollback()
             if duplicate_folder_name(exc):
                 raise ResourceAlreadyExistsException("library_folder") from exc
             raise
@@ -106,7 +104,7 @@ class LibraryService:
         if folder is None:
             raise ResourceNotFoundException("library_folder", folder_uuid)
         db.delete(folder)
-        db.commit()
+        db.flush()
 
     def list_scores(
         self,
@@ -134,43 +132,33 @@ class LibraryService:
         return LibraryReadModel(self.asset_repository).score_page(db, user_id, rows), total
 
     def batch_move(self, db: Session, user_id: int, request: LibraryScoreBatchMoveRequest) -> int:
-        try:
-            folder = self._optional_folder(db, user_id, request.target_folder_id, lock=True)
-            ids = self._mutation_score_ids(db, user_id, request.score_ids)
-            rows = self.repository.upsert_organizations(
-                db,
-                user_id,
-                ids,
-                now=utc_now(),
-                changes={
-                    "folder_id": require_persisted_id(folder.id, entity="library folder")
-                    if folder
-                    else None
-                },
-            )
-            db.commit()
-            return len(rows)
-        except Exception:
-            db.rollback()
-            raise
+        folder = self._optional_folder(db, user_id, request.target_folder_id, lock=True)
+        ids = self._mutation_score_ids(db, user_id, request.score_ids)
+        rows = self.repository.upsert_organizations(
+            db,
+            user_id,
+            ids,
+            now=utc_now(),
+            changes={
+                "folder_id": require_persisted_id(folder.id, entity="library folder")
+                if folder
+                else None
+            },
+        )
+        return len(rows)
 
     def batch_set_favorite(
         self, db: Session, user_id: int, request: LibraryScoreBatchFavoriteRequest
     ) -> int:
-        try:
-            ids = self._mutation_score_ids(db, user_id, request.score_ids)
-            rows = self.repository.upsert_organizations(
-                db,
-                user_id,
-                ids,
-                now=utc_now(),
-                changes={"is_favorite": request.is_favorite},
-            )
-            db.commit()
-            return len(rows)
-        except Exception:
-            db.rollback()
-            raise
+        ids = self._mutation_score_ids(db, user_id, request.score_ids)
+        rows = self.repository.upsert_organizations(
+            db,
+            user_id,
+            ids,
+            now=utc_now(),
+            changes={"is_favorite": request.is_favorite},
+        )
+        return len(rows)
 
     def _mutation_score_ids(self, db: Session, user_id: int, score_uuids: list[str]) -> list[int]:
         requested = sorted(set(score_uuids))

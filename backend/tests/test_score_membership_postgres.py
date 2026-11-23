@@ -1,7 +1,6 @@
 """Membership mutations serialize on the current PostgreSQL row, including cached reads."""
 
 from queue import Queue
-from unittest.mock import patch
 from threading import Thread
 from time import monotonic
 
@@ -84,8 +83,7 @@ def test_membership_lifecycle_serializes_after_locked_reread(monkeypatch, first,
 
         ready, result = Queue(), Queue()
         with Session(engine, expire_on_commit=False) as first_session:
-            with patch.object(first_session, "commit", side_effect=first_session.flush):
-                command_for(first_session, first)
+            command_for(first_session, first)
             first_revoked_at = first_session.get(ScoreMembership, member_id).revoked_at
             first_pid = first_session.scalar(text("SELECT pg_backend_pid()"))
 
@@ -97,6 +95,7 @@ def test_membership_lifecycle_serializes_after_locked_reread(monkeypatch, first,
                         assert cached.revoked_at is None
                         ready.put(db.scalar(text("SELECT pg_backend_pid()")))
                         command_for(db, second)
+                        db.commit()
                     result.put(None)
                 except BaseException as exc:
                     result.put(exc)

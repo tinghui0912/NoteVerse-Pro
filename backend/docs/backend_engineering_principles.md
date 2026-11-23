@@ -345,6 +345,21 @@ procedure and must fail closed when durable mappings are incomplete.
 
 ## 9. Coding Standards
 
+Request-scoped reads use `get_db` and do not commit. Pure database customer commands
+explicitly use `Depends(get_command_db, scope="function")`, sharing the request Session
+with authentication. This boundary commits once after successful endpoint execution
+and response validation, before sending the response; exceptions and commit failures
+roll back the outer transaction.
+
+Participating services may read, mutate, flush, and use justified nested SAVEPOINTs
+for concurrency recovery. They do not commit or roll back the outer transaction.
+Constraint errors are classified in the service at flush; the request boundary owns
+rollback. Repositories, read models, and policies do not own commits.
+
+External-I/O and durable protocol coordinators use explicit phase transactions;
+a database transaction does not span an external system. Upload, revision writes,
+Import confirmation, and Score deletion retain their domain protocol boundaries.
+
 Routers should only:
 
 - bind request parameters;

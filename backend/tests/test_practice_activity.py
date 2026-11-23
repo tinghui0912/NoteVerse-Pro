@@ -291,7 +291,9 @@ def test_postgres_unique_fence_serializes_simultaneous_session_submissions(
     def create(mode):
         with Session(database) as db:
             try:
-                return PracticeActivityService().create(db, 1, request(mode=mode))
+                result = PracticeActivityService().create(db, 1, request(mode=mode))
+                db.commit()
+                return result
             except ConflictException as error:
                 return error.code
 
@@ -312,12 +314,30 @@ def test_postgres_unique_fence_serializes_simultaneous_session_submissions(
 
 
 def test_command_rolls_back_on_commit_failure(database, monkeypatch):
+    from contextlib import contextmanager
+    from app.api.deps import get_command_db
+
     with Session(database) as db:
         monkeypatch.setattr(
             db, "commit", lambda: (_ for _ in ()).throw(RuntimeError("commit unavailable"))
         )
         with pytest.raises(RuntimeError):
-            PracticeActivityService().create(db, 1, request())
+            with contextmanager(get_command_db)(db):
+                PracticeActivityService().create(db, 1, request())
+    with Session(database) as db:
+        assert db.scalar(sa.select(sa.func.count()).select_from(PracticeActivity)) == 0
+
+
+def test_outer_command_failure_rolls_back_a_released_activity_savepoint(database):
+    from contextlib import contextmanager
+    from app.api.deps import get_command_db
+
+    with Session(database) as db:
+        with pytest.raises(RuntimeError, match="endpoint interrupted"):
+            with contextmanager(get_command_db)(db):
+                PracticeActivityService().create(db, 1, request())
+                assert db.scalar(sa.select(sa.func.count()).select_from(PracticeActivity)) == 1
+                raise RuntimeError("endpoint interrupted")
     with Session(database) as db:
         assert db.scalar(sa.select(sa.func.count()).select_from(PracticeActivity)) == 0
 
@@ -491,6 +511,7 @@ def test_http_contract_is_authenticated_typed_and_personal(database):
 def test_postgres_enforces_lightweight_activity_current_schema(database, column, value):
     with Session(database) as db:
         PracticeActivityService().create(db, 1, request())
+        db.commit()
         with pytest.raises(IntegrityError):
             db.execute(
                 sa.text(f"UPDATE practice_activities SET {column} = :value"), {"value": value}
@@ -503,6 +524,7 @@ def test_postgres_enforces_lightweight_activity_current_schema(database, column,
 def test_postgres_activity_uuid_is_unique_independently_of_client_identity(database):
     with Session(database) as db:
         PracticeActivityService().create(db, 1, request())
+        db.commit()
         values = dict(db.execute(sa.select(PracticeActivity.__table__)).mappings().one())
         values.pop("id")
         values["client_session_id"] = "different-session"

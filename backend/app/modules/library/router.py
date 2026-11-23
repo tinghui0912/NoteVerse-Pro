@@ -2,7 +2,7 @@ from fastapi import Response, APIRouter, Depends, Query
 
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_command_db, get_current_user, get_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.library.dependencies import get_library_service
@@ -45,7 +45,7 @@ def list_library_folders(
 def create_library_folder(
     request: LibraryFolderCreateRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -62,7 +62,7 @@ def update_library_folder(
     folder_id: str,
     request: LibraryFolderUpdateRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -80,7 +80,7 @@ def update_library_folder(
 def delete_library_folder(
     folder_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -124,7 +124,7 @@ def list_library_scores(
 def batch_move_library_scores(
     request: LibraryScoreBatchMoveRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -140,7 +140,7 @@ def batch_move_library_scores(
 def batch_favorite_library_scores(
     request: LibraryScoreBatchFavoriteRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: LibraryService = Depends(get_library_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")

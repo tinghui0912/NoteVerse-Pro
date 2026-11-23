@@ -67,8 +67,7 @@ class MembershipService:
         if membership.revoked_at is not None:
             raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="membership_id")
         membership.role = request.role
-        db.commit()
-        db.refresh(membership)
+        db.flush()
         return self.read_model.member(db, membership)
 
     def remove_member(self, db: Session, score_uuid: str, membership_id: int, user_id: int) -> None:
@@ -80,20 +79,19 @@ class MembershipService:
             raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="membership_id")
         if membership.revoked_at is None:
             membership.revoked_at = utc_now()
-        db.commit()
+        db.flush()
 
     def leave_score(self, db: Session, score_uuid: str, user_id: int) -> None:
         self.access_policy.active_score(db, score_uuid, lock_score=True)
         membership = self.repository.self_membership_for_update(db, score_uuid, user_id)
         # A retry of a completed leave does not grant access or rewrite its timestamp.
         if membership is not None and membership.revoked_at is not None:
-            db.commit()
             return
         self.access_policy.authorize_score(db, score_uuid, ScoreAction.LEAVE, user_id=user_id)
         if membership is None:
             raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         membership.revoked_at = utc_now()
-        db.commit()
+        db.flush()
 
     def _membership_for_score(
         self, db: Session, score: Score, membership_id: int

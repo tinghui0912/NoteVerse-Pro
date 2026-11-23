@@ -210,6 +210,8 @@ def test_batch_statement_cost_is_bounded_for_one_and_fifty(batch_database, kind)
                 LibraryService().batch_set_favorite(
                     db, 1, LibraryScoreBatchFavoriteRequest(score_ids=identities, is_favorite=True)
                 )
+            if kind != "score":
+                db.commit()
             counts.append(len(sql))
             if kind == "score":
                 db.rollback()
@@ -264,7 +266,7 @@ def test_concurrent_library_creation_commits_complete_mutations(batch_database, 
             return super().upsert_organizations(*args, **kwargs)
 
     def mutate(index):
-        with Session(engine) as db:
+        with Session(engine) as db, db.begin():
             db.execute(text("SET LOCAL lock_timeout = '5s'"))
             service = LibraryService(repository=RacingRepository())
             ids = ["score-1", "score-2"] if index == 0 else ["score-2", "score-1"]
@@ -330,7 +332,7 @@ def test_folder_unrelated_failures_keep_the_original_error(
         else IntegrityError("statement", {}, original)
     )
     with Session(engine) as db:
-        monkeypatch.setattr(db, "commit", Mock(side_effect=error))
+        monkeypatch.setattr(db, "flush", Mock(side_effect=error))
         with pytest.raises(type(error)) as raised:
             if command == "create":
                 LibraryService().create_folder(db, 1, LibraryFolderCreateRequest(name="new"))

@@ -106,6 +106,7 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
         db, 2, LibraryScoreBatchFavoriteRequest(score_ids=[score.score_uuid], is_favorite=True)
     )
     organization_id = session.scalar(select(ScoreLibraryOrganization)).id
+    db.commit()
 
     def assert_workspace(expected):
         for view, selected_folder in [
@@ -136,6 +137,7 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
 
     assert_workspace(1)
     MembershipService().leave_score(db, score.score_uuid, 2)
+    db.commit()
     assert_workspace(0)
     assert session.get(ScoreLibraryOrganization, organization_id).is_favorite
     assert session.get(Score, score.id) is not None
@@ -164,7 +166,9 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole.VIEWER),
     )
+    db.commit()
     accepted = collaboration_service.accept_invite(db, invite.token, 2)
+    db.commit()
     assert accepted.membership_id == membership_id and accepted.role == MembershipRole.EDITOR
     assert session.scalar(select(func.count()).select_from(ScoreMembership)) == 1
     assert session.get(ScoreLibraryOrganization, organization_id) is not None

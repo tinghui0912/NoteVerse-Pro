@@ -19,56 +19,49 @@ class PracticeActivityService:
     def create(
         self, db: Session, user_id: int, request: PracticeActivityCreateRequest
     ) -> PracticeActivityRead:
-        try:
-            binding = request.practice_binding
-            access = ScoreAccessPolicy().authorize_revision(
-                db,
-                binding.score_id,
-                ScoreAction.PRACTICE,
-                user_id=user_id,
-                revision_uuid=binding.revision_id,
-            )
-            revision_id = require_persisted_id(access.revision.id, entity="revision")
-            row = self._existing(db, user_id, request.client_session_id)
-            if row is not None:
-                self._require_exact_replay(row, revision_id, request)
-            # This repository reads/locks DB binding and READY bundle rows only.
-            bundle = PracticeBundleRepository().read_bound(db, revision_id)
-            if bundle is None or bundle.bundle_id != binding.bundle_id:
-                raise ResourceNotFoundException(
-                    "practice_bundle", code=CustomerErrorCode.RESOURCE_NOT_FOUND
-                )
-            if row is None:
-                row = PracticeActivity(
-                    user_id=user_id,
-                    revision_id=revision_id,
-                    client_session_id=request.client_session_id,
-                    bundle_id=binding.bundle_id,
-                    mode=request.mode,
-                    input_source=request.input_source,
-                    scope_kind=request.scope.kind,
-                    scope_start_tick=request.scope.start_tick,
-                    scope_terminal_tick=request.scope.terminal_tick,
-                    completed_at=utc_now(),
-                )
-                try:
-                    with db.begin_nested():
-                        db.add(row)
-                        db.flush()
-                except IntegrityError:
-                    existing = self._existing(db, user_id, request.client_session_id)
-                    if existing is None:
-                        raise
-                    row = existing
+        binding = request.practice_binding
+        access = ScoreAccessPolicy().authorize_revision(
+            db,
+            binding.score_id,
+            ScoreAction.PRACTICE,
+            user_id=user_id,
+            revision_uuid=binding.revision_id,
+        )
+        revision_id = require_persisted_id(access.revision.id, entity="revision")
+        row = self._existing(db, user_id, request.client_session_id)
+        if row is not None:
             self._require_exact_replay(row, revision_id, request)
-            result = PracticeActivityRead(
-                activity_id=row.activity_uuid, completed_at=row.completed_at
+        # This repository reads/locks DB binding and READY bundle rows only.
+        bundle = PracticeBundleRepository().read_bound(db, revision_id)
+        if bundle is None or bundle.bundle_id != binding.bundle_id:
+            raise ResourceNotFoundException(
+                "practice_bundle", code=CustomerErrorCode.RESOURCE_NOT_FOUND
             )
-            db.commit()
-            return result
-        except Exception:
-            db.rollback()
-            raise
+        if row is None:
+            row = PracticeActivity(
+                user_id=user_id,
+                revision_id=revision_id,
+                client_session_id=request.client_session_id,
+                bundle_id=binding.bundle_id,
+                mode=request.mode,
+                input_source=request.input_source,
+                scope_kind=request.scope.kind,
+                scope_start_tick=request.scope.start_tick,
+                scope_terminal_tick=request.scope.terminal_tick,
+                completed_at=utc_now(),
+            )
+            try:
+                with db.begin_nested():
+                    db.add(row)
+                    db.flush()
+            except IntegrityError:
+                existing = self._existing(db, user_id, request.client_session_id)
+                if existing is None:
+                    raise
+                row = existing
+        self._require_exact_replay(row, revision_id, request)
+        result = PracticeActivityRead(activity_id=row.activity_uuid, completed_at=row.completed_at)
+        return result
 
     @staticmethod
     def _existing(db: Session, user_id: int, client_session_id: str) -> PracticeActivity | None:

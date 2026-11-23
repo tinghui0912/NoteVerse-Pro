@@ -3,7 +3,7 @@ from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_command_db, get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
@@ -42,7 +42,7 @@ def read_guest_preview_settings(
 def issue_credential(
     score_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
     return service.issue_credential(
@@ -59,7 +59,7 @@ def issue_credential(
 def revoke_credential(
     score_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
     service.revoke_credential(db, score_id, require_persisted_id(current_user.id, entity="user"))
@@ -74,7 +74,7 @@ def revoke_credential(
 def rotate_credential(
     score_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
     return service.rotate_credential(

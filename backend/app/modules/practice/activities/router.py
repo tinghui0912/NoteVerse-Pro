@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_command_db, get_current_user
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from .schemas import PracticeActivityCreateRequest, PracticeActivityRead
@@ -14,7 +14,7 @@ router = APIRouter()
 def create_activity(
     request: PracticeActivityCreateRequest,
     user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
 ) -> PracticeActivityRead:
     return PracticeActivityService().create(
         db, require_persisted_id(user.id, entity="user"), request

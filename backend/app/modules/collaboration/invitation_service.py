@@ -87,8 +87,7 @@ class InvitationService:
         db.add(invite)
         db.flush()
         self._queue_invite_email(db, invite, access.score.display_title, token, request.locale)
-        db.commit()
-        db.refresh(invite)
+        db.flush()
         read = self.read_model.invite(db, invite)
         return InviteCreatedRead(**read.model_dump(), token=token)
 
@@ -121,8 +120,7 @@ class InvitationService:
             invite.terminal_outcome = InviteTerminalOutcome.REVOKED
             invite.terminal_at = now
             invite.terminal_actor_user_id = user_id
-        db.commit()
-        db.refresh(invite)
+        db.flush()
         return self.read_model.invite(db, invite)
 
     def inspect_invite(self, db: Session, token: str, user_id: int | None) -> InviteAccessRead:
@@ -195,7 +193,7 @@ class InvitationService:
         invite.terminal_actor_user_id = user_id
         self._notify_invite_response(db, invite=invite, score=score, actor=user, accepted=False)
         read = self.read_model.pending_invite(db, invite)
-        db.commit()
+        db.flush()
         return read
 
     def _accept_invite_record(
@@ -235,9 +233,7 @@ class InvitationService:
             actor=user,
             accepted=True,
         )
-        db.commit()
-        db.refresh(membership)
-        db.refresh(invite)
+        db.flush()
         return InviteAcceptRead(
             score_id=score.score_uuid,
             role=membership.role,

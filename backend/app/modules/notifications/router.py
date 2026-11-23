@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_command_db, get_current_user, get_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.notifications.dependencies import get_notification_service
@@ -56,7 +56,7 @@ def my_notification_unread_count(
 def mark_my_notification_read(
     notification_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: NotificationService = Depends(get_notification_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -71,7 +71,7 @@ def mark_my_notification_read(
 )
 def mark_all_my_notifications_read(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: NotificationService = Depends(get_notification_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")

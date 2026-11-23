@@ -273,8 +273,10 @@ def test_folder_name_uniqueness_rename_position_and_ownership(workspace):
     _, db, _, _ = workspace
     service = LibraryService()
     a = service.create_folder(db, 1, LibraryFolderCreateRequest(name="Studies"))
+    db.commit()
     with pytest.raises(ResourceAlreadyExistsException):
         service.create_folder(db, 1, LibraryFolderCreateRequest(name="Studies"))
+    db.rollback()
     service.create_folder(db, 2, LibraryFolderCreateRequest(name="Studies"))
     updated = service.update_folder(
         db, 1, a.folder_id, LibraryFolderUpdateRequest(name=" Renamed ", position=3)

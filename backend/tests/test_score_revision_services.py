@@ -2052,40 +2052,6 @@ def test_notification_dedupe_key_returns_existing_event(
     assert count_rows(session, Notification, dedupe_key="import.ready_for_review:score-1:1") == 1
 
 
-def test_notification_cleanup_removes_events_older_than_retention(
-    score_service_session: tuple[Session, InMemoryObjectStorage],
-) -> None:
-    session, _storage = score_service_session
-    db = session
-    service = NotificationService()
-    now = utc_now()
-
-    old_event = Notification(
-        recipient_user_id=1,
-        kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
-        import_job_id="old-score",
-        created_at=now - timedelta(days=91),
-    )
-    fresh_event = Notification(
-        recipient_user_id=1,
-        kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
-        import_job_id="fresh-score",
-        created_at=now - timedelta(days=2),
-    )
-    session.add(old_event)
-    session.add(fresh_event)
-    session.commit()
-
-    deleted = service.cleanup_expired_notifications(
-        db,  # type: ignore[arg-type]
-        retention_days=90,
-    )
-
-    assert deleted == 1
-    remaining = all_rows(session, Notification)
-    assert [event.import_job_id for event in remaining] == ["fresh-score"]
-
-
 def test_notification_maintenance_removes_events_older_than_retention(
     score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:

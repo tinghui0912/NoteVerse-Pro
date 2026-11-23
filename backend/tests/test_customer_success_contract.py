@@ -9,6 +9,7 @@ from unittest.mock import Mock
 
 from fastapi.routing import iter_route_contexts
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.main import create_app
@@ -137,7 +138,7 @@ def test_real_customer_routes_return_direct_nested_representations_pages_and_emp
     uploads = SimpleNamespace(delete_upload=Mock())
 
     def database():
-        yield object()
+        yield Mock(spec=Session)
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
@@ -213,7 +214,7 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
     app = create_app()
 
     def database():
-        yield object()
+        yield Mock(spec=Session)
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)

@@ -2,7 +2,7 @@ from fastapi import Response, APIRouter, Depends, Query
 
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db, get_optional_current_user
+from app.api.deps import get_command_db, get_current_user, get_db, get_optional_current_user
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.collaboration.dependencies import get_invitation_service, get_membership_service
@@ -39,7 +39,7 @@ me_router = APIRouter()
 def leave_score(
     score_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: MembershipService = Depends(get_membership_service),
 ):
     service.leave_score(db, score_id, require_persisted_id(current_user.id, entity="user"))
@@ -73,7 +73,7 @@ def create_score_invite(
     score_id: str,
     request: InviteCreateRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: InvitationService = Depends(get_invitation_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -90,7 +90,7 @@ def revoke_score_invite(
     score_id: str,
     invite_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: InvitationService = Depends(get_invitation_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -126,7 +126,7 @@ def update_score_member(
     membership_id: int,
     request: MemberUpdateRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: MembershipService = Depends(get_membership_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -145,7 +145,7 @@ def remove_score_member(
     score_id: str,
     membership_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: MembershipService = Depends(get_membership_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -173,7 +173,7 @@ def inspect_invite(
 def accept_invite(
     token: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: InvitationService = Depends(get_invitation_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -206,7 +206,7 @@ def list_my_pending_invites(
 def accept_my_pending_invite(
     invite_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: InvitationService = Depends(get_invitation_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -222,7 +222,7 @@ def accept_my_pending_invite(
 def decline_my_pending_invite(
     invite_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: InvitationService = Depends(get_invitation_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")

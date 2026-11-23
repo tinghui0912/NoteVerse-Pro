@@ -48,6 +48,7 @@ def test_fresh_postgres_credential_constraints(credential_database):
     service = GuestPreviewService()
     with Session(engine) as db:
         issued = service.issue_credential(db, "preview", owner)
+        db.commit()
         row = db.scalar(sa.select(GuestPreviewCredential))
         score_id = row.score_id
         assert row.token_hash == guest_preview_token_hash(issued.token) != issued.token
@@ -91,6 +92,7 @@ def test_credential_commands_serialize_on_score_before_credential(
         original = (
             service.issue_credential(db, "preview", owner).token if first != "issue" else None
         )
+        db.commit()
     entered = Event()
     pid = []
 
@@ -99,7 +101,9 @@ def test_credential_commands_serialize_on_score_before_credential(
             pid.append(db.scalar(sa.text("SELECT pg_backend_pid()")))
             entered.set()
             try:
-                return getattr(service, second + "_credential")(db, "preview", owner)
+                result = getattr(service, second + "_credential")(db, "preview", owner)
+                db.commit()
+                return result
             except ConflictException as exc:
                 return exc.code
 
@@ -122,6 +126,7 @@ def test_credential_commands_serialize_on_score_before_credential(
                     pytest.fail("Concurrent credential command must wait for the Score row lock")
             assert not future.done()
             result = getattr(service, first + "_credential")(winner, "preview", owner)
+            winner.commit()
         finally:
             winner.rollback()
         outcome = future.result(timeout=10)

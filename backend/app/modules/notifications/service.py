@@ -1,8 +1,7 @@
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import Notification, NotificationKind, User
 from app.shared.realtime import RealtimeChangeKind
@@ -187,8 +186,7 @@ class NotificationService:
                 kind=RealtimeChangeKind.NOTIFICATIONS_CHANGED,
                 notification_id=notification.notification_uuid,
             )
-            db.commit()
-            db.refresh(notification)
+            db.flush()
         return self._notification_read(db, notification)
 
     def mark_all_read(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
@@ -198,22 +196,8 @@ class NotificationService:
             publish_change(
                 db, recipient_user_id=user_id, kind=RealtimeChangeKind.NOTIFICATIONS_CHANGED
             )
-        db.commit()
+        db.flush()
         return NotificationUnreadCountRead(count=self.repository.unread_count(db, user_id))
-
-    def cleanup_expired_notifications(
-        self, db: Session, *, retention_days: int | None = None
-    ) -> int:
-        days = (
-            retention_days if retention_days is not None else settings.NOTIFICATION_RETENTION_DAYS
-        )
-        if days <= 0:
-            raise ValueError("notification retention days must be positive")
-        cutoff = utc_now() - timedelta(days=days)
-        deleted = self.repository.delete_older_than(db, cutoff)
-        if deleted:
-            db.commit()
-        return deleted
 
     def _notification_read(self, db: Session, row: Notification) -> NotificationRead:
         return NotificationReadModel().notification_page(db, [row])[0]
