@@ -1,7 +1,7 @@
 import type { QueryClient, InfiniteData } from '@tanstack/react-query';
 import type { PerformanceTakesListResponse } from '@/generated/api';
 import { queryKeys } from '@/lib/query-client';
-import { storageUsageChanged } from './storage';
+import { storageUsageChanged } from '@/features/storage-usage/cache';
 
 export async function performanceTakeDeleted(client: QueryClient, takeId: string) {
   await Promise.all([

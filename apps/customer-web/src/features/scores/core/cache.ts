@@ -2,7 +2,7 @@ import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 import type { Query, QueryClient } from '@tanstack/react-query';
 import type { ScoreRead } from '@/generated/api';
 import { libraryScoresChanged } from '@/features/library/cache';
-import { storageUsageChanged } from '@/lib/cache-effects/storage';
+import { storageUsageChanged } from '@/features/storage-usage/cache';
 
 function scoreIdentity(query: Query): string | undefined {
   const [domain, , identity] = query.queryKey;

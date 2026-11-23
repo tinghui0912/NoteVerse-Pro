@@ -8,6 +8,3 @@ export { uploadsApi } from './uploads';
 
 // Practice API.
 export { practiceApi } from './practice';
-
-// Storage usage API.
-export { storageUsageApi } from './storage-usage';

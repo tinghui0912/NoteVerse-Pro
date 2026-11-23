@@ -12,7 +12,7 @@ import {
 } from '@/features/imports/queries';
 import { useToast } from '@/hooks/use-toast';
 import { uploadsApi } from '@/lib/api';
-import { storageUsageChanged } from '@/lib/cache-effects/storage';
+import { storageUsageChanged } from '@/features/storage-usage/cache';
 import { knownGenres } from '@/lib/score/genres';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
 import { reportUnexpectedClientError } from '@/lib/observability';

@@ -4,7 +4,7 @@ import { inviteAcceptanceChanged, removeScoreCollaborationCaches, collaborationP
 import { removeGuestPreviewSettings, guestPreviewAuthorityChanged } from './guest-preview/cache';
 import { libraryOrganizationChanged } from '@/features/library/cache';
 import { importScoreLinksChanged } from '@/features/imports/cache';
-import { storageUsageChanged } from '@/lib/cache-effects/storage';
+import { storageUsageChanged } from '@/features/storage-usage/cache';
 
 export async function scoresDeleted(client: QueryClient, scoreIds: readonly string[]) {
   removeScoreCoreCaches(client, scoreIds);

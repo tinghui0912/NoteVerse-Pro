@@ -2,7 +2,7 @@ import { scoreDetailChanged } from '@/features/scores/core/cache';
 import { importQueryKeys } from '@/features/imports/query-keys';
 import type { QueryClient } from '@tanstack/react-query';
 import { libraryScoresChanged } from '@/features/library/cache';
-import { storageUsageChanged } from '@/lib/cache-effects/storage';
+import { storageUsageChanged } from '@/features/storage-usage/cache';
 
 export function importSubmitted(client: QueryClient) {
   return client.invalidateQueries({ queryKey: importQueryKeys.jobs.lists() });

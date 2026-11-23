@@ -20,6 +20,6 @@ it('has explicit Profile, Security and Sessions owners and shared Settings compo
       expect(existsSync(resolve(root, 'features/account', lifecycle, file))).toBe(true);
     }
   }
-  for (const path of ['features/account/query-keys.ts', 'features/account/cache.ts', 'features/account/security/confirm-email-change-page.tsx', 'components/settings/settings-shell.tsx', 'components/settings/billing-settings-panel.tsx', 'app/[locale]/(auth)/auth/confirm-email-change/page.tsx']) expect(existsSync(resolve(root, path))).toBe(true);
+  for (const path of ['features/account/query-keys.ts', 'features/account/cache.ts', 'features/account/security/confirm-email-change-page.tsx', 'components/settings/settings-shell.tsx', 'app/[locale]/(auth)/auth/confirm-email-change/page.tsx']) expect(existsSync(resolve(root, path))).toBe(true);
   for (const path of ['hooks/queries/use-profile-mutations.ts', 'lib/api/profile.ts', 'lib/cache-effects/account.ts', ...['profile-settings-form', 'security-settings-panel', 'password-settings-form', 'sessions-settings-panel', 'avatar-cropper-modal', 'crop-image'].map(name => `components/settings/${name}.${name === 'crop-image' ? 'ts' : 'tsx'}`)]) expect(existsSync(resolve(root, path))).toBe(false);
 });

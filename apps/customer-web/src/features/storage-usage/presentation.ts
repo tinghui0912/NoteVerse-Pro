@@ -12,3 +12,9 @@ export function formatBytes(bytes: number): string {
 
   return `${value.toLocaleString(undefined, { maximumFractionDigits })} ${UNITS[exponent]}`;
 }
+
+/** Quota utilization is presentation; available bytes come from the server. */
+export function usagePercent(usedBytes: number, reservedBytes: number, limitBytes: number): number {
+  if (limitBytes <= 0) return 100;
+  return Math.min(((usedBytes + reservedBytes) / limitBytes) * 100, 100);
+}

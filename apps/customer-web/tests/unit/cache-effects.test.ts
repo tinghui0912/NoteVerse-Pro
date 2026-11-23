@@ -1,3 +1,4 @@
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
 import { accountQueryKeys } from '@/features/account/query-keys';
 import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import { guestPreviewQueryKeys } from '@/features/scores/guest-preview/query-keys';
@@ -26,7 +27,7 @@ import { libraryOrganizationChanged } from '@/features/library/cache';
 import { performanceTakeDeleted, performanceTakeSaved } from '@/lib/cache-effects/performance-takes';
 import { applyRealtimeCacheChange, serverStateResyncRequired } from '@/lib/cache-effects/realtime';
 import { accountSessionsChanged } from '@/features/account/cache';
-import { storageUsageChanged } from '@/lib/cache-effects/storage';
+import { storageUsageChanged } from '@/features/storage-usage/cache';
 
 let client: QueryClient;
 beforeEach(() => { client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } } }); });
@@ -35,7 +36,7 @@ const seed = (key: QueryKey, data: unknown = { cached: true }) => { client.setQu
 const stale = (key: QueryKey) => client.getQueryState(key)?.isInvalidated;
 const scoreKeys = (id: string) => [scoreQueryKeys.detail(id), scoreQueryKeys.revisions(id), scoreQueryKeys.revision(id, 'r1'), scoreQueryKeys.revisionAssets(id), scoreQueryKeys.revisionAssets(id, 'r1'), scoreQueryKeys.revisionAssets(id, 'r2'), collaborationQueryKeys.invites(id), collaborationQueryKeys.members(id), guestPreviewQueryKeys.settings(id)];
 const library = () => seed(libraryQueryKeys.scoreList({ page: 1, pageSize: 20 }));
-const storage = () => seed(keys.storageUsage.current());
+const storage = () => seed(storageUsageQueryKeys.current());
 const score = { score_id: 'a', display_title: 'Renamed', genres: [], head_revision_id: 'r1', metadata: null, input_assets: [], metadata_version: 2, head_revision_number: 2,
   capabilities: { can_view: true, can_edit: true, can_delete: true, can_leave: false, can_manage_members: true, can_manage_guest_previews: true, can_download: true, can_practice: true },
   derived_assets: { preview: { status: 'pending', asset_id: null }, audio: { status: 'pending', asset_id: null } }, created_at: '2026-07-01T00:00:00Z', updated_at: '2026-07-01T00:00:00Z' } satisfies ScoreRead;
@@ -175,7 +176,7 @@ it('removes a Take across loaded feed pages and preserves unrelated Score feeds'
   expect(client.getQueryData<PerformanceTakesListResponse>(unrelated)).toMatchObject({ pages: [{items: [other]}] });
   expect(client.getQueryState(detail)).toBeUndefined(); expect(client.getQueryState(playback)).toBeUndefined();
   expect([all, matching, unrelated, usage].map(stale)).toEqual([true, true, true, true]);
-  seed(detail); await performanceTakeSaved(client); expect(stale(detail)).toBe(true);
+  seed(detail); seed(usage); await performanceTakeSaved(client); expect(stale(detail)).toBe(true); expect(stale(usage)).toBe(true);
 });
 
 it.each([

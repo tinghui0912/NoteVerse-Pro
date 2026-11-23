@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
 import type { PropsWithChildren } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,7 +11,6 @@ import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import { libraryQueryKeys } from '@/features/library/query-keys';
 import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 import { importQueryKeys } from '@/features/imports/query-keys';
-import { queryKeys } from '@/lib/query-client';
 
 const api = vi.hoisted(() => ({
   security: { getSecurityOverview: vi.fn(), changePassword: vi.fn(), requestEmailChange: vi.fn() },
@@ -29,7 +29,7 @@ const wrapper = ({children}: PropsWithChildren) => <QueryClientProvider client={
 it.each(['password', 'session', 'others', 'email-request'] as const)('%s converges only its admitted Account projections', async (action) => {
   const security = accountQueryKeys.security();
   const sessions = accountQueryKeys.sessions();
-  const unrelated = [notificationQueryKeys.list(), libraryQueryKeys.folders(), scoreQueryKeys.detail('score'), importQueryKeys.review('job'), queryKeys.storageUsage.current()];
+  const unrelated = [notificationQueryKeys.list(), libraryQueryKeys.folders(), scoreQueryKeys.detail('score'), importQueryKeys.review('job'), storageUsageQueryKeys.current()];
   const old = {security: {email: 'old@example.com', email_verified_at: null}};
   client.setQueryData(security, old);
   for (const key of [sessions, ...unrelated]) client.setQueryData(key, {cached: true});

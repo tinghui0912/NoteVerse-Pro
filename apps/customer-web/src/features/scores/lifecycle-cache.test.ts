@@ -1,3 +1,4 @@
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
 import { QueryClient } from '@tanstack/react-query';
 import { expect, it } from 'vitest';
 import { scoreQueryKeys } from './core/query-keys';
@@ -15,7 +16,7 @@ it.each(['delete', 'leave'] as const)('%s converges exactly its lifecycle author
   const guestSettings = guestPreviewQueryKeys.settings('score');
   const bearers = [guestPreviewQueryKeys.public('first'), guestPreviewQueryKeys.public('unmapped')];
   const library = [libraryQueryKeys.folders(), libraryQueryKeys.scoreList({ page: 1, pageSize: 20 })];
-  const storage = queryKeys.storageUsage.current();
+  const storage = storageUsageQueryKeys.current();
   const history = queryKeys.performanceTakes.list();
   const other = [scoreQueryKeys.detail('other')];
   const collaboration = [collaborationQueryKeys.myInvites(), collaborationQueryKeys.inviteAccess('opaque'), collaborationQueryKeys.inviteAccess('unmapped'), collaborationQueryKeys.members('other')];

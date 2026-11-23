@@ -23,10 +23,6 @@ export const queryClient = new QueryClient({
  * used for broad invalidation; leaf factories own complete cache identity.
  */
 export const queryKeys = {
-    storageUsage: {
-        all: ['storage-usage'] as const,
-        current: () => ['storage-usage', 'current'] as const,
-    },
     performanceTakeExport: {
         bundle: (bundleId: string) => ['performance-take-export-bundle', { bundleId }] as const,
     },

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
 import type { PropsWithChildren } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -23,7 +24,7 @@ let client: QueryClient;
 beforeEach(() => {vi.resetAllMocks(); client = new QueryClient({defaultOptions: {queries: {retry: false}}});});
 afterEach(() => client.clear());
 const wrapper = ({children}: PropsWithChildren) => <QueryClientProvider client={client}><AuthenticationProvider>{children}</AuthenticationProvider></QueryClientProvider>;
-const privateKeys = () => [libraryQueryKeys.folders(), notificationQueryKeys.list(), collaborationQueryKeys.myInvites(), scoreQueryKeys.detail('score'), accountQueryKeys.security(), accountQueryKeys.sessions(), queryKeys.storageUsage.current(), queryKeys.performanceTakes.list()];
+const privateKeys = () => [libraryQueryKeys.folders(), notificationQueryKeys.list(), collaborationQueryKeys.myInvites(), scoreQueryKeys.detail('score'), accountQueryKeys.security(), accountQueryKeys.sessions(), storageUsageQueryKeys.current(), queryKeys.performanceTakes.list()];
 function seedPrivateState() {for (const key of privateKeys()) client.setQueryData(key, {private: 'A'});}
 const anonymous = () => new ApiError(401, 'token_invalid_expired');
 

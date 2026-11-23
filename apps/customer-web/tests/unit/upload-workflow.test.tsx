@@ -1,5 +1,6 @@
-import { importQueryKeys } from '@/features/imports/query-keys';
 // @vitest-environment jsdom
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
+import { importQueryKeys } from '@/features/imports/query-keys';
 
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,7 +9,6 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/http/customer-browser-transport';
 import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
-import { queryKeys } from '@/lib/query-client';
 import * as navigation from '@/features/imports/routes';
 import type { ImportJobRead } from '@/generated/api';
 import { useImportUploadWorkflow } from '@/features/imports/submission/use-import-upload-workflow';
@@ -187,7 +187,7 @@ describe('upload workflow storage quota handling', () => {
     });
     expect(submitImportJobMock).not.toHaveBeenCalled();
     expect(invalidateSpy).not.toHaveBeenCalledWith({
-      queryKey: queryKeys.storageUsage.all,
+      queryKey: storageUsageQueryKeys.all,
     });
   });
 
@@ -219,7 +219,7 @@ describe('upload workflow storage quota handling', () => {
       'upload-workflow-test-key',
     );
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: queryKeys.storageUsage.all,
+      queryKey: storageUsageQueryKeys.all,
     });
     expect(toastMock).toHaveBeenCalledWith({
       title: '识别请求已创建',

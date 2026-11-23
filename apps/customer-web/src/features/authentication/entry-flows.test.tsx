@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
 import { StrictMode, type PropsWithChildren } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -109,7 +110,7 @@ it.each([true, false])('clears principal/private server state after password res
   if (authenticated) fake.profile.mockResolvedValue({user: principal});
   const view = render(<ResetPasswordPage />, {wrapper});
   await waitFor(() => expect(screen.getByLabelText('session')).toHaveTextContent(authenticated ? 'authenticated' : 'anonymous'));
-  const privateKeys = [libraryQueryKeys.folders(), notificationQueryKeys.list(), collaborationQueryKeys.myInvites(), scoreQueryKeys.detail('score'), accountQueryKeys.security(), accountQueryKeys.sessions(), queryKeys.storageUsage.current(), queryKeys.performanceTakes.list()];
+  const privateKeys = [libraryQueryKeys.folders(), notificationQueryKeys.list(), collaborationQueryKeys.myInvites(), scoreQueryKeys.detail('score'), accountQueryKeys.security(), accountQueryKeys.sessions(), storageUsageQueryKeys.current(), queryKeys.performanceTakes.list()];
   for (const key of privateKeys) client.setQueryData(key, {private: 'A'});
   await userEvent.type(screen.getByLabelText('newPasswordLabel'), 'new-password');
   await userEvent.type(screen.getByLabelText('confirmPasswordLabel'), 'new-password');

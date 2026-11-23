@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
 import { useDeletePerformanceTake, useSavePerformanceTake } from './use-performance-take-queries';
 import { PerformanceTakeSaveCommand } from '@/lib/practice/performance-take/save-command';
 import { performanceTakesApi } from '@/lib/api/performance-takes';
@@ -81,7 +82,7 @@ describe('semantic Take deletion cache admission', () => {
     client.setQueryData(queryKeys.performanceTakes.detail('take-1'), performanceTake);
     client.setQueryData(queryKeys.performanceTakes.playbackUrl('take-1'), { playback_url: 'signed-deleted' });
     client.setQueryData(queryKeys.performanceTakes.playbackUrl('other'), { playback_url: 'signed-other' });
-    client.setQueryData(queryKeys.storageUsage.current(), { bytes: 12 });
+    client.setQueryData(storageUsageQueryKeys.current(), { bytes: 12 });
     const finishInvalidations: Array<() => void> = [];
     const invalidateQueries = client.invalidateQueries.bind(client);
     const invalidate = vi.spyOn(client, 'invalidateQueries').mockImplementation(async (filters, options) => {
@@ -114,13 +115,13 @@ describe('semantic Take deletion cache admission', () => {
       client.getQueryData(queryKeys.performanceTakes.playbackUrl('other')),
     ).toMatchObject({ playback_url: 'signed-other' });
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: queryKeys.storageUsage.all,
+      queryKey: storageUsageQueryKeys.all,
     });
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: queryKeys.performanceTakes.lists(),
     });
     expect(client.getQueryState(first)?.isInvalidated).toBe(true);
-    expect(client.getQueryState(queryKeys.storageUsage.current())?.isInvalidated).toBe(true);
+    expect(client.getQueryState(storageUsageQueryKeys.current())?.isInvalidated).toBe(true);
     await act(async () => { finishInvalidations[0](); });
     expect(finished).toBe(false);
     await act(async () => {

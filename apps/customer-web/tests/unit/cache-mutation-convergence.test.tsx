@@ -1,8 +1,9 @@
+// @vitest-environment jsdom
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
 import { notificationQueryKeys } from '@/features/notifications/query-keys';
 import { scoreQueryKeys } from '@/features/scores/core/query-keys';
 import { libraryQueryKeys } from '@/features/library/query-keys';
 import { importQueryKeys } from '@/features/imports/query-keys';
-// @vitest-environment jsdom
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -13,7 +14,6 @@ import {
   useUpdateImportJobReview,
 } from '@/features/imports/queries';
 import { useMarkNotificationRead, useMarkAllNotificationsRead } from '@/features/notifications/queries';
-import { queryKeys as keys } from '@/lib/query-client';
 import type { ScoreRead, NotificationRead, ImportJobReviewRead } from '@/generated/api';
 
 const api = vi.hoisted(() => ({
@@ -55,7 +55,7 @@ it('converges successful Score PATCH into detail and Library before mutateAsync 
 });
 
 it('converges a local confirmation through Import, Review, Library, Score and storage', async () => {
-  const changed = [importQueryKeys.jobs.list(1, 20), importQueryKeys.jobs.detail('job'), importQueryKeys.review('job'), libraryQueryKeys.scoreList({ page: 1, pageSize: 20 }), scoreQueryKeys.detail('score'), keys.storageUsage.current()];
+  const changed = [importQueryKeys.jobs.list(1, 20), importQueryKeys.jobs.detail('job'), importQueryKeys.review('job'), libraryQueryKeys.scoreList({ page: 1, pageSize: 20 }), scoreQueryKeys.detail('score'), storageUsageQueryKeys.current()];
   changed.forEach((key) => client.setQueryData(key, { cached: true }));
   api.confirm.mockResolvedValue({ score_id: 'score' });
   const hook = renderHook(() => useConfirmImportJobReview(), { wrapper });
@@ -83,7 +83,7 @@ it('converges a successful Review update before mutateAsync resolves', async () 
     importQueryKeys.jobs.list(1, 20),
     importQueryKeys.jobs.detail('job-a'),
     importQueryKeys.review('job-a'),
-    keys.storageUsage.current(),
+    storageUsageQueryKeys.current(),
   ];
   const unchanged = [importQueryKeys.jobs.detail('job-b'), importQueryKeys.review('job-b')];
   [...changed, ...unchanged].forEach((key) => client.setQueryData(key, { cached: true }));
