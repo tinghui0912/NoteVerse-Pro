@@ -478,3 +478,97 @@ async def test_revision_rechecks_head_after_prewrite_commit(
             assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
 
     await asyncio.to_thread(edit)
+
+
+def test_import_artifact_replacement_acquires_intent_before_released_object(retirement_postgres):
+    from app.db.models import ImportJob, ImportArtifact, ImportArtifactKind, ImportJobState
+    from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
+    from app.modules.import_jobs.requested_options import encode_requested_options
+    from tests.support.import_execution import processing_lease
+    from tests.support.storage_state import provision_storage_users
+    from app.modules.storage_usage.service import storage_usage_service
+    from app.db.models import StorageUsageCategory
+    from app.modules.storage_objects.references import stored_object_has_semantic_references
+    from app.modules.storage_objects.writes import lock_intent
+    from tests.test_stored_object_retirement_postgres import assert_blocked
+    from sqlalchemy import text
+
+    engine, sessions, storage = retirement_postgres
+    with sessions() as db:
+        provision_storage_users(db)
+        job = ImportJob(
+            job_uuid="replace",
+            user_id=1,
+            state=ImportJobState.PROCESSING,
+            processing_started_at=utc_now(),
+            requested_options=encode_requested_options(None),
+        )
+        db.add(job)
+        db.commit()
+        receipt = write_object(
+            db,
+            storage,
+            key="artifact/replacement.xml",
+            content=b"<score/>",
+            content_type="application/xml",
+        )
+        stored = adopt_written_object(db, receipt)
+        db.add(
+            ImportArtifact(
+                job_id=job.id,
+                kind=ImportArtifactKind.REVIEW_MUSICXML,
+                stored_object_id=stored.id,
+                filename="score.xml",
+            )
+        )
+        storage_usage_service.record_allocation(
+            db,
+            user_id=1,
+            category=StorageUsageCategory.TEMP_IMPORT,
+            bytes_count=8,
+            reason="fixture",
+        )
+        db.commit()
+        identity = stored.id
+        lease = processing_lease(db, job)
+    from concurrent.futures import ThreadPoolExecutor
+
+    entered = Event()
+    pids = []
+
+    def replace():
+        with sessions() as db:
+            pids.append(db.scalar(text("SELECT pg_backend_pid()")))
+            entered.set()
+            ImportExecutionRecorder().replace_artifacts(
+                db,
+                lease,
+                ImportArtifactKind.REVIEW_MUSICXML,
+                [
+                    {
+                        "write_intent_uuid": receipt.intent_uuid,
+                        "write_token": receipt.write_token,
+                        "filename": "score.xml",
+                        "page_number": None,
+                    }
+                ],
+            )
+
+    with sessions() as predecessor, ThreadPoolExecutor(1) as pool:
+        lock_intent(predecessor, receipt.intent_uuid)
+        pending = pool.submit(replace)
+        assert entered.wait(10)
+        try:
+            assert_blocked(engine, pids[0])
+            # Another lifecycle participant holding Intent may acquire StoredObject.
+            # A replacement must not hold the old object while waiting for that Intent.
+            predecessor.scalar(
+                select(StoredObject).where(StoredObject.id == identity).with_for_update(nowait=True)
+            )
+        finally:
+            predecessor.commit()
+        pending.result(10)
+    with sessions() as db:
+        assert stored_object_has_semantic_references(db, identity)
+        assert db.scalar(select(ImportArtifact)).stored_object_id == identity
+        assert storage.read_bytes(receipt.object_key) == b"<score/>"

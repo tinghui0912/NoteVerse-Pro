@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Barrier
 from uuid import uuid4
-import ast
 from pathlib import Path
 import pytest
 from sqlalchemy import select, func
@@ -340,53 +339,72 @@ def test_http_quota_and_category_holds(database, client, unlimited):
 
 
 def test_inventory_usage_quota_dependency_boundaries():
-    root = Path(__file__).parents[1] / "app/modules"
-    for module, forbidden in [
-        (
-            "storage_usage",
-            {"storage_quota", "scores", "revisions", "uploads", "performance_takes", "import_jobs"},
-        ),
-        (
-            "storage_quota",
-            {
-                "scores",
-                "revisions",
-                "uploads",
-                "performance_takes",
-                "import_jobs",
-                "storage_objects",
-            },
-        ),
-        ("storage_inventory", {"storage_quota"}),
-    ]:
-        for path in (root / module).glob("*.py"):
-            for node in ast.walk(ast.parse(path.read_text())):
-                if (
-                    isinstance(node, ast.ImportFrom)
-                    and node.module
-                    and node.module.startswith("app.modules.")
-                ):
-                    imported = node.module.split(".")[2]
-                    assert imported not in forbidden, (path, node.module)
+    from tests.support.python_imports import imported_modules
+
+    root = Path(__file__).parents[1]
+    for module in ("storage_usage", "storage_quota", "storage_inventory", "storage_objects"):
+        for path in (root / "app/modules" / module).rglob("*.py"):
+            for imported in imported_modules(path, root):
+                if imported.startswith("app.modules."):
+                    owner = imported.split(".")[2]
                     if module == "storage_usage":
-                        assert imported in {"storage_usage", "storage_inventory"}, (
-                            path,
-                            node.module,
-                        )
+                        assert owner in {"storage_usage", "storage_inventory"}, (path, imported)
                     elif module == "storage_quota":
-                        assert imported in {"storage_quota", "storage_usage"}, (path, node.module)
-                if (
-                    isinstance(node, ast.ImportFrom)
-                    and node.module
-                    and node.module.startswith("app.db.models")
-                    and module in {"storage_usage", "storage_quota"}
-                ):
+                        assert owner in {"storage_quota", "storage_usage"}, (path, imported)
+                        if owner == "storage_usage":
+                            assert imported.startswith("app.modules.storage_usage.contracts"), (
+                                path,
+                                imported,
+                            )
+                    elif module == "storage_objects":
+                        assert owner in {"storage_objects", "durable_work"}, (path, imported)
+                    else:
+                        assert owner != "storage_quota", (path, imported)
+                if imported.startswith("app.db.models") and module in {
+                    "storage_usage",
+                    "storage_quota",
+                }:
                     allowed = {"app.db.models.storage_usage"}
                     if module == "storage_quota":
                         allowed.add("app.db.models.storage_quota")
                     if module == "storage_quota" and path.name == "router.py":
                         allowed.add("app.db.models.user")
-                    assert node.module in allowed, (path, node.module)
+                    assert any(
+                        imported == name or imported.startswith(name + ".") for name in allowed
+                    ), (path, imported)
+
+
+@pytest.mark.parametrize("value", [True, False, 1.0, 1.5, 0.0, 0, -1, "1", None])
+def test_capacity_requires_exact_positive_integer(database, value):
+    from app.modules.storage_quota.domain import admit_capacity
+    from app.modules.storage_quota.contracts import EffectiveStorageQuota
+
+    with Session(database) as db:
+        for mode, limit in [(Mode.HARD_LIMIT, 100), (Mode.UNLIMITED, None)]:
+            with pytest.raises(ValueError):
+                admit_capacity(EffectiveStorageQuota("FREE", mode, limit), 0, 0, value)
+            with pytest.raises(ValueError):
+                hold(db, size=value)
+        assert db.scalar(select(func.count()).select_from(StorageQuotaHold)) == 0
+
+
+@pytest.mark.parametrize(
+    "syntax",
+    [
+        "import app.modules.storage_quota.service as quota",
+        "from app.modules.storage_quota import service",
+        "from ..storage_quota import service",
+        "from ...storage_quota import service",
+    ],
+)
+def test_boundary_import_resolution_covers_import_forms_and_nested_files(tmp_path, syntax):
+    from tests.support.python_imports import imported_modules
+
+    nested = "...storage_quota" in syntax
+    path = tmp_path / "app/modules/storage_usage" / ("nested/check.py" if nested else "check.py")
+    path.parent.mkdir(parents=True)
+    path.write_text(syntax, encoding="utf-8")
+    assert "app.modules.storage_quota.service" in imported_modules(path, tmp_path)
 
 
 def test_concurrent_command_retry_reuses_one_hold(database):

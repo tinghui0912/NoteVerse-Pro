@@ -26,9 +26,21 @@ def test_storage_infrastructure_treats_domain_locators_as_opaque():
         "app.modules.uploads.service",
         "app.modules.account.avatar_service",
     }
-    for folder in ("storage", "modules/storage_objects", "modules/storage_usage"):
+    for folder in (
+        "storage",
+        "modules/storage_objects",
+        "modules/storage_usage",
+        "modules/storage_quota",
+    ):
         for path in (ROOT / folder).rglob("*.py"):
             tree = ast.parse(path.read_text(encoding="utf-8"))
+            from tests.support.python_imports import imported_modules
+
+            for imported in imported_modules(path, ROOT.parent):
+                assert not any(
+                    imported == owner or imported.startswith(owner + ".") for owner in key_owners
+                ), path
+                assert ".object_keys" not in imported, path
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and node.module:
                     assert node.module not in key_owners and not node.module.endswith(

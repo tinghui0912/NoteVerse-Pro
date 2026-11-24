@@ -156,3 +156,18 @@ def test_huggingface_model_check_rejects_incomplete_sharded_snapshot(tmp_path, m
 
     assert result.ok is False
     assert "model-00001-of-00002.safetensors" in result.message
+
+
+def test_storage_quota_expiry_task_is_required(monkeypatch):
+    from app.core.runtime_checks import check_celery_tasks
+    from app.task_queue.config import celery_app
+    import app.worker.tasks  # noqa: F401
+
+    celery_app.loader.import_default_modules()
+    name = "app.worker.tasks.run_storage_quota_expiry"
+    assert name in celery_app.tasks
+    assert check_celery_tasks().ok
+    monkeypatch.delitem(celery_app.tasks, name)
+    result = check_celery_tasks()
+    assert not result.ok
+    assert name in result.message

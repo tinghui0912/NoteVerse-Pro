@@ -66,6 +66,10 @@ def retain_for_reference(db: Session, object_id: int) -> StoredObject | None:
         return None
     operation = _operation_for_object(db, object_id)
     if operation is not None:
+        if operation.deletion_fenced_at is not None:
+            raise ValueError(
+                "Physical deletion owns this StoredObject; reacquisition requires a new write after retirement"
+            )
         if operation.status == StoredObjectRetirementStatus.COMPLETED:
             raise ValueError("Completed retirement still references a physical object")
         delivery_lifecycle().finish(

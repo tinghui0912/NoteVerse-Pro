@@ -392,3 +392,58 @@ def test_source_change_after_prewrite_is_domain_invalidation(generation, monkeyp
         assert changes[-1]["score_id"] == "score" and changes[-1]["revision_id"] == "revision"
         assert db.scalars(sa.select(model)).one().status.value == "FAILED"
         assert drain_write_cleanup(db, storage)[0]["status"] == "cleaned"
+
+
+def test_asset_replacement_does_not_hold_released_object_while_waiting_for_write_intent(
+    generation, monkeypatch
+):
+    from app.modules.storage_objects.writes import lock_intent
+    from tests.test_stored_object_retirement_postgres import assert_blocked
+
+    kind, engine, storage, service, model, module, lifecycle, execute, generate = generation
+    assert execute(None, "delivery")["status"] in ("rendered", "generated")
+    asset_model = ScorePlaybackAsset if kind == "playback" else ScoreRenderAsset
+    with Session(engine) as db:
+        old_object = db.scalar(sa.select(asset_model)).stored_object_id
+        lifecycle().rearm(db.scalar(sa.select(model)), now=utc_now())
+        db.commit()
+    written, proceed = Event(), Event()
+    receipts = []
+    pids = []
+    write = module.write_object
+
+    def prewrite(db, *args, **kwargs):
+        receipt = write(db, *args, **kwargs)
+        receipts.append(receipt)
+        pids.append(db.scalar(sa.text("SELECT pg_backend_pid()")))
+        written.set()
+        assert proceed.wait(15)
+        return receipt
+
+    monkeypatch.setattr(module, "write_object", prewrite)
+    with ThreadPoolExecutor(1) as pool:
+        pending = pool.submit(execute, None, "delivery")
+        try:
+            assert written.wait(15)
+            with Session(engine) as predecessor:
+                lock_intent(predecessor, receipts[0].intent_uuid)
+                proceed.set()
+                assert_blocked(engine, pids[0])
+                predecessor.scalar(
+                    sa.select(StoredObject)
+                    .where(StoredObject.id == old_object)
+                    .with_for_update(nowait=True)
+                )
+                predecessor.commit()
+            assert pending.result(15)["status"] in ("rendered", "generated")
+        finally:
+            proceed.set()
+    with Session(engine) as db:
+        assert db.scalar(sa.select(asset_model)).stored_object_id != old_object
+        operation = db.scalar(
+            sa.select(StoredObjectRetirement).where(
+                StoredObjectRetirement.stored_object_id == old_object
+            )
+        )
+        assert operation is not None and operation.deletion_fenced_at is None
+        assert storage.exists(operation.object_key)

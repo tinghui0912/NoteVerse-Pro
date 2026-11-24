@@ -22,7 +22,7 @@ def available_capacity(quota: EffectiveStorageQuota, used: int, held: int) -> in
 
 
 def admit_capacity(quota: EffectiveStorageQuota, used: int, held: int, requested: int) -> None:
-    if requested <= 0:
+    if type(requested) is not int or requested <= 0:
         raise ValueError("Capacity holds require positive bytes")
     available = available_capacity(quota, used, held)
     if available is not None and requested > available:

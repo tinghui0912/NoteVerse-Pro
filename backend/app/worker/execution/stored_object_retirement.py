@@ -52,6 +52,10 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
             if snapshot(operation) != object_from_row(row):
                 raise ValueError("Retirement snapshot disagrees with StoredObject")
             if stored_object_has_semantic_references(db, row.id):
+                if operation.deletion_fenced_at is not None:
+                    raise ValueError(
+                        "A fenced physical deletion acquired an unexpected semantic reference"
+                    )
                 lifecycle.finish_attempt(
                     operation,
                     lease=attempt,
@@ -61,6 +65,22 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
                 )
                 db.commit()
                 return {"status": "cancelled", "retirement_uuid": retirement_uuid}
+            if operation.deletion_fenced_at is None:
+                # Persist irreversibility before external IO. A rolled-back completion must
+                # never make a possibly deleted physical object available for reference reuse.
+                operation.deletion_fenced_at = utc_now()
+                db.commit()
+                assert attempt.stored_object_id is not None
+                row = _object(db, attempt.stored_object_id)
+                operation = retirement_delivery.get(db, retirement_uuid, lock=True)
+                if operation is None or not lifecycle.attempt_matches(operation, attempt):
+                    return {"status": "ignored", "retirement_uuid": retirement_uuid}
+                if row is None or operation.stored_object_id != row.id:
+                    raise ValueError("Fenced retirement has no matching StoredObject")
+                if snapshot(operation) != object_from_row(
+                    row
+                ) or stored_object_has_semantic_references(db, row.id):
+                    raise ValueError("Fenced retirement authority changed")
             db.delete(row)
             db.flush()  # RESTRICT is the final barrier before any physical IO.
             object_storage.delete(operation.object_key)

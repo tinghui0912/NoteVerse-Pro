@@ -173,5 +173,5 @@ def test_unlimited_downgrade_fails_without_inventing_finite_entitlement(monkeypa
             assert connection.scalar(text("SELECT mode FROM storage_plan_policies")) == "UNLIMITED"
             assert (
                 connection.scalar(text("SELECT version_num FROM alembic_version"))
-                == "0002_storage_quota"
+                == "0003_object_retirement_fence"
             )

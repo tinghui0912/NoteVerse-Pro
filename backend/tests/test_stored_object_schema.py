@@ -131,3 +131,22 @@ def test_physical_facts_restrict_and_retirement_set_null(monkeypatch):
                     )
                     db.commit()
                 db.rollback()
+
+
+def test_explicit_reference_registry_covers_every_stored_object_fk():
+    from sqlmodel import SQLModel
+    import app.db.models  # noqa: F401
+    from app.db.models.stored_object_retirement import StoredObjectRetirement
+
+    semantic = {(column.table.name, column.name) for column in SEMANTIC_REFERENCES}
+    assert len(semantic) == len(SEMANTIC_REFERENCES)
+    # This FK preserves delivery evidence and intentionally releases its pointer on deletion.
+    evidence = {(StoredObjectRetirement.__tablename__, "stored_object_id")}
+    actual = {}
+    for table in SQLModel.metadata.tables.values():
+        for fk in table.foreign_keys:
+            if fk.target_fullname == "stored_objects.id":
+                actual[(table.name, fk.parent.name)] = fk.ondelete
+    assert set(actual) == semantic | evidence
+    assert all(actual[identity] == "RESTRICT" for identity in semantic)
+    assert all(actual[identity] == "SET NULL" for identity in evidence)

@@ -1,5 +1,4 @@
 from __future__ import annotations
-from app.modules.storage_objects.retirement import retire_after_release
 
 from datetime import datetime
 
@@ -162,7 +161,7 @@ class ImportJobRepository:
         )
 
     @staticmethod
-    def delete_artifacts_by_kind(db: Session, job_id: int, kind: ImportArtifactKind) -> None:
+    def delete_artifacts_by_kind(db: Session, job_id: int, kind: ImportArtifactKind) -> list[int]:
         rows = list(
             db.scalars(
                 select(ImportArtifact).where(
@@ -170,10 +169,11 @@ class ImportJobRepository:
                 )
             )
         )
+        object_ids = [row.stored_object_id for row in rows]
         for row in rows:
             db.delete(row)
-            retire_after_release(db, row.stored_object_id)
         db.flush()
+        return object_ids
 
     @staticmethod
     def list_orphan_uploads(db: Session, cutoff: datetime) -> list[Upload]:

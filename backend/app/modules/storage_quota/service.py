@@ -47,6 +47,8 @@ class StorageQuotaService:
         expires_at: datetime,
         now: datetime | None = None,
     ) -> StorageQuotaHoldReceipt:
+        if type(bytes_count) is not int or bytes_count <= 0:
+            raise ValueError("Capacity holds require positive integer bytes")
         if not command_key or len(command_key) > 160 or not counts_toward_quota(category):
             raise ValueError(
                 "Capacity admission requires a command identity and quota-counted category"

@@ -115,28 +115,28 @@ Adoption locks the WRITTEN intent, checks generation/facts/lease, and creates or
 Prewrite transactions precede semantic mutation and require a clean semantic session. Domain application code reestablishes its parent admission after prewrite commits. Domain parent locks (Score/Revision, Bundle, User or ImportJob) precede intent locks during semantic adoption. The shared physical lock order is ObjectWriteIntent → StoredObject → StoredObjectRetirement. Retirement itself never needs a write-intent lock. Multiple representation writes finish before their one semantic replacement transaction begins.
 
 StorageUsage mutates and flushes accounting state inside the caller-owned transaction;
-its service and repository do not commit. Upload creation commits its quota reservation
+its service and repository do not commit. Upload creation commits its StorageQuotaHold
 before physical IO, releases quota row locks, then uses the ObjectWriteIntent protocol's
 explicit PREPARED/WRITTEN transactions. Its final transaction commits StoredObject adoption,
-the Upload and reservation completion together. A failed admission rolls back semantic
-writes and commits release of the active reservation in a clean transaction. Revision
+the Upload, hold consumption and logical allocation together. A failed admission rolls back semantic
+writes and commits release of the active hold in a clean transaction. Revision
 source preparation follows the same durable hold boundary; RevisionWriter participates
 in the caller's revision transaction. PerformanceTake application services own reservation,
 finalization, recovery and deletion commits, with accounting in each semantic transaction.
 
 Expired PREPARED/WRITTEN generations become CLEANUP_PENDING. Cleanup dispatch/claim/retry/lease recovery delegates to DurableDeliveryLifecycle using CLEANUP_DISPATCHED, CLEANUP_PROCESSING, CLEANUP_FAILED and CLEANED. The worker commits its claim, then locks the intent and checks generation plus attempt token. A matching StoredObject means ADOPTED with no delete. Conflicting facts fail closed. Without a StoredObject it deletes under the intent lock and commits CLEANED. A storage failure rolls back and records CLEANUP_FAILED in a fresh transaction. Missing keys and uncertain completion retries are idempotent. Stale writers/adopters cannot revive cleaned or reprepared generations.
 
-Account Avatar, Uploads, Review confirmation/source replacement, Revision create/restore, worker Score creation, Render pages, Playback audio and Import artifact recording consume this protocol. Review confirmation prewrites canonical MusicXML before constructing semantic rows. Import handoff carries intent UUID/generation and filename/page metadata rather than a second physical-facts dictionary. PracticeBundle CREATING has null representation FKs; READY acquires both written representations and a binding in its semantic transaction.
+Account Avatar, Uploads, Review confirmation/source replacement, Revision create/restore, Render pages, Playback audio and Import artifact recording consume this protocol. Review confirmation prewrites canonical MusicXML before constructing semantic rows. Import handoff carries intent UUID/generation and filename/page metadata rather than a second physical-facts dictionary. PracticeBundle CREATING has null representation FKs; READY acquires both written representations and a binding in its semantic transaction.
 
 ObjectStorage is not part of a database transaction. Safety comes from durable operation state, row locks across physical IO, immutable keys, idempotent operations and retry. There is no distributed atomic commit.
 
 ## Entitlement and accounting
 
-[Storage usage](storage-usage.md) owns current plan defaults, user entitlement,
-quota admission and aggregate/category accounting. Effective limits are derived
-from the current entitlement and plan; usage accounts hold byte totals only.
-Semantic allocation/release accounting participates in the domain transaction,
-independently of physical retirement completion.
+[Storage Quota](storage-quota.md) owns current plan defaults, user entitlement, capacity
+admission and durable holds. [Storage Usage](storage-usage.md) owns committed logical
+allocation/release and rebuildable used-byte accounting. Reserved capacity is read from
+active Quota holds, not persisted in Usage projections. Physical retirement consumes
+neither authority and does not determine user/category allocation multiplicity.
 
 ## Semantic release and durable retirement
 
@@ -160,13 +160,30 @@ Semantic reference release
 
 A domain removes and flushes its reference, releases its logical accounting and queues eligible retirement in the same transaction. Upload, Avatar, Import, Review artifacts, Render/Playback, derivative retention, Score cleanup, Take deletion and Bundle GC use this boundary. Take Manifest and Reservation lineage remain. Accounting belongs to the semantic allocation and does not wait for physical retirement.
 
-`retire_if_unreferenced` locks StoredObject and checks all semantic references before creating or rearming one operation. `retain_for_reference` locks the same row and its operation, cancels pending retirement and admits a new reference. A worker that wins the destructive lock completes before acquisition can continue; acquisition then follows normal object creation if the row is gone.
+`retire_if_unreferenced` locks StoredObject and checks all semantic references before creating or rearming one operation. `retain_for_reference` locks the same row and its operation, cancels pending retirement and admits a new reference. A worker that wins the destructive lock completes before acquisition can continue; if the row is gone acquisition requires a new write generation. If a durable deletion fence remains on an existing row, acquisition fails closed until retirement finishes.
 
-The worker commits its claim separately. Its destructive transaction locks StoredObject then the retirement operation, verifies attempt count and token, compares snapshot facts, and checks all semantic references. A referenced object produces CANCELLED. Otherwise ORM deletion is flushed before storage IO, so every RESTRICT foreign key is validated before bytes can be deleted. The database commits row removal and operation completion after physical IO succeeds; an uncertain database completion retries the idempotent deletion. Storage failure rolls back row removal and records FAILED in a fresh transaction. An absent physical key is idempotent; an unexpectedly absent StoredObject fails closed without deleting the snapshot key.
+The worker commits its claim separately. It locks StoredObject then retirement, verifies
+attempt count/token and snapshot facts, and checks all semantic references. Before any
+physical deletion it persists `deletion_fenced_at` in a short transaction. A referenced
+object can produce CANCELLED only before that fence. An object whose deletion is fenced
+cannot be reacquired, including after storage failure or an uncertain completion commit.
+
+The destructive transaction reacquires StoredObject then retirement, rechecks the current
+attempt, immutable facts and references, and flushes ORM deletion before storage IO.
+Every RESTRICT FK remains the final validation barrier before bytes can be deleted.
+Row removal and operation completion commit after physical deletion. On failure the row
+may remain, but the durable deletion fence remains authoritative; recovery retries the
+same idempotent deletion rather than restoring reference authority. An absent physical
+key is idempotent. An unexpectedly absent StoredObject fails closed without deleting the
+snapshot key. Completed operation snapshots survive physical-row deletion through SET NULL.
+
+Once retirement completes, reacquisition follows a fresh ObjectWriteIntent generation.
+Unfinished fenced operations must finish before schema downgrade can remove their fence;
+attempted unfinished operations acquire the fence when the schema is installed.
 
 Retirement states are PENDING, DISPATCHED, PROCESSING, FAILED, COMPLETED and CANCELLED. Shared delivery policy owns retry, lease expiry, dispatch and reset. A fresh attempt token fences cancelled/rearmed work as well as lease takeover. Immediate dispatch is best effort; periodic maintenance is the durable recovery path.
 
-Temporary upload staging, finalizing and orphan keys are reservation lifecycle locators, not StoredObjects. Unadopted server writes remain owned by ObjectWriteIntent until ADOPTED or CLEANED. Retirement snapshots and StorageUsage reservation/event keys are operation/accounting evidence, not current physical authority. Neither snapshot retains semantic ownership.
+Temporary upload staging, finalizing and orphan keys are reservation lifecycle locators, not StoredObjects. Unadopted server writes remain owned by ObjectWriteIntent until ADOPTED or CLEANED. Retirement snapshots, StorageQuotaHold identities and StorageUsageEvent keys are operation/accounting evidence, not current physical authority. Neither snapshot retains semantic ownership.
 
 ## Infrastructure and verification
 
@@ -187,5 +204,66 @@ its cleanup delivery states; retirement retains its distinct CANCELLED meaning.
 
 Physical retirement references answer whether an admitted object remains referenced.
 They do not determine accounting user, category or multiplicity. The separate
-[Storage Usage semantic inventory](storage-usage.md#reconciliation-source) owns
+[Storage Usage semantic inventory](storage-usage.md#semantic-inventory) owns
 those facts and reads StoredObject.byte_size without consulting the provider.
+
+## Physical operation inventory
+
+Paths below are relative to `backend/`. A = formal durable creation, B = exact existing
+object reacquisition, C = direct-upload admission, D = temporary processing,
+E = Take staging/finalization candidate, F = semantic release, G = formal retirement,
+H = cleanup of unadopted or temporary bytes. Read-only delivery does not grant creation
+or deletion authority. These owners include injected `ObjectStorage` calls, not only the
+shared `object_storage` instance.
+
+| Call site | Class | Physical/semantic authority |
+| --- | --- | --- |
+| `app/modules/storage_objects/persistence.py`: `object_to_row`, `object_from_bytes`, `object_from_row` | A | Immutable fact mapping; the byte factory is used by fixtures, not product admission |
+| `app/modules/storage_objects/writes.py`: `prepare_object_write`, `prepare_write`, `perform_write`, `inspect_write`, `finalize_write`, `write_object` | A/B | Sole ordinary server put; committed PREPARED and WRITTEN generation phases |
+| Same file: `adopt_written_object`, `retain_existing_object`, `receipt_for_intent` | A/B | Exact intent/generation/fact verification and retirement-fenced reference admission |
+| `app/modules/uploads/service.py`: `create_upload`; `repository.py`: `get_upload_object_by_sha256` | A/B | Quota hold, Upload-scoped reuse/key, write/adopt, UPLOAD allocation; no cross-domain SHA deduplication |
+| `app/modules/revisions/service.py`: `_append`; `writer.py`: `write`, `_unused` | A/B | Canonical source prewrite, parent re-admission, source/head/consequences/adoption/accounting; unused receipt releases capacity and remains intent cleanup-owned |
+| `scripts/seed_integration_user.py`: `seed_user` | A | Explicit fixture key existence check, same source write and RevisionWriter admission |
+| `app/modules/import_jobs/pipeline/artifact_recorder.py`: `_build_file_item`; `execution_recorder.py`: `replace_artifacts` | A/B/D/F | Job-owned review MusicXML prewrite and generation handoff; canonical artifact adoption and TEMP_IMPORT accounting |
+| `app/modules/import_jobs/review/service.py`: `confirm`, `update` | A/B/F | Canonical revision source and replacement Review artifact writes; confirmation releases temporary Import ownership |
+| `app/modules/score_assets/score_revision_rendering.py`: `_render_records`, `render_for_worker` | A/F | Render writes before Score/delivery re-admission; asset adoption, replacement release and retirement |
+| `app/modules/playback/service.py`: `render`, `_render_worker_asset` | A/F | Audio prewrite, parent/delivery re-admission, replacement adoption/accounting, then old-object retirement |
+| `app/modules/account/avatar_service.py`: `replace_user_avatar`, `clear_user_avatar` | A/F | Normalize to JPEG, immutable per-upload key, User serialization, current reference replacement and previous-object retirement; no user quota allocation |
+| `app/modules/account/router.py`: `read_avatar` | Read | Current User avatar reference admits a signed download; filename/key alone grants no authority |
+| `app/modules/practice/bundle/writer.py`: `_prewrite_representations`, `_adopt_ready_bundle`, `ensure_binding` | A/B | Both representation writes precede READY/binding admission; CREATING has null representation FKs; exact read-back verification |
+| `app/modules/performance_takes/upload_reservation/reservation_service.py`: `reserve_upload`, `_replay_reservation`; browser `src/lib/practice/performance-take/save-command.ts` | C/E | Reservation-owned short-lived staging PUT capability and browser upload; no StoredObject authority yet |
+| `app/modules/performance_takes/final_media.py`: `verify` | E | Staging existence, metadata, full-stream hashes, unique lease-key copy and candidate verification |
+| `app/modules/performance_takes/writer.py`: `adopt` | A/E | Documented independent protocol: verified unique candidate becomes StoredObject + Take + business completion + consumed hold + allocation atomically; no ordinary server put bypass |
+| `app/modules/performance_takes/finalization.py`; `upload_reservation/recovery.py` | E | Lease, candidate evidence and known/unknown-COMMIT recovery; no independent physical deletion |
+| `app/modules/uploads/service.py`: `delete_upload` | F | Upload removal and exact accounting release with repo-wide retirement admission |
+| `app/modules/import_jobs/deletion_service.py`: `_release`; `maintenance_service.py`: `cleanup_orphan_uploads` | F | Eligible job/artifact/orphan Upload release, accounting and retirement in the owning transaction; savepoint-isolated orphan units |
+| `app/modules/import_jobs/repository.py`: `delete_artifacts_by_kind` | F | Removes artifact references and returns released object identities; execution owns accounting/retirement after replacement adoption |
+| `app/modules/revisions/derived_asset_retention_service.py`: `cleanup_for_score` | F | Score-scoped asset release, logical accounting and retirement in one worker-owned transaction |
+| `app/modules/scores/deletion_executor.py`: `execute` | F | Score graph/source/assets/inputs release; retained Upload reclassification stays distinct from physical retirement |
+| `app/modules/performance_takes/service.py`: `delete_take` | F | Recording reference/accounting release and retirement; Manifest/reservation lineage remains |
+| `app/modules/practice/bundle/retention.py`: `_retire`, `retire_unowned`, `discard_creation`, `recover_stale_creating`, `collect_unowned_ready` | F/H | Binding/Bundle lifecycle selects semantic cleanup; no local physical reference-count substitute |
+| `app/modules/storage_objects/retirement.py`: `retain_for_reference`, `retire_if_unreferenced`, `retire_after_release` | B/F/G | StoredObject → retirement locks; all semantic FKs checked; durable deletion fence cannot be cancelled |
+| `app/worker/execution/stored_object_retirement.py`: `_execute` | G | Sole formal-object physical deletion; committed deletion fence, attempt/snapshot/reference/FK validation, idempotent storage delete and retained history |
+| `app/worker/execution/object_write_cleanup.py`: `execute_object_write_cleanup_task` | H | Intent-generation cleanup only; existing matching StoredObject prevents physical deletion |
+| `app/modules/performance_takes/upload_reservation/cleanup.py`: `cleanup_expired_reservations` | E/H | Reservation-owned staging/candidate grace, lease and reference evidence; never formal recording retirement |
+| `app/modules/import_jobs/pipeline/*`, `app/processing/*`, `app/modules/rendering/*` | D/H | Disposable worker-local materialization/render intermediates under WORK_ROOT; filesystem cleanup is not durable ObjectStorage deletion |
+| `app/storage/s3_compatible.py`; `app/storage/async_adapter.py` | Adapter | Configured provider put/copy/delete/metadata/capability primitives; async scheduling carries no product ownership |
+| `scripts/verify_practice_acoustic_model_asset.py`: `verify_asset` | Deployment distribution | Manifest-identified model artifact, outside customer semantic resources: private-bucket validation, explicit conditional publish, metadata/full-byte verification; no StoredObject row or product quota |
+
+All nine semantic FKs are explicitly registered in `storage_objects/references.py`:
+Upload, Take recording, ImportArtifact, Revision source, render asset, playback asset,
+two Bundle representations and current User avatar. Each uses RESTRICT. Retirement's
+SET NULL FK retains operation evidence and is deliberately excluded from semantic
+ownership. Model-FK inventory tests require explicit review of every added reference.
+
+Production fact assignments and SQL mutations are confined to physical creation; no
+production path updates admitted key/size/SHA/type facts. Test fixtures construct physical
+rows directly to represent persisted states; migrations define/backfill schema and durable
+protocol evidence. Neither is an additional runtime admission path. The operational model
+publisher remains separate from customer-object admission and uses its current metadata
+port. No Storage Objects code imports business key builders, Usage or Quota.
+
+Replacement transactions acquire all applicable write intents before retirement locks.
+Import replacement defers retirement until all new artifact references/accounting are
+admitted. Playback replacement follows the same order. This preserves the shared parent →
+Intent → StoredObject → retirement direction without moving business lifecycle policy.

@@ -8,6 +8,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy import (
     BigInteger,
     Column,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -41,6 +42,10 @@ class StoredObjectRetirementStatus(StrEnum):
 class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "stored_object_retirements"
     __table_args__ = (
+        CheckConstraint(
+            "deletion_fenced_at IS NULL OR status <> 'CANCELLED'",
+            name="ck_object_retirement_deletion_fence",
+        ),
         delivery_attempt_token_constraint(
             name="ck_stored_object_retirements_attempt_token",
             processing_status=StoredObjectRetirementStatus.PROCESSING,
@@ -91,6 +96,7 @@ class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     dispatched_at: datetime | None = delivery_optional_timestamp_field()
     started_at: datetime | None = delivery_optional_timestamp_field()
     completed_at: datetime | None = delivery_optional_timestamp_field()
+    deletion_fenced_at: datetime | None = delivery_optional_timestamp_field()
     failure_detail: str | None = failure_detail_field()
     created_at: datetime = Field(
         default_factory=utc_now,

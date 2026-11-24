@@ -62,7 +62,10 @@ def verify_asset(publish: bool, report: Path, model: Path) -> dict:
         if not private:
             raise RuntimeError("ASSET_BUCKET_NOT_PRIVATE")
         exists = storage.exists(MODEL_ASSET.storage_key)
-        if exists and storage.size_bytes(MODEL_ASSET.storage_key) != MODEL_ASSET.byte_size:
+        if (
+            exists
+            and storage.object_metadata(MODEL_ASSET.storage_key).size_bytes != MODEL_ASSET.byte_size
+        ):
             raise RuntimeError("EXISTING_CONTENT_ADDRESSED_OBJECT_SIZE_MISMATCH")
         if not exists:
             if not publish:

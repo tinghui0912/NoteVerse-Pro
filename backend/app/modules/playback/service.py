@@ -143,7 +143,6 @@ class PlaybackGenerationService:
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             if previous is not None:
                 db.delete(previous)
-                retire_after_release(db, previous.stored_object_id)
                 db.flush()
             asset = build_playback_asset_record(
                 asset_uuid=asset_uuid,
@@ -176,6 +175,8 @@ class PlaybackGenerationService:
                     object_id=previous_usage.asset_uuid,
                     storage_key=previous_usage.storage_key,
                 )
+            if previous is not None:
+                retire_after_release(db, previous.stored_object_id)
             db.commit()
         except Exception:
             db.rollback()
@@ -305,7 +306,6 @@ class PlaybackGenerationService:
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
             if previous is not None:
                 db.delete(previous)
-                retire_after_release(db, previous.stored_object_id)
                 db.flush()
             asset = build_playback_asset_record(
                 asset_uuid=asset_uuid,
@@ -338,6 +338,8 @@ class PlaybackGenerationService:
                     object_id=previous_usage.asset_uuid,
                     storage_key=previous_usage.storage_key,
                 )
+            if previous is not None:
+                retire_after_release(db, previous.stored_object_id)
             if not playback_outbox_service.complete(db, outbox_uuid, lease=lease):
                 raise StaleDeliveryAttempt("Playback completion lost execution ownership")
             db.flush()

@@ -53,7 +53,7 @@ def asset(verifier, monkeypatch, tmp_path):
         bucket="test-objects",
         region="test",
         exists=Mock(return_value=True),
-        size_bytes=Mock(return_value=len(data)),
+        object_metadata=Mock(return_value=SimpleNamespace(size_bytes=len(data))),
     )
     factory = Mock(return_value=storage)
     monkeypatch.setattr(verifier, "S3CompatibleObjectStorage", factory)
@@ -92,7 +92,7 @@ def test_existing_private_object_is_streamed_verified_and_closed(verifier, asset
     assert receipt["remoteSha256"] == hashlib.sha256(asset.data).hexdigest()
     assert receipt["uploaded"] is False
     asset.storage.exists.assert_called_once_with(verifier.MODEL_ASSET.storage_key)
-    asset.storage.size_bytes.assert_called_once_with(verifier.MODEL_ASSET.storage_key)
+    asset.storage.object_metadata.assert_called_once_with(verifier.MODEL_ASSET.storage_key)
     assert asset.client.get_object.call_args.kwargs["Key"] == verifier.MODEL_ASSET.storage_key
     asset.client.put_object.assert_not_called()
     asset.body.close.assert_called_once_with()
@@ -167,3 +167,11 @@ def test_cli_requires_an_explicit_receipt_path(tmp_path):
     assert result.returncode == 2
     assert "--report" in result.stderr
     assert list(tmp_path.iterdir()) == []
+
+
+def test_existing_model_metadata_mismatch_blocks_publication(verifier, asset):
+    asset.storage.object_metadata.return_value.size_bytes += 1
+    receipt = verifier.verify_asset(True, asset.report, asset.model)
+    assert receipt["failure"]["code"] == "EXISTING_CONTENT_ADDRESSED_OBJECT_SIZE_MISMATCH"
+    asset.client.put_object.assert_not_called()
+    asset.client.get_object.assert_not_called()

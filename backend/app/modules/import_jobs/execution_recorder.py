@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.storage_objects.retirement import retire_after_release
 from app.modules.storage_objects.writes import (
     adopt_written_object,
     receipt_for_intent,
@@ -165,7 +166,7 @@ class ImportExecutionRecorder:
             for artifact in self.repository.list_artifacts(db, job_id)
             if artifact.kind == kind
         ]
-        self.repository.delete_artifacts_by_kind(db, job_id, kind)
+        released_objects = self.repository.delete_artifacts_by_kind(db, job_id, kind)
         created: list[ImportArtifact] = []
         for item in items:
             artifact = ImportArtifact(
@@ -206,6 +207,8 @@ class ImportExecutionRecorder:
                 object_id=artifact.artifact_uuid,
                 storage_key=artifact.stored_object.object_key,
             )
+        # Acquire all write/adoption fences before old object retirement locks.
+        retire_after_release(db, *released_objects)
         db.commit()
 
 
