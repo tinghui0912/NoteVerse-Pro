@@ -12,11 +12,13 @@ from app.db.models.storage_usage import (
 
 class StorageUsageRepository:
     def account(
-        self, db: Session, user_id: int, *, lock: bool = False
+        self, db: Session, user_id: int, *, lock: bool = False, skip_locked: bool = False
     ) -> StorageUsageAccount | None:
         statement = select(StorageUsageAccount).where(StorageUsageAccount.user_id == user_id)
         if lock:
-            statement = statement.with_for_update().execution_options(populate_existing=True)
+            statement = statement.with_for_update(skip_locked=skip_locked).execution_options(
+                populate_existing=True
+            )
         return db.execute(statement).scalar_one_or_none()
 
     def counter(

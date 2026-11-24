@@ -6,6 +6,7 @@ from app.core.settings.revision_metadata_delivery import RevisionMetadataDeliver
 from app.core.settings.object_writes import ObjectWriteSettings
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.settings.account_deletion import AccountDeletionSettings
 from app.core.settings.observability import ObservabilitySettings
 from app.core.settings.database import DatabaseSettings
 from app.core.settings.account_email_link import AccountEmailLinkSettings
@@ -36,6 +37,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(
+    AccountDeletionSettings,
     DerivedAssetRetentionSettings,
     RevisionMetadataDeliverySettings,
     ObjectWriteSettings,

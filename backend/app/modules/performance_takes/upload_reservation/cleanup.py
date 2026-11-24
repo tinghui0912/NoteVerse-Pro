@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logger import logger
 from app.db.models.stored_object import StoredObject
-from app.db.models import PerformanceTake, PerformanceTakeUploadReservation
+from app.db.models import PerformanceTake, PerformanceTakeUploadReservation, User
 from app.shared.performance_take_upload import UploadReservationStatus
 from app.modules.performance_takes.upload_reservation.persistence import (
     apply_transition,
@@ -66,6 +66,19 @@ class UploadReservationCleanupService:
             # Commit recovery before slow storage IO. A candidate is eligible
             # only after its lease has relinquished it and its grace has elapsed.
             with db.begin():
+                # The cleanup owner may be tombstoned, but final Account erasure
+                # must not remove its quota lineage during this DB phase.
+                owner = db.scalar(
+                    select(User.id)
+                    .where(User.id == user_id)
+                    .with_for_update(read=True, key_share=True)
+                )
+                if owner is None:
+                    if db.get(PerformanceTakeUploadReservation, row_id) is not None:
+                        raise RuntimeError("Take cleanup lost its User lifecycle authority")
+                    continue
+                if db.get(PerformanceTakeUploadReservation, row_id) is None:
+                    continue
                 quota.lock_user(db, user_id)
                 row = db.scalar(
                     select(PerformanceTakeUploadReservation)
@@ -116,6 +129,17 @@ class UploadReservationCleanupService:
                     "performance_take_upload_reservation.cleanup_object_delete_failed"
                 )
             with db.begin():
+                owner = db.scalar(
+                    select(User.id)
+                    .where(User.id == user_id)
+                    .with_for_update(read=True, key_share=True)
+                )
+                if owner is None:
+                    if db.get(PerformanceTakeUploadReservation, row_id) is not None:
+                        raise RuntimeError("Take cleanup lost its User lifecycle authority")
+                    continue
+                if db.get(PerformanceTakeUploadReservation, row_id) is None:
+                    continue
                 quota.lock_user(db, user_id)
                 row = db.scalar(
                     select(PerformanceTakeUploadReservation)

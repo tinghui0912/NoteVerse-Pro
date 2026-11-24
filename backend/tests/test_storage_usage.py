@@ -1,4 +1,5 @@
 from __future__ import annotations
+from uuid import uuid4
 from app.composition.storage_resources import storage_quota_service
 from tests.support.quota import admit_hold
 from tests.support.quota import allocate_hold
@@ -371,7 +372,7 @@ def test_upload_quota_exceeded_does_not_store_file(
         },
     )()
     with pytest.raises(ValidationException) as exc_info:
-        service.create_upload(db, user, upload)  # type: ignore[arg-type]
+        service.create_upload(db, user, upload, client_request_id=uuid4().hex)  # type: ignore[arg-type]
 
     assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
@@ -401,6 +402,7 @@ def test_upload_api_returns_storage_quota_error_without_storing_file(
     try:
         response = client.post(
             "/api/v1/uploads",
+            data={"client_request_id": uuid4().hex},
             files={"file": ("too-large.png", image_bytes(), "image/png")},
         )
     finally:
@@ -438,6 +440,7 @@ def test_upload_api_hides_storage_key(
     try:
         response = client.post(
             "/api/v1/uploads",
+            data={"client_request_id": uuid4().hex},
             files={"file": ("score.png", image_bytes(), "image/png")},
         )
     finally:
@@ -930,8 +933,8 @@ def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
             io.BytesIO(content), filename=name, headers=Headers({"content-type": "image/png"})
         )
 
-    first = service.create_upload(db, user, upload("first.png"))
-    second = service.create_upload(db, user, upload("second.png"))
+    first = service.create_upload(db, user, upload("first.png"), client_request_id=uuid4().hex)
+    second = service.create_upload(db, user, upload("second.png"), client_request_id=uuid4().hex)
     blobs = session.scalars(select(StoredObject)).all()
     assert len(blobs) == 1 and blobs[0].object_key == key
     uploads = session.scalars(select(Upload)).all()
@@ -940,8 +943,10 @@ def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
     if not preexisting_object:
         put.assert_called_once_with(key=key, content=content, content_type="image/png")
     service.delete_upload(db, user, first.upload_id)
+    db.commit()
     assert storage.exists(key)
     service.delete_upload(db, user, second.upload_id)
+    db.commit()
     assert storage.exists(key)
     from tests.support.retirement import drain_retirements
 
@@ -979,7 +984,7 @@ def test_uploads_failed_upload_retires_only_newly_written_bytes(
         io.BytesIO(content), filename="image.png", headers=Headers({"content-type": "image/png"})
     )
     with pytest.raises(FileException):
-        service.create_upload(session, session.get(User, 1), upload)
+        service.create_upload(session, session.get(User, 1), upload, client_request_id=uuid4().hex)
     assert storage.exists(key)
     from app.db.models import ObjectWriteIntent
     from tests.support.write_cleanup import drain_write_cleanup

@@ -10,6 +10,16 @@ export type ClientOptions = {
 export type AccessOrigin = 'OWNER' | 'MEMBERSHIP';
 
 /**
+ * AccountDeletionRead
+ */
+export type AccountDeletionRead = {
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+};
+
+/**
  * ApiErrorResponse
  *
  * Machine-readable application failure; presentation remains client-owned.
@@ -117,6 +127,10 @@ export type BodyAuthLogin = {
  */
 export type BodyUploadsCreate = {
     /**
+     * Client Request Id
+     */
+    client_request_id: string;
+    /**
      * File
      */
     file: Blob | File;
@@ -174,6 +188,16 @@ export type CustomFixedBpmTempoPlanSelection = {
  * CustomerErrorCode
  */
 export type CustomerErrorCode = 'internal_error' | 'validation_error' | 'resource_not_found' | 'resource_already_exists' | 'business_rule_violation' | 'unknown_error' | 'auth_failed' | 'unauthorized' | 'token_invalid_expired' | 'csrf_token_invalid' | 'request_origin_invalid' | 'account_inactive' | 'invalid_credentials' | 'email_mismatch' | 'email_invalid' | 'email_delivery_unavailable' | 'reset_token_invalid' | 'request_too_frequent' | 'no_access' | 'no_edit_access' | 'no_delete_access' | 'no_guest_preview_access' | 'no_download_access' | 'task_error' | 'task_timeout' | 'job_not_found' | 'job_running' | 'no_upload_ids' | 'input_file_missing' | 'score_recognition_failed' | 'score_metadata_conflict' | 'score_not_found' | 'revision_not_found' | 'revision_conflict' | 'revision_content_invalid' | 'xml_not_found' | 'score_preview_failed' | 'score_playback_failed' | 'score_fingering_failed' | 'invalid_hand_type' | 'invalid_depth' | 'file_error' | 'file_not_found' | 'file_read_failed' | 'file_save_failed' | 'file_copy_failed' | 'file_delete_failed' | 'file_type_not_allowed' | 'storage_backend_unavailable' | 'no_file_selected' | 'storage_quota_exceeded' | 'quota_check_unavailable' | 'guest_preview_already_enabled' | 'guest_preview_not_enabled' | 'guest_preview_not_found' | 'invite_not_found' | 'invite_expired' | 'invite_revoked' | 'invite_declined' | 'invite_already_accepted' | 'invite_email_mismatch' | 'membership_not_found' | 'notification_not_found' | 'practice_score_invalid' | 'practice_bundle_failed' | 'practice_scope_invalid' | 'practice_activity_conflict' | 'no_practice_access' | 'user_not_found' | 'email_not_found' | 'current_password_required' | 'current_password_wrong' | 'password_too_short' | 'no_avatar' | 'avatar_process_failed' | 'feature_temporarily_unavailable' | 'excel_not_available';
+
+/**
+ * DeleteAccountRequest
+ */
+export type DeleteAccountRequest = {
+    /**
+     * Current Password
+     */
+    current_password: string;
+};
 
 /**
  * EmailChangeConfirmedRead
@@ -2887,11 +2911,11 @@ export type StorageUsageQuotaRead = {
     /**
      * Available Bytes
      */
-    available_bytes: number | null;
+    available_bytes: number;
     /**
      * Limit Bytes
      */
-    limit_bytes: number | null;
+    limit_bytes: number;
     /**
      * Reserved Bytes
      */
@@ -4085,6 +4109,35 @@ export type LibraryScoresBatchMoveResponses = {
 };
 
 export type LibraryScoresBatchMoveResponse = LibraryScoresBatchMoveResponses[keyof LibraryScoresBatchMoveResponses];
+
+export type AccountDeleteData = {
+    body: DeleteAccountRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/me';
+};
+
+export type AccountDeleteErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type AccountDeleteError = AccountDeleteErrors[keyof AccountDeleteErrors];
+
+export type AccountDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    202: AccountDeletionRead;
+};
+
+export type AccountDeleteResponse = AccountDeleteResponses[keyof AccountDeleteResponses];
 
 export type AccountAvatarDeleteData = {
     body?: never;

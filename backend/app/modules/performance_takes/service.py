@@ -162,7 +162,8 @@ class PerformanceTakeService:
         db: Session,
         user_id: int,
         take_id: str,
-    ) -> None:
+    ) -> list[str]:
+        storage_usage_service.committed_bytes(db, user_id, lock=True)
         take = self.repository.get_by_uuid(db, user_id, take_id, lock=True)
         if take is None:
             raise ResourceNotFoundException(
@@ -172,7 +173,6 @@ class PerformanceTakeService:
         facts = performance_take_facts_from_row(take)
         object_id = take.recording_object_id
         db.delete(take)
-        operations = retire_after_release(db, object_id)
         storage_usage_service.record_release(
             db,
             user_id=user_id,
@@ -183,8 +183,4 @@ class PerformanceTakeService:
             object_id=take_id,
             storage_key=facts.recording_object.object_key,
         )
-        db.commit()
-        from app.worker.dispatch.stored_object_retirement import dispatch_retirements_best_effort
-
-        dispatch_retirements_best_effort(operations)
-        return None
+        return retire_after_release(db, object_id)

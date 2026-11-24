@@ -12,7 +12,8 @@ const fake = vi.hoisted(() => ({locale: 'en', toast: vi.fn(), api: {getSecurityO
 vi.mock('./api', () => ({accountSecurityApi: fake.api}));
 vi.mock('@/hooks/use-toast', () => ({useToast: () => ({toast: fake.toast})}));
 vi.mock('next-intl', () => ({useLocale: () => fake.locale, useTranslations: () => (key: string) => key}));
-vi.mock('@/i18n/routing', () => ({routing: {defaultLocale: 'en'}, Link: ({children}: PropsWithChildren) => <>{children}</>}));
+vi.mock('@/features/authentication/session/authentication-context', () => ({useAuthentication: () => ({clearPrincipal: vi.fn()})}));
+vi.mock('@/i18n/routing', () => ({useRouter: () => ({replace: vi.fn()}),routing: {defaultLocale: 'en'}, Link: ({children}: PropsWithChildren) => <>{children}</>}));
 let client: QueryClient;
 beforeEach(() => { vi.resetAllMocks(); fake.locale = 'en'; client = new QueryClient({defaultOptions: {queries: {retry: false}}}); });
 afterEach(() => client.clear());

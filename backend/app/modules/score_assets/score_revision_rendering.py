@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.score_access.queries import active_score_predicate
 from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release
@@ -68,7 +69,7 @@ class ScoreRevisionRenderService:
         score = db.execute(
             select(Score).where(
                 Score.score_uuid == score_uuid,
-                Score.__table__.c.deleted_at.is_(None),
+                active_score_predicate(),
             )
         ).scalar_one_or_none()
         if score is None:
@@ -125,6 +126,7 @@ class ScoreRevisionRenderService:
             assert score is not None
             manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
+            storage_usage_service.committed_bytes(db, score.owner_user_id, lock=True)
             new_records = [
                 build_render_asset_record(
                     stored_object=adopt_written_object(db, item.pop("written")),
@@ -145,7 +147,6 @@ class ScoreRevisionRenderService:
             previous_usage = render_asset_usage(previous)
             for item in previous:
                 db.delete(item)
-                retire_after_release(db, item.stored_object_id)
             db.flush()
             for item in new_records:
                 db.add(item)
@@ -171,6 +172,7 @@ class ScoreRevisionRenderService:
                     object_id=usage.asset_uuid,
                     storage_key=usage.storage_key,
                 )
+            retire_after_release(db, *(item.stored_object_id for item in previous))
             if not revision_render_delivery.complete(db, outbox_uuid, lease=lease):
                 raise StaleDeliveryAttempt("Render completion lost execution ownership")
             db.flush()

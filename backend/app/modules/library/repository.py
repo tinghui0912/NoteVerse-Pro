@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.score_access.queries import active_score_predicate
 
 from typing import TypeAlias
 from datetime import datetime
@@ -71,7 +72,7 @@ class LibraryRepository:
             select(
                 Score.id, Score.score_uuid, accessible_score_predicate(user_id).label("accessible")
             )
-            .where(Score.score_uuid.in_(score_uuids), Score.deleted_at.is_(None))
+            .where(Score.score_uuid.in_(score_uuids), active_score_predicate())
             .order_by(Score.id)
         ).all()
         return [(row.id, row.score_uuid, row.accessible) for row in rows]

@@ -416,6 +416,10 @@ def postgres_score(monkeypatch):
         command.upgrade(config, "head")
         with Session(engine) as db:
             db.add(User(id=1, email="deletion@example.com", password_hash="hash"))
+            db.flush()
+            from app.composition.storage_resources import provision_storage_resources
+
+            provision_storage_resources(db, 1)
             db.commit()
             add_active_score_with_head_revision(
                 db,

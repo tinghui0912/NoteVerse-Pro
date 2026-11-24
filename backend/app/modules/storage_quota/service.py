@@ -36,6 +36,18 @@ class StorageQuotaService:
         used = self.usage.committed_bytes(db, user_id, lock=True)
         return quota, used
 
+    def try_lock_user(self, db: Session, user_id: int) -> bool:
+        """Nonblocking capacity fence for final subject erasure, with no missing-authority fallback.
+
+        The caller releases acquired locks at its transaction boundary even when busy.
+        It must not wait on accounting while holding an exclusive subject parent lock:
+        an accounting audit insert may itself need that FK parent.
+        """
+        if self.repository.entitlement(db, user_id, lock=True, skip_locked=True) is None:
+            self.entitlements.resolve(db, user_id)
+            return False
+        return self.usage.try_lock_committed_bytes(db, user_id) is not None
+
     def create_hold(
         self,
         db: Session,

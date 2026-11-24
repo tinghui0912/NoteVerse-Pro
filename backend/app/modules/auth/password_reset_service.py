@@ -108,7 +108,7 @@ class PasswordResetService:
         email = str(request.email).strip().lower()
         result = db.execute(select(User).where(User.email == email))
         user = result.scalars().one_or_none()
-        if not user or not user.is_active:
+        if not user or not user.is_active or user.deleted_at is not None:
             return
 
         user_id = require_persisted_id(user.id, entity="user")

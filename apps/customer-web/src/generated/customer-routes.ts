@@ -3,6 +3,7 @@ export const customerRoutes = {
   accountAvatarDelete: { method: "DELETE", url: "/api/v1/me/avatar" },
   accountAvatarResolve: { method: "GET", url: "/api/v1/me/avatars/{filename}" },
   accountAvatarUpload: { method: "POST", url: "/api/v1/me/avatar" },
+  accountDelete: { method: "DELETE", url: "/api/v1/me" },
   accountEmailChangeRequest: { method: "POST", url: "/api/v1/me/email/change" },
   accountOtherSessionsRevoke: { method: "DELETE", url: "/api/v1/me/sessions" },
   accountPasswordChange: { method: "PUT", url: "/api/v1/me/password" },

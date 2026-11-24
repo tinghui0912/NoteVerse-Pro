@@ -88,7 +88,7 @@ class SessionService:
 
         result = db.execute(select(User).where(User.id == current_token.user_id))
         user = result.scalars().one_or_none()
-        if not user or not user.is_active:
+        if not user or not user.is_active or user.deleted_at is not None:
             current_token.revoked_at = now
             db.commit()
             raise AuthenticationException(

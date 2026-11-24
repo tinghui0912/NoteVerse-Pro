@@ -42,6 +42,7 @@ class DerivedAssetRetentionService:
         score = db.execute(self._score_for_cleanup_statement(score_id)).scalar_one_or_none()
         if score is None:
             return DerivedAssetRetentionResult()
+        storage_usage_service.committed_bytes(db, score.owner_user_id, lock=True)
         protected_ids = set(db.execute(self._protected_revision_ids_statement(score_id)).scalars())
         rendered_pages = list(
             db.execute(

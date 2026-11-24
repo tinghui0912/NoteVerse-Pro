@@ -379,6 +379,14 @@ Import confirmation, and Score deletion retain their domain protocol boundaries.
 Durable-delivery recovery commits lease/state changes and releases database locks before
 broker dispatch; terminal retention cleanup has its own worker-owned transaction.
 
+Account erasure admission tombstones User and persists its durable operation in the
+HTTP command transaction. Worker execution commits one semantic cleanup unit at a
+time, preserves Take staging/candidate cleanup lineage until acknowledged, and verifies
+empty inventory/zero usage before final identity removal. Active resource admission
+uses a User lifecycle fence; final erasure waits for admitted writers. The
+[business resource lifecycle contract](../../docs/architecture/business-resource-lifecycle.md)
+defines the complete ownership matrix and cross-domain lock order.
+
 Routers should only:
 
 - bind request parameters;

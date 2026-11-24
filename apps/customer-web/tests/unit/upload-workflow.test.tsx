@@ -185,6 +185,10 @@ describe('upload workflow storage quota handling', () => {
       description: zhErrors.storage_quota_exceeded,
       variant: 'destructive',
     });
+    const requestIdentity = createUploadMock.mock.calls[0][1];
+    expect(requestIdentity).toEqual(expect.any(String));
+    await act(async () => { await result.current.startRecognition(); });
+    expect(createUploadMock.mock.calls[1][1]).toBe(requestIdentity);
     expect(submitImportJobMock).not.toHaveBeenCalled();
     expect(invalidateSpy).not.toHaveBeenCalledWith({
       queryKey: storageUsageQueryKeys.all,

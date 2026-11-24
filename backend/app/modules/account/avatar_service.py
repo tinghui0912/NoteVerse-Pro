@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
+from app.core.exceptions import ResourceNotFoundException
 from app.db.models import User
 from app.modules.storage_objects.writes import write_object, adopt_written_object
 from app.modules.account.avatar_presentation import avatar_url_for_user
@@ -97,11 +98,13 @@ class AvatarService:
         user = (
             db.execute(
                 select(User)
-                .where(User.id == user_id)
+                .where(User.id == user_id, User.is_active.is_(True), User.deleted_at.is_(None))
                 .with_for_update()
                 .execution_options(populate_existing=True)
             )
-        ).scalar_one()
+        ).scalar_one_or_none()
+        if user is None:
+            raise ResourceNotFoundException("user", str(user_id))
         previous = user.avatar_object
         try:
             current = adopt_written_object(db, written)
@@ -117,13 +120,20 @@ class AvatarService:
         return current.object_key.rsplit("/", 1)[-1], avatar_url_for_user(user) or ""
 
     def clear_user_avatar(self, db: Session, user: User) -> bool:
+        user = db.scalar(
+            select(User)
+            .where(User.id == user.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if user is None:
+            return False
         previous = user.avatar_object
         if previous is None:
             return False
         user.avatar_object = None
         user.avatar_object_id = None
         retire_after_release(db, previous.id)
-        db.commit()
         return True
 
 

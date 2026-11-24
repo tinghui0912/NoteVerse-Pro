@@ -4,6 +4,7 @@ Every path locking both records locks ImportDispatch before ImportJob.
 """
 
 from __future__ import annotations
+from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.storage_objects.reads import StoredObjectReadTarget
 
 from dataclasses import dataclass
@@ -92,6 +93,7 @@ def require_current_attempt(db: Session, lease: ImportExecutionLease) -> ImportJ
     job = lock_dispatch_job(db, dispatch)
     if job.job_uuid != lease.job_uuid:
         raise StaleImportDispatchAttempt("Import execution lease belongs to another job")
+    lock_active_resource_user(db, job.user_id)
     return job
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -35,6 +35,19 @@ CUSTOMER_DELETABLE_IMPORT_JOB_STATES = frozenset(
 class ImportJobDeletionService:
     """Delete import-job rows and their owned temporary storage artifacts."""
 
+    def cleanup_for_account(self, db: Session, user_id: int) -> bool:
+        from app.db.models import User
+
+        if db.scalar(select(User.deleted_at).where(User.id == user_id)) is None:
+            raise RuntimeError("Account cleanup requires a tombstoned User")
+        job = db.scalar(
+            select(ImportJob).where(ImportJob.user_id == user_id).order_by(ImportJob.id).limit(1)
+        )
+        if job is None:
+            return False
+        self._release(db, job, user_id, delete_job=True, account_erasure=True)
+        return True
+
     def delete_job(self, db: Session, job: ImportJob, user_id: int) -> None:
         """Admit customer deletion of a stopped, unconfirmed job under its locks."""
         self._release(db, job, user_id, delete_job=True)
@@ -43,7 +56,7 @@ class ImportJobDeletionService:
         """Release temporary binaries while retaining the job and its provenance."""
         self._release(db, job, user_id, delete_job=False)
 
-    def _release(self, db, job, user_id, *, delete_job):
+    def _release(self, db, job, user_id, *, delete_job, account_erasure=False):
         # Caller-owned confirmation writes must survive the locked refresh below.
         db.flush()
         job_id = require_persisted_id(job.id, entity="import job")
@@ -74,7 +87,7 @@ class ImportJobDeletionService:
             raise UnauthorizedException(
                 code=CustomerErrorCode.NO_ACCESS, details={"job_id": job.job_uuid}
             )
-        if delete_job:
+        if delete_job and not account_erasure:
             if job.state not in CUSTOMER_DELETABLE_IMPORT_JOB_STATES:
                 raise ValidationException(
                     code=CustomerErrorCode.JOB_RUNNING
@@ -82,9 +95,12 @@ class ImportJobDeletionService:
                     else CustomerErrorCode.VALIDATION_ERROR,
                     field="state",
                 )
-        elif job.state == ImportJobState.PROCESSING:
+        elif not account_erasure and job.state == ImportJobState.PROCESSING:
             raise ValidationException(code=CustomerErrorCode.JOB_RUNNING, field="state")
+        storage_usage_service.committed_bytes(db, user_id, lock=True)
         uploads = self._orphan_uploads_after_job_delete(db, job_id)
+        if any(upload.uploader_user_id != user_id for upload, _ in uploads):
+            raise RuntimeError("Import Upload ownership disagrees with its Job")
         artifacts = list(
             (db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id))).scalars()
         )
@@ -119,7 +135,6 @@ class ImportJobDeletionService:
         db.flush()
         for upload, _ in uploads:
             db.delete(upload)
-        retire_after_release(db, *ids)
         for category, kind, identity, key, size in releases:
             storage_usage_service.record_release(
                 db,
@@ -132,39 +147,38 @@ class ImportJobDeletionService:
                 storage_key=key,
             )
 
+        retire_after_release(db, *ids)
+
     def _orphan_uploads_after_job_delete(
-        self,
-        db: Session,
-        job_id: int,
+        self, db: Session, job_id: int
     ) -> list[tuple[Upload, StoredObject]]:
-        uploads = list(
-            (
-                db.execute(
-                    select(Upload, StoredObject)
-                    .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
-                    .join(StoredObject, Upload.stored_object_id == StoredObject.id)
-                    .where(ImportJobUpload.job_id == job_id)
-                )
+        rows = list(
+            db.execute(
+                select(Upload, StoredObject)
+                .join(ImportJobUpload, ImportJobUpload.upload_id == Upload.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
+                .where(ImportJobUpload.job_id == job_id)
+                .order_by(Upload.id)
+                .with_for_update(of=Upload)
             ).all()
         )
-        orphan_uploads: list[tuple[Upload, StoredObject]] = []
-        for upload, _blob in uploads:
-            upload_id = require_persisted_id(upload.id, entity="upload")
-            ref_count = (
-                db.execute(
-                    select(func.count(ImportJobUpload.id)).where(
-                        ImportJobUpload.upload_id == upload_id,
-                        ImportJobUpload.job_id != job_id,
-                    )
-                )
-            ).scalar_one()
-            input_ref_count = (
-                db.execute(
-                    select(func.count(ScoreInputAsset.id)).where(
-                        ScoreInputAsset.upload_id == upload_id,
-                    )
-                )
-            ).scalar_one()
-            if ref_count == 0 and input_ref_count == 0:
-                orphan_uploads.append((upload, _blob))
-        return orphan_uploads
+        ids = [upload.id for upload, _ in rows]
+        other_jobs = set(
+            db.scalars(
+                select(ImportJobUpload.upload_id)
+                .where(ImportJobUpload.upload_id.in_(ids), ImportJobUpload.job_id != job_id)
+                .distinct()
+            )
+        )
+        inputs = set(
+            db.scalars(
+                select(ScoreInputAsset.upload_id)
+                .where(ScoreInputAsset.upload_id.in_(ids))
+                .distinct()
+            )
+        )
+        return [
+            (upload, blob)
+            for upload, blob in rows
+            if upload.id not in other_jobs and upload.id not in inputs
+        ]

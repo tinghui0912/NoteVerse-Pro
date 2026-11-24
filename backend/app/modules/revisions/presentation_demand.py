@@ -2,6 +2,7 @@
 
 from enum import Enum
 
+from app.modules.account.resource_admission import lock_active_resource_user
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -21,12 +22,15 @@ class RevisionPresentationDemand(Enum):
 
 
 def lock_presentation_score(db: Session, score_id: int | None) -> Score | None:
-    return db.execute(
+    score = db.execute(
         select(Score)
         .where(Score.id == score_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     ).scalar_one_or_none()
+    if score is not None and score.deleted_at is None:
+        lock_active_resource_user(db, score.owner_user_id)
+    return score
 
 
 def revision_presentation_demand(

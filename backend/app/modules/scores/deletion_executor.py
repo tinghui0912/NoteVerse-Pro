@@ -1,27 +1,22 @@
 from __future__ import annotations
-from app.composition.storage_resources import storage_quota_service
-from datetime import timedelta
-from app.shared.time import utc_now
 from app.modules.storage_objects.retirement import retire_after_release
 
 from dataclasses import dataclass
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    ImportJobUpload,
     Score,
-    ScoreInputAsset,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionSource,
     StoredObject,
     StorageUsageCategory,
-    Upload,
 )
 from app.modules.scores.cleanup_records import StorageUsageReleaseRecord
+from app.modules.scores.input_asset_lifecycle import score_input_asset_lifecycle
 from app.modules.storage_usage.service import storage_usage_service
 
 from .deletion_delivery import (
@@ -138,40 +133,9 @@ class ScoreDeletionExecutor:
             for asset_uuid, storage_key, size_bytes in audio_rows
         )
         storage_keys.extend(storage_key for _, storage_key, _ in audio_rows)
-        input_rows = list(
-            db.execute(
-                select(
-                    ScoreInputAsset.asset_uuid,
-                    ScoreInputAsset.upload_id,
-                    StoredObject.id,
-                    StoredObject.object_key,
-                    StoredObject.byte_size,
-                )
-                .join(Upload, ScoreInputAsset.upload_id == Upload.id)
-                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
-                .where(ScoreInputAsset.score_id == score_id)
-            ).all()
+        released_input_objects = score_input_asset_lifecycle.release_score_inputs(
+            db, score_id=score_id, user_id=owner_user_id
         )
-        if input_rows:
-            # Reclassification can allocate again after release; hold the admission lock first.
-            storage_quota_service.lock_user(db, owner_user_id)
-        usage_releases.extend(
-            StorageUsageReleaseRecord(
-                category=StorageUsageCategory.INPUT_ASSET,
-                bytes_count=size_bytes or 0,
-                object_type="score_input_asset",
-                object_id=asset_uuid,
-                storage_key=storage_key,
-            )
-            for asset_uuid, _upload_id, _object_id, storage_key, size_bytes in input_rows
-        )
-        upload_ids_to_maybe_delete = sorted(
-            {upload_id for _asset_uuid, upload_id, *_rest in input_rows}
-        )
-        objects_by_upload = {
-            upload_id: (stored_object_id, storage_key)
-            for _asset_uuid, upload_id, stored_object_id, storage_key, _size_bytes in input_rows
-        }
         representations = list(
             db.scalars(select(StoredObject).where(StoredObject.object_key.in_(storage_keys)))
         )
@@ -189,54 +153,9 @@ class ScoreDeletionExecutor:
                 object_id=release.object_id,
                 storage_key=release.storage_key,
             )
-        released_ids = [representation.id for representation in representations]
-        for upload_id in upload_ids_to_maybe_delete:
-            import_refs = (
-                db.execute(
-                    select(func.count(ImportJobUpload.id)).where(
-                        ImportJobUpload.upload_id == upload_id
-                    )
-                )
-            ).scalar_one()
-            input_refs = (
-                db.execute(
-                    select(func.count(ScoreInputAsset.id)).where(
-                        ScoreInputAsset.upload_id == upload_id
-                    )
-                )
-            ).scalar_one()
-            if input_refs:
-                continue
-            upload = db.get(Upload, upload_id)
-            if upload is None:
-                continue
-            if import_refs:
-                # The final InputAsset is gone, but the Upload remains a semantic allocation.
-                hold = storage_quota_service.create_hold(
-                    db,
-                    user_id=upload.uploader_user_id,
-                    category=StorageUsageCategory.UPLOAD,
-                    bytes_count=upload.stored_object.byte_size,
-                    command_key="input-return:" + lease.operation_uuid + ":" + upload.upload_uuid,
-                    expires_at=utc_now() + timedelta(minutes=15),
-                )
-                if not storage_quota_service.consume_hold(db, hold.hold_id):
-                    raise RuntimeError("Reclassification requires fresh capacity admission")
-                storage_usage_service.record_allocation(
-                    db,
-                    user_id=upload.uploader_user_id,
-                    category=StorageUsageCategory.UPLOAD,
-                    bytes_count=upload.stored_object.byte_size,
-                    reason="score_input_returned_to_upload",
-                    object_type="upload",
-                    object_id=upload.upload_uuid,
-                    storage_key=upload.stored_object.object_key,
-                )
-                continue
-            stored_object_id, object_key = objects_by_upload[upload_id]
-            db.delete(upload)
-            db.flush()
-            released_ids.append(stored_object_id)
+        released_ids = [
+            representation.id for representation in representations
+        ] + released_input_objects
         operations = retire_after_release(db, *released_ids)
         if not self.delivery.complete(db, lease):
             raise StaleScoreDeletionAttempt("Deletion attempt lost completion authority")

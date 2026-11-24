@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.account.resource_admission import lock_active_resource_user
 from app.storage import ObjectStorage
 
 from app.shared.performance_take_upload import UploadReservationStatus
@@ -200,6 +201,7 @@ class PerformanceTakeReservationService:
             db, user_id, request.client_request_id
         )
         if existing is not None:
+            lock_active_resource_user(db, user_id)
             self.quota.lock_user(db, user_id)
             existing = self.repository.get_reservation_by_client_request_id(
                 db, user_id, request.client_request_id, lock=True
@@ -255,6 +257,7 @@ class PerformanceTakeReservationService:
         )
         # Save admission holds the Score/Bundle parents before user capacity locks.
         # Recheck the client identity after serialization; a competing creator may have won.
+        lock_active_resource_user(db, user_id)
         self.quota.lock_user(db, user_id)
         existing = self.repository.get_reservation_by_client_request_id(
             db, user_id, request.client_request_id, lock=True
@@ -325,6 +328,7 @@ class PerformanceTakeReservationService:
             db.commit()
         except IntegrityError:
             db.rollback()
+            lock_active_resource_user(db, user_id)
             self.quota.lock_user(db, user_id)
             winner = self.repository.get_reservation_by_client_request_id(
                 db,
@@ -346,6 +350,7 @@ class PerformanceTakeReservationService:
         user_id: int,
         reservation_id: str,
     ) -> None:
+        lock_active_resource_user(db, user_id)
         self.quota.lock_user(db, user_id)
         reservation = self.repository.get_reservation_by_uuid(
             db, user_id, reservation_id, lock=True

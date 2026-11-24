@@ -173,8 +173,10 @@ def assert_schema_parity(engine):
 def assert_bootstrap(engine):
     with engine.connect() as connection:
         assert connection.execute(
-            sa.text("SELECT plan_code, default_limit_bytes FROM storage_plan_policies")
-        ).all() == [("FREE", 104857600)]
+            sa.text(
+                "SELECT plan_code, default_limit_bytes FROM storage_plan_policies ORDER BY plan_code"
+            )
+        ).all() == [("FREE", 104857600), ("PLUS", 5368709120), ("PRO", 21474836480)]
         # Bootstrap includes reference data only, not users or operational history.
         for table in SQLModel.metadata.tables:
             if table not in {"storage_plan_policies"}:
@@ -185,9 +187,9 @@ def test_baseline_upgrade_parity_bootstrap_teardown_and_reupgrade(monkeypatch):
     with postgres_schema_database(monkeypatch) as (engine, config):
         script = ScriptDirectory.from_config(config)
         revisions = list(script.walk_revisions())
-        assert script.get_heads() == ["0003_object_retirement_fence"]
+        assert script.get_heads() == ["0005_account_resource_commands"]
         assert script.get_bases() == ["0001_current_schema"]
-        assert len(revisions) == 3
+        assert len(revisions) == 5
         assert all(
             current.down_revision == parent.revision
             for current, parent in zip(revisions, revisions[1:])

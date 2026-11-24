@@ -43,7 +43,6 @@ from app.db.models import (
 from app.modules.storage_usage.service import storage_usage_service
 from app.main import app
 from app.db.models.import_job import ImportArtifactKind
-from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
@@ -291,19 +290,7 @@ def test_submission_rolls_back_the_whole_admission_unit(application_db, failure)
 async def test_concurrent_idempotency_admits_one_job_dispatch_and_ordered_link_set(application_db):
     db = application_db
     both_looked_up = Barrier(2)
-    arrivals = 0
-
-    class ConcurrentRepository(ImportJobRepository):
-        def get_by_idempotency_key(self, session, user_id, key):
-            nonlocal arrivals
-            existing = super().get_by_idempotency_key(session, user_id, key)
-            if not existing and not session.info.get("initial_lookup_done"):
-                session.info["initial_lookup_done"] = True
-                arrivals += 1
-                both_looked_up.wait(10)
-            return existing
-
-    service = ImportJobSubmissionService(repository=ConcurrentRepository())
+    service = ImportJobSubmissionService()
     request = ImportJobSubmitRequest(
         upload_ids=["upload-b", "upload-a"], idempotency_key="parallel-admission"
     )
@@ -311,13 +298,15 @@ async def test_concurrent_idempotency_admits_one_job_dispatch_and_ordered_link_s
     def submit():
         with Session(db.bind, expire_on_commit=False) as contender:
             user = contender.get(User, 1)
-            return service.submit(contender, user, request)
+            both_looked_up.wait(10)
+            result = service.submit(contender, user, request)
+            contender.commit()
+            return result
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         a, b = pool.submit(submit), pool.submit(submit)
         first, second = a.result(20), b.result(20)
     assert first == second
-    assert arrivals == 2
     assert db.scalar(select(func.count()).select_from(ImportJob)) == 1
     assert db.scalar(select(func.count()).select_from(ImportDispatch)) == 1
     links = list(

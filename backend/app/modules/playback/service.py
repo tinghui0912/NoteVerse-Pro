@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.score_access.queries import active_score_predicate
 from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
 from app.modules.storage_objects.retirement import retire_after_release
@@ -72,7 +73,7 @@ class PlaybackGenerationService:
             db.execute(
                 select(Score).where(
                     Score.score_uuid == score_uuid,
-                    Score.__table__.c.deleted_at.is_(None),
+                    active_score_predicate(),
                 )
             )
         ).scalar_one_or_none()
@@ -122,7 +123,7 @@ class PlaybackGenerationService:
         score = (
             db.execute(
                 select(Score)
-                .where(Score.id == score.id, Score.__table__.c.deleted_at.is_(None))
+                .where(Score.id == score.id, active_score_predicate())
                 .with_for_update()
                 .execution_options(populate_existing=True)
             )
@@ -135,6 +136,7 @@ class PlaybackGenerationService:
                 )
             )
         ).scalar_one_or_none()
+        storage_usage_service.committed_bytes(db, score.owner_user_id, lock=True)
         previous_usage = playback_asset_usage(previous)
         try:
             manifest = get_or_create_execution_manifest(
@@ -202,7 +204,7 @@ class PlaybackGenerationService:
         score = db.execute(
             select(Score).where(
                 Score.score_uuid == score_uuid,
-                Score.__table__.c.deleted_at.is_(None),
+                active_score_predicate(),
             )
         ).scalar_one_or_none()
         if not score:
@@ -298,6 +300,7 @@ class PlaybackGenerationService:
                 ScorePlaybackAsset.kind == asset_kind,
             )
         ).scalar_one_or_none()
+        storage_usage_service.committed_bytes(db, score.owner_user_id, lock=True)
         previous_usage = playback_asset_usage(previous)
         try:
             manifest = get_or_create_execution_manifest(

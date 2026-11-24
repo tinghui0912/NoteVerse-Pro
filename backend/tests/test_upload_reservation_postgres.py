@@ -507,3 +507,57 @@ def test_take_reserve_parent_lock_precedes_user_capacity(postgres_bundle):
     with sessions() as db:
         row = service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
         assert db.get(StorageQuotaHold, row.quota_hold_id) is not None
+
+
+@pytest.mark.parametrize("finalizing", [False, True])
+def test_account_erasure_retains_temporary_cleanup_authority(postgres_bundle, finalizing):
+    from app.modules.performance_takes.account_cleanup import (
+        cleanup_account_take,
+        erase_account_take_history,
+    )
+    from app.modules.performance_takes.upload_reservation.persistence import apply_transition
+    from app.shared.performance_take_upload import UploadReservationStatus
+    from unittest.mock import patch
+
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
+    with sessions() as db:
+        reserved = service.reserve_upload(db, 1, request)
+        row = service.repository.get_reservation_by_uuid(db, 1, reserved.reservation_id)
+        now = utc_now()
+        if finalizing:
+            apply_transition(
+                row,
+                lifecycle_from_row(row).begin_finalize(
+                    lease=FinalizeLease(
+                        "erase-token", "erase-candidate", now + timedelta(minutes=10)
+                    ),
+                    now=now,
+                ),
+                now=now,
+            )
+            storage.put_bytes(key="erase-candidate", content=MEDIA, content_type="audio/webm")
+        storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
+        db.commit()
+        assert cleanup_account_take(db, 1) == "progress"
+        db.commit()
+        db.refresh(row)
+        assert row.status == UploadReservationStatus.CANCELLED
+        assert db.get(StorageQuotaHold, row.quota_hold_id).status == "RELEASED"
+        assert cleanup_account_take(db, 1) == "busy"
+        db.rollback()
+        assert storage.exists(row.staging_object_key)
+        with pytest.raises(RuntimeError, match="lineage"):
+            erase_account_take_history(db, 1)
+        db.rollback()
+        with patch(
+            "app.modules.performance_takes.upload_reservation.cleanup.utc_now",
+            return_value=now + timedelta(hours=2),
+        ):
+            upload_reservation_cleanup_service.cleanup_expired_reservations(
+                db, storage, StorageUsageService()
+            )
+        assert cleanup_account_take(db, 1) == "empty"
+        erase_account_take_history(db, 1)
+        db.commit()
+        assert db.scalar(select(PerformanceTakeUploadReservation)) is None

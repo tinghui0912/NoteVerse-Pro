@@ -1,5 +1,6 @@
 from __future__ import annotations
 from app.composition.storage_resources import storage_quota_service
+from app.modules.account.resource_admission import lock_active_resource_user
 from uuid import uuid4
 from datetime import timedelta
 from app.shared.time import utc_now
@@ -44,9 +45,7 @@ from app.modules.revisions.writer import (
 )
 from app.modules.revisions.post_commit import revision_post_commit
 from app.core.logger import logger
-from app.modules.import_jobs.review.input_promotion import (
-    promote_uploads_to_score_inputs,
-)
+from app.modules.scores.input_asset_lifecycle import score_input_asset_lifecycle
 from app.modules.import_jobs.review.read_model import ImportReviewReadModel
 from app.modules.import_jobs.review.schemas import (
     ImportJobReviewRead,
@@ -146,6 +145,7 @@ class ImportReviewService:
         key = canonical_revision_source_object_key(
             score_uuid=score_uuid, revision_uuid=revision_uuid
         )
+        lock_active_resource_user(db, user_id)
         reservation = storage_quota_service.create_hold(
             db,
             user_id=user_id,
@@ -229,44 +229,13 @@ class ImportReviewService:
                     f"job-confirm:{job_uuid}",
                 ),
             )
-            promoted_inputs = promote_uploads_to_score_inputs(
+            score_input_asset_lifecycle.promote_import_uploads(
                 db,
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_id=score_id,
+                user_id=user_id,
             )
             mark_confirmed(job, now=utc_now())
-            for promoted in promoted_inputs:
-                if promoted.releases_upload_allocation:
-                    storage_usage_service.record_release(
-                        db,
-                        user_id=promoted.uploader_user_id,
-                        category=StorageUsageCategory.UPLOAD,
-                        bytes_count=promoted.size_bytes,
-                        reason="upload_promoted_to_score_input",
-                        object_type="upload",
-                        object_id=promoted.upload_uuid,
-                        storage_key=promoted.storage_key,
-                    )
-                hold = storage_quota_service.create_hold(
-                    db,
-                    user_id=user_id,
-                    category=StorageUsageCategory.INPUT_ASSET,
-                    bytes_count=promoted.size_bytes,
-                    command_key="reclassification:" + promoted.asset_uuid,
-                    expires_at=utc_now() + timedelta(minutes=15),
-                )
-                if not storage_quota_service.consume_hold(db, hold.hold_id):
-                    raise RuntimeError("Reclassification requires fresh capacity admission")
-                storage_usage_service.record_allocation(
-                    db,
-                    user_id=user_id,
-                    category=StorageUsageCategory.INPUT_ASSET,
-                    bytes_count=promoted.size_bytes,
-                    reason="score_input_asset_created",
-                    object_type="score_input_asset",
-                    object_id=promoted.asset_uuid,
-                    storage_key=promoted.storage_key,
-                )
             ImportJobDeletionService().cleanup_binary_artifacts(db, job, user_id)
             admit_import_confirmation_consequences(
                 db,
@@ -352,6 +321,7 @@ class ImportReviewService:
         ).scalar_one()
         if job.user_id != user_id or job.state != ImportJobState.READY_FOR_REVIEW:
             raise ConflictException(CustomerErrorCode.VALIDATION_ERROR, {"job_id": job_uuid})
+        lock_active_resource_user(db, user_id)
         artifact = (
             db.execute(
                 select(ImportArtifact)
@@ -363,6 +333,7 @@ class ImportReviewService:
                 .execution_options(populate_existing=True)
             )
         ).scalar_one()
+        storage_usage_service.committed_bytes(db, user_id, lock=True)
         previous_object = artifact.stored_object
         old_artifact_uuid = artifact.artifact_uuid
         old_storage_key = artifact.stored_object.object_key
@@ -371,7 +342,6 @@ class ImportReviewService:
             artifact.stored_object = adopt_written_object(db, stored)
             artifact.filename = stored.object_key.rsplit("/", 1)[-1]
             db.flush()
-            retire_after_release(db, previous_object.id)
             job.updated_at = utc_now()
             storage_usage_service.record_release(
                 db,
@@ -393,6 +363,7 @@ class ImportReviewService:
                 object_id=artifact.artifact_uuid,
                 storage_key=stored.object_key,
             )
+            retire_after_release(db, previous_object.id)
             db.commit()
         except Exception:
             db.rollback()

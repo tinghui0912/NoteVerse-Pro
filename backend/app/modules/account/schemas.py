@@ -31,3 +31,11 @@ class ProfileRead(ApiModel):
 class AvatarRead(ApiModel):
     avatar_url: str
     filename: str
+
+
+class DeleteAccountRequest(ApiModel):
+    current_password: str
+
+
+class AccountDeletionRead(ApiModel):
+    operation_id: str

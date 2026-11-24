@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from sqlalchemy.orm import Session
+from app.modules.uploads.repository import UploadRepository
 
 from app.core.config import settings
 from app.core.logger import logger
@@ -37,7 +38,16 @@ class ImportJobMaintenanceService:
         for upload in self.repository.list_orphan_uploads(db, cutoff):
             try:
                 with db.begin_nested():
+                    if upload.uploader_user_id is None:
+                        raise RuntimeError("Orphan Upload requires an owner")
+                    storage_usage_service.committed_bytes(db, upload.uploader_user_id, lock=True)
+                    uploads = UploadRepository()
+                    upload = uploads.get_upload_by_uuid(db, upload.upload_uuid, lock=True)
+                    if upload is None or uploads.upload_reference_count(db, upload.id) > 0:
+                        continue
                     blob = db.get(StoredObject, upload.stored_object_id)
+                    if blob is None:
+                        raise RuntimeError("Orphan Upload is missing StoredObject authority")
                     if blob is not None and upload.uploader_user_id is not None and blob.byte_size:
                         storage_usage_service.record_release(
                             db,

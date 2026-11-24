@@ -22,6 +22,10 @@ class StorageQuotaExpiry:
         for user_id, hold_id in repository.expired_candidates(db, instant, limit):
             if repository.entitlement(db, user_id, lock=True, skip_locked=True) is None:
                 if repository.entitlement(db, user_id) is None:
+                    # Account erasure may remove the entire lineage after discovery.
+                    # A surviving hold without entitlement remains an invariant error.
+                    if repository.hold(db, hold_id) is None:
+                        continue
                     raise quota_check_unavailable("user_storage_entitlement")
                 continue
             self.quota.usage.committed_bytes(db, user_id, lock=True)

@@ -195,51 +195,30 @@ def check_database(_: bool = False) -> CheckResult:
 
 def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
-
     from app.db.session import engine
-    from app.modules.storage_quota.entitlements import DEFAULT_STORAGE_PLAN_CODE
+    from app.db.models.storage_quota import StoragePlanCode
 
     try:
         with engine.connect() as connection:
-            row = connection.execute(
-                text(
-                    """
-                    select mode, default_limit_bytes
-                    from storage_plan_policies
-                    where plan_code = :plan_code
-                    """
-                ),
-                {"plan_code": DEFAULT_STORAGE_PLAN_CODE},
-            ).first()
+            rows = connection.execute(
+                text("SELECT plan_code, default_limit_bytes FROM storage_plan_policies")
+            ).all()
     except Exception as exc:
         return _result(
             "storage_quota_policy",
             False,
             f"storage quota policy check failed: {type(exc).__name__}: {exc}",
         )
-
-    if row is None:
+    expected = {code.value for code in StoragePlanCode}
+    if {row.plan_code for row in rows} != expected:
         return _result(
-            "storage_quota_policy",
-            False,
-            f"missing required storage quota policy: {DEFAULT_STORAGE_PLAN_CODE}",
+            "storage_quota_policy", False, "Required FREE/PLUS/PRO storage policies are incomplete"
         )
-    if (
-        (
-            row.mode == "HARD_LIMIT"
-            and (row.default_limit_bytes is None or row.default_limit_bytes < 0)
-        )
-        or (row.mode == "UNLIMITED" and row.default_limit_bytes is not None)
-        or row.mode not in {"HARD_LIMIT", "UNLIMITED"}
-    ):
+    if any(row.default_limit_bytes is None or row.default_limit_bytes < 0 for row in rows):
         return _result(
-            "storage_quota_policy",
-            False,
-            f"storage quota policy has invalid limit: {DEFAULT_STORAGE_PLAN_CODE}",
+            "storage_quota_policy", False, "Storage policy requires finite nonnegative capacity"
         )
-    return _result(
-        "storage_quota_policy", True, f"storage quota policy ready: {DEFAULT_STORAGE_PLAN_CODE}"
-    )
+    return _result("storage_quota_policy", True, "FREE/PLUS/PRO storage quota policies ready")
 
 
 def check_redis(_: bool = False) -> CheckResult:
@@ -292,6 +271,8 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
             "app.worker.tasks.run_mail_outbox_cleanup",
             "app.worker.tasks.run_realtime_maintenance",
             "app.worker.tasks.run_storage_quota_expiry",
+            "app.worker.tasks.account_deletion_task",
+            "app.worker.tasks.run_account_deletion_maintenance",
             "app.worker.tasks.run_derived_asset_cleanup",
             "app.worker.tasks.run_score_deletion_maintenance",
             "app.worker.tasks.score_deletion_task",

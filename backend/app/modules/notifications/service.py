@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.db.models import Notification, NotificationKind, User
@@ -19,6 +19,10 @@ from app.shared.time import utc_now
 
 
 class NotificationService:
+    def erase_recipient_history(self, db: Session, user_id: int) -> None:
+        """User erasure removes private history; foreign actor snapshots survive."""
+        db.execute(delete(Notification).where(Notification.recipient_user_id == user_id))
+
     def __init__(self, repository: NotificationRepository | None = None) -> None:
         self.repository = repository or NotificationRepository()
 
@@ -164,6 +168,9 @@ class NotificationService:
         return NotificationUnreadCountRead(count=self.repository.unread_count(db, user_id))
 
     def mark_read(self, db: Session, notification_uuid: str, user_id: int) -> NotificationRead:
+        from app.modules.account.resource_admission import lock_active_resource_user
+
+        lock_active_resource_user(db, user_id)
         notification = db.scalar(
             select(Notification)
             .where(Notification.notification_uuid == notification_uuid)
@@ -190,6 +197,9 @@ class NotificationService:
         return self._notification_read(db, notification)
 
     def mark_all_read(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
+        from app.modules.account.resource_admission import lock_active_resource_user
+
+        lock_active_resource_user(db, user_id)
         now = utc_now()
         changed = self.repository.mark_all_read_for_user(db, user_id, read_at=now)
         if changed:

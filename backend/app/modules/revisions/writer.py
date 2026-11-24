@@ -1,5 +1,6 @@
 """Single canonical revision persistence algorithm; the use case owns commit."""
 
+from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 
 from dataclasses import dataclass
@@ -103,6 +104,8 @@ class RevisionWriter:
             )
         ):
             raise ValueError("Prepared canonical source identity disagrees with revision")
+        for identity in sorted({score.owner_user_id, command.actor_user_id}):
+            lock_active_resource_user(db, identity)
         hold = storage_quota_service.lock_hold(db, prepared.quota_hold_id)
         if (
             hold.user_id != score.owner_user_id

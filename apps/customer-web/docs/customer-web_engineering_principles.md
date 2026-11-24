@@ -219,3 +219,9 @@ i18n、乐谱渲染和 Practice 输入/时钟/evaluation。测试公开行为与
 文档记录当前事实和稳定规则，架构基线见
 [Customer Web Architecture Baseline](customer-web_architecture_baseline.md)。
 变更能力或 ownership 时同步更新对应文档，不追加日期流水账。
+
+
+Account Security owns permanent account-deletion confirmation. Accepted deletion clears
+the authenticated principal and its private server state; backend domain cleanup remains
+durable background work. Storage Usage presents finite server-projected limits and
+availability. Import upload commands retain a stable request identity across retries.

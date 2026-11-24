@@ -16,6 +16,8 @@ accepted current decisions and their rationale.
 ## Storage Resources
 
 - [Resource Governance](storage-resource-governance.md)
+- [Business Resource Lifecycle and Ownership](business-resource-lifecycle.md)
+- [Storage Schema Execution and Recovery](storage-resource-execution.md)
 - [Object Storage](object-storage.md)
 - [Storage Usage](storage-usage.md)
 - [Storage Quota](storage-quota.md)

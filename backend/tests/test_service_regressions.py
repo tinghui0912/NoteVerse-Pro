@@ -1,4 +1,7 @@
 from __future__ import annotations
+import json
+import hashlib
+from uuid import uuid4
 from tests.support.images import image_bytes
 
 import os
@@ -18,7 +21,6 @@ from app.core.exceptions import (
 from app.db.models.user import User
 from app.db.models.import_job import ImportJobState
 from app.modules.uploads.service import UploadService
-import hashlib
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.modules.storage_objects.persistence import object_from_bytes
@@ -275,8 +277,10 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
     )
     blob = SimpleNamespace(id=9, byte_size=123, object_key="blobs/or/orphan.png")
     repository.list_orphan_uploads.return_value = [upload]
+    db.scalar.return_value = upload
     db.get.return_value = blob
-    db.execute.return_value.scalar_one.return_value = 1
+    db.execute.return_value.scalar_one.return_value = 0
+    db.execute.return_value.scalar_one.return_value = 0
 
     with (
         patch(
@@ -326,12 +330,24 @@ def test_import_job_submission_persists_without_contacting_celery() -> None:
     assert result["state"] == ImportJobState.QUEUED
     assert result["job_id"] == db.add.call_args_list[0].args[0].job_uuid
     assert len(db.add.call_args_list) == 3
-    db.commit.assert_called_once()
+    db.commit.assert_not_called()
 
 
 def test_import_job_submission_reuses_existing_idempotency_key() -> None:
     repository = Mock()
-    repository.get_by_idempotency_key = Mock(return_value=SimpleNamespace(job_uuid="existing-job"))
+    repository.get_by_idempotency_key = Mock(
+        return_value=SimpleNamespace(
+            job_uuid="existing-job",
+            submission_fingerprint=hashlib.sha256(
+                json.dumps(
+                    [["abc"], encode_requested_options({})],
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode()
+            ).hexdigest(),
+        )
+    )
     repository.submission_uploads = Mock()
     service = ImportJobSubmissionService(repository=repository)
     request = SimpleNamespace(upload_ids=["abc"], options={}, idempotency_key="submission-key-1")
@@ -391,7 +407,7 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
             SimpleNamespace(upload_ids=["abc"], options=None, idempotency_key=None),
         )
     assert context.value.code == CustomerErrorCode.FILE_NOT_FOUND
-    db.rollback.assert_called_once()
+    db.rollback.assert_not_called()
     db.commit.assert_not_called()
 
 
@@ -407,12 +423,14 @@ def test_upload_reuses_committed_exact_object_without_rewriting(score_service_se
         session,
         user,
         UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
+        client_request_id=uuid4().hex,
     )
     storage.put_bytes = Mock(wraps=storage.put_bytes)
     second = service.create_upload(
         session,
         user,
         UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
+        client_request_id=uuid4().hex,
     )
     assert second.byte_size == len(image_bytes()) and storage.put_bytes.call_count == 0
     assert len({row.stored_object_id for row in session.scalars(select(Upload))}) == 1
@@ -478,7 +496,7 @@ def test_delete_upload_removes_owned_upload_and_reference() -> None:
     retire.assert_called_once_with(db, 5)
     release_usage.assert_called_once()
     assert release_usage.call_args.kwargs["object_id"] == "upload-owned"
-    db.commit.assert_called_once()
+    db.commit.assert_not_called()
 
 
 @pytest.mark.asyncio

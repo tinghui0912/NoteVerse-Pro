@@ -83,6 +83,10 @@ from .performance_take_upload_reservation import (
 from .stored_object_retirement import StoredObjectRetirement
 
 __all__ = [
+    "UploadCreationRequest",
+    "AccountDeletionOperation",
+    "AccountDeletionStatus",
+    "AccountDeletionPhase",
     "PracticeActivity",
     "GuestPreviewCredential",
     "User",
@@ -150,7 +154,7 @@ __all__ = [
     "PlaybackOutboxStatus",
     "ScorePlaybackAsset",
     "StorageQuotaHold",
-    "StorageQuotaMode",
+    "StoragePlanCode",
     "StorageQuotaHoldStatus",
     "StoragePlanPolicy",
     "UserStorageEntitlement",
@@ -175,6 +179,13 @@ from .storage_quota import (
     StoragePlanPolicy,
     UserStorageEntitlement,
     StorageQuotaHold,
-    StorageQuotaMode,
+    StoragePlanCode,
     StorageQuotaHoldStatus,
+)
+
+from .upload_creation_request import UploadCreationRequest
+from .account_deletion_operation import (
+    AccountDeletionOperation,
+    AccountDeletionStatus,
+    AccountDeletionPhase,
 )

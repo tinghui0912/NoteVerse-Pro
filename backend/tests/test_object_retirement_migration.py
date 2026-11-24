@@ -24,8 +24,10 @@ def test_clean_chain_initializes_fence_without_runtime_operations(monkeypatch):
                 )
         with engine.connect() as connection:
             assert connection.execute(
-                text("SELECT plan_code, mode, default_limit_bytes FROM storage_plan_policies")
-            ).all() == [("FREE", "HARD_LIMIT", 104857600)]
+                text(
+                    "SELECT plan_code, default_limit_bytes FROM storage_plan_policies ORDER BY plan_code"
+                )
+            ).all() == [("FREE", 104857600), ("PLUS", 5368709120), ("PRO", 21474836480)]
             for table in [
                 "users",
                 "user_storage_entitlements",
@@ -79,7 +81,7 @@ def test_downgrade_requires_unfinished_runtime_fence_to_complete(monkeypatch):
         with sessions() as db:
             assert (
                 db.scalar(text("SELECT version_num FROM alembic_version"))
-                == "0003_object_retirement_fence"
+                == "0005_account_resource_commands"
             )
             assert db.scalar(select(StoredObjectRetirement)).deletion_fenced_at == fence
             assert db.get(StoredObject, identity) is not None

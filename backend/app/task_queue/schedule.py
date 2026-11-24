@@ -20,6 +20,10 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
     """
 
     return {
+        "account-deletion-maintenance": {
+            "task": "app.worker.tasks.run_account_deletion_maintenance",
+            "schedule": float(settings.ACCOUNT_DELETION_INTERVAL_SECONDS),
+        },
         "storage-quota-expiry": {
             "task": "app.worker.tasks.run_storage_quota_expiry",
             "schedule": 60.0,

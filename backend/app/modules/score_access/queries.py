@@ -2,11 +2,19 @@
 
 from sqlalchemy import and_, or_, select, exists
 from sqlalchemy.sql.elements import ColumnElement
-from app.db.models import Score, ScoreMembership
+from app.db.models import Score, ScoreMembership, User
 
 
 def active_score_predicate() -> ColumnElement[bool]:
-    return Score.__table__.c.deleted_at.is_(None)
+    return and_(
+        Score.__table__.c.deleted_at.is_(None),
+        exists(
+            select(1)
+            .select_from(User)
+            .where(User.id == Score.owner_user_id, User.__table__.c.deleted_at.is_(None))
+            .correlate(Score)
+        ),
+    )
 
 
 def active_membership_predicate(user_id: int) -> ColumnElement[bool]:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from app.composition.storage_resources import storage_quota_service
+from app.modules.account.resource_admission import lock_active_resource_user
 from uuid import uuid4
 from datetime import timedelta
 from app.shared.time import utc_now
@@ -108,6 +109,8 @@ class RevisionService:
             db.commit()
             return self._read(db, existing)
         revision_uuid = str(uuid.uuid4())
+        for identity in sorted({owner_user_id, user_id}):
+            lock_active_resource_user(db, identity)
         reservation = storage_quota_service.create_hold(
             db,
             user_id=owner_user_id,

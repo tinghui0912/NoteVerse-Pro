@@ -20,6 +20,9 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     email: str = Field(sa_column=Column(String(255), unique=True, nullable=False))
     password_hash: str = Field(sa_column=Column(String(255), nullable=False))
     is_active: bool = Field(default=True, sa_column=Column(Boolean, default=True, nullable=False))
+    deleted_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     email_verified_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),

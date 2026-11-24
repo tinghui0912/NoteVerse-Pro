@@ -4,15 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Mapping, Protocol
 from sqlalchemy.orm import Session
-from app.db.models.storage_quota import StorageQuotaMode, StorageQuotaHoldStatus
+from app.db.models.storage_quota import StoragePlanCode, StorageQuotaHoldStatus
 from app.db.models.storage_usage import StorageUsageCategory
 
 
 @dataclass(frozen=True)
 class EffectiveStorageQuota:
-    plan_code: str
-    mode: StorageQuotaMode
-    limit_bytes: int | None
+    plan_code: StoragePlanCode
+    limit_bytes: int
 
 
 @dataclass(frozen=True)
@@ -20,7 +19,7 @@ class StorageQuotaSnapshot:
     entitlement: EffectiveStorageQuota
     used_bytes: int
     reserved_bytes: int
-    available_bytes: int | None
+    available_bytes: int
     categories: Mapping[StorageUsageCategory, int]
 
 

@@ -1,5 +1,7 @@
 """Lock-bearing live authorization for Practice binding and durable-save mutations."""
 
+from app.modules.score_access.queries import active_score_predicate
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -32,7 +34,7 @@ def lock_live_practice_mutation_access(
             select(Score)
             .where(
                 Score.score_uuid == score_uuid,
-                Score.__table__.c.deleted_at.is_(None),
+                active_score_predicate(),
             )
             .with_for_update()
             .execution_options(populate_existing=True)

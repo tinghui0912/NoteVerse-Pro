@@ -555,3 +555,17 @@ def test_reconciliation_has_no_entitlement_dependency(database):
             .reconcile_user(db, 1)
             .drift
         )
+
+
+@pytest.mark.parametrize("operation", ["record_allocation", "record_release"])
+@pytest.mark.parametrize("amount", [True, False, 1.5, -1, None, "1"])
+def test_accounting_rejects_invalid_amount_without_projection_or_audit_mutation(
+    database, operation, amount
+):
+    with Session(database) as db:
+        with pytest.raises(StorageUsageInvariantError):
+            getattr(usage, operation)(
+                db, user_id=1, category=Category.UPLOAD, bytes_count=amount, reason="invalid"
+            )
+        assert db.get(StorageUsageAccount, 1).used_bytes == 0
+        assert db.scalar(select(func.count()).select_from(StorageUsageEvent)) == 0

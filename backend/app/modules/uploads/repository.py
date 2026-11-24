@@ -1,27 +1,15 @@
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import ImportJobUpload, ScoreInputAsset, StoredObject, Upload
+from app.db.models import (
+    ImportJobUpload,
+    ScoreInputAsset,
+    Upload,
+    UploadCreationRequest,
+)
 
 
 class UploadRepository:
-    def get_upload_object_by_sha256(self, db: Session, sha256: str) -> StoredObject | None:
-        # Upload-domain reuse only; other domains' identical bytes are not candidates.
-        return (
-            db.execute(
-                select(StoredObject)
-                .join(Upload, Upload.stored_object_id == StoredObject.id)
-                .where(StoredObject.sha256 == sha256)
-                .order_by(StoredObject.id)
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-
-    def get_object_by_key(self, db: Session, key: str) -> StoredObject | None:
-        return (
-            db.execute(select(StoredObject).where(StoredObject.object_key == key))
-        ).scalar_one_or_none()
-
     def create_upload(
         self,
         db: Session,
@@ -39,10 +27,23 @@ class UploadRepository:
         db.flush()
         return upload
 
-    def get_upload_by_uuid(self, db: Session, upload_uuid: str) -> Upload | None:
-        return (
-            db.execute(select(Upload).where(Upload.upload_uuid == upload_uuid))
-        ).scalar_one_or_none()
+    def get_upload_by_uuid(
+        self, db: Session, upload_uuid: str, *, lock: bool = False
+    ) -> Upload | None:
+        query = select(Upload).where(Upload.upload_uuid == upload_uuid)
+        if lock:
+            query = query.with_for_update().execution_options(populate_existing=True)
+        return db.scalar(query)
+
+    def creation_request(
+        self, db: Session, user_id: int, key: str, *, lock: bool = False
+    ) -> UploadCreationRequest | None:
+        query = select(UploadCreationRequest).where(
+            UploadCreationRequest.user_id == user_id, UploadCreationRequest.client_request_id == key
+        )
+        if lock:
+            query = query.with_for_update().execution_options(populate_existing=True)
+        return db.scalar(query)
 
     def upload_reference_count(self, db: Session, upload_id: int) -> int:
         import_refs = (

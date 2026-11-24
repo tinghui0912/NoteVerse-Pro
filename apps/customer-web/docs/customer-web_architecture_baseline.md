@@ -330,3 +330,9 @@ policy and session lifetimes remain deployment policy. Generated SDK paths alrea
 include the API prefix, so browser transport base URLs express only the origin.
 `generate:browser-protocol` and `check:browser-protocol` cover both protocol
 projections and native route metadata from committed OpenAPI.
+
+
+Account Security owns permanent account-deletion confirmation. Accepted deletion clears
+the authenticated principal and its private server state; backend domain cleanup remains
+durable background work. Storage Usage presents finite server-projected limits and
+availability. Import upload commands retain a stable request identity across retries.

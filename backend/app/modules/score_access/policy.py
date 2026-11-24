@@ -14,6 +14,7 @@ from app.db.models import (
 from app.db.models.score_access import (
     AccessOrigin,
 )
+from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.score_access.actions import ScoreAction, semantics_for
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_access.roles import membership_capabilities, owner_capabilities
@@ -48,6 +49,8 @@ class ScoreAccessPolicy:
         lock_score: bool = False,
     ) -> ScoreAccessContext:
         score = self.active_score(db, score_uuid, lock_score=lock_score)
+        if lock_score and user_id is not None:
+            lock_active_resource_user(db, user_id)
         if user_id == score.owner_user_id:
             return ScoreAccessContext(score, AccessOrigin.OWNER, owner_capabilities())
         if user_id is not None:

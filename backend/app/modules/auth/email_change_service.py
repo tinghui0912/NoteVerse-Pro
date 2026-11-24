@@ -140,7 +140,7 @@ class EmailChangeService:
         user = next(
             (item for item in user_result.scalars().all() if item.id == record.user_id), None
         )
-        if not user or not user.is_active:
+        if not user or not user.is_active or user.deleted_at is not None:
             raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
         existing_result = db.execute(select(User).where(User.email == record.new_email))

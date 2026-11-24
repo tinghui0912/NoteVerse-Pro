@@ -262,6 +262,15 @@ class UploadReservationLifecycle:
             raise ReservationTransitionError("reservation_not_cancellable")
         return self._terminal(UploadReservationStatus.CANCELLED, now=now)
 
+    def cancel_for_account(self, *, now: datetime) -> ReservationTransition:
+        """Account erasure ends admission while retaining uncertain candidate grace."""
+        if self.status not in {
+            UploadReservationStatus.RESERVED,
+            UploadReservationStatus.FINALIZING,
+        }:
+            return self._transition(self)
+        return self._terminal(UploadReservationStatus.CANCELLED, now=now, unknown_outcome=True)
+
     def complete(self, *, token: str, object_key: str, now: datetime) -> ReservationTransition:
         self.require_current_lease(token=token, object_key=object_key, now=now)
         if self.expires_at <= now:

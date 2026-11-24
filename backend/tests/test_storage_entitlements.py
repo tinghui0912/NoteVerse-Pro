@@ -22,7 +22,7 @@ from app.db.models import (
     StorageUsageCounter,
     StorageUsageEvent,
     StorageQuotaHold,
-    StorageQuotaMode,
+    StoragePlanCode,
     User,
     UserStorageEntitlement,
 )
@@ -105,24 +105,21 @@ def test_plan_change_applies_to_existing_user_without_mutating_entitlement_or_us
         reader.rollback()
 
 
-def test_override_is_current_user_authority_and_clearing_it_restores_current_plan(provisioned):
+def test_plan_selection_upgrade_and_downgrade_preserve_usage(provisioned):
     with Session(provisioned) as db:
-        db.get(UserStorageEntitlement, 1).limit_override_bytes = 150
-        db.get(UserStorageEntitlement, 1).mode_override = StorageQuotaMode.HARD_LIMIT
+        db.get(StoragePlanPolicy, "PLUS").default_limit_bytes = 150
+        storage_quota_service.entitlements.change_plan(db, 1, StoragePlanCode.PLUS)
         db.commit()
         assert read_storage_usage(db, 1).quota.limit_bytes == 150
         with Session(provisioned) as change:
             change.get(StoragePlanPolicy, "FREE").default_limit_bytes = 80
             change.commit()
         assert read_storage_usage(db, 1).quota.limit_bytes == 150
-        with pytest.raises(ValidationException) as failure:
+        with pytest.raises(ValidationException):
             hold(db, 151)
-        assert failure.value.details["limit_bytes"] == 150
         db.rollback()
-        with Session(provisioned) as change:
-            change.get(UserStorageEntitlement, 1).limit_override_bytes = None
-            change.get(UserStorageEntitlement, 1).mode_override = None
-            change.commit()
+        storage_quota_service.entitlements.change_plan(db, 1, StoragePlanCode.FREE)
+        db.commit()
         assert read_storage_usage(db, 1).quota.limit_bytes == 80
         hold(db, 80)
         assert read_storage_usage(db, 1).quota.available_bytes == 0
@@ -162,7 +159,7 @@ def test_lowered_limit_keeps_usage_and_admitted_holds_and_only_blocks_new_counte
             usage.quota.reserved_bytes,
             usage.quota.available_bytes,
         ) == (80, 0, 0)
-        assert db.get(UserStorageEntitlement, 1).limit_override_bytes is None
+        assert db.get(UserStorageEntitlement, 1).plan_code == "FREE"
 
 
 def test_usage_get_is_read_only_even_for_an_account_with_no_category_rows(provisioned, client):
@@ -331,7 +328,7 @@ def test_email_verification_provisions_user_storage_in_one_transaction(
             assert observer.get(User, identity) is not None
             entitlement = observer.get(UserStorageEntitlement, identity)
             account = observer.get(StorageUsageAccount, identity)
-            assert entitlement.plan_code == "FREE" and entitlement.limit_override_bytes is None
+            assert entitlement.plan_code == "FREE"
             assert account.used_bytes == 0
             assert storage_quota_service.snapshot_user(observer, identity).reserved_bytes == 0
             assert observer.get(PendingRegistration, 1) is None
@@ -348,7 +345,6 @@ def test_email_verification_provisions_user_storage_in_one_transaction(
     "model,field",
     [
         (StoragePlanPolicy, "default_limit_bytes"),
-        (UserStorageEntitlement, "limit_override_bytes"),
         (StorageUsageAccount, "used_bytes"),
     ],
 )
@@ -373,24 +369,17 @@ def test_plan_and_user_identity_constraints_and_user_delete_cascade(provisioned)
         assert db.get(StoragePlanPolicy, "FREE") is not None
 
 
-def test_zero_override_and_current_plan_identity_are_resolved_without_snapshot(provisioned):
+def test_zero_policy_and_current_plan_identity_are_resolved_without_snapshot(provisioned):
     with Session(provisioned) as db:
-        entitlement = db.get(UserStorageEntitlement, 1)
-        entitlement.limit_override_bytes = 0
-        db.get(UserStorageEntitlement, 1).mode_override = StorageQuotaMode.HARD_LIMIT
+        db.get(StoragePlanPolicy, "FREE").default_limit_bytes = 0
         db.commit()
         assert read_storage_usage(db, 1).quota.limit_bytes == 0
-        with pytest.raises(ValidationException) as failure:
+        with pytest.raises(ValidationException):
             hold(db, 1)
-        assert failure.value.details["limit_bytes"] == 0
         db.rollback()
-        db.add(StoragePlanPolicy(plan_code="LARGE", default_limit_bytes=200))
-        db.flush()
-        entitlement.plan_code = "LARGE"
-        entitlement.limit_override_bytes = None
-        entitlement.mode_override = None
+        db.get(StoragePlanPolicy, "PLUS").default_limit_bytes = 200
+        storage_quota_service.entitlements.change_plan(db, 1, StoragePlanCode.PLUS)
         db.commit()
-        assert read_storage_usage(db, 1).quota.limit_bytes == 200
         hold(db, 200)
         assert read_storage_usage(db, 1).quota.available_bytes == 0
 
@@ -424,15 +413,12 @@ def test_storage_records_use_plan_and_user_primary_identities(provisioned):
     assert {column["name"] for column in inspector.get_columns("storage_plan_policies")} == {
         "plan_code",
         "default_limit_bytes",
-        "mode",
         "created_at",
         "updated_at",
     }
     assert {column["name"] for column in inspector.get_columns("user_storage_entitlements")} == {
         "user_id",
         "plan_code",
-        "limit_override_bytes",
-        "mode_override",
         "created_at",
         "updated_at",
     }

@@ -9,6 +9,19 @@
         "title": "AccessOrigin",
         "type": "string"
       },
+      "AccountDeletionRead": {
+        "properties": {
+          "operation_id": {
+            "title": "Operation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id"
+        ],
+        "title": "AccountDeletionRead",
+        "type": "object"
+      },
       "ApiErrorResponse": {
         "additionalProperties": false,
         "description": "Machine-readable application failure; presentation remains client-owned.",
@@ -181,6 +194,12 @@
       },
       "Body_uploadsCreate": {
         "properties": {
+          "client_request_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Client Request Id",
+            "type": "string"
+          },
           "file": {
             "contentMediaType": "application/octet-stream",
             "title": "File",
@@ -188,7 +207,8 @@
           }
         },
         "required": [
-          "file"
+          "file",
+          "client_request_id"
         ],
         "title": "Body_uploadsCreate",
         "type": "object"
@@ -343,6 +363,19 @@
         ],
         "title": "CustomerErrorCode",
         "type": "string"
+      },
+      "DeleteAccountRequest": {
+        "properties": {
+          "current_password": {
+            "title": "Current Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password"
+        ],
+        "title": "DeleteAccountRequest",
+        "type": "object"
       },
       "EmailChangeConfirmedRead": {
         "properties": {
@@ -5264,26 +5297,12 @@
       "StorageUsageQuotaRead": {
         "properties": {
           "available_bytes": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Available Bytes"
+            "title": "Available Bytes",
+            "type": "integer"
           },
           "limit_bytes": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Limit Bytes"
+            "title": "Limit Bytes",
+            "type": "integer"
           },
           "reserved_bytes": {
             "title": "Reserved Bytes",
@@ -7545,6 +7564,75 @@
         "summary": "Batch Move Library Scores",
         "tags": [
           "Library"
+        ]
+      }
+    },
+    "/api/v1/me": {
+      "delete": {
+        "operationId": "accountDelete",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletionRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Delete Account",
+        "tags": [
+          "Account"
         ]
       }
     },

@@ -1,3 +1,4 @@
+from app.modules.score_access.queries import active_score_predicate
 import re
 
 from app.shared.time import utc_now
@@ -61,7 +62,7 @@ class GuestPreviewService:
             .where(
                 Score.score_uuid == score_uuid,
                 Score.owner_user_id == user_id,
-                Score.__table__.c.deleted_at.is_(None),
+                active_score_predicate(),
             )
             .with_for_update()
             .execution_options(populate_existing=True)
@@ -167,7 +168,7 @@ class GuestPreviewService:
             .join(GuestPreviewCredential, GuestPreviewCredential.score_id == Score.id)
             .where(
                 GuestPreviewCredential.token_hash == guest_preview_token_hash(token),
-                Score.__table__.c.deleted_at.is_(None),
+                active_score_predicate(),
             )
             .execution_options(populate_existing=True)
         )

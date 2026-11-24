@@ -62,9 +62,7 @@ class Notification(SQLModel, table=True):  # type: ignore[call-arg]
     recipient_user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
     )
-    actor_user_id: int | None = Field(
-        default=None, sa_column=Column(BigInteger, ForeignKey("users.id"))
-    )
+    actor_user_id: int | None = Field(default=None, sa_column=Column(BigInteger))
     kind: NotificationKind = Field(
         sa_column=Column(
             Enum(

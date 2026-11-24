@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.score_access.queries import active_score_predicate
 
 from datetime import datetime
 
@@ -87,6 +88,8 @@ class ImportJobRepository:
                     select(Upload.id, Upload.upload_uuid, Upload.uploader_user_id)
                     .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                     .where(Upload.__table__.c.upload_uuid.in_(upload_ids))
+                    .order_by(Upload.id)
+                    .with_for_update(of=Upload)
                 )
             )
             .mappings()
@@ -100,7 +103,7 @@ class ImportJobRepository:
             score.created_from_import_job_id: score
             for score in db.scalars(
                 select(Score).where(
-                    Score.created_from_import_job_id.in_(job_ids), Score.deleted_at.is_(None)
+                    Score.created_from_import_job_id.in_(job_ids), active_score_predicate()
                 )
             )
             if score.created_from_import_job_id is not None
@@ -189,6 +192,6 @@ class ImportJobRepository:
                     input_asset_id.is_(None),
                     Upload.created_at < cutoff,
                 )
-                .order_by(Upload.id)
+                .order_by(Upload.uploader_user_id, Upload.id)
             ).scalars()
         )

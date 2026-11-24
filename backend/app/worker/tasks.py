@@ -1,5 +1,9 @@
 """Celery task entrypoints for NoteVerse background work."""
 
+from app.worker.execution.account_deletion import (
+    execute_account_deletion_task,
+    execute_account_deletion_maintenance,
+)
 from app.worker.execution.revision_metadata import (
     execute_revision_metadata_task,
     execute_revision_metadata_maintenance,
@@ -174,3 +178,18 @@ def run_object_write_cleanup_maintenance() -> dict[str, int]:
 @celery_app.task(name="app.worker.tasks.run_storage_quota_expiry")
 def run_storage_quota_expiry() -> dict[str, int]:
     return execute_storage_quota_expiry()
+
+
+@celery_app.task(
+    bind=True,
+    name="app.worker.tasks.account_deletion_task",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def account_deletion_task(self: CeleryTaskLike, operation_uuid: str) -> dict[str, str]:
+    return execute_account_deletion_task(self, operation_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_account_deletion_maintenance")
+def run_account_deletion_maintenance() -> dict[str, int]:
+    return execute_account_deletion_maintenance()

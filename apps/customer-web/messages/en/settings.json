@@ -89,7 +89,6 @@
   "passwordFailed": "Update failed",
   "passwordFailedDesc": "Unable to change password",
   "storage": {
-    "unlimited": "Unlimited",
     "title": "Storage usage",
     "description": "Your current storage quota, used bytes, processing capacity and available space.",
     "refresh": "Refresh",
@@ -103,5 +102,13 @@
     "full": "Storage is full. Remove unused content to free capacity.",
     "noCapacity": "No storage capacity is currently available.",
     "loading": "Loading storage usage"
+  },
+  "deletion": {
+    "title": "Delete account",
+    "description": "Permanently close your account and remove your owned scores, uploads and recordings. Access ends immediately; background cleanup continues until complete. This cannot be undone.",
+    "password": "Current password",
+    "confirm": "I understand that my account and owned content will be permanently deleted.",
+    "submit": "Delete my account",
+    "pending": "Closing account…"
   }
 }

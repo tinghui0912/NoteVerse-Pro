@@ -1,3 +1,4 @@
+from uuid import uuid4
 from app.db.models.import_job import ImportArtifactKind
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.shared.time import utc_now
@@ -70,11 +71,13 @@ def test_upload_dedup_is_owned_by_upload_references(score_service_session):
         db,
         user,
         UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
+        client_request_id=uuid4().hex,
     )
     second = service.create_upload(
         db,
         user,
         UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
+        client_request_id=uuid4().hex,
     )
     uploads = list(db.scalars(select(Upload).order_by(Upload.id)))
     assert [upload.original_filename for upload in uploads] == ["first.png", "second.png"]
@@ -86,8 +89,10 @@ def test_upload_dedup_is_owned_by_upload_references(score_service_session):
     )
     physical_key = uploads[0].stored_object.object_key
     service.delete_upload(db, user, first.upload_id)
+    db.commit()
     assert storage.exists(physical_key)
     service.delete_upload(db, user, second.upload_id)
+    db.commit()
     assert storage.exists(physical_key)
     assert db.scalar(select(StoredObjectRetirement)).status == "PENDING"
     assert drain_retirements(db, storage)[0]["status"] == "completed"
@@ -307,6 +312,7 @@ def test_upload_release_succeeds_while_score_source_retains_exact_object(
         db,
         user,
         UploadFile(filename="score.png", file=io.BytesIO(image_bytes())),
+        client_request_id=uuid4().hex,
     )
     upload = db.scalar(select(Upload))
     identity, key = upload.stored_object_id, upload.stored_object.object_key
@@ -330,6 +336,7 @@ def test_upload_release_succeeds_while_score_source_retains_exact_object(
     db.add(source)
     db.commit()
     service.delete_upload(db, user, response.upload_id)
+    db.commit()
     assert db.scalar(select(Upload)) is None
     assert db.get(StoredObject, identity) is not None and storage.exists(key)
     assert db.scalar(select(StoredObjectRetirement)) is None

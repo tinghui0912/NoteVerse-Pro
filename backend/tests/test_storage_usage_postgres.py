@@ -1,5 +1,7 @@
 """Accounting and semantic ownership follow the caller's PostgreSQL transaction."""
 
+from uuid import uuid4
+
 from tests.support.quota import admit_hold
 from tests.support.quota import allocate_hold
 from app.composition.storage_resources import storage_quota_service
@@ -269,7 +271,10 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
 
         def operation():
             return UploadService(storage=storage).create_upload(
-                db, user, UploadFile(file=io.BytesIO(content), filename="score.png")
+                db,
+                user,
+                UploadFile(file=io.BytesIO(content), filename="score.png"),
+                client_request_id=uuid4().hex,
             )
 
         if outcome == "success":

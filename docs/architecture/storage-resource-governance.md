@@ -1,8 +1,7 @@
 # Storage resource governance
 
-This document defines the accepted resource-management boundaries and the dependencies
-between their implementation stages. Inventory, logical Usage and durable Quota holds are
-implemented boundaries. Category extensions identified as targets remain design requirements.
+This document defines the implemented resource-management authorities and their
+transactional cooperation.
 
 ## Authorities and scope
 
@@ -32,11 +31,9 @@ User entitlement and durable capacity holds. Its reader dependency is the explic
 contract. Application composition supplies both authorities to business workflows and the
 existing customer storage-usage endpoint. Neither domain owns business upload state.
 
-Quota models represent HARD_LIMIT and UNLIMITED, with NULL unlimited limits and explicit
-finite/unlimited user overrides. FREE is the storage-only 100 MiB policy. Durable
-StorageQuotaHold states are HELD, CONSUMED, RELEASED and EXPIRED; only an unexpired HELD
-record can be consumed. Terminal identities never reactivate. The canonical Quota contract
-specifies constraints, per-user locking, expiry and caller-transaction composition.
+Quota resolves one User entitlement through the finite FREE, PLUS or PRO policy.
+The policy table is the only capacity configuration; no unlimited mode or arbitrary
+user override exists. See [Quota](storage-quota.md) for the canonical contract.
 
 PerformanceTakeUploadReservation references its distinct hold through `quota_hold_id`.
 Its finalization lease, candidate cleanup and unknown-COMMIT recovery remain business
@@ -44,21 +41,19 @@ lifecycle facts. See the [Take reservation contract](performance-take-reservatio
 
 ## Logical resource categories
 
-| Target category | Counts toward User quota | Current category |
+| Resource | Current category | User quota |
 | --- | --- | --- |
-| SOURCE | Yes | SOURCE |
-| UPLOAD | Yes | UPLOAD for independent Uploads |
-| INPUT_ASSET | Yes | INPUT_ASSET |
-| PERFORMANCE_RECORDING | Yes | Final Take recordings contribute to UPLOAD |
-| DERIVED_RENDER | No | DERIVED_RENDER |
-| DERIVED_AUDIO | No | DERIVED_AUDIO |
-| TEMP_IMPORT | No | TEMP_IMPORT |
-| AVATAR | No | Excluded from current usage inventory |
-| PRACTICE_BUNDLE | No | Excluded from current usage inventory |
+| Revision source | SOURCE | Yes |
+| Independent Upload and final Take recording | UPLOAD | Yes |
+| Score input | INPUT_ASSET | Yes |
+| Rendered page | DERIVED_RENDER | No |
+| Playback audio | DERIVED_AUDIO | No |
+| Import artifact | TEMP_IMPORT | No |
+| Avatar / Practice Bundle | Outside Usage | No |
 
-The target categories do not imply distinct physical copies. The current database enum
-continues to have six categories. Staging and finalize candidates are not final Take
-recording allocations.
+Logical resource multiplicity is independent of physical reuse. Staging and finalization
+candidates are not final Take allocations. Unaccounted avatars/Bundles still participate
+in Objects write/reference/retirement lifecycles.
 
 ## Domain-owned Inventory
 
@@ -155,21 +150,11 @@ change business lifecycle, delete objects or choose retention. Logical reconcili
 physical reference/retirement recovery answer different questions. Additional physical
 cost reporting requires its own provider metrics rather than repurposed quota totals.
 
-## Implementation dependencies
+## Integration and acceptance
 
-1. Domain Inventory contracts, Registry, explicit composition and PostgreSQL equivalence
-   tests establish the semantic ownership boundary used by reconciliation.
-2. The Storage Quota boundary, HARD_LIMIT/UNLIMITED entitlement contract and durable
-   StorageQuotaHold schema consume the Usage reader/locking contract.
-3. Business protocol integration consumes the Quota API and explicit `quota_hold_id`.
-   Take reservation lifecycle and applicable write/adoption protocols remain independent.
-4. Category expansion and caller allocation/release updates add PERFORMANCE_RECORDING,
-   AVATAR and PRACTICE_BUNDLE with provider coverage, accounting and reconciliation tests
-   in the same reviewed change. They depend on agreed quota classification and ownership.
-5. Retention/recovery integration verifies the complete release graph and effective holds
-   against those boundaries. It must preserve transaction lock units and physical cleanup
-   ownership; it does not authorize a Realtime relay or Ops architecture change.
-
-Each stage validates fresh schema/contracts when it changes them, preserves explicit
-transaction ownership, and delivers one current truth without dual writes, fallback
-inventory or compatibility aliases.
+Business protocols depend on the independent authorities through explicit composition.
+The [business resource lifecycle matrix](business-resource-lifecycle.md) identifies
+concrete participants, locks and recovery owners. [Migration and recovery](storage-resource-execution.md)
+identifies initialization and operational failure boundaries. Provider/category changes
+require semantic inventory and accounting tests. Account erasure coordinates domain
+cleanup without replacing Take protocols or Objects fences.

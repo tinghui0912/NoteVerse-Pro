@@ -1,5 +1,8 @@
 """The transaction participant that admits a verified recording as a durable Take."""
 
+from app.modules.score_access.queries import active_score_predicate
+
+from app.modules.account.resource_admission import lock_active_resource_user
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.models.score import Score
@@ -36,6 +39,7 @@ class PerformanceTakeWriter:
         candidate: VerifiedPerformanceTakeCandidate,
     ) -> PerformanceTake:
         current_score = self.lock_allocation_parent(db, manifest)
+        lock_active_resource_user(db, user_id)
         self.quota.lock_user(db, user_id)
         # Refresh under the authoritative row lock; callers cannot supply an unlocked row.
         reservation = self.repository.get_reservation_by_uuid(
@@ -80,7 +84,7 @@ class PerformanceTakeWriter:
             select(Score)
             .where(
                 Score.score_uuid == manifest.snapshot.practice_binding.score_id,
-                Score.__table__.c.deleted_at.is_(None),
+                active_score_predicate(),
             )
             .with_for_update(read=True, key_share=True)
             .execution_options(populate_existing=True)

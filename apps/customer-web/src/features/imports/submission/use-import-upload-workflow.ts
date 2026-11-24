@@ -187,6 +187,7 @@ export function useImportUploadWorkflow() {
     (acceptedFiles: File[]) => {
       submissionKeyRef.current = null;
       const additions = acceptedFiles.map<UploadableFile>((file) => ({
+        clientRequestId: crypto.randomUUID(),
         file,
         preview: URL.createObjectURL(file),
         status: 'pending',
@@ -293,7 +294,7 @@ export function useImportUploadWorkflow() {
           ),
         );
         try {
-          const response = await uploadsApi.createUpload(currentFile.file);
+          const response = await uploadsApi.createUpload(currentFile.file, currentFile.clientRequestId);
           const uploadId = response?.upload_id;
           if (!uploadId) throw new Error(tCommon('operationFailed'));
           uploadIds.push(uploadId);

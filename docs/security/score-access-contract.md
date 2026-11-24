@@ -4,6 +4,10 @@ ScoreAccessPolicy evaluates authenticated actions against owner and active membe
 facts. Library organization grants no access. Owner/member endpoints enforce their
 actions server-side; UI capability flags do not replace authorization.
 
+Active Score authority also requires its owner User to be outside account deletion.
+An owner tombstone cuts authenticated, Invite and Guest Preview authority before graph
+cleanup; see [Account resource erasure](../architecture/business-resource-lifecycle.md#account-deletion).
+
 `resolve_score` / `authorize_score` return Score access without resolving a Revision.
 `resolve_revision` / `authorize_revision` explicitly select the current head or requested
 same-Score revision. `score_access.roles` owns role strength and capabilities.

@@ -91,7 +91,7 @@ def test_upgrade_backfills_business_hold_lineage(monkeypatch, status, business, 
         command.upgrade(config, "0001_current_schema")
         with engine.begin() as connection:
             seed(connection, status=status, business=business, expired=expired)
-        command.upgrade(config, "head")
+        command.upgrade(config, "0002_storage_quota")
         with engine.connect() as connection:
             row = connection.execute(
                 text(
@@ -138,7 +138,7 @@ def test_upgrade_backfills_business_hold_lineage(monkeypatch, status, business, 
                     )
                     == 11
                 )
-        command.upgrade(config, "head")
+        command.upgrade(config, "0002_storage_quota")
 
 
 @pytest.mark.parametrize(
@@ -150,7 +150,7 @@ def test_ambiguous_persisted_lineage_aborts_without_schema_mutation(monkeypatch,
         with engine.begin() as connection:
             seed(connection, **kwargs)
         with pytest.raises(RuntimeError, match="unambiguous"):
-            command.upgrade(config, "head")
+            command.upgrade(config, "0002_storage_quota")
         with engine.connect() as connection:
             assert (
                 connection.scalar(text("SELECT version_num FROM alembic_version"))
@@ -162,7 +162,7 @@ def test_ambiguous_persisted_lineage_aborts_without_schema_mutation(monkeypatch,
 
 def test_unlimited_downgrade_fails_without_inventing_finite_entitlement(monkeypatch):
     with postgres_schema_database(monkeypatch) as (engine, config):
-        command.upgrade(config, "head")
+        command.upgrade(config, "0002_storage_quota")
         with engine.begin() as connection:
             connection.execute(
                 text("UPDATE storage_plan_policies SET mode='UNLIMITED', default_limit_bytes=NULL")
@@ -173,5 +173,5 @@ def test_unlimited_downgrade_fails_without_inventing_finite_entitlement(monkeypa
             assert connection.scalar(text("SELECT mode FROM storage_plan_policies")) == "UNLIMITED"
             assert (
                 connection.scalar(text("SELECT version_num FROM alembic_version"))
-                == "0003_object_retirement_fence"
+                == "0002_storage_quota"
             )

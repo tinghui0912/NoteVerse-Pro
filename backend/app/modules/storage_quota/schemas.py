@@ -17,8 +17,8 @@ class StorageUsageBreakdownRead(BaseModel):
 class StorageUsageQuotaRead(BaseModel):
     used_bytes: int
     reserved_bytes: int
-    limit_bytes: int | None
-    available_bytes: int | None
+    limit_bytes: int
+    available_bytes: int
 
 
 class StorageUsageRead(ApiModel):

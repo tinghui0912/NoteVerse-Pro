@@ -1,13 +1,14 @@
 """Score-owned deletion admission and its post-commit latency hint."""
 
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 from app.core.async_trace_context import get_async_trace_context
 from app.core.request_correlation import get_request_id
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
-from app.db.models import ScoreDeletionOperation
+from app.db.models import ScoreDeletionOperation, Score, User
+from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.scores.repository import ScoreRepository
 from app.modules.score_access.actions import ScoreAction, semantics_for
 from app.shared.error_codes import CustomerErrorCode
@@ -17,6 +18,40 @@ from app.shared.time import utc_now
 class ScoreLifecycleService:
     def __init__(self, repository: ScoreRepository | None = None) -> None:
         self.repository = repository or ScoreRepository()
+
+    def cleanup_for_account(self, db: Session, user_id: int) -> str:
+        """Erase one owned graph using its existing deletion authority."""
+        from app.modules.scores.deletion_delivery import score_deletion_delivery
+        from app.modules.scores.deletion_executor import ScoreDeletionExecutor
+
+        score = db.scalar(
+            select(Score).where(Score.owner_user_id == user_id).order_by(Score.id).limit(1)
+        )
+        if score is None:
+            return "empty"
+        if score.deleted_at is None:
+            self.admit_account_score(db, score.score_uuid, user_id)
+            # Commit parent admission as its own bounded unit. Graph execution
+            # always starts afresh in Operation -> Score order, including when
+            # a concurrent customer admission won the Score lock.
+            return "admitted"
+        operation = db.scalar(
+            select(ScoreDeletionOperation).where(
+                ScoreDeletionOperation.score_uuid == score.score_uuid
+            )
+        )
+        if operation is None:
+            raise RuntimeError("Tombstoned Score has no deletion operation")
+        lease = score_deletion_delivery.claim(db, operation.operation_uuid)
+        if lease is None:
+            from app.core.config import settings
+
+            if operation.attempt_count >= settings.SCORE_DELETION_MAX_ATTEMPTS:
+                raise RuntimeError("Owned Score deletion has exhausted retries")
+            return "busy"
+        db.flush()
+        ScoreDeletionExecutor().execute(db, lease)
+        return "deleted"
 
     def admit_deletions(self, db: Session, score_uuids: list[str], user_id: int) -> list[str]:
         """Validate and admit the complete unique set; caller owns commit and rollback."""
@@ -34,6 +69,26 @@ class ScoreLifecycleService:
                 raise UnauthorizedException(
                     semantics_for(ScoreAction.DELETE).denial_code, {"score_id": score.score_uuid}
                 )
+        lock_active_resource_user(db, user_id)
+        return self._admit_rows(db, scores)
+
+    def admit_account_score(self, db: Session, score_uuid: str, user_id: int) -> list[str]:
+        """Account erasure is a parent lifecycle authority, not an active-user DELETE action."""
+        if db.scalar(select(User.deleted_at).where(User.id == user_id)) is None:
+            raise ValueError("Account erasure requires a tombstoned User")
+        score = db.scalar(
+            select(Score)
+            .where(
+                Score.score_uuid == score_uuid,
+                Score.owner_user_id == user_id,
+                Score.__table__.c.deleted_at.is_(None),
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return self._admit_rows(db, [score]) if score is not None else []
+
+    def _admit_rows(self, db: Session, scores: list[Score]) -> list[str]:
         now = utc_now()
         traceparent, tracestate = get_async_trace_context()
         operations = []

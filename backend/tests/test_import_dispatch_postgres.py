@@ -41,6 +41,7 @@ def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch
             "progress",
             "current_step",
             "idempotency_key",
+            "submission_fingerprint",
             "requested_options",
             "execution_manifest_id",
             "failure_code",
@@ -226,6 +227,9 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
         with Session(engine) as setup:
             setup.add(User(id=1, email="delete@example.com", password_hash="test"))
             setup.flush()
+            from app.composition.storage_resources import provision_storage_resources
+
+            provision_storage_resources(setup, 1)
             job = ImportJob(
                 requested_options=encode_requested_options(None),
                 processing_started_at=utc_now(),

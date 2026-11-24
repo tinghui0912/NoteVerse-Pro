@@ -1,4 +1,5 @@
 from __future__ import annotations
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 import sqlite3
@@ -8,7 +9,7 @@ from app.core.exceptions import (
     UnauthorizedException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import ScoreLibraryFolder
+from app.db.models import ScoreLibraryFolder, ScoreLibraryOrganization
 from app.modules.library.repository import LibraryRepository
 from app.modules.library.read_model import LibraryReadModel
 from app.modules.library.schemas import (
@@ -28,6 +29,13 @@ from app.shared.error_codes import CustomerErrorCode
 
 
 class LibraryService:
+    def erase_user_state(self, db: Session, user_id: int) -> None:
+        """Erase private organization after Account has removed owned graphs."""
+        db.execute(
+            delete(ScoreLibraryOrganization).where(ScoreLibraryOrganization.user_id == user_id)
+        )
+        db.execute(delete(ScoreLibraryFolder).where(ScoreLibraryFolder.user_id == user_id))
+
     def __init__(
         self,
         repository: LibraryRepository | None = None,

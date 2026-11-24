@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.modules.score_access.queries import active_score_predicate
 
 import json
 from typing import Iterable
@@ -7,7 +8,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.db.models import RealtimeChange, Score, ScoreMembership
+from app.db.models import RealtimeChange, Score, ScoreMembership, User
 from app.shared.realtime import RealtimeChangeKind
 from app.modules.realtime.stream_state import admit_stream_state
 from app.shared.time import utc_now
@@ -35,7 +36,7 @@ def score_recipients(db: Session, score_uuid: str) -> list[int]:
     score = db.execute(
         select(Score).where(
             Score.score_uuid == score_uuid,
-            Score.__table__.c.deleted_at.is_(None),
+            active_score_predicate(),
         )
     ).scalar_one_or_none()
     if score is None or score.id is None:
@@ -58,8 +59,17 @@ def publish_change(
     score_id: str | None = None,
     revision_id: str | None = None,
     import_job_id: str | None = None,
-) -> RealtimeChange:
+) -> RealtimeChange | None:
     """Admit a change and transactional wake-up; the caller owns commit/rollback."""
+    # User erasure takes an exclusive parent lock before deleting stream/history.
+    # Acquire the FK parent before the stream lock; closed recipients admit no work.
+    recipient = db.scalar(
+        select(User.id)
+        .where(User.id == recipient_user_id, User.deleted_at.is_(None))
+        .with_for_update(read=True, key_share=True)
+    )
+    if recipient is None:
+        return None
     state = admit_stream_state(db, recipient_user_id)
     state.high_watermark_sequence += 1
     state.updated_at = utc_now()

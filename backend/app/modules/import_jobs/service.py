@@ -152,7 +152,6 @@ class ImportJobService:
     def delete(self, db: Session, job_uuid: str, user_id: int) -> None:
         job = self.get_owned_job(db, job_uuid, user_id)
         self.deletion_service.delete_job(db, job, user_id)
-        db.commit()
 
     def artifact_delivery(
         self,

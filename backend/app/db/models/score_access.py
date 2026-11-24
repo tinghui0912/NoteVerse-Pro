@@ -131,7 +131,7 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
     )
     terminal_actor_user_id: Optional[int] = Field(
         default=None,
-        sa_column=Column(BigInteger, ForeignKey("users.id")),
+        sa_column=Column(BigInteger),
     )
     created_at: datetime = Field(
         default_factory=utc_now,

@@ -1,5 +1,7 @@
 """Real PostgreSQL retirement/reference fences across independent connections."""
 
+from uuid import uuid4
+
 from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
 from app.shared.performance_take_upload import UploadReservationStatus
 
@@ -104,6 +106,7 @@ def seed(fixture, *, prior_owner=False, queued=True):
         db.commit()
         if prior_owner:
             UploadService(storage=storage).delete_upload(db, db.get(User, 1), upload.upload_uuid)
+            db.commit()
         elif queued:
             retire_after_release(db, identity)
             db.commit()
@@ -150,6 +153,7 @@ def test_retirement_vs_upload_reacquisition_after_last_reference_release(
                     file=io.BytesIO(CONTENT),
                     headers=Headers({"content-type": "image/png"}),
                 ),
+                client_request_id=uuid4().hex,
             )
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -317,6 +321,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         )
         db.commit()
         service.takes.delete_take(db, 1, saved.take_id)
+        db.commit()
         assert db.scalar(select(PerformanceTake)) is None
         assert db.scalar(select(StoredObjectRetirement)) is None
         assert storage.exists(key)
@@ -326,6 +331,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         assert reservation is not None
         assert reservation.status is UploadReservationStatus.COMPLETED
         UploadService(storage=storage).delete_upload(db, db.get(User, 1), upload.upload_uuid)
+        db.commit()
         operation = db.scalar(select(StoredObjectRetirement))
         uuid = operation.retirement_uuid
         assert operation.status is StoredObjectRetirementStatus.PENDING and storage.exists(key)
@@ -418,7 +424,10 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
         assert operation.deletion_fenced_at is not None
     with sessions() as db:
         uploaded = UploadService(storage=storage).create_upload(
-            db, db.get(User, 1), UploadFile(filename="rewritten.png", file=io.BytesIO(CONTENT))
+            db,
+            db.get(User, 1),
+            UploadFile(filename="rewritten.png", file=io.BytesIO(CONTENT)),
+            client_request_id=uuid4().hex,
         )
         assert (
             db.scalar(

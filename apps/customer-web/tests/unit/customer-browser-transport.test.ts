@@ -96,7 +96,7 @@ it('uses generated multipart encoding with a browser-supplied boundary', async (
   const send = vi.fn<typeof fetch>(async () => success());
   await uploadsCreate({
     ...transport(send).authenticated,
-    body: { file: new File(['score bytes'], 'score.xml', { type: 'application/xml' }) },
+    body: { client_request_id: 'request-1', file: new File(['score bytes'], 'score.xml', { type: 'application/xml' }) },
   });
   const request = requestAt(send);
   expect(request.headers.get('Content-Type')).toMatch(/^multipart\/form-data; boundary=/);
@@ -172,7 +172,7 @@ it.each(['json', 'form', 'multipart', 'bodyless'] as const)(
     if (kind === 'form')
       await authLogin({ ...options, body: { username: 'user', password: 'secret & value' } });
     if (kind === 'multipart')
-      await uploadsCreate({ ...options, body: { file: new File(['contents'], 'a.xml') } });
+      await uploadsCreate({ ...options, body: { client_request_id: 'request-1', file: new File(['contents'], 'a.xml') } });
     if (kind === 'bodyless') await authLogout({ ...options });
     expect(refreshCount).toBe(1);
     expect(originalCount).toBe(2);

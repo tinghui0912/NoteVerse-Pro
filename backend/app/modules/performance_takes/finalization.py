@@ -1,5 +1,6 @@
 """Application orchestration and outer transaction ownership for Take finalization."""
 
+from app.modules.account.resource_admission import lock_active_resource_user
 import asyncio
 from datetime import timedelta
 from uuid import uuid4
@@ -52,6 +53,7 @@ class PerformanceTakeFinalizationService:
         self.takes = PerformanceTakeService(repository=self.repository, storage=storage)
 
     def finalize_take(self, db: Session, user_id: int, reservation_id: str) -> PerformanceTakeRead:
+        lock_active_resource_user(db, user_id)
         self.writer.quota.lock_user(db, user_id)
         row = self.repository.get_reservation_by_uuid(db, user_id, reservation_id, lock=True)
         if row is None:
@@ -107,6 +109,7 @@ class PerformanceTakeFinalizationService:
             # Long physical IO may outlive a connection; retry only the DB lock, never media.
             try:
                 self.writer.lock_allocation_parent(db, manifest)
+                lock_active_resource_user(db, user_id)
                 self.writer.quota.lock_user(db, user_id)
                 row = self.repository.get_reservation_by_take_uuid(
                     db, user_id, manifest.take_uuid, lock=True
@@ -116,6 +119,7 @@ class PerformanceTakeFinalizationService:
                     raise
                 self._discard_uncertain_session(db)
                 self.writer.lock_allocation_parent(db, manifest)
+                lock_active_resource_user(db, user_id)
                 self.writer.quota.lock_user(db, user_id)
                 row = self.repository.get_reservation_by_take_uuid(
                     db, user_id, manifest.take_uuid, lock=True

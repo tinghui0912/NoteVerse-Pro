@@ -1,6 +1,6 @@
 from __future__ import annotations
 from tests.support.quota import quota_hold_fact
-from app.db.models.storage_quota import StorageQuotaHoldStatus, StorageQuotaMode
+from app.db.models.storage_quota import StorageQuotaHoldStatus
 from app.composition.storage_resources import storage_quota_service
 from tests.support.quota import admit_hold
 
@@ -1306,8 +1306,7 @@ def test_quota_rejection(test_env):
     client = PerformanceTakeTestClient(app)
 
     try:
-        session.get(UserStorageEntitlement, 1).mode_override = StorageQuotaMode.HARD_LIMIT
-        session.get(UserStorageEntitlement, 1).limit_override_bytes = 1024 * 1024
+        session.get(StoragePlanPolicy, "FREE").default_limit_bytes = 1024 * 1024
         session.commit()
         excessive_size = 2 * 1024 * 1024
         auth_req = {
@@ -3821,8 +3820,7 @@ def test_reservation_capacity_uses_exact_available_quota(test_env, available_del
         category=StorageUsageCategory.UPLOAD,
         bytes_count=held_bytes,
     )
-    session.get(UserStorageEntitlement, 1).mode_override = StorageQuotaMode.HARD_LIMIT
-    session.get(UserStorageEntitlement, 1).limit_override_bytes = (
+    session.get(StoragePlanPolicy, "FREE").default_limit_bytes = (
         account.used_bytes + held_bytes + requested_bytes + available_delta
     )
     session.commit()

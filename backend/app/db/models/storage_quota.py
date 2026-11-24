@@ -20,9 +20,10 @@ from app.db.models.storage_usage import StorageUsageCategory
 from app.shared.time import utc_now
 
 
-class StorageQuotaMode(str, Enum):
-    HARD_LIMIT = "HARD_LIMIT"
-    UNLIMITED = "UNLIMITED"
+class StoragePlanCode(str, Enum):
+    FREE = "FREE"
+    PLUS = "PLUS"
+    PRO = "PRO"
 
 
 class StorageQuotaHoldStatus(str, Enum):
@@ -36,16 +37,23 @@ class StoragePlanPolicy(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "storage_plan_policies"
     __table_args__ = (
         CheckConstraint(
-            "(mode = 'HARD_LIMIT' AND default_limit_bytes IS NOT NULL AND default_limit_bytes >= 0) OR (mode = 'UNLIMITED' AND default_limit_bytes IS NULL)",
-            name="ck_storage_plan_policies_mode_limit",
+            "default_limit_bytes >= 0",
+            name="ck_storage_plan_policies_limit_nonnegative",
         ),
     )
-    plan_code: str = Field(sa_column=Column(String(64), primary_key=True))
-    mode: StorageQuotaMode = Field(
-        default=StorageQuotaMode.HARD_LIMIT,
-        sa_column=Column(SAEnum(StorageQuotaMode, native_enum=False, length=16), nullable=False),
+    plan_code: StoragePlanCode = Field(
+        sa_column=Column(
+            SAEnum(
+                StoragePlanCode,
+                native_enum=False,
+                length=64,
+                create_constraint=True,
+                name="ck_storage_plan_policy_code",
+            ),
+            primary_key=True,
+        )
     )
-    default_limit_bytes: int | None = Field(sa_column=Column(BigInteger, nullable=True))
+    default_limit_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
@@ -60,24 +68,15 @@ class StoragePlanPolicy(SQLModel, table=True):  # type: ignore[call-arg]
 
 class UserStorageEntitlement(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "user_storage_entitlements"
-    __table_args__ = (
-        CheckConstraint(
-            "(mode_override IS NULL AND limit_override_bytes IS NULL) OR (mode_override IS NOT NULL AND mode_override = 'HARD_LIMIT' AND limit_override_bytes IS NOT NULL AND limit_override_bytes >= 0) OR (mode_override IS NOT NULL AND mode_override = 'UNLIMITED' AND limit_override_bytes IS NULL)",
-            name="ck_user_storage_entitlements_mode_limit",
-        ),
-    )
     user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     )
-    plan_code: str = Field(
-        sa_column=Column(String(64), ForeignKey("storage_plan_policies.plan_code"), nullable=False)
-    )
-    mode_override: StorageQuotaMode | None = Field(
-        default=None,
-        sa_column=Column(SAEnum(StorageQuotaMode, native_enum=False, length=16), nullable=True),
-    )
-    limit_override_bytes: int | None = Field(
-        default=None, sa_column=Column(BigInteger, nullable=True)
+    plan_code: StoragePlanCode = Field(
+        sa_column=Column(
+            SAEnum(StoragePlanCode, native_enum=False, length=64),
+            ForeignKey("storage_plan_policies.plan_code"),
+            nullable=False,
+        )
     )
     created_at: datetime = Field(
         default_factory=utc_now,

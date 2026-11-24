@@ -110,7 +110,7 @@ def get_current_user(
             resource_id=str(token_data.sub),
             code=CustomerErrorCode.USER_NOT_FOUND,
         )
-    if not user.is_active:
+    if not user.is_active or user.deleted_at is not None:
         raise AuthenticationException(
             code=CustomerErrorCode.ACCOUNT_INACTIVE,
             details={"user_id": user.id},

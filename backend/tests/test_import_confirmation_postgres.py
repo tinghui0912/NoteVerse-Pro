@@ -596,6 +596,7 @@ def test_confirmation_and_deletion_serialize_on_dispatch_before_job(
                         ReviewConfirmRequest(content=MUSICXML_1.decode()),
                     )
                 ImportJobService().delete(db, "job", 1)
+                db.commit()
             except (ResourceNotFoundException, ValidationException) as exc:
                 db.rollback()
                 return exc
@@ -636,7 +637,9 @@ def test_import_commands_wait_on_dispatch_without_holding_job(confirmation, comm
                 return review.ImportReviewService(storage=storage).confirm(
                     adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
                 )
-            return ImportJobService().delete(adapter, "job", 1)
+            result = ImportJobService().delete(adapter, "job", 1)
+            db.commit()
+            return result
 
     with ThreadPoolExecutor(max_workers=1) as pool, Session(engine) as holder:
         holder.scalar(sa.select(ImportDispatch).with_for_update())

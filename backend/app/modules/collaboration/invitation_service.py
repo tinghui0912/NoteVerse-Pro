@@ -128,7 +128,9 @@ class InvitationService:
         score = self.repository.active_score(db, invite.score_id)
         if score is None:
             raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
-        user = db.get(User, user_id) if user_id is not None else None
+        from app.modules.account.resource_admission import lock_active_resource_user
+
+        user = lock_active_resource_user(db, user_id) if user_id is not None else None
         now = utc_now()
         can_accept = can_user_accept_invite(invite, user, now=now) and (
             user is None or score.owner_user_id != user.id
@@ -158,7 +160,9 @@ class InvitationService:
         limit: int = DEFAULT_PAGE_SIZE,
         cursor: str | None = None,
     ) -> PendingInviteListRead:
-        user = db.get(User, user_id)
+        from app.modules.account.resource_admission import lock_active_resource_user
+
+        user = lock_active_resource_user(db, user_id)
         if user is None:
             raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         invites, next_cursor = self.repository.pending_invites_for_email(
@@ -282,7 +286,9 @@ class InvitationService:
         return score, invite
 
     def _ensure_invite_target_user(self, db: Session, invite: ScoreInvite, user_id: int) -> User:
-        user = db.get(User, user_id)
+        from app.modules.account.resource_admission import lock_active_resource_user
+
+        user = lock_active_resource_user(db, user_id)
         if user is None:
             raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         require_pending_invite(invite, field="invite_id", now=utc_now())

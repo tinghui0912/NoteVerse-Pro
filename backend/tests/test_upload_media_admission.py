@@ -1,5 +1,7 @@
 """Content-verified Upload facts and bounded admission before durable prewrite."""
 
+from uuid import uuid4
+
 import asyncio
 import io
 import threading
@@ -91,6 +93,7 @@ def test_upload_records_detected_container_facts(
             file=io.BytesIO(content),
             headers=Headers({"content-type": "text/plain"}),
         ),
+        client_request_id=uuid4().hex,
     )
     upload = db.scalar(select(Upload))
     obj = db.scalar(select(StoredObject))
@@ -119,6 +122,7 @@ def test_invalid_images_have_no_durable_admission(score_service_session, content
             db,
             db.get(User, 1),
             UploadFile(filename=filename, file=io.BytesIO(content)),
+            client_request_id=uuid4().hex,
         )
     for model in (Upload, ObjectWriteIntent, StorageQuotaHold):
         assert db.scalar(select(model)) is None
@@ -145,6 +149,7 @@ def test_oversize_is_rejected_before_quota_or_object_prewrite(score_service_sess
             UploadFile(
                 filename="large.png", file=io.BytesIO(b"x" * (MAX_SCORE_IMPORT_UPLOAD_BYTES + 1))
             ),
+            client_request_id=uuid4().hex,
         )
     for model in (Upload, ObjectWriteIntent, StorageQuotaHold):
         assert db.scalar(select(model)) is None
@@ -162,6 +167,7 @@ def test_client_mime_cannot_override_detected_png(score_service_session, mime):
             file=io.BytesIO(image_bytes()),
             headers=Headers({"content-type": mime}),
         ),
+        client_request_id=uuid4().hex,
     )
     assert db.scalar(select(StoredObject)).content_type == "image/png"
 
@@ -175,6 +181,7 @@ def test_jpeg_aliases_share_one_physical_object_and_preserve_names(score_service
             db,
             db.get(User, 1),
             UploadFile(filename=name, file=io.BytesIO(image_bytes("JPEG"))),
+            client_request_id=uuid4().hex,
         )
     uploads = list(db.scalars(select(Upload).order_by(Upload.id)))
     assert [row.original_filename for row in uploads] == ["first.jpg", "second.jpeg"]
@@ -229,7 +236,9 @@ def test_http_upload_and_delivery_schedule_provider_io_off_event_loop(score_serv
 
     with TestClient(application) as client:
         response = client.post(
-            "/api/v1/uploads", files={"file": ("score.png", image_bytes(), "image/png")}
+            "/api/v1/uploads",
+            data={"client_request_id": uuid4().hex},
+            files={"file": ("score.png", image_bytes(), "image/png")},
         )
         assert response.status_code == 200
         key.append(db.scalar(select(StoredObject)).object_key)

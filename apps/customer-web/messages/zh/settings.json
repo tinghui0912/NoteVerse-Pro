@@ -89,7 +89,6 @@
   "passwordFailed": "修改失败",
   "passwordFailedDesc": "无法修改密码",
   "storage": {
-      "unlimited": "无限制",
     "title": "存储用量",
     "description": "查看当前存储配额、已使用空间、处理中预留空间和可用空间。",
     "refresh": "刷新",
@@ -103,5 +102,13 @@
     "full": "存储空间已满，请删除不需要的内容以释放空间。",
     "noCapacity": "当前没有可用存储容量。",
     "loading": "正在加载存储用量"
+  },
+  "deletion": {
+    "title": "删除账户",
+    "description": "永久关闭账户，并删除您拥有的乐谱、上传文件和录音。访问权限会立即终止，后台将继续完成资源清理。此操作无法撤销。",
+    "password": "当前密码",
+    "confirm": "我了解我的账户及拥有的内容将被永久删除。",
+    "submit": "删除我的账户",
+    "pending": "正在关闭账户…"
   }
 }

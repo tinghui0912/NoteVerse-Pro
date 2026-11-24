@@ -112,13 +112,13 @@ The server commits PREPARED before physical mutation. A separate transaction loc
 
 Adoption locks the WRITTEN intent, checks generation/facts/lease, and creates or retains the matching StoredObject. The semantic owner, quota effects and ADOPTED transition commit together. On rollback the write remains unadopted and cleanup-owned. An existing exact StoredObject needs no physical rewrite. Its intent records existing ADOPTED authority without speculative retention, and semantic attachment retains it under the retirement fence. If that authority retires before attachment, the receipt cannot create a new StoredObject; a fresh generation must write first. A matching SHA at another domain key grants no reuse.
 
-Prewrite transactions precede semantic mutation and require a clean semantic session. Domain application code reestablishes its parent admission after prewrite commits. Domain parent locks (Score/Revision, Bundle, User or ImportJob) precede intent locks during semantic adoption. The shared physical lock order is ObjectWriteIntent → StoredObject → StoredObjectRetirement. Retirement itself never needs a write-intent lock. Multiple representation writes finish before their one semantic replacement transaction begins.
+Prewrite transactions precede semantic mutation and require a clean semantic session. Domain application code reestablishes its parent admission after prewrite commits. Domain parent locks (Score/Revision, Bundle, User or ImportJob) precede intent locks during semantic adoption. User admission and Quota/Usage serialization precede Objects locks. The shared physical lock order is ObjectWriteIntent → StoredObject → StoredObjectRetirement. Retirement itself never needs a write-intent lock. Multiple representation writes finish before their one semantic replacement transaction begins.
 
 StorageUsage mutates and flushes accounting state inside the caller-owned transaction;
 its service and repository do not commit. Upload creation commits its StorageQuotaHold
 before physical IO, releases quota row locks, then uses the ObjectWriteIntent protocol's
 explicit PREPARED/WRITTEN transactions. Its final transaction commits StoredObject adoption,
-the Upload, hold consumption and logical allocation together. A failed admission rolls back semantic
+the Upload, durable request completion, hold consumption and logical allocation together. A fresh-session completion lookup resolves unknown COMMIT without duplicate allocation. A failed admission rolls back semantic
 writes and commits release of the active hold in a clean transaction. Revision
 source preparation follows the same durable hold boundary; RevisionWriter participates
 in the caller's revision transaction. PerformanceTake application services own reservation,
@@ -244,7 +244,7 @@ shared `object_storage` instance.
 | `app/modules/storage_objects/persistence.py`: `object_to_row`, `object_from_bytes`, `object_from_row` | A | Immutable fact mapping; the byte factory is used by fixtures, not product admission |
 | `app/modules/storage_objects/writes.py`: `prepare_object_write`, `prepare_write`, `perform_write`, `inspect_write`, `finalize_write`, `write_object` | A/B | Sole ordinary server put; committed PREPARED and WRITTEN generation phases |
 | Same file: `adopt_written_object`, `retain_existing_object`, `receipt_for_intent` | A/B | Exact intent/generation/fact verification and retirement-fenced reference admission |
-| `app/modules/uploads/service.py`: `create_upload`; `repository.py`: `get_upload_object_by_sha256` | A/B | Quota hold, Upload-scoped reuse/key, write/adopt, UPLOAD allocation; no cross-domain SHA deduplication |
+| `app/modules/uploads/service.py`: `create_upload` / `delete_upload` | A/B | Stable Upload command/capacity generation, canonical key write/adopt, UPLOAD allocation; no cross-domain SHA deduplication |
 | `app/modules/revisions/service.py`: `_append`; `writer.py`: `write`, `_unused` | A/B | Canonical source prewrite, parent re-admission, source/head/consequences/adoption/accounting; unused receipt releases capacity and remains intent cleanup-owned |
 | `scripts/seed_integration_user.py`: `seed_user` | A | Explicit fixture key existence check, same source write and RevisionWriter admission |
 | `app/modules/import_jobs/pipeline/artifact_recorder.py`: `_build_file_item`; `execution_recorder.py`: `replace_artifacts` | A/B/D/F | Job-owned review MusicXML prewrite and generation handoff; canonical artifact adoption and TEMP_IMPORT accounting |

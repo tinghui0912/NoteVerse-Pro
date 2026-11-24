@@ -25,6 +25,13 @@ class StorageUsageService:
     def committed_bytes(self, db: Session, user_id: int, *, lock: bool = False) -> int:
         return self._require_account(db, user_id, lock=lock).used_bytes
 
+    def try_lock_committed_bytes(self, db: Session, user_id: int) -> int | None:
+        account = self.repository.account(db, user_id, lock=True, skip_locked=True)
+        if account is None:
+            self._require_account(db, user_id, lock=False)
+            return None
+        return account.used_bytes
+
     def snapshot_user(self, db: Session, user_id: int) -> StorageUsageSnapshot:
         account = self._require_account(db, user_id, lock=False)
         counters = {row.category: row.used_bytes for row in self.repository.counters(db, user_id)}
@@ -47,7 +54,9 @@ class StorageUsageService:
         object_id: str | None = None,
         storage_key: str | None = None,
     ) -> None:
-        if bytes_count <= 0:
+        if type(bytes_count) is not int or bytes_count < 0:
+            raise StorageUsageInvariantError("Usage amounts must be nonnegative integer bytes")
+        if bytes_count == 0:
             return
         account = self._require_account(db, user_id, lock=True)
         counter = self._ensure_counter(db, user_id, category, lock=True)
@@ -83,7 +92,9 @@ class StorageUsageService:
         object_id: str | None = None,
         storage_key: str | None = None,
     ) -> None:
-        if bytes_count <= 0:
+        if type(bytes_count) is not int or bytes_count < 0:
+            raise StorageUsageInvariantError("Usage amounts must be nonnegative integer bytes")
+        if bytes_count == 0:
             return
         account = self._require_account(db, user_id, lock=True)
         counter = self.repository.counter(db, user_id, category, lock=True)

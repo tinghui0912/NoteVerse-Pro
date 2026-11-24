@@ -8,11 +8,12 @@ it('creates an Upload through the generated multipart collection operation', asy
   const upload = { upload_id: 'upload-uuid', original_filename: 'original.png', byte_size: 5 };
   const send = customerFetch(upload);
   const file = new File(['image'], 'original.png', {type: 'image/png'});
-  expect(await uploadsApi.createUpload(file)).toEqual(upload);
+  expect(await uploadsApi.createUpload(file, "request-1")).toEqual(upload);
   const request = send.mock.calls[0][0] as Request;
   expect(new URL(request.url).pathname).toBe('/api/v1/uploads');
   expect(request.method).toBe('POST');
   const body = await request.formData();
+  expect(body.get('client_request_id')).toBe('request-1');
   const uploaded = body.get('file') as File;
   expect(uploaded.name).toBe('original.png');
   expect(await uploaded.text()).toBe('image');

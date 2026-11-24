@@ -81,6 +81,10 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
             "idempotency_key",
             name="uq_import_jobs_user_idempotency_key",
         ),
+        CheckConstraint(
+            "(idempotency_key IS NULL AND submission_fingerprint IS NULL) OR (idempotency_key IS NOT NULL AND submission_fingerprint IS NOT NULL)",
+            name="ck_import_submission_identity",
+        ),
         Index("idx_import_jobs_user_created", "user_id", "created_at"),
         Index("idx_import_jobs_state", "state"),
     )
@@ -100,6 +104,7 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     progress: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     current_step: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     idempotency_key: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    submission_fingerprint: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     requested_options: dict[str, object] = Field(
         sa_column=Column(metadata_json_type, nullable=False)
     )

@@ -3,7 +3,7 @@ from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_command_db
 from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
@@ -44,7 +44,7 @@ def list_jobs(
 def submit_job(
     request: ImportJobSubmitRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     result = service.submit(db, current_user, request)
@@ -60,7 +60,7 @@ def submit_job(
 def retry_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
@@ -105,7 +105,7 @@ def batch_job_status(
 def delete_job(
     job_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     service: ImportJobService = Depends(get_import_job_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")

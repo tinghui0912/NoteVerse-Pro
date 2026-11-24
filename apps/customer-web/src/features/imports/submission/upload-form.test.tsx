@@ -142,7 +142,7 @@ describe('UploadForm with real react-dropzone', () => {
   it('opens Add Images once and delivers its selection without a duplicate callback', async () => {
     const existing = new File(['old'], 'old.png', { type: 'image/png' });
     const { props, input } = renderForm({
-      files: [{ file: existing, preview: 'data:image/png;base64,aA==', status: 'pending' }],
+      files: [{ file: existing, clientRequestId: 'request-1', preview: 'data:image/png;base64,aA==', status: 'pending' }],
     });
     const click = vi.spyOn(input, 'click');
     fireEvent.click(screen.getByRole('button', { name: upload.addMoreImages }));
@@ -158,7 +158,7 @@ describe('UploadForm with real react-dropzone', () => {
   it('waits for reselect confirmation, then clears files and opens one dialog', async () => {
     const file = new File(['score'], 'score.png', { type: 'image/png' });
     const { props, input } = renderForm({
-      files: [{ file, preview: 'data:image/png;base64,aA==', status: 'pending' }],
+      files: [{ file, clientRequestId: 'request-1', preview: 'data:image/png;base64,aA==', status: 'pending' }],
     });
     const click = vi.spyOn(input, 'click');
 

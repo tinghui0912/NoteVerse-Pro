@@ -49,7 +49,7 @@ class AuthService:
                 code=CustomerErrorCode.INVALID_CREDENTIALS,
                 details={"email": normalized_email},
             )
-        if not user.is_active:
+        if not user.is_active or user.deleted_at is not None:
             raise AuthenticationException(
                 code=CustomerErrorCode.ACCOUNT_INACTIVE,
                 details={"email": user.email},

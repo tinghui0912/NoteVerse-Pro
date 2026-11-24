@@ -1,6 +1,10 @@
 """Current-user account routes."""
 
-from fastapi import Response, APIRouter, Depends, File, UploadFile
+from app.modules.account.deletion_service import AccountDeletionService
+from app.modules.account.schemas import DeleteAccountRequest, AccountDeletionRead
+from app.modules.auth.session_cookies import clear_session_cookies
+from app.worker.dispatch.account_deletion import dispatch_account_deletion_best_effort
+from fastapi import Response, APIRouter, Depends, File, UploadFile, BackgroundTasks
 
 
 import re
@@ -8,9 +12,10 @@ from fastapi.responses import RedirectResponse
 from app.core.exceptions import ResourceNotFoundException
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_command_db
 from app.core.exceptions import FileException, ValidationException
 from app.db.models import User, StoredObject
+from app.db.model_utils import require_persisted_id
 from sqlalchemy import select
 from app.modules.account.avatar_service import AvatarService, avatar_object_key
 from app.modules.account.dependencies import get_avatar_service, get_profile_service
@@ -93,7 +98,7 @@ def upload_avatar(
 )
 def delete_avatar(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
+    db: Session = Depends(get_command_db, scope="function"),
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
     avatar_service.clear_user_avatar(db, current_user)
@@ -123,10 +128,30 @@ def read_avatar(
     current = db.scalar(
         select(StoredObject)
         .join(User, User.avatar_object_id == StoredObject.id)
-        .where(StoredObject.object_key == avatar_object_key(filename))
+        .where(StoredObject.object_key == avatar_object_key(filename), User.deleted_at.is_(None))
     )
     if current is None:
         raise ResourceNotFoundException("avatar", filename)
     return RedirectResponse(
         avatar_service.storage.download_url(current.object_key, content_type=current.content_type)
     )
+
+
+@router.delete(
+    "", operation_id="accountDelete", status_code=202, response_model=AccountDeletionRead
+)
+def delete_account(
+    request: DeleteAccountRequest,
+    background_tasks: BackgroundTasks,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_command_db, scope="function"),
+) -> AccountDeletionRead:
+    operation_id = AccountDeletionService().request_deletion(
+        db,
+        require_persisted_id(current_user.id, entity="user"),
+        current_password=request.current_password,
+    )
+    clear_session_cookies(response)
+    background_tasks.add_task(dispatch_account_deletion_best_effort, operation_id)
+    return AccountDeletionRead(operation_id=operation_id)

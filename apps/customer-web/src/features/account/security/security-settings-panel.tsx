@@ -1,5 +1,6 @@
 'use client';
 
+import { DeleteAccountForm } from './delete-account-form';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Check, KeyRound, Mail, ShieldCheck } from 'lucide-react';
@@ -221,6 +222,7 @@ function SecurityContent({ security }: { security: SecurityOverview }) {
           value={security.mfa_available ? t('security.mfaOff') : t('security.comingSoon')}
         />
       </div>
+      <DeleteAccountForm />
     </div>
   );
 }

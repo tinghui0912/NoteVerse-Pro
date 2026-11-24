@@ -302,6 +302,7 @@ async def test_completed_deleted_resource_replay_cannot_resurrect_take(postgres_
     with sessions() as db:
         take = service.finalize_take(db, 1, accepted.reservation_id)
         service.takes.delete_take(db, 1, take.take_id)
+        db.commit()
         for command in [
             lambda: reservations.reserve_upload(db, 1, request),
             lambda: service.finalize_take(db, 1, accepted.reservation_id),
@@ -339,6 +340,7 @@ async def test_delete_after_finalize_visibility_has_one_serial_accounting_outcom
             try:
                 assert await asyncio.to_thread(visible.wait, 10)
                 service.takes.delete_take(delete_db, 1, accepted.take_id)
+                delete_db.commit()
             finally:
                 deleted.set()
             # Deletion may win before response hydration; it never reverses completion lineage.

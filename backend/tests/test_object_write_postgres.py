@@ -1,5 +1,7 @@
 """Independent PostgreSQL connections prove write/adoption/cleanup fences."""
 
+from uuid import uuid4
+
 from app.composition.storage_resources import storage_quota_service
 
 from tests.support.practice_bundle import bind_bundle
@@ -281,6 +283,7 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
                 db,
                 user,
                 UploadFile(filename=name, file=io.BytesIO(image_bytes())),
+                client_request_id=uuid4().hex,
             )
 
     one, two = await asyncio.gather(

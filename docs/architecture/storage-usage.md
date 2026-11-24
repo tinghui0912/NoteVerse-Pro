@@ -23,7 +23,8 @@ current resource ownership and are not replayed to reconstruct inventory.
 then appends the matching event. `record_release()` requires the entire requested
 allocation before any mutation; underflow raises `StorageUsageInvariantError`. Both
 participate in the caller's transaction and never commit. A counted business allocation
-requires Quota admission before its logical accounting write; non-counted resources
+requires Quota admission for positive net occupancy growth; same-user reclassification
+preserves already-admitted occupancy. Non-counted resources
 require no capacity hold. Semantic references, allocation and any hold consumption commit
 or roll back together.
 
@@ -55,7 +56,9 @@ Physical deduplication does not deduplicate accounting: two InputAsset rows shar
 an Upload count twice. First promotion releases the one UPLOAD allocation and adds
 one INPUT_ASSET allocation. Subsequent promotions add only INPUT_ASSET. Removing
 the last InputAsset restores one UPLOAD allocation when the Upload survives via
-an ImportJob reference; an orphan Upload deleted with the final input has no
+an ImportJob reference. `scores/input_asset_lifecycle.py` owns both directions under
+sorted Upload locks; neither net-zero conversion needs a new hold, including over quota.
+An orphan Upload deleted with the final input has no
 intermediate UPLOAD allocation.
 
 Soft deletion keeps semantic allocations until the deletion transaction removes

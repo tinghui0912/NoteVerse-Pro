@@ -20,7 +20,7 @@ from app.db.models import (
     UserStorageEntitlement,
     StorageQuotaHold,
     StorageQuotaHoldStatus as Status,
-    StorageQuotaMode as Mode,
+    StoragePlanCode as Plan,
     StorageUsageAccount,
     StorageUsageEvent,
     StorageUsageCategory as Category,
@@ -56,64 +56,66 @@ def hold(db, *, user=1, size=10, category=Category.UPLOAD, key=None, now=None, e
     )
 
 
-@pytest.mark.parametrize(
-    "plan_mode,plan_limit,override,override_limit,expected",
-    [
-        (Mode.HARD_LIMIT, 100, None, None, 100),
-        (Mode.HARD_LIMIT, 0, None, None, 0),
-        (Mode.UNLIMITED, None, None, None, None),
-        (Mode.HARD_LIMIT, 100, Mode.HARD_LIMIT, 0, 0),
-        (Mode.HARD_LIMIT, 100, Mode.HARD_LIMIT, 20, 20),
-        (Mode.HARD_LIMIT, 100, Mode.UNLIMITED, None, None),
-        (Mode.UNLIMITED, None, Mode.HARD_LIMIT, 30, 30),
-    ],
-)
-def test_effective_modes_and_capacity(
-    database, plan_mode, plan_limit, override, override_limit, expected
-):
+@pytest.mark.parametrize("plan,expected", [(Plan.FREE, 100), (Plan.PLUS, 1000), (Plan.PRO, 10000)])
+def test_plan_capacity_and_consumption(database, plan, expected):
     with Session(database) as db:
-        policy = db.get(StoragePlanPolicy, "FREE")
-        policy.mode = plan_mode
-        policy.default_limit_bytes = plan_limit
-        entitlement = db.get(UserStorageEntitlement, 1)
-        entitlement.mode_override = override
-        entitlement.limit_override_bytes = override_limit
-        db.flush()
-        snapshot = quota.snapshot_user(db, 1)
-        assert snapshot.entitlement.limit_bytes == expected and snapshot.available_bytes == expected
-        if expected == 0:
-            with pytest.raises(ValidationException):
-                hold(db, size=1)
-        else:
-            claim = hold(db, size=expected or 10**15)
-            assert quota.consume_hold(db, claim.hold_id)
-            assert not quota.consume_hold(db, claim.hold_id)
-            usage.record_allocation(
-                db, user_id=1, category=Category.UPLOAD, bytes_count=claim.bytes_held, reason="test"
-            )
-            assert quota.snapshot_user(db, 1).used_bytes == claim.bytes_held
+        quota.entitlements.change_plan(db, 1, plan)
+        assert quota.snapshot_user(db, 1).available_bytes == expected
+        claim = hold(db, size=expected)
+        assert quota.consume_hold(db, claim.hold_id)
+        assert not quota.consume_hold(db, claim.hold_id)
+        usage.record_allocation(
+            db, user_id=1, category=Category.UPLOAD, bytes_count=expected, reason="test"
+        )
+        assert quota.snapshot_user(db, 1).used_bytes == expected
+        with pytest.raises(ValidationException):
+            hold(db, size=1)
 
 
-@pytest.mark.parametrize(
-    "mode,limit", [(Mode.HARD_LIMIT, None), (Mode.HARD_LIMIT, -1), (Mode.UNLIMITED, 1)]
-)
-def test_policy_invalid_combinations_rejected(database, mode, limit):
+def test_downgrade_preserves_admitted_hold_and_rejects_new_positive_growth(database):
     with Session(database) as db:
-        row = db.get(StoragePlanPolicy, "FREE")
-        row.mode = mode
-        row.default_limit_bytes = limit
+        quota.entitlements.change_plan(db, 1, Plan.PLUS)
+        claim = hold(db, size=500)
+        db.commit()
+        quota.entitlements.change_plan(db, 1, Plan.FREE)
+        db.commit()
+        assert quota.snapshot_user(db, 1).available_bytes == 0
+        with pytest.raises(ValidationException):
+            hold(db, size=1)
+        db.rollback()
+        assert quota.consume_hold(db, claim.hold_id)
+        usage.record_allocation(
+            db, user_id=1, category=Category.UPLOAD, bytes_count=500, reason="previously_admitted"
+        )
+        db.commit()
+        assert quota.snapshot_user(db, 1).used_bytes == 500
+        usage.record_release(
+            db, user_id=1, category=Category.UPLOAD, bytes_count=450, reason="delete_over_quota"
+        )
+        db.commit()
+        assert quota.snapshot_user(db, 1).available_bytes == 50
+
+
+@pytest.mark.parametrize("limit", [None, -1])
+def test_policy_requires_nonnegative_finite_capacity(database, limit):
+    with Session(database) as db:
+        db.get(StoragePlanPolicy, "FREE").default_limit_bytes = limit
         with pytest.raises(IntegrityError):
             db.flush()
 
 
-@pytest.mark.parametrize(
-    "mode,limit", [(None, 1), (Mode.HARD_LIMIT, None), (Mode.HARD_LIMIT, -1), (Mode.UNLIMITED, 1)]
-)
-def test_override_invalid_combinations_rejected(database, mode, limit):
+def test_zero_capacity_rejects_new_holds(database):
     with Session(database) as db:
-        row = db.get(UserStorageEntitlement, 1)
-        row.mode_override = mode
-        row.limit_override_bytes = limit
+        db.get(StoragePlanPolicy, "FREE").default_limit_bytes = 0
+        db.flush()
+        assert quota.snapshot_user(db, 1).available_bytes == 0
+        with pytest.raises(ValidationException):
+            hold(db, size=1)
+
+
+def test_entitlement_rejects_unknown_plan(database):
+    with Session(database) as db:
+        db.get(UserStorageEntitlement, 1).plan_code = "UNKNOWN"
         with pytest.raises(IntegrityError):
             db.flush()
 
@@ -306,12 +308,10 @@ def test_consumption_and_allocation_rollback_together(database):
         assert db.scalar(select(func.count()).select_from(StorageUsageEvent)) == 0
 
 
-@pytest.mark.parametrize("unlimited", [False, True])
-def test_http_quota_and_category_holds(database, client, unlimited):
+@pytest.mark.parametrize("plan,limit", [(Plan.FREE, 100), (Plan.PLUS, 1000), (Plan.PRO, 10000)])
+def test_http_quota_and_category_holds(database, client, plan, limit):
     with Session(database) as db:
-        if unlimited:
-            row = db.get(UserStorageEntitlement, 1)
-            row.mode_override = Mode.UNLIMITED
+        quota.entitlements.change_plan(db, 1, plan)
         hold(db, size=11, category=Category.SOURCE)
         hold(db, size=7, category=Category.UPLOAD)
         usage.record_allocation(
@@ -329,8 +329,8 @@ def test_http_quota_and_category_holds(database, client, unlimited):
         assert response.json()["quota"] == {
             "used_bytes": 3,
             "reserved_bytes": 18,
-            "limit_bytes": None if unlimited else 100,
-            "available_bytes": None if unlimited else 79,
+            "limit_bytes": limit,
+            "available_bytes": limit - 21,
         }
         breakdown = {item["category"]: item for item in response.json()["breakdown"]}
         assert breakdown["SOURCE"]["reserved_bytes"] == 11
@@ -380,9 +380,9 @@ def test_capacity_requires_exact_positive_integer(database, value):
     from app.modules.storage_quota.contracts import EffectiveStorageQuota
 
     with Session(database) as db:
-        for mode, limit in [(Mode.HARD_LIMIT, 100), (Mode.UNLIMITED, None)]:
+        for limit in [0, 100]:
             with pytest.raises(ValueError):
-                admit_capacity(EffectiveStorageQuota("FREE", mode, limit), 0, 0, value)
+                admit_capacity(EffectiveStorageQuota(Plan.FREE, limit), 0, 0, value)
             with pytest.raises(ValueError):
                 hold(db, size=value)
         assert db.scalar(select(func.count()).select_from(StorageQuotaHold)) == 0

@@ -166,6 +166,7 @@ class ImportExecutionRecorder:
             for artifact in self.repository.list_artifacts(db, job_id)
             if artifact.kind == kind
         ]
+        storage_usage_service.committed_bytes(db, job.user_id, lock=True)
         released_objects = self.repository.delete_artifacts_by_kind(db, job_id, kind)
         created: list[ImportArtifact] = []
         for item in items:

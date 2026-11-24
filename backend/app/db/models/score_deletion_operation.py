@@ -72,7 +72,8 @@ class ScoreDeletionOperation(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(BigInteger, ForeignKey("scores.id", ondelete="SET NULL"), unique=True),
     )
     score_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
-    owner_user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
+    # Immutable admission snapshot; completed evidence outlives account erasure.
+    owner_user_id: int = Field(sa_column=Column(BigInteger, nullable=False))
     originating_request_id: Optional[str] = Field(
         default=None, sa_column=Column(String(64), index=True)
     )
