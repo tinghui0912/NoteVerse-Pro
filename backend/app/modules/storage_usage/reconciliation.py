@@ -14,7 +14,7 @@ from app.db.models import (
 )
 from app.modules.storage_usage.accounting import counts_toward_quota, new_usage_event
 from app.modules.storage_usage.entitlements import quota_check_unavailable
-from app.modules.storage_usage.inventory import semantic_used_bytes
+from app.modules.storage_inventory.contracts import StorageInventoryReader
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.time import utc_now
 
@@ -52,7 +52,8 @@ class StorageUsageInspection:
 
 
 class StorageUsageReconciliation:
-    def __init__(self) -> None:
+    def __init__(self, inventory: StorageInventoryReader) -> None:
+        self.inventory = inventory
         self.usage = StorageUsageService()
 
     def _account(self, db: Session, user_id: int, *, lock: bool) -> StorageUsageAccount:
@@ -69,7 +70,7 @@ class StorageUsageReconciliation:
             return self._inspect(db, user_id)
 
     def _inspect(self, db: Session, user_id: int) -> StorageUsageInspection:
-        used = semantic_used_bytes(db, user_id)
+        used = self.inventory.snapshot_user(db, user_id).used_bytes
         reservation = StorageUsageReservation.__table__
         holds = db.execute(
             select(

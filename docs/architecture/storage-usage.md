@@ -1,5 +1,9 @@
 # Storage entitlement and usage
 
+The [resource governance contract](storage-resource-governance.md) defines the target
+Storage Objects / Usage / Quota boundaries and implementation dependencies. This page
+describes the current persisted entitlement and accounting behavior.
+
 Storage entitlement and accounting have separate persisted authorities:
 
 | Record | Current fact |
@@ -80,8 +84,13 @@ Physical bytes and semantic object ownership follow the independent
 
 `StorageUsageEvent` is audit evidence, not current-state reconstruction authority.
 StoredObject facts provide byte size; semantic owner rows provide user, category
-and allocation multiplicity. Online account/counters remain the fast GET/admission
-projection, and maintenance can rebuild them independently of event completeness.
+and allocation multiplicity. Each business domain owns its SQL-aggregating Inventory
+provider. `storage_inventory.registry` validates complete category coverage and combines
+contributions into an immutable User snapshot. `storage_inventory.composition` explicitly
+wires the providers; callers inject this registry through the Inventory reader contract
+into `StorageUsageReconciliation`. Storage Usage does not import business providers or
+resource ORM models to reconstruct inventory. Online account/counters remain the fast
+GET/admission projection, and maintenance can rebuild them independently of event completeness.
 
 | Category | Semantic allocations | User authority | Byte source |
 | --- | --- | --- | --- |

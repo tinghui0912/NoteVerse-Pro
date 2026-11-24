@@ -47,9 +47,9 @@ from app.modules.storage_usage.accounting import (
     new_usage_event,
 )
 from app.modules.storage_usage.entitlements import provision_default_storage_state
+from app.modules.storage_inventory.composition import build_storage_inventory_registry
 from app.modules.storage_usage.reconciliation import StorageUsageReconciliation, UsageTotals
 from app.modules.storage_usage.service import storage_usage_service as usage
-from app.modules.storage_usage.inventory import semantic_used_bytes
 
 
 @pytest.fixture
@@ -201,18 +201,18 @@ def inventory(db):
 def test_inventory_counts_semantic_rows_and_intentionally_excludes_unaccounted_owners(database):
     with Session(database) as db:
         expected = inventory(db)
-        assert semantic_used_bytes(db, 1) == expected
-        assert semantic_used_bytes(db, 2) == dict.fromkeys(
+        assert build_storage_inventory_registry().snapshot_user(db, 1).used_bytes == expected
+        assert build_storage_inventory_registry().snapshot_user(db, 2).used_bytes == dict.fromkeys(
             Category, 0
         )  # backing Upload is promoted
-        report = StorageUsageReconciliation().inspect_user(db, 1)
+        report = StorageUsageReconciliation(build_storage_inventory_registry()).inspect_user(db, 1)
         assert {item.category: item.expected.used_bytes for item in report.categories} == expected
         assert report.expected_account.used_bytes == 11 + 54 + 58
         assert set(expected) == set(Category)
 
 
 def test_repair_uses_semantic_facts_and_active_holds_and_is_transactional_and_idempotent(database):
-    reconcile = StorageUsageReconciliation()
+    reconcile = StorageUsageReconciliation(build_storage_inventory_registry())
     with Session(database) as db:
         expected = inventory(db)
         for category in Category:
@@ -291,10 +291,16 @@ def test_repair_uses_semantic_facts_and_active_holds_and_is_transactional_and_id
 
 def test_repair_creates_missing_counters_without_reprovisioning_or_spurious_events(database):
     with Session(database) as db:
-        report = StorageUsageReconciliation().reconcile_user(db, 1)
+        report = StorageUsageReconciliation(build_storage_inventory_registry()).reconcile_user(
+            db, 1
+        )
         assert not report.drift
         assert all(not item.counter_exists for item in report.categories)
-        assert not StorageUsageReconciliation().inspect_user(db, 1).drift
+        assert (
+            not StorageUsageReconciliation(build_storage_inventory_registry())
+            .inspect_user(db, 1)
+            .drift
+        )
         assert set(db.scalars(select(StorageUsageCounter.category))) == set(Category)
         assert db.scalar(select(func.count()).select_from(StorageUsageEvent)) == 0
         db.rollback()
@@ -308,7 +314,7 @@ def test_maintenance_does_not_repair_missing_provisioning_authorities(database, 
     with Session(database) as db:
         db.execute(delete(missing).where(missing.user_id == 1))
         with pytest.raises(AppException) as error:
-            StorageUsageReconciliation().reconcile_user(db, 1)
+            StorageUsageReconciliation(build_storage_inventory_registry()).reconcile_user(db, 1)
         assert error.value.code == "quota_check_unavailable"
 
 
@@ -366,7 +372,7 @@ def test_exact_release_records_the_requested_delta(database):
 @pytest.mark.parametrize("operation", ["allocation", "reservation", "commit", "release"])
 @pytest.mark.parametrize("winner", ["domain", "reconciler"])
 def test_maintenance_serializes_with_semantic_and_hold_transactions(database, operation, winner):
-    reconcile = StorageUsageReconciliation()
+    reconcile = StorageUsageReconciliation(build_storage_inventory_registry())
     entered = Event()
     waiter_pid = []
     hold = None
@@ -446,8 +452,10 @@ def test_maintenance_serializes_with_semantic_and_hold_transactions(database, op
         )
 
 
-def test_inventory_and_maintenance_have_no_provider_or_event_reconstruction_dependency(database):
-    import app.modules.storage_usage.inventory as inventory_module
+def test_inventory_and_maintenance_have_no_object_store_or_event_reconstruction_dependency(
+    database,
+):
+    import app.modules.storage_inventory.registry as inventory_module
     import app.modules.storage_usage.reconciliation as reconciliation_module
 
     for module in [inventory_module, reconciliation_module]:
@@ -458,9 +466,11 @@ def test_inventory_and_maintenance_have_no_provider_or_event_reconstruction_depe
             and (name.startswith("app.storage") or name.startswith("app.modules.storage_objects"))
             for name in imports
         )
-    # A category without an inventory branch fails closed in semantic_used_bytes().
+    # Complete composition returns explicit zero totals for an empty semantic inventory.
     with Session(database) as db:
-        assert semantic_used_bytes(db, 1) == dict.fromkeys(Category, 0)
+        assert build_storage_inventory_registry().snapshot_user(db, 1).used_bytes == dict.fromkeys(
+            Category, 0
+        )
 
 
 def test_missing_plan_policy_fails_closed_without_mutation(database):
@@ -472,7 +482,7 @@ def test_missing_plan_policy_fails_closed_without_mutation(database):
         patch.object(StorageUsageRepository, "plan_policy", return_value=None),
     ):
         with pytest.raises(AppException) as error:
-            StorageUsageReconciliation().reconcile_user(db, 1)
+            StorageUsageReconciliation(build_storage_inventory_registry()).reconcile_user(db, 1)
         assert error.value.code == "quota_check_unavailable"
         assert not db.new and not db.dirty
 
@@ -489,7 +499,7 @@ def test_inspection_is_a_read_only_inventory_without_event_reads(database):
 
         event.listen(database, "before_cursor_execute", record)
         try:
-            StorageUsageReconciliation().inspect_user(db, 1)
+            StorageUsageReconciliation(build_storage_inventory_registry()).inspect_user(db, 1)
         finally:
             event.remove(database, "before_cursor_execute", record)
         assert statements and all(
@@ -517,7 +527,9 @@ def test_operator_command_has_explicit_transaction_ownership_and_opaque_output(
     assert '"user_id": 1' in output and '"drift": true' in output
     assert "sensitive-filename-and-locator" not in output and "opaque/" not in output
     with Session(database) as db:
-        assert StorageUsageReconciliation().inspect_user(db, 1).drift == (command == "inspect")
+        assert StorageUsageReconciliation(build_storage_inventory_registry()).inspect_user(
+            db, 1
+        ).drift == (command == "inspect")
         if command == "repair":
             assert db.get(StorageUsageAccount, 1).used_bytes == 13
             assert db.scalar(select(func.count()).select_from(StorageUsageCounter)) == len(Category)
@@ -535,7 +547,7 @@ def test_inspection_never_flushes_pending_caller_writes(database):
             reason="pending",
         )
         db.add(pending)
-        StorageUsageReconciliation().inspect_user(db, 1)
+        StorageUsageReconciliation(build_storage_inventory_registry()).inspect_user(db, 1)
         assert pending in db.new
         assert account.used_bytes == 123
         with Session(database) as observer:

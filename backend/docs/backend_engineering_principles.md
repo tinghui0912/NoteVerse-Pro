@@ -55,6 +55,7 @@ app/modules/
 |-- score_access
 |-- score_assets
 |-- scores
+|-- storage_inventory
 |-- storage_objects
 |-- storage_usage
 `-- uploads

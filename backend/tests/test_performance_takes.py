@@ -4063,9 +4063,10 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         take = session.scalar(select(PerformanceTake))
         assert take.manifest_id == manifest_id
         assert finalized.json()["manifest"] == accepted["manifest"]
+        from app.modules.storage_inventory.composition import build_storage_inventory_registry
         from app.modules.storage_usage.reconciliation import StorageUsageReconciliation
 
-        reconciler = StorageUsageReconciliation()
+        reconciler = StorageUsageReconciliation(build_storage_inventory_registry())
         assert not reconciler.inspect_user(session, user.id).drift
         assert (
             reconciler.inspect_user(session, user.id).expected_account.used_bytes

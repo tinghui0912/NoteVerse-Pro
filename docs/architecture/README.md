@@ -13,6 +13,12 @@ accepted current decisions and their rationale.
 - [Kubernetes Application Runtime](runtime/k8s-application-runtime-contract.md)
 - [External Dependencies](integrations/external-dependencies.md)
 
+## Storage Resources
+
+- [Resource Governance](storage-resource-governance.md)
+- [Object Storage](object-storage.md)
+- [Storage Usage](storage-usage.md)
+
 ## Score
 
 - [Written Score Semantics](score-semantics.md)

@@ -5,6 +5,7 @@ import json
 from dataclasses import asdict
 
 from app.db.session import SessionLocal
+from app.modules.storage_inventory.composition import build_storage_inventory_registry
 from app.modules.storage_usage.reconciliation import StorageUsageReconciliation
 
 
@@ -13,7 +14,7 @@ def main() -> None:
     parser.add_argument("command", choices=["inspect", "repair"])
     parser.add_argument("user_id", type=int)
     args = parser.parse_args()
-    reconciliation = StorageUsageReconciliation()
+    reconciliation = StorageUsageReconciliation(build_storage_inventory_registry())
     with SessionLocal() as db:
         result = (
             reconciliation.reconcile_user

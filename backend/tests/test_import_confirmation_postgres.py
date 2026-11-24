@@ -697,11 +697,12 @@ def test_shared_upload_promotions_and_last_input_release_match_semantic_inventor
     from app.db.models import ScoreDeletionOperation
     from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService
     from app.modules.scores.deletion_executor import ScoreDeletionExecutor
+    from app.modules.storage_inventory.composition import build_storage_inventory_registry
     from app.modules.storage_usage.reconciliation import StorageUsageReconciliation
     from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 
     engine, storage = confirmation
-    reconciliation = StorageUsageReconciliation()
+    reconciliation = StorageUsageReconciliation(build_storage_inventory_registry())
 
     def assert_usage(db, uploads, inputs):
         report = reconciliation.inspect_user(db, 1)
