@@ -607,3 +607,83 @@ def test_deletion_fence_commit_uncertainty_precedes_any_physical_delete(
         else:
             assert retain_for_reference(db, identity) is not None
             db.commit()
+
+
+def test_fenced_reference_is_integrity_failure_without_reference_or_physical_deletion(
+    retirement_postgres, monkeypatch
+):
+    from unittest.mock import Mock
+    from sqlalchemy.exc import IntegrityError
+    from app.modules.storage_objects.retirement import retain_for_reference
+
+    engine, sessions, storage = retirement_postgres
+    identity, key, uuid = seed(retirement_postgres)
+    with sessions() as db:
+        operation = retirement_delivery.get(db, uuid)
+        operation.deletion_fenced_at = utc_now()
+        fence = operation.deletion_fenced_at
+        # Deliberate corruption bypasses normal reference acquisition to exercise fail-closed IO.
+        db.get(User, 1).avatar_object_id = identity
+        db.commit()
+    with sessions() as db, pytest.raises(ValueError, match="deletion"):
+        retain_for_reference(db, identity)
+    delete = Mock(wraps=storage.delete)
+    monkeypatch.setattr(storage, "delete", delete)
+    assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "failed"
+    delete.assert_not_called()
+    assert storage.read_bytes(key) == CONTENT
+    with sessions() as db:
+        operation = retirement_delivery.get(db, uuid)
+        assert operation.status == StoredObjectRetirementStatus.FAILED
+        assert operation.deletion_fenced_at == fence
+        assert db.get(User, 1).avatar_object_id == identity
+        assert db.get(StoredObject, identity) is not None
+        operation.status = StoredObjectRetirementStatus.CANCELLED
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        db.delete(db.get(StoredObject, identity))
+        with pytest.raises(IntegrityError):
+            db.flush()
+        db.rollback()
+        assert retirement_delivery.get(db, uuid).deletion_fenced_at == fence
+    delete.assert_not_called()
+
+
+def test_retirement_retry_exhaustion_preserves_fence_and_physical_evidence(
+    retirement_postgres, monkeypatch
+):
+    from unittest.mock import Mock
+    from app.core.config import settings
+    from app.modules.storage_objects.retirement import retain_for_reference, snapshot
+
+    engine, sessions, storage = retirement_postgres
+    identity, key, uuid = seed(retirement_postgres)
+    monkeypatch.setattr(settings, "STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS", 2)
+    delete = Mock(side_effect=OSError("provider unavailable"))
+    monkeypatch.setattr(storage, "delete", delete)
+    with sessions() as db:
+        facts = snapshot(retirement_delivery.get(db, uuid))
+    fence = None
+    for attempt in [1, 2]:
+        assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "failed"
+        with sessions() as db:
+            operation = retirement_delivery.get(db, uuid)
+            assert operation.status == StoredObjectRetirementStatus.FAILED
+            assert operation.attempt_count == attempt
+            assert operation.deletion_fenced_at is not None
+            fence = fence or operation.deletion_fenced_at
+            assert operation.deletion_fenced_at == fence
+            assert snapshot(operation) == facts
+            operation.next_attempt_at = utc_now()
+            db.commit()
+    assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "ignored"
+    assert delete.call_count == 2 and storage.read_bytes(key) == CONTENT
+    with sessions() as db:
+        assert retirement_delivery.recover_and_list_due(db) == []
+        operation = retirement_delivery.get(db, uuid)
+        assert operation.status == StoredObjectRetirementStatus.FAILED
+        assert operation.attempt_count == 2 and operation.deletion_fenced_at == fence
+        assert snapshot(operation) == facts and db.get(StoredObject, identity) is not None
+        with pytest.raises(ValueError, match="deletion"):
+            retain_for_reference(db, identity)
