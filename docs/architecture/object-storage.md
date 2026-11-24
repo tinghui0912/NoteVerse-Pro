@@ -181,6 +181,86 @@ Once retirement completes, reacquisition follows a fresh ObjectWriteIntent gener
 Unfinished fenced operations must finish before schema downgrade can remove their fence;
 attempted unfinished operations acquire the fence when the schema is installed.
 
+### Migration preflight and operator reconciliation
+
+A pre-fence CANCELLED operation with `attempt_count > 0` has an ambiguous physical
+outcome. A worker can have deleted bytes before its completion transaction rolled
+back, and reference retention can then have cancelled the restored PROCESSING row.
+CANCELLED alone therefore does not prove that the physical object still exists.
+
+`0003_object_retirement_fence` takes an exclusive retirement-table lock and checks
+for these records **before any schema changes or backfill**. It refuses the upgrade,
+reports the total and up to twenty operation UUIDs, object IDs, keys and attempt
+counts, and leaves the schema, snapshots and records unchanged. It never converts
+these cancellations to deletion work automatically. PENDING with zero attempts and
+CANCELLED with zero attempts require no fence; attempted nonterminal work is fenced;
+COMPLETED retains its terminal evidence without an unfinished fence.
+
+Reconciliation is an explicit, per-record operational decision:
+
+1. Quiesce HTTP mutations, producers, workers and retirement recovery for the affected
+   database. Keep them stopped through verification, the reviewed decision and schema
+   installation. Take a database backup and export each complete operation row to a
+   durable incident/change record, including its UUID, snapshots, attempt count,
+   timestamps and failure detail. Record the operator, reviewer and evidence locations.
+   Enumerate the full affected set, rather than relying on the bounded diagnostic:
+
+   ```sql
+   SELECT * FROM stored_object_retirements
+   WHERE status = 'CANCELLED' AND attempt_count > 0 ORDER BY id;
+   ```
+
+2. Verify that the linked StoredObject exists and that key, size, SHA-256 and content
+   type exactly match the retirement snapshot. A missing StoredObject or conflicting
+   facts requires separate investigation; the snapshot alone cannot authorize deletion.
+   Verify the provider key exists, compare metadata size, then stream **all bytes** to
+   verify size and SHA-256. Metadata or an ETag alone is insufficient evidence.
+
+3. Inspect every entry in `storage_objects/references.py`: Upload, Take recording,
+   ImportArtifact, Revision source, render asset, playback asset, both Bundle
+   representations and User avatar. Record the actual referencing rows, including
+   inactive business rows that still hold a RESTRICT FK. Check each domain's ownership
+   and readiness, its logical allocation/release evidence and current Usage projection;
+   use semantic inventory/reconciliation to investigate discrepancies. Physical sharing
+   does not imply one logical allocation. Avatar and Bundle references remain non-quota.
+
+4. If bytes are missing or corrupt **and references remain**, restore a verified backup
+   to the same immutable key while writes are quiesced, then repeat full size/hash and
+   reference/accounting verification. Do not remove references, erase allocations, mark
+   the operation COMPLETED or fabricate replacement facts to conceal missing bytes. If
+   no verified backup exists, keep the upgrade blocked and escalate the incident.
+
+5. Record an explicit resolution decision and retain the original row export. For an
+   object with no semantic references, resume the **same** retirement operation through
+   the formal protocol; a missing key is handled by its idempotent worker after admission,
+   not by declaring completion manually. For verified/restored bytes with references,
+   an operator may explicitly resume that same operation as PENDING, preserving its
+   attempt count, snapshot, UUID, cancellation timestamp and failure history. Update only
+   status, due time and update time in a guarded, reviewed transaction, and record the
+   before/after row and decision in the change record. Re-run migration while quiesced:
+   attempted PENDING work receives an irreversible fence. This intentionally blocks new
+   references; existing references remain untouched and continue to protect the object.
+   This is not a bulk CANCELLED-to-FAILED conversion or immediate deletion dispatch.
+
+6. Verify the installed fence and unchanged semantic references/accounting before
+   resuming execution. The worker refuses physical deletion while **any** semantic FK
+   remains, and cannot cancel a committed fence. Only explicit domain-owned final-reference
+   release can make deletion eligible. Then schedule/retry the same operation, preserving
+   its fence and snapshots; provider failures retain retry ownership. Exhausted retries
+   require a separately reviewed operational decision, not an attempt-count reset to
+   satisfy migration. Persist completion evidence only through the normal worker.
+
+Attempt counts must never be reset to make preflight pass: doing so destroys the evidence
+that identifies uncertain deletion. State changes require auditable resolution, and no
+resolution path reverses a committed deletion fence. RESTRICT remains the final barrier.
+
+Alembic does not rerun a revision already recorded as applied. A database already at 0003
+must undergo the same quiesced inventory and evidence review explicitly. For an approved
+resumption on that schema, set PENDING **and** `deletion_fenced_at` together in the guarded
+transaction, preserving an existing fence and all historical facts. Do not downgrade,
+restamp or replay revisions to bypass reconciliation. The reference and retry rules above
+remain identical.
+
 Retirement states are PENDING, DISPATCHED, PROCESSING, FAILED, COMPLETED and CANCELLED. Shared delivery policy owns retry, lease expiry, dispatch and reset. A fresh attempt token fences cancelled/rearmed work as well as lease takeover. Immediate dispatch is best effort; periodic maintenance is the durable recovery path.
 
 Temporary upload staging, finalizing and orphan keys are reservation lifecycle locators, not StoredObjects. Unadopted server writes remain owned by ObjectWriteIntent until ADOPTED or CLEANED. Retirement snapshots, StorageQuotaHold identities and StorageUsageEvent keys are operation/accounting evidence, not current physical authority. Neither snapshot retains semantic ownership.
