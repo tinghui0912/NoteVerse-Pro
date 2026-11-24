@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.composition.storage_resources import storage_quota_service
 from app.db.models import StoredObject
 
 import pytest
@@ -19,7 +20,7 @@ async def test_seed_source_reservation_and_revision_have_explicit_durable_bounda
     from sqlalchemy import select
     from sqlalchemy.orm import Session
     from sqlalchemy.orm import sessionmaker
-    from app.db.models import StoragePlanPolicy, StorageUsageAccount, StorageUsageReservation
+    from app.db.models import StoragePlanPolicy, StorageUsageAccount, StorageQuotaHold
 
     engine, _, storage = retirement_postgres
     with Session(engine) as db:
@@ -43,7 +44,11 @@ async def test_seed_source_reservation_and_revision_have_explicit_durable_bounda
     def physical_put(**kwargs):
         with Session(engine) as observer:
             account = observer.scalar(select(StorageUsageAccount).with_for_update(nowait=True))
-            assert account.reserved_bytes == size and account.used_bytes == 0
+            assert (
+                storage_quota_service.snapshot_user(observer, account.user_id).reserved_bytes
+                == size
+                and account.used_bytes == 0
+            )
             observations.append(account.user_id)
         result = put(**kwargs)
         if outcome == "put_failure":
@@ -67,15 +72,15 @@ async def test_seed_source_reservation_and_revision_have_explicit_durable_bounda
     assert len(observations) == 1
     with Session(engine) as observer:
         account = observer.scalar(select(StorageUsageAccount))
-        hold = observer.scalar(select(StorageUsageReservation))
+        hold = observer.scalar(select(StorageQuotaHold))
         score = observer.scalar(
             select(Score).where(
                 Score.score_uuid == seed_integration_user.INTEGRATION_PRACTICE_SCORE_ID
             )
         )
-        assert account.reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(observer, account.user_id).reserved_bytes == 0
         assert account.used_bytes == (size if outcome == "success" else 0)
-        assert hold.status.value == ("COMMITTED" if outcome == "success" else "RELEASED")
+        assert hold.status.value == ("CONSUMED" if outcome == "success" else "RELEASED")
         assert (score is not None) == (outcome == "success")
         if score is not None:
             revision = observer.get(ScoreRevision, score.head_revision_id)
@@ -106,6 +111,9 @@ class _FakeSeedSession:
         if _statement.column_descriptions[0].get("entity") is StoragePlanPolicy:
             return _Result(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=104857600))
         return _Result(self._values.pop(0))
+
+    def scalar(self, statement: object) -> object | None:
+        return self.execute(statement).scalar_one_or_none()
 
     def add(self, value: object) -> None:
         if isinstance(value, User) and value.id is None:

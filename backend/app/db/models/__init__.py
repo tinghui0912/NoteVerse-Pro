@@ -64,14 +64,10 @@ from .playback import (
     ScorePlaybackAsset,
 )
 from .storage_usage import (
-    StoragePlanPolicy,
-    UserStorageEntitlement,
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
     StorageUsageEvent,
-    StorageUsageReservation,
-    StorageUsageReservationStatus,
 )
 from .performance_take import (
     PerformanceTake,
@@ -153,14 +149,15 @@ __all__ = [
     "PlaybackOutbox",
     "PlaybackOutboxStatus",
     "ScorePlaybackAsset",
+    "StorageQuotaHold",
+    "StorageQuotaMode",
+    "StorageQuotaHoldStatus",
     "StoragePlanPolicy",
     "UserStorageEntitlement",
     "StorageUsageAccount",
     "StorageUsageCategory",
     "StorageUsageCounter",
     "StorageUsageEvent",
-    "StorageUsageReservation",
-    "StorageUsageReservationStatus",
     "PerformanceTakeManifest",
     "PerformanceTake",
     "PracticeBundleRecord",
@@ -173,3 +170,11 @@ from .object_write_intent import ObjectWriteIntent
 from .revision_metadata_outbox import RevisionMetadataOutbox
 
 from .score_deletion_operation import ScoreDeletionOperation, ScoreDeletionOperationStatus
+
+from .storage_quota import (
+    StoragePlanPolicy,
+    UserStorageEntitlement,
+    StorageQuotaHold,
+    StorageQuotaMode,
+    StorageQuotaHoldStatus,
+)

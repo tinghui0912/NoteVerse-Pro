@@ -4,6 +4,8 @@ import pytest
 import sqlalchemy as sa
 from alembic import command
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from tests.support.quota import quota_hold_fact
 from app.db.models import User
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
@@ -48,7 +50,10 @@ def test_fresh_schema_enforces_current_lifecycle_tuples(monkeypatch, status, lea
             manifest_id = connection.execute(
                 manifests.insert().values(**manifest_values(user_id)).returning(manifests.c.id)
             ).scalar_one()
-        values = {**reservation_values(user_id, manifest_id), "status": status}
+        with Session(engine) as db:
+            hold_id = quota_hold_fact(db, user_id)
+            db.commit()
+        values = {**reservation_values(user_id, manifest_id, hold_id), "status": status}
         if lease:
             values.update(
                 finalizing_token="token",
@@ -59,5 +64,9 @@ def test_fresh_schema_enforces_current_lifecycle_tuples(monkeypatch, status, lea
             with engine.begin() as connection:
                 connection.execute(reservations.insert().values(**values))
         else:
-            with pytest.raises(IntegrityError), engine.begin() as connection:
+            with pytest.raises(IntegrityError) as failure, engine.begin() as connection:
                 connection.execute(reservations.insert().values(**values))
+            assert failure.value.orig.diag.constraint_name in {
+                "ck_take_reservation_status",
+                "ck_take_reservation_finalize_lease",
+            }

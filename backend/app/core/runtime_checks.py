@@ -197,14 +197,14 @@ def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
     from app.db.session import engine
-    from app.modules.storage_usage.entitlements import DEFAULT_STORAGE_PLAN_CODE
+    from app.modules.storage_quota.entitlements import DEFAULT_STORAGE_PLAN_CODE
 
     try:
         with engine.connect() as connection:
             row = connection.execute(
                 text(
                     """
-                    select default_limit_bytes
+                    select mode, default_limit_bytes
                     from storage_plan_policies
                     where plan_code = :plan_code
                     """
@@ -224,7 +224,14 @@ def check_storage_quota_policy(_: bool = False) -> CheckResult:
             False,
             f"missing required storage quota policy: {DEFAULT_STORAGE_PLAN_CODE}",
         )
-    if int(row.default_limit_bytes) < 0:
+    if (
+        (
+            row.mode == "HARD_LIMIT"
+            and (row.default_limit_bytes is None or row.default_limit_bytes < 0)
+        )
+        or (row.mode == "UNLIMITED" and row.default_limit_bytes is not None)
+        or row.mode not in {"HARD_LIMIT", "UNLIMITED"}
+    ):
         return _result(
             "storage_quota_policy",
             False,

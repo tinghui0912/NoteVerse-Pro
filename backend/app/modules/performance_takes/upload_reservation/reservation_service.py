@@ -61,6 +61,7 @@ from app.modules.practice.score.domain import PracticeTempoSegment
 
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.storage_usage.service import StorageUsageService
+from app.modules.storage_quota.service import StorageQuotaService
 from app.shared.error_codes import CustomerErrorCode
 from app.storage.factory import object_storage
 from app.shared.time import utc_now
@@ -88,6 +89,7 @@ class PerformanceTakeReservationService:
         )
         self.storage = storage or object_storage
         self.storage_usage_service = storage_usage_service or StorageUsageService()
+        self.quota = StorageQuotaService(self.storage_usage_service)
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
         self.practice_bundle_service = practice_bundle_service or PracticeBundleService(
             access_policy=self.score_access_policy,
@@ -105,6 +107,7 @@ class PerformanceTakeReservationService:
         now = utc_now()
         apply_reservation_transition(
             self.storage_usage_service,
+            self.quota,
             db,
             reservation,
             lifecycle_from_row(reservation).expire(now=now),
@@ -166,6 +169,7 @@ class PerformanceTakeReservationService:
         now = utc_now()
         apply_reservation_transition(
             self.storage_usage_service,
+            self.quota,
             db,
             reservation,
             lifecycle_from_row(reservation).refresh_upload(
@@ -191,13 +195,17 @@ class PerformanceTakeReservationService:
         metadata = metadata.model_copy(update={"media": media})
         if not is_admitted_recording_mime(media.kind, media.mime_type):
             raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="media_mime_type")
+        # Discovery does not admit a command or acquire a business row lock.
         existing = self.repository.get_reservation_by_client_request_id(
-            db,
-            user_id,
-            request.client_request_id,
-            lock=True,
+            db, user_id, request.client_request_id
         )
         if existing is not None:
+            self.quota.lock_user(db, user_id)
+            existing = self.repository.get_reservation_by_client_request_id(
+                db, user_id, request.client_request_id, lock=True
+            )
+            if existing is None:
+                raise ResourceNotFoundException("upload_reservation", request.client_request_id)
             return self._replay_reservation(db, existing, metadata)
         authorized_bundle = self.practice_bundle_service.authorize_bundle_for_save(
             db,
@@ -245,6 +253,14 @@ class PerformanceTakeReservationService:
                 ],
             }
         )
+        # Save admission holds the Score/Bundle parents before user capacity locks.
+        # Recheck the client identity after serialization; a competing creator may have won.
+        self.quota.lock_user(db, user_id)
+        existing = self.repository.get_reservation_by_client_request_id(
+            db, user_id, request.client_request_id, lock=True
+        )
+        if existing is not None:
+            return self._replay_reservation(db, existing, metadata)
         take_uuid = str(uuid4())
         staging_key = performance_take_staging_object_key(
             user_id=user_id, take_uuid=take_uuid, media_kind=media.kind, mime_type=media.mime_type
@@ -252,17 +268,16 @@ class PerformanceTakeReservationService:
         upload_target = self.storage.upload_url(
             key=staging_key, content_type=media.mime_type, checksum_sha256=""
         )
-        storage_reservation = self.storage_usage_service.reserve(
+        now = utc_now()
+        hold = self.quota.create_hold(
             db,
             user_id=user_id,
             category=StorageUsageCategory.UPLOAD,
             bytes_count=media.byte_size,
-            reason="performance_take_upload_reservation",
-            object_type="performance_take",
-            object_id=take_uuid,
-            storage_key=staging_key,
+            command_key="take:" + request.client_request_id,
+            expires_at=now + timedelta(seconds=TAKE_UPLOAD_RESERVATION_SECONDS),
+            now=now,
         )
-        now = utc_now()
         put_expiry = self._put_url_expires_at(now)
         manifest = TakeManifest(
             take_uuid,
@@ -291,7 +306,7 @@ class PerformanceTakeReservationService:
             user_id=user_id,
             client_request_id=request.client_request_id,
             staging_object_key=staging_key,
-            storage_reservation_id=storage_reservation.reservation_id,
+            quota_hold_id=hold.hold_id,
             expires_at=now + timedelta(seconds=TAKE_UPLOAD_RESERVATION_SECONDS),
         )
         initialize_lifecycle(
@@ -310,6 +325,7 @@ class PerformanceTakeReservationService:
             db.commit()
         except IntegrityError:
             db.rollback()
+            self.quota.lock_user(db, user_id)
             winner = self.repository.get_reservation_by_client_request_id(
                 db,
                 user_id,
@@ -330,6 +346,7 @@ class PerformanceTakeReservationService:
         user_id: int,
         reservation_id: str,
     ) -> None:
+        self.quota.lock_user(db, user_id)
         reservation = self.repository.get_reservation_by_uuid(
             db, user_id, reservation_id, lock=True
         )
@@ -346,6 +363,6 @@ class PerformanceTakeReservationService:
                 CustomerErrorCode.VALIDATION_ERROR, field="status", details={"reason": error.code}
             ) from error
         apply_reservation_transition(
-            self.storage_usage_service, db, reservation, transition, now=now
+            self.storage_usage_service, self.quota, db, reservation, transition, now=now
         )
         db.commit()

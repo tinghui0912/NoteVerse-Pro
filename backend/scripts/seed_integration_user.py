@@ -6,6 +6,11 @@ validated only; they are never silently repaired or overwritten.
 """
 
 from __future__ import annotations
+from app.composition.storage_resources import storage_quota_service
+from uuid import uuid4
+from datetime import timedelta
+from app.shared.time import utc_now
+
 
 import hashlib
 import os
@@ -22,8 +27,7 @@ from app.modules.revisions.writer import (
     PreparedRevisionSource,
 )
 from app.modules.storage_objects.writes import write_object
-from app.modules.storage_usage.service import storage_usage_service
-from app.modules.storage_usage.entitlements import provision_default_storage_state
+from app.composition.storage_resources import provision_storage_resources
 from app.db.models import StorageUsageCategory
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.db.session import SessionLocal
@@ -69,7 +73,7 @@ def seed_user() -> None:
                 )
         session.flush()
         if created_user:
-            provision_default_storage_state(session, require_persisted_id(user.id, entity="user"))
+            provision_storage_resources(session, require_persisted_id(user.id, entity="user"))
 
         score = (
             session.execute(select(Score).where(Score.score_uuid == INTEGRATION_PRACTICE_SCORE_ID))
@@ -87,13 +91,13 @@ def seed_user() -> None:
                 raise RuntimeError(
                     "Integration canonical object already exists; refusing overwrite"
                 )
-            reservation = storage_usage_service.reserve(
+            reservation = storage_quota_service.create_hold(
                 session,
                 user_id=user.id,
                 category=StorageUsageCategory.SOURCE,
                 bytes_count=len(content),
-                reason="integration_fixture",
-                object_type="score_revision_source",
+                command_key=str(uuid4()),
+                expires_at=utc_now() + timedelta(minutes=15),
             )
             try:
                 session.commit()
@@ -117,7 +121,7 @@ def seed_user() -> None:
                     hashlib.sha256(content).hexdigest(),
                     "integration-fixture",
                     "1",
-                    reservation.reservation_id,
+                    reservation.hold_id,
                 )
                 revision_writer.write(
                     session,
@@ -132,7 +136,7 @@ def seed_user() -> None:
                 session.commit()
             except Exception:
                 session.rollback()
-                storage_usage_service.release_reservation(session, reservation.reservation_id)
+                storage_quota_service.release_hold(session, reservation.hold_id)
                 session.commit()
                 raise
         else:

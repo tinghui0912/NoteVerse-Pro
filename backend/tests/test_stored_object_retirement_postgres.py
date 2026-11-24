@@ -87,7 +87,6 @@ def seed(fixture, *, prior_owner=False, queued=True):
             StorageUsageAccount(
                 user_id=1,
                 used_bytes=len(CONTENT) if prior_owner else 0,
-                reserved_bytes=0,
             )
         )
         db.add(
@@ -95,7 +94,6 @@ def seed(fixture, *, prior_owner=False, queued=True):
                 user_id=1,
                 category=StorageUsageCategory.UPLOAD,
                 used_bytes=len(CONTENT) if prior_owner else 0,
-                reserved_bytes=0,
             )
         )
         if prior_owner:

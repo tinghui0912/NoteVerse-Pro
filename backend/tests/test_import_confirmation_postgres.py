@@ -1,5 +1,7 @@
 """Import confirmation commits provenance, revision admission, notification enrichment and release together."""
 
+from app.composition.storage_resources import storage_quota_service
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.db.models.import_job import ImportArtifactKind
 
@@ -444,7 +446,12 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
         assert db.scalar(sa.select(Notification)).score_display_title_snapshot is None
         for counter in db.scalars(sa.select(StorageUsageCounter)):
             assert counter.used_bytes == counters.get(counter.category, 0)
-            assert counter.reserved_bytes == 0
+            assert (
+                storage_quota_service.snapshot_user(db, counter.user_id).categories[
+                    counter.category
+                ]
+                == 0
+            )
         intents = list(db.scalars(sa.select(ObjectWriteIntent)))
         assert len(intents) == 1 and all(row.status == "WRITTEN" for row in intents)
         assert len(drain_write_cleanup(db, storage)) == 1
@@ -888,7 +895,9 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
             is ScoreDeletionOperationStatus.COMPLETED
         )
         assert all(
-            counter.used_bytes == counter.reserved_bytes == 0
+            counter.used_bytes
+            == storage_quota_service.snapshot_user(db, counter.user_id).categories[counter.category]
+            == 0
             for counter in db.scalars(sa.select(StorageUsageCounter))
         )
         retirements = list(db.scalars(sa.select(StoredObjectRetirement)))

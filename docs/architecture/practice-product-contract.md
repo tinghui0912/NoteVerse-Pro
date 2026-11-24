@@ -1100,10 +1100,10 @@ access changes or head-revision changes do not invalidate an admitted reservatio
 `DELETE /performance-takes/upload-reservations/{reservation_id}` cancels a pending
 RESERVED reservation; CANCELLED cancellation is idempotent. FINALIZING, COMPLETED
 and EXPIRED cannot report successful cancellation. Both routes use the user-scoped public upload UUID, independently of the
-backend-internal `storage_reservation_id` quota handle. Object keys remain server-owned.
+backend-internal `quota_hold_id` capacity lineage. Object keys remain server-owned.
 
 PerformanceTake has no product-level per-file byte-size or recording-duration ceiling.
-Positive exact media bytes are admitted through `StorageUsageService.reserve` against
+Positive exact media bytes are admitted through `StorageQuotaService.create_hold` against
 available StorageQuota; insufficient capacity returns `storage_quota_exceeded`.
 RecordingTimebase duration is governed by structural and representational validity.
 Canonical Manifest JSON serialization has no semantic byte-size ceiling. Finalize verifies

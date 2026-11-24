@@ -89,6 +89,7 @@
   "passwordFailed": "Update failed",
   "passwordFailedDesc": "Unable to change password",
   "storage": {
+    "unlimited": "Unlimited",
     "title": "Storage usage",
     "description": "Your current storage quota, used bytes, processing capacity and available space.",
     "refresh": "Refresh",

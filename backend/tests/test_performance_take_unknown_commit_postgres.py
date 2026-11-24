@@ -1,5 +1,7 @@
 """Unacknowledged semantic COMMIT is resolved only by a fresh PostgreSQL session."""
 
+from app.composition.storage_resources import storage_quota_service
+
 import asyncio
 from datetime import timedelta
 from contextlib import contextmanager
@@ -58,7 +60,9 @@ def assert_persisted_outcome(db, reservations, accepted, manifest, candidate, co
     assert manifest_from_row(row.manifest) == manifest
     account = db.get(StorageUsageAccount, 1)
     assert account.used_bytes == (len(MEDIA) if committed else 0)
-    assert account.reserved_bytes == (0 if committed else len(MEDIA))
+    assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == (
+        0 if committed else len(MEDIA)
+    )
     assert db.scalar(select(func.count()).select_from(PerformanceTake)) == int(committed)
     assert db.scalar(
         select(func.count())
@@ -145,7 +149,10 @@ def test_every_noninvalidated_commit_exception_reads_fresh_lineage(
         )
         account = observer.get(StorageUsageAccount, 1)
         observer.refresh(account)
-        assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
+        assert (
+            account.used_bytes == len(MEDIA)
+            and storage_quota_service.snapshot_user(observer, 1).reserved_bytes == 0
+        )
         assert storage.exists(candidates[0].lease.object_key)
 
 
@@ -196,4 +203,7 @@ def test_commit_cancellation_settles_fresh_lineage_before_propagation(postgres_b
         assert saved.take_id == accepted.take_id
         assert observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1
         account = observer.get(StorageUsageAccount, 1)
-        assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
+        assert (
+            account.used_bytes == len(MEDIA)
+            and storage_quota_service.snapshot_user(observer, 1).reserved_bytes == 0
+        )

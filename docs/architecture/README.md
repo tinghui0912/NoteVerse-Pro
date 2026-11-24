@@ -18,6 +18,7 @@ accepted current decisions and their rationale.
 - [Resource Governance](storage-resource-governance.md)
 - [Object Storage](object-storage.md)
 - [Storage Usage](storage-usage.md)
+- [Storage Quota](storage-quota.md)
 
 ## Score
 

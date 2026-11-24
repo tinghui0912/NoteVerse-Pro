@@ -1,5 +1,7 @@
 """Canonical lifecycle vocabularies are projected through ORM and PostgreSQL."""
 
+from tests.support.quota import quota_hold_fact
+
 import ast
 from datetime import timedelta
 from pathlib import Path
@@ -95,7 +97,7 @@ def status_database(database):  # noqa: F811 - imported PostgreSQL fixture
                     manifest_id=manifest.id,
                     client_request_id="status",
                     staging_object_key="status/staging",
-                    storage_reservation_id="hold",
+                    quota_hold_id=quota_hold_fact(db, user.id),
                     expires_at=utc_now() + timedelta(hours=1),
                 ),
             ]

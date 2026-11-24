@@ -1,19 +1,18 @@
-"""Explicit maintenance of online projections from committed semantic and hold facts."""
+"""Explicit maintenance of online projections from committed semantic facts."""
 
 from dataclasses import dataclass
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import (
+from app.db.models.storage_usage import (
     StorageUsageAccount,
     StorageUsageCounter,
     StorageUsageCategory,
-    StorageUsageReservation,
-    StorageUsageReservationStatus,
 )
-from app.modules.storage_usage.accounting import counts_toward_quota, new_usage_event
-from app.modules.storage_usage.entitlements import quota_check_unavailable
+from app.modules.storage_usage.accounting import new_usage_event
+from app.modules.storage_usage.contracts import counts_toward_quota
+from app.modules.storage_usage.availability import usage_projection_unavailable
 from app.modules.storage_inventory.contracts import StorageInventoryReader
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.time import utc_now
@@ -22,7 +21,6 @@ from app.shared.time import utc_now
 @dataclass(frozen=True)
 class UsageTotals:
     used_bytes: int
-    reserved_bytes: int
 
 
 @dataclass(frozen=True)
@@ -59,9 +57,7 @@ class StorageUsageReconciliation:
     def _account(self, db: Session, user_id: int, *, lock: bool) -> StorageUsageAccount:
         account = self.usage.repository.account(db, user_id, lock=lock)
         if account is None:
-            raise quota_check_unavailable("storage_usage_account")
-        # Provisioning and entitlement remain explicit authorities. Never create them here.
-        self.usage._effective_entitlement(db, user_id, lock=False)
+            raise usage_projection_unavailable()
         return account
 
     def inspect_user(self, db: Session, user_id: int) -> StorageUsageInspection:
@@ -71,67 +67,41 @@ class StorageUsageReconciliation:
 
     def _inspect(self, db: Session, user_id: int) -> StorageUsageInspection:
         used = self.inventory.snapshot_user(db, user_id).used_bytes
-        reservation = StorageUsageReservation.__table__
-        holds = db.execute(
-            select(
-                reservation.c.category,
-                reservation.c.counts_toward_quota_snapshot,
-                func.sum(reservation.c.bytes_reserved),
-            )
-            .where(
-                reservation.c.user_id == user_id,
-                reservation.c.status == StorageUsageReservationStatus.RESERVED,
-            )
-            .group_by(reservation.c.category, reservation.c.counts_toward_quota_snapshot)
-        ).all()
-        reserved = {category: 0 for category in StorageUsageCategory}
-        quota_reserved = 0
-        for category, counted, total in holds:
-            reserved[category] += int(total)
-            if counted:
-                quota_reserved += int(total)
         counter = StorageUsageCounter.__table__
         counters = {
-            category: UsageTotals(int(used), int(held))
-            for category, used, held in db.execute(
-                select(counter.c.category, counter.c.used_bytes, counter.c.reserved_bytes).where(
-                    counter.c.user_id == user_id
-                )
+            category: UsageTotals(int(used))
+            for category, used in db.execute(
+                select(counter.c.category, counter.c.used_bytes).where(counter.c.user_id == user_id)
             )
         }
-        actual_used, actual_reserved = db.execute(
-            select(StorageUsageAccount.used_bytes, StorageUsageAccount.reserved_bytes).where(
-                StorageUsageAccount.user_id == user_id
-            )
-        ).one()
+        actual_used = db.execute(
+            select(StorageUsageAccount.used_bytes).where(StorageUsageAccount.user_id == user_id)
+        ).scalar_one()
         return StorageUsageInspection(
             user_id=user_id,
             categories=tuple(
                 CategoryDrift(
                     category,
-                    counters[category] if category in counters else UsageTotals(0, 0),
-                    UsageTotals(used[category], reserved[category]),
+                    counters[category] if category in counters else UsageTotals(0),
+                    UsageTotals(used[category]),
                     category in counters,
                 )
                 for category in StorageUsageCategory
             ),
-            actual_account=UsageTotals(actual_used, actual_reserved),
+            actual_account=UsageTotals(actual_used),
             expected_account=UsageTotals(
                 sum(size for category, size in used.items() if counts_toward_quota(category)),
-                quota_reserved,
             ),
         )
 
     def reconcile_user(self, db: Session, user_id: int) -> StorageUsageInspection:
         account = self._account(db, user_id, lock=True)
-        # Account serialization precedes inventory reads and counter mutation. No owner,
-        # reservation or entitlement row is locked after this lock.
+        # Account serialization precedes inventory reads and counter mutation.
         before = self._inspect(db, user_id)
         for item in before.categories:
             counter = self.usage._ensure_counter(db, user_id, item.category, lock=True)
             if item.actual != item.expected:
                 counter.used_bytes = item.expected.used_bytes
-                counter.reserved_bytes = item.expected.reserved_bytes
                 counter.updated_at = utc_now()
             delta = item.expected.used_bytes - item.actual.used_bytes
             if delta:
@@ -146,7 +116,6 @@ class StorageUsageReconciliation:
                 )
         if before.actual_account != before.expected_account:
             account.used_bytes = before.expected_account.used_bytes
-            account.reserved_bytes = before.expected_account.reserved_bytes
             account.updated_at = utc_now()
         db.flush()
         return before

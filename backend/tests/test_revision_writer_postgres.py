@@ -1,5 +1,8 @@
 """Canonical admission, transactional consequences and metadata fencing on real PostgreSQL."""
 
+from tests.support.quota import admit_hold
+from app.composition.storage_resources import storage_quota_service
+
 from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
 
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -29,7 +32,7 @@ from app.db.models import (
     ImportDispatch,
     ImportDispatchStatus,
     StorageUsageCategory,
-    StorageUsageReservation,
+    StorageQuotaHold,
     StorageUsageEvent,
     StorageUsageAccount,
     StorageUsageCounter,
@@ -58,9 +61,8 @@ from app.modules.revisions.metadata_delivery import (
     compute_metadata,
     MetadataResult,
 )
-from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_objects.writes import write_object
-from app.core.exceptions import ConflictException
+from app.core.exceptions import ConflictException, ResourceNotFoundException
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.shared.time import utc_now
@@ -115,13 +117,11 @@ def prepare(engine, storage, content=MUSICXML_1):
     content = admit_musicxml_document(content.encode() if isinstance(content, str) else content)
     uuid = str(uuid4())
     with Session(engine) as db:
-        reservation = storage_usage_service.reserve(
+        reservation = admit_hold(
             db,
             user_id=1,
             category=StorageUsageCategory.SOURCE,
             bytes_count=len(content),
-            reason="revision_write",
-            object_type="score_revision_source",
         )
         db.commit()
         receipt = write_object(
@@ -132,7 +132,7 @@ def prepare(engine, storage, content=MUSICXML_1):
             content_type="application/vnd.recordare.musicxml+xml",
         )
     return PreparedRevisionSource(
-        uuid, receipt, sha256(content).hexdigest(), "test", "1", reservation.reservation_id
+        uuid, receipt, sha256(content).hexdigest(), "test", "1", reservation.hold_id
     )
 
 
@@ -231,12 +231,12 @@ def test_concurrent_head_writes_serialize_and_idempotency_resolves_in_writer(dat
             and db.get(ScoreRevision, score.head_revision_id).revision_number == 2
         )
         if not same_key:
-            storage_usage_service.release_reservation(db, second.reservation_id)
+            storage_quota_service.release_hold(db, second.quota_hold_id)
             db.commit()
         assert all(item["status"] == "cleaned" for item in drain_write_cleanup(db, storage))
 
 
-@pytest.mark.parametrize("failure", ["adopt", "reservation", "notification", "realtime", "notify"])
+@pytest.mark.parametrize("failure", ["adopt", "quota", "notification", "realtime", "notify"])
 def test_writer_outer_rollback_keeps_prewrite_cleanup_owned_and_reservation_releasable(
     database, monkeypatch, failure
 ):
@@ -255,7 +255,7 @@ def test_writer_outer_rollback_keeps_prewrite_cleanup_owned_and_reservation_rele
         db.commit()
     target, method = {
         "adopt": (writer_module, "adopt_written_object"),
-        "reservation": (storage_usage_service, "commit_reservation"),
+        "quota": (storage_quota_service, "consume_hold"),
         "notification": (writer_module.notification_service, "admit_score_version_created"),
         "realtime": (writer_module, "publish_change"),
         "notify": (publisher, "_notify_change"),
@@ -282,12 +282,10 @@ def test_writer_outer_rollback_keeps_prewrite_cleanup_owned_and_reservation_rele
         db.rollback()
         assert snapshot(db) == before
         reservation = db.scalar(
-            sa.select(StorageUsageReservation).where(
-                StorageUsageReservation.reservation_uuid == source.reservation_id
-            )
+            sa.select(StorageQuotaHold).where(StorageQuotaHold.id == source.quota_hold_id)
         )
-        assert reservation.status.value == "RESERVED"
-        storage_usage_service.release_reservation(db, source.reservation_id)
+        assert reservation.status.value == "HELD"
+        storage_quota_service.release_hold(db, source.quota_hold_id)
         db.commit()
         assert (
             db.get(
@@ -319,7 +317,7 @@ def test_initial_append_restore_noop_and_history_are_one_boundary(database):
         after = snapshot(db)
         for name in before.keys() - {"storage_usage_accounts", "storage_usage_counters"}:
             assert after[name] == before[name]
-        assert db.scalar(sa.select(StorageUsageAccount)).reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
         assert (
             db.scalar(sa.select(StorageUsageAccount)).used_bytes
             == before["storage_usage_accounts"][0]["used_bytes"]
@@ -386,7 +384,7 @@ def test_revision_consequences_keep_the_transaction_audience(database):
         assert notice.created_at == result.revision.created_at
         assert notice.revision_id == result.revision.revision_uuid
         assert notice.score_display_title_snapshot == "Etudes"
-        assert db.scalar(sa.select(StorageUsageAccount)).reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
         member = db.scalar(sa.select(ScoreMembership))
         member.revoked_at = utc_now()
         db.add(
@@ -628,10 +626,10 @@ def test_prepared_source_admission_is_fail_closed(database, invalid):
     elif invalid == "resource":
         source = replace(source, revision_uuid=str(uuid4()))
     else:
-        source = replace(source, reservation_id="absent-reservation")
+        source = replace(source, quota_hold_id=987654321)
     with Session(engine) as db:
         before = snapshot(db)
-        with pytest.raises(ValueError):
+        with pytest.raises(ResourceNotFoundException if invalid == "reservation" else ValueError):
             revision_writer.write(db, InitialRevisionWrite("score", 1, source, "initial"))
         db.rollback()
         assert snapshot(db) == before

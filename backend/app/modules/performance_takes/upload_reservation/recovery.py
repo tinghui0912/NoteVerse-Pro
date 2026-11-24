@@ -5,6 +5,11 @@ from sqlalchemy.exc import DBAPIError, InterfaceError
 from app.db.session import SessionLocal
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.storage_usage.service import StorageUsageService
+from app.modules.storage_quota.service import StorageQuotaService
+from app.db.models.storage_quota import StorageQuotaHoldStatus
+from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
+from app.modules.performance_takes.manifest_persistence import manifest_from_row
+from app.db.models.storage_usage import StorageUsageCategory
 from app.shared.time import utc_now
 from .domain import FinalizeLease
 from app.shared.performance_take_upload import UploadReservationStatus
@@ -26,6 +31,18 @@ class PerformanceTakeFinalizationRecovery:
     ) -> None:
         self.repository = repository
         self.storage_usage_service = storage_usage_service
+        self.quota = StorageQuotaService(storage_usage_service)
+
+    def validate_completed_hold(self, db: Session, row: PerformanceTakeUploadReservation) -> None:
+        manifest = manifest_from_row(row.manifest)
+        hold = self.quota.lock_hold(db, row.quota_hold_id)
+        if (
+            hold.status != StorageQuotaHoldStatus.CONSUMED
+            or hold.user_id != row.user_id
+            or hold.category != StorageUsageCategory.UPLOAD
+            or hold.bytes_held != manifest.snapshot.capture.byte_size
+        ):
+            raise ValueError("Completed Take requires its consumed quota lineage")
 
     def recover(
         self,
@@ -36,6 +53,7 @@ class PerformanceTakeFinalizationRecovery:
         lease: FinalizeLease,
         unknown_outcome: bool,
     ) -> None:
+        self.quota.lock_user(db, user_id)
         row = self.repository.get_reservation_by_take_uuid(db, user_id, take_uuid, lock=True)
         if row is None:
             return
@@ -44,11 +62,14 @@ class PerformanceTakeFinalizationRecovery:
         # COMPLETED without a Take is valid deletion lineage and cannot resurrect it.
         state.assert_take_presence(take is not None, allow_deleted_take=True)
         now = utc_now()
+        if state.status is UploadReservationStatus.COMPLETED:
+            self.validate_completed_hold(db, row)
         if take is not None:
             if take.recording_object.object_key != lease.object_key:
                 # Refresh orphan evidence after late IO, even if an earlier cleanup saw absence.
                 apply_reservation_transition(
                     self.storage_usage_service,
+                    self.quota,
                     db,
                     row,
                     state.remember_uncertain_candidate(key=lease.object_key, now=now),
@@ -83,7 +104,9 @@ class PerformanceTakeFinalizationRecovery:
                 return
             # A late physical result may leave evidence, but never changes the winner's lease.
             transition = state.remember_uncertain_candidate(key=lease.object_key, now=now)
-        apply_reservation_transition(self.storage_usage_service, db, row, transition, now=now)
+        apply_reservation_transition(
+            self.storage_usage_service, self.quota, db, row, transition, now=now
+        )
 
     def recover_known_failure(
         self, db: Session, *, user_id: int, take_uuid: str, lease: FinalizeLease

@@ -56,7 +56,7 @@ def finalizing():
 def test_reserved_commands_and_explicit_effects(command, status, release, commit):
     transition = command(reserved())
     assert transition.after.status is status
-    assert transition.effects.release_storage_reservation is release
+    assert transition.effects.release_quota_hold is release
     assert transition.effects.commit_storage_object_key == commit
 
 
@@ -97,7 +97,7 @@ def test_complete_commits_quota_without_orphaning_durable_object():
     assert transition.after.lease is None
     assert transition.after.orphan_candidates == ()
     assert transition.effects.commit_storage_object_key == "candidate"
-    assert not transition.effects.release_storage_reservation
+    assert not transition.effects.release_quota_hold
     with pytest.raises(ReservationTransitionError):
         finalizing().complete(
             token="token", object_key="candidate", now=NOW + timedelta(minutes=16)
@@ -109,7 +109,7 @@ def test_finalizing_expiry_releases_holds_and_preserves_candidate_and_staging_ho
     transition = finalizing().expire(now=now)
     assert transition.after.status is UploadReservationStatus.EXPIRED
     assert transition.after.lease is None
-    assert transition.effects.release_storage_reservation
+    assert transition.effects.release_quota_hold
     assert transition.after.staging_cleanup_after == now
     assert transition.after.orphan_candidates[0].remove_after == now + UNKNOWN_OUTCOME_GRACE
 
@@ -135,7 +135,7 @@ def test_terminal_commands_do_not_reopen_or_claim_cancellation(status):
             command()
     if status is UploadReservationStatus.CANCELLED:
         assert state.cancel(now=NOW).after == state
-        assert not state.cancel(now=NOW).effects.release_storage_reservation
+        assert not state.cancel(now=NOW).effects.release_quota_hold
     else:
         with pytest.raises(ReservationTransitionError):
             state.cancel(now=NOW)

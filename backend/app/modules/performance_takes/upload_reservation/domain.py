@@ -14,12 +14,21 @@ class ReservationInvariantError(ValueError):
 class ReservationTransitionError(ValueError):
     """The requested command is not permitted by the current lifecycle."""
 
-    def __init__(self, code: Literal[
-        "upload_capability_unavailable", "upload_capability_expired", "finalize_lease_lost",
-        "finalize_lease_expired", "finalize_in_progress", "takeover_requires_new_candidate",
-        "finalize_unavailable", "reservation_expired", "reservation_not_expired",
-        "reservation_not_cancellable",
-    ]) -> None:
+    def __init__(
+        self,
+        code: Literal[
+            "upload_capability_unavailable",
+            "upload_capability_expired",
+            "finalize_lease_lost",
+            "finalize_lease_expired",
+            "finalize_in_progress",
+            "takeover_requires_new_candidate",
+            "finalize_unavailable",
+            "reservation_expired",
+            "reservation_not_expired",
+            "reservation_not_cancellable",
+        ],
+    ) -> None:
         self.code = code
         super().__init__(code)
 
@@ -50,7 +59,7 @@ class OrphanFinalCandidate:
 
 @dataclass(frozen=True)
 class TransitionEffects:
-    release_storage_reservation: bool = False
+    release_quota_hold: bool = False
     commit_storage_object_key: str | None = None
 
 
@@ -219,14 +228,24 @@ class UploadReservationLifecycle:
         return self._transition(
             after,
             TransitionEffects(
-                release_storage_reservation=completed_key is None,
+                release_quota_hold=completed_key is None,
                 commit_storage_object_key=completed_key,
             ),
         )
 
-    def expire(self, *, now: datetime, unknown_outcome: bool = True,
-               token: str | None = None, object_key: str | None = None) -> ReservationTransition:
-        if self.status not in {UploadReservationStatus.RESERVED, UploadReservationStatus.FINALIZING} or self.expires_at > now:
+    def expire(
+        self,
+        *,
+        now: datetime,
+        unknown_outcome: bool = True,
+        token: str | None = None,
+        object_key: str | None = None,
+    ) -> ReservationTransition:
+        if (
+            self.status
+            not in {UploadReservationStatus.RESERVED, UploadReservationStatus.FINALIZING}
+            or self.expires_at > now
+        ):
             raise ReservationTransitionError("reservation_not_expired")
         if self.lease is not None and self.lease.expires_at > now:
             if token is None:
@@ -267,7 +286,8 @@ class UploadReservationLifecycle:
 
     def can_cleanup_staging(self, *, now: datetime) -> bool:
         return (
-            self.status not in {UploadReservationStatus.RESERVED, UploadReservationStatus.FINALIZING}
+            self.status
+            not in {UploadReservationStatus.RESERVED, UploadReservationStatus.FINALIZING}
             and self.staging_cleanup_completed_at is None
             and self.staging_cleanup_after is not None
             and self.staging_cleanup_after <= now

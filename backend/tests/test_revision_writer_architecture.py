@@ -50,9 +50,7 @@ def test_revision_writer_is_a_transaction_participant_admitting_all_durable_work
         "admit_revision_render",
         "create_playback_outbox",
     }
-    assert any(
-        isinstance(call, ast.Attribute) and call.attr == "commit_reservation" for call in calls
-    )
+    assert any(isinstance(call, ast.Attribute) and call.attr == "consume_hold" for call in calls)
 
 
 def test_use_cases_delegate_revision_admission_and_only_hint_after_commit():

@@ -1,4 +1,9 @@
 from __future__ import annotations
+from tests.support.quota import quota_hold_fact
+from app.db.models.storage_quota import StorageQuotaHoldStatus, StorageQuotaMode
+from app.composition.storage_resources import storage_quota_service
+from tests.support.quota import admit_hold
+
 from app.modules.performance_takes.object_keys import (
     performance_take_staging_object_key,
     performance_take_recording_object_key,
@@ -8,7 +13,6 @@ from tests.support.practice_bundle import bind_bundle
 from app.modules.practice.bundle.content import read_verified_bundle
 
 from datetime import UTC
-from uuid import uuid4
 from tests.support.score_deletion import complete_score_deletions
 
 from app.modules.performance_takes.upload_reservation.cleanup import (
@@ -300,7 +304,12 @@ def _create_default_take(
         user_id=user_id,
         client_request_id=client_request_id,
         staging_object_key=media_object_key + ".staging",
-        storage_reservation_id="quota-" + take_uuid,
+        quota_hold_id=quota_hold_fact(
+            session,
+            user_id,
+            bytes_count=len(VALID_WEBM_BYTES),
+            status=StorageQuotaHoldStatus.CONSUMED,
+        ),
         expires_at=datetime.now(timezone.utc),
         status=UploadReservationStatus.COMPLETED,
     )
@@ -527,12 +536,10 @@ def test_env(
         account_1 = StorageUsageAccount(
             user_id=1,
             used_bytes=0,
-            reserved_bytes=0,
         )
         account_2 = StorageUsageAccount(
             user_id=2,
             used_bytes=0,
-            reserved_bytes=0,
         )
         session.flush()
         session.add(UserStorageEntitlement(user_id=1, plan_code="FREE"))
@@ -544,13 +551,11 @@ def test_env(
             user_id=1,
             category=StorageUsageCategory.UPLOAD,
             used_bytes=0,
-            reserved_bytes=0,
         )
         counter_2 = StorageUsageCounter(
             user_id=2,
             category=StorageUsageCategory.UPLOAD,
             used_bytes=0,
-            reserved_bytes=0,
         )
         session.add(counter_1)
         session.add(counter_2)
@@ -679,7 +684,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
         # Verify quota reservation was held
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
-        assert account.reserved_bytes == media_size
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == media_size
         assert account.used_bytes == 0
 
         # 2. Finalize fails before upload to storage; reservation is preserved for retry
@@ -691,7 +696,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
 
         # Quota reservation is preserved for safe retry
         session.refresh(account)
-        assert account.reserved_bytes == media_size
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == media_size
 
         # 3. Simulate client direct upload to staging storage object
         storage.put_bytes(key=staging_object_key, content=media_content, content_type="audio/webm")
@@ -787,7 +792,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
 
         # Quota should now be committed
         session.refresh(account)
-        assert account.reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
         assert account.used_bytes == media_size
 
         # 6. Idempotency: retry finalize with same client_request_id
@@ -1301,6 +1306,7 @@ def test_quota_rejection(test_env):
     client = PerformanceTakeTestClient(app)
 
     try:
+        session.get(UserStorageEntitlement, 1).mode_override = StorageQuotaMode.HARD_LIMIT
         session.get(UserStorageEntitlement, 1).limit_override_bytes = 1024 * 1024
         session.commit()
         excessive_size = 2 * 1024 * 1024
@@ -1379,7 +1385,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
 
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
-        assert account.reserved_bytes == 5000
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 5000
 
         # Cancel reservation via DELETE route
         res_cancel = client.delete(f"/api/v1/performance-takes/upload-reservations/{res_id}")
@@ -1387,7 +1393,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
         assert res_cancel.content == b""
 
         session.refresh(account)
-        assert account.reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
         assert storage.exists(staging_key)
 
         auth = session.execute(
@@ -1799,7 +1805,7 @@ def test_finalize_recovers_first_post_storage_db_disconnect(test_env):
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
         assert account.used_bytes == len(content)
-        assert account.reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
     finally:
         app.dependency_overrides.clear()
 
@@ -1977,7 +1983,7 @@ def test_finalize_rejects_candidate_when_staging_changes_after_validation(test_e
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
         assert account.used_bytes == 0
-        assert account.reserved_bytes == len(first_content)
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == len(first_content)
     finally:
         app.dependency_overrides.clear()
 
@@ -2077,7 +2083,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
         client_request_id="req-finalizing-reserve",
         staging_object_key="staging/performance-takes/1/finalizing-reserve/recording.webm",
         finalizing_object_key="performance-takes/1/finalizing-reserve/token.webm",
-        storage_reservation_id="reservation-finalizing-reserve",
+        quota_hold_id=quota_hold_fact(session, user_1.id, bytes_count=len(VALID_WEBM_BYTES)),
         status=UploadReservationStatus.FINALIZING,
         expires_at=now + timedelta(minutes=10),
         last_put_url_expires_at=now + timedelta(minutes=10),
@@ -2113,7 +2119,7 @@ def test_reserve_finalizing_snapshot_retries_without_new_put(test_env):
     assert response.status == "FINALIZING"
     assert response.upload_target is None
     assert response.reservation_id == auth.reservation_uuid
-    assert response.reservation_id != auth.storage_reservation_id
+    assert response.reservation_id != auth.quota_hold_id
 
 
 def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
@@ -2161,7 +2167,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
 
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
-        assert account.reserved_bytes == size
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == size
 
         # Simulate time passing and reservation expiring
         auth = session.execute(
@@ -2194,7 +2200,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
         # Staging file is deleted, quota reservation released
         assert not storage.exists(staging_key)
         session.refresh(account)
-        assert account.reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
 
         session.refresh(auth)
         assert auth.status == UploadReservationStatus.EXPIRED
@@ -2283,7 +2289,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
         assert storage.exists(auth.staging_object_key)
         account = session.get(StorageUsageAccount, 1)
         session.refresh(account)
-        assert account.reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
         session.refresh(auth)
         assert auth.status == UploadReservationStatus.EXPIRED
 
@@ -2574,6 +2580,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
 
 
 def _expired_cleanup_auth(
+    db: Session,
     *,
     source: PracticeBundleRecord,
     user_id: int,
@@ -2589,7 +2596,9 @@ def _expired_cleanup_auth(
         user_id=user_id,
         client_request_id=client_request_id,
         staging_object_key=staging_key,
-        storage_reservation_id=str(uuid4()),
+        quota_hold_id=quota_hold_fact(
+            db, user_id, status=StorageQuotaHoldStatus.EXPIRED, expires_at=expired_at
+        ),
         expires_at=expired_at,
         last_put_url_expires_at=expired_at,
         staging_cleanup_after=expired_at,
@@ -2609,6 +2618,7 @@ def test_reservation_cleanup_does_not_complete_when_delete_returns_false(test_en
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="delete-false",
@@ -2646,6 +2656,7 @@ def test_reservation_cleanup_does_not_complete_when_head_still_exists(test_env):
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="head-still-exists",
@@ -2683,6 +2694,7 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
     storage.put_bytes(key=staging_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="head-fails",
@@ -2736,7 +2748,7 @@ def test_finalize_in_progress_rejects_competing_executor_before_storage_copy(tes
         client_request_id="lease-expired-before-copy",
         staging_object_key="staging/performance-takes/1/lease-expired/recording.webm",
         finalizing_object_key="performance-takes/1/lease-expired/recording.webm",
-        storage_reservation_id="reservation-lease-expired",
+        quota_hold_id=quota_hold_fact(session, user_1.id, bytes_count=len(VALID_WEBM_BYTES)),
         status=UploadReservationStatus.FINALIZING,
         expires_at=expired + timedelta(hours=2),
         finalizing_token="expired-token",
@@ -2757,6 +2769,7 @@ def test_completed_reservation_cleanup_does_not_touch_storage(test_env):
     past = now - timedelta(hours=2)
     source = _create_default_bundle(session, _storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="already-completed-cleanup",
@@ -2791,6 +2804,7 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
     storage.put_bytes(key=orphan_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="orphan-final-only",
@@ -2840,6 +2854,7 @@ def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_conver
     orphan_key = "performance-takes/1/orphan-late/old-token.webm"
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="orphan-late-copy",
@@ -2888,6 +2903,7 @@ def test_reservation_cleanup_removes_absent_known_orphan(test_env):
     orphan_key = "performance-takes/1/absent-known/old-token.webm"
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="absent-known-orphan",
@@ -2922,6 +2938,7 @@ def test_reservation_cleanup_preserves_remaining_orphan_remove_after(test_env):
     storage.put_bytes(key=removable_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="two-orphans-preserve",
@@ -2959,6 +2976,7 @@ def test_reservation_cleanup_does_not_remove_orphan_when_remove_after_was_extend
     orphan_key = "performance-takes/1/remove-after-extended/token.webm"
     source = _create_default_bundle(session, _storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="remove-after-extended",
@@ -2993,6 +3011,7 @@ def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_
     storage.put_bytes(key=referenced_key, content=VALID_WEBM_BYTES, content_type="audio/webm")
     source = _create_default_bundle(session, storage)
     auth = _expired_cleanup_auth(
+        session,
         source=source,
         user_id=user_1.id,
         client_request_id="referenced-orphan",
@@ -3041,7 +3060,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         client_request_id="finalizing-expired-retry",
         staging_object_key="staging/performance-takes/1/finalizing-expired/recording.webm",
         finalizing_object_key=candidate_key,
-        storage_reservation_id="reservation-finalizing-expired",
+        quota_hold_id=quota_hold_fact(session, user_1.id, bytes_count=len(VALID_WEBM_BYTES)),
         status=UploadReservationStatus.FINALIZING,
         expires_at=now + timedelta(minutes=10),
         last_put_url_expires_at=now + timedelta(minutes=10),
@@ -3119,7 +3138,7 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
                 PerformanceTakeUploadReservation.reservation_uuid == first["reservation_id"],
             )
         ).scalar_one()
-        assert first["reservation_id"] != row.storage_reservation_id
+        assert first["reservation_id"] != row.quota_hold_id
         assert manifest_from_row(
             row.manifest
         ).admitted_upload_metadata == PerformanceTakeUploadMetadata.model_validate(
@@ -3132,7 +3151,7 @@ def test_reservation_identity_metadata_replay_and_structural_take_lineage(test_e
         for method, suffix in [(client.post, "/finalize"), (client.delete, "")]:
             assert (
                 method(
-                    f"/api/v1/performance-takes/upload-reservations/{row.storage_reservation_id}{suffix}"
+                    f"/api/v1/performance-takes/upload-reservations/{row.quota_hold_id}{suffix}"
                 ).status_code
                 == 404
             )
@@ -3285,7 +3304,9 @@ def test_finalize_unknown_commit_outcome_recovers_via_reservation_lineage(
         assert retry.json()["take_id"] == reservation["take_id"]
         account = session.get(StorageUsageAccount, inspect_row(user).identity[0])
         session.refresh(account)
-        assert account.reserved_bytes == 0 and account.used_bytes == len(VALID_WEBM_BYTES)
+        assert storage_quota_service.snapshot_user(
+            session, inspect_row(user).identity[0]
+        ).reserved_bytes == 0 and account.used_bytes == len(VALID_WEBM_BYTES)
         assert len(session.execute(select(PerformanceTake)).scalars().all()) == 1
         assert len(session.execute(select(StoredObject)).scalars().all()) == 3
 
@@ -3781,7 +3802,7 @@ def test_recording_microseconds_survive_reservation_finalize_and_take_reads(test
 
 @pytest.mark.parametrize("available_delta", [-1, 0, 1])
 def test_reservation_capacity_uses_exact_available_quota(test_env, available_delta):
-    from app.db.models.storage_usage import StorageUsageReservation
+    from app.db.models.storage_quota import StorageQuotaHold
 
     session, storage, user, _ = test_env
     requested_bytes = 101 * 1024 * 1024
@@ -3794,13 +3815,13 @@ def test_reservation_capacity_uses_exact_available_quota(test_env, available_del
     )
     account.used_bytes = counter.used_bytes = 9 * 1024 * 1024
     held_bytes = 5 * 1024 * 1024
-    StorageUsageService().reserve(
+    admit_hold(
         session,
         user_id=user.id,
         category=StorageUsageCategory.UPLOAD,
         bytes_count=held_bytes,
-        reason="another_upload",
     )
+    session.get(UserStorageEntitlement, 1).mode_override = StorageQuotaMode.HARD_LIMIT
     session.get(UserStorageEntitlement, 1).limit_override_bytes = (
         account.used_bytes + held_bytes + requested_bytes + available_delta
     )
@@ -3816,24 +3837,37 @@ def test_reservation_capacity_uses_exact_available_quota(test_env, available_del
             assert response.json()["code"] == "storage_quota_exceeded"
             assert session.scalar(select(PerformanceTakeManifest)) is None
             assert session.scalar(select(PerformanceTakeUploadReservation)) is None
-            assert account.reserved_bytes == counter.reserved_bytes == held_bytes
+            assert (
+                storage_quota_service.snapshot_user(session, user.id).reserved_bytes
+                == storage_quota_service.snapshot_user(session, user.id).categories[
+                    StorageUsageCategory.UPLOAD
+                ]
+                == held_bytes
+            )
         else:
             assert response.status_code == 200, response.text
             accepted = response.json()
             assert accepted["manifest"]["capture"]["byte_size"] == requested_bytes
             row = session.scalar(select(PerformanceTakeUploadReservation))
             hold = session.scalar(
-                select(StorageUsageReservation).where(
-                    StorageUsageReservation.reservation_uuid == row.storage_reservation_id
-                )
+                select(StorageQuotaHold).where(StorageQuotaHold.id == row.quota_hold_id)
             )
-            assert hold.bytes_reserved == requested_bytes
-            assert account.reserved_bytes == counter.reserved_bytes == held_bytes + requested_bytes
+            assert hold.bytes_held == requested_bytes
+            assert (
+                storage_quota_service.snapshot_user(session, user.id).reserved_bytes
+                == storage_quota_service.snapshot_user(session, user.id).categories[
+                    StorageUsageCategory.UPLOAD
+                ]
+                == held_bytes + requested_bytes
+            )
             repeated = client.post("/api/v1/performance-takes/upload-reservations", json=request)
             assert repeated.status_code == 200, repeated.text
             assert repeated.json()["reservation_id"] == accepted["reservation_id"]
             session.refresh(account)
-            assert account.reserved_bytes == held_bytes + requested_bytes
+            assert (
+                storage_quota_service.snapshot_user(session, user.id).reserved_bytes
+                == held_bytes + requested_bytes
+            )
 
 
 def test_reservation_admits_structurally_valid_long_recording_timebase(test_env):
@@ -3946,7 +3980,9 @@ def test_finalize_requires_exact_admitted_object_size(
         account = session.get(StorageUsageAccount, user.id)
         session.refresh(account)
         assert account.used_bytes == 0
-        assert account.reserved_bytes == len(VALID_WEBM_BYTES)
+        assert storage_quota_service.snapshot_user(session, user.id).reserved_bytes == len(
+            VALID_WEBM_BYTES
+        )
 
 
 @pytest.mark.parametrize("bpm", [20.5, 80.5, 300.25])
@@ -4017,7 +4053,7 @@ def test_exact_custom_tempo_survives_reserve_replay_finalize_and_reads(test_env,
 
 def test_failed_reserve_rolls_back_manifest_reservation_and_quota(test_env):
     from app.modules.performance_takes.repository import PerformanceTakeRepository
-    from app.db.models.storage_usage import StorageUsageReservation
+    from app.db.models.storage_quota import StorageQuotaHold
 
     session, storage, user, _ = test_env
     service = _performance_take_service(session=session, storage=storage)
@@ -4034,8 +4070,8 @@ def test_failed_reserve_rolls_back_manifest_reservation_and_quota(test_env):
         service.reserve_upload(session, user.id, request)
     assert session.scalar(select(PerformanceTakeManifest)) is None
     assert session.scalar(select(PerformanceTakeUploadReservation)) is None
-    assert session.scalar(select(StorageUsageReservation)) is None
-    assert session.get(StorageUsageAccount, user.id).reserved_bytes == 0
+    assert session.scalar(select(StorageQuotaHold)) is None
+    assert storage_quota_service.snapshot_user(session, user.id).reserved_bytes == 0
 
 
 def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test_env, monkeypatch):
@@ -4178,7 +4214,9 @@ def test_same_size_candidate_corruption_has_no_blob_or_take(test_env):
         )
         row = session.scalar(select(PerformanceTakeUploadReservation))
         assert row.orphan_final_object_keys != "[]"
-        assert session.get(StorageUsageAccount, user.id).reserved_bytes == len(VALID_WEBM_BYTES)
+        assert storage_quota_service.snapshot_user(session, user.id).reserved_bytes == len(
+            VALID_WEBM_BYTES
+        )
 
 
 @pytest.mark.parametrize(

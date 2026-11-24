@@ -9,7 +9,7 @@ import { StorageSettingsPanel } from './storage-settings-panel';
 
 const fake = vi.hoisted(() => ({query: vi.fn(), refetch: vi.fn()}));
 vi.mock('./queries', () => ({useStorageUsage: fake.query}));
-const quota = (limit = 1000, used = 800, reserved = 100, available = 100) => ({
+const quota = (limit: number | null = 1000, used = 800, reserved = 100, available: number | null = 100) => ({
   data: {quota: {limit_bytes: limit, used_bytes: used, reserved_bytes: reserved, available_bytes: available}, breakdown: []},
   isError: false, isFetching: false, isLoading: false, refetch: fake.refetch,
 });
@@ -61,4 +61,12 @@ it('localizes the zero-capacity state', () => {
   fake.query.mockReturnValue(quota(0, 0, 0, 0));panel('zh');
   expect(screen.getByText(zhSettings.storage.noCapacity)).toBeVisible();
   expect(screen.queryByText(zhSettings.storage.nearLimit)).toBeNull();
+});
+
+it('renders unlimited quota without a finite utilization or capacity warning', () => {
+  fake.query.mockReturnValue(quota(null, 800, 100, null)); panel();
+  expect(screen.getByText('900 B / Unlimited allocated')).toBeVisible();
+  expect(metric('Available').getByText('Unlimited')).toBeVisible();
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.queryByText(enSettings.storage.noCapacity)).toBeNull();
 });

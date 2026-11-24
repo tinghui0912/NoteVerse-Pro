@@ -31,6 +31,7 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_take_upload_reservations"
     __table_args__ = (
+        UniqueConstraint("quota_hold_id", name="uq_take_upload_quota_hold"),
         ForeignKeyConstraint(
             ["manifest_id", "user_id"],
             ["performance_take_manifests.id", "performance_take_manifests.user_id"],
@@ -73,7 +74,15 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
 
     staging_object_key: str = Field(sa_column=Column(String(768), nullable=False))
 
-    storage_reservation_id: str = Field(sa_column=Column(String(36), index=True, nullable=False))
+    quota_hold_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey(
+                "storage_quota_holds.id", ondelete="RESTRICT", name="fk_take_upload_quota_hold"
+            ),
+            nullable=False,
+        )
+    )
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     last_put_url_expires_at: Optional[datetime] = Field(
         default=None,

@@ -89,6 +89,7 @@
   "passwordFailed": "修改失败",
   "passwordFailedDesc": "无法修改密码",
   "storage": {
+      "unlimited": "无限制",
     "title": "存储用量",
     "description": "查看当前存储配额、已使用空间、处理中预留空间和可用空间。",
     "refresh": "刷新",

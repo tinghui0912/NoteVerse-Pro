@@ -17,7 +17,7 @@ export function StorageSettingsPanel() {
   const percent = quota
     ? usagePercent(quota.used_bytes, quota.reserved_bytes, quota.limit_bytes)
     : 0;
-  const isNearLimit = percent >= 90;
+  const isNearLimit = percent !== null && percent >= 90;
 
   return (
     <div className="space-y-5">
@@ -64,21 +64,21 @@ export function StorageSettingsPanel() {
                 <span className="font-medium text-gray-700">
                   {t('usedOfLimit', {
                     used: formatBytes(quota.used_bytes + quota.reserved_bytes),
-                    limit: formatBytes(quota.limit_bytes),
+                    limit: quota.limit_bytes === null ? t('unlimited') : formatBytes(quota.limit_bytes),
                   })}
                 </span>
                 <span className={isNearLimit ? 'font-semibold text-orange-600' : 'text-gray-500'}>
-                  {Math.round(percent)}%
+                  {percent === null ? t('unlimited') : `${Math.round(percent)}%`}
                 </span>
               </div>
-              <Progress
+              {percent !== null ? <Progress
                 aria-label={t('title')}
                 aria-valuenow={percent}
                 value={percent}
                 className="h-3 bg-gray-100 [&>div]:bg-orange-500"
-              />
+              /> : null}
               {isNearLimit ? (
-                <p className="mt-2 text-sm text-orange-600">{t(quota.limit_bytes <= 0 ? 'noCapacity' : percent >= 100 ? 'full' : 'nearLimit')}</p>
+                <p className="mt-2 text-sm text-orange-600">{t(quota.limit_bytes !== null && quota.limit_bytes <= 0 ? 'noCapacity' : percent !== null && percent >= 100 ? 'full' : 'nearLimit')}</p>
               ) : null}
             </div>
 
@@ -104,7 +104,7 @@ export function StorageSettingsPanel() {
                   {t('available')}
                 </p>
                 <p className="mt-2 text-lg font-semibold text-gray-950">
-                  {formatBytes(quota.available_bytes)}
+                  {quota.available_bytes === null ? t('unlimited') : formatBytes(quota.available_bytes)}
                 </p>
               </div>
             </div>

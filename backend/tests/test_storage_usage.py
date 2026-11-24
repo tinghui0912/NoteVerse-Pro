@@ -1,4 +1,8 @@
 from __future__ import annotations
+from app.composition.storage_resources import storage_quota_service
+from tests.support.quota import admit_hold
+from tests.support.quota import allocate_hold
+
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 from tests.support.images import image_bytes
@@ -29,7 +33,7 @@ from app.db.models import (
     StorageUsageCategory,
     StorageUsageCounter,
     StorageUsageEvent,
-    StorageUsageReservation,
+    StorageQuotaHold,
     Upload,
     User,
 )
@@ -192,17 +196,16 @@ def test_storage_usage_reservation_blocks_when_quota_would_be_exceeded(
     _set_quota(session, 8)
 
     with pytest.raises(ValidationException) as exc_info:
-        storage_usage_service.reserve(
+        admit_hold(
             session,
             user_id=1,
             category=StorageUsageCategory.UPLOAD,
             bytes_count=9,
-            reason="test_upload",
         )
 
     assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
-    assert _count(session, StorageUsageReservation) == 0
+    assert _count(session, StorageQuotaHold) == 0
 
 
 def test_reservation_requires_provisioned_storage_authorities(
@@ -222,12 +225,11 @@ def test_reservation_requires_provisioned_storage_authorities(
         session.commit()
 
         with pytest.raises(AppException) as exc_info:
-            storage_usage_service.reserve(
+            admit_hold(
                 session,
                 user_id=1,
                 category=StorageUsageCategory.UPLOAD,
                 bytes_count=1,
-                reason="test_upload",
             )
 
     assert exc_info.value.code == CustomerErrorCode.QUOTA_CHECK_UNAVAILABLE
@@ -296,21 +298,20 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
 ) -> None:
     session, _storage = storage_usage_session
 
-    handle = storage_usage_service.reserve(
+    handle = admit_hold(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
         bytes_count=40,
-        reason="revision_create",
     )
     account = session.get(StorageUsageAccount, 1)
     assert account is not None
     assert account.used_bytes == 0
-    assert account.reserved_bytes == 40
+    assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 40
 
-    storage_usage_service.commit_reservation(
+    allocate_hold(
         session,
-        handle.reservation_id,
+        handle.hold_id,
         object_type="score_revision_source",
         object_id="source-1",
         storage_key="scores/1/revisions/1/score.musicxml",
@@ -323,9 +324,11 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
         )
     ).scalar_one()
     assert account.used_bytes == 40
-    assert account.reserved_bytes == 0
+    assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
     assert counter.used_bytes == 40
-    assert counter.reserved_bytes == 0
+    assert (
+        storage_quota_service.snapshot_user(session, 1).categories[StorageUsageCategory.UPLOAD] == 0
+    )
 
     storage_usage_service.record_release(
         session,
@@ -481,7 +484,7 @@ def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
     session.rollback()
     assert _count(session, ScoreRevision) == 1
     assert _count(session, ScoreRevisionSource) == 1
-    assert _count(session, StorageUsageReservation) == 0
+    assert _count(session, StorageQuotaHold) == 0
 
 
 def test_score_delete_releases_source_usage_and_storage_object(
@@ -946,7 +949,7 @@ def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
     assert not storage.exists(key)
     assert not session.scalars(select(StoredObject)).all()
     account = session.get(StorageUsageAccount, 1)
-    assert account.used_bytes == account.reserved_bytes == 0
+    assert account.used_bytes == storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
 
 
 @pytest.mark.parametrize("preexisting_object", [False, True])
@@ -987,4 +990,4 @@ def test_uploads_failed_upload_retires_only_newly_written_bytes(
     assert not storage.exists(key)
     assert not session.scalars(select(StoredObject)).all()
     account = session.get(StorageUsageAccount, 1)
-    assert account.used_bytes == account.reserved_bytes == 0
+    assert account.used_bytes == storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0

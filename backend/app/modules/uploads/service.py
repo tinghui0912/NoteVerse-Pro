@@ -1,3 +1,7 @@
+from app.composition.storage_resources import storage_quota_service
+from uuid import uuid4
+from datetime import timedelta
+from app.shared.time import utc_now
 import hashlib
 import re
 
@@ -49,14 +53,13 @@ class UploadService:
         extension = media.extension
         content_type = media.mime_type
         user_id = require_persisted_id(current_user.id, entity="user")
-        reservation = storage_usage_service.reserve(
+        reservation = storage_quota_service.create_hold(
             db,
             user_id=user_id,
             category=StorageUsageCategory.UPLOAD,
             bytes_count=len(content),
-            reason="upload_created",
-            object_type="upload",
-            object_id=file_hash,
+            command_key=str(uuid4()),
+            expires_at=utc_now() + timedelta(minutes=15),
         )
         try:
             db.commit()
@@ -72,9 +75,14 @@ class UploadService:
                 original_filename=file.filename,
                 uploader_user_id=user_id,
             )
-            storage_usage_service.commit_reservation(
+            if not storage_quota_service.consume_hold(db, reservation.hold_id):
+                raise RuntimeError("New Upload requires an unconsumed quota hold")
+            storage_usage_service.record_allocation(
                 db,
-                reservation.reservation_id,
+                user_id=user_id,
+                category=StorageUsageCategory.UPLOAD,
+                bytes_count=len(content),
+                reason="upload_created",
                 object_type="upload",
                 object_id=upload.upload_uuid,
                 storage_key=persisted_blob.object_key,
@@ -82,7 +90,7 @@ class UploadService:
             db.commit()
         except Exception as exc:
             db.rollback()
-            storage_usage_service.release_reservation(db, reservation.reservation_id)
+            storage_quota_service.release_hold(db, reservation.hold_id)
             db.commit()
             if isinstance(exc, FileException):
                 raise

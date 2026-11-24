@@ -12,6 +12,7 @@ from app.modules.performance_takes.upload_reservation.persistence import (
     lifecycle_from_row,
 )
 from app.modules.storage_usage.service import StorageUsageService
+from app.modules.storage_quota.service import StorageQuotaService
 from app.storage.base import ObjectStorage
 from app.shared.time import utc_now
 
@@ -22,10 +23,13 @@ class UploadReservationCleanupService:
     def cleanup_expired_reservations(
         self, db: Session, storage: ObjectStorage, storage_usage_service: StorageUsageService
     ) -> int:
+        quota = StorageQuotaService(storage_usage_service)
         now = utc_now()
         ids = list(
-            db.scalars(
-                select(PerformanceTakeUploadReservation.id)
+            db.execute(
+                select(
+                    PerformanceTakeUploadReservation.user_id, PerformanceTakeUploadReservation.id
+                )
                 .where(
                     or_(
                         (
@@ -58,10 +62,11 @@ class UploadReservationCleanupService:
         )
         db.commit()
         cleaned = 0
-        for row_id in ids:
+        for user_id, row_id in ids:
             # Commit recovery before slow storage IO. A candidate is eligible
             # only after its lease has relinquished it and its grace has elapsed.
             with db.begin():
+                quota.lock_user(db, user_id)
                 row = db.scalar(
                     select(PerformanceTakeUploadReservation)
                     .where(PerformanceTakeUploadReservation.id == row_id)
@@ -78,8 +83,8 @@ class UploadReservationCleanupService:
                 transition = state.recover_due(now=now)
                 apply_transition(row, transition, now=now)
                 effects = transition.effects
-                if effects.release_storage_reservation:
-                    storage_usage_service.release_reservation(db, row.storage_reservation_id)
+                if effects.release_quota_hold:
+                    quota.release_hold(db, row.quota_hold_id)
                 state = transition.after
                 staging_key = row.staging_object_key if state.can_cleanup_staging(now=now) else None
                 orphan_keys = tuple(
@@ -111,6 +116,7 @@ class UploadReservationCleanupService:
                     "performance_take_upload_reservation.cleanup_object_delete_failed"
                 )
             with db.begin():
+                quota.lock_user(db, user_id)
                 row = db.scalar(
                     select(PerformanceTakeUploadReservation)
                     .where(PerformanceTakeUploadReservation.id == row_id)

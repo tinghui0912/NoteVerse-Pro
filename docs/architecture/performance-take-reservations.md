@@ -33,7 +33,7 @@ Composite Video independently renders clean score plus original recording into a
 derivative video. It is never uploaded or persisted as the Take.
 
 PerformanceTake has no product-level per-file byte-size or recording-duration ceiling.
-Capture byte size is positive, and `StorageUsageService.reserve` admits the exact bytes
+Capture byte size is positive, and `StorageQuotaService.create_hold` admits the exact bytes
 against the user's available StorageQuota. Insufficient capacity returns
 `storage_quota_exceeded`. RecordingTimebase duration and segments follow their structural
 and representational invariants. Manifest JSON uses deterministic canonical serialization
@@ -80,7 +80,8 @@ unique token-owned candidate, and verifies candidate size and SHA-256 equality.
 An active finite lease cannot be taken over. Expired takeover assigns a new token
 and key and retains the old candidate with a thirty-minute unknown-outcome grace.
 Physical verification uses the unique lease candidate key without holding a database lock.
-Final semantic admission locks the reservation and requires the exact live lease; a late
+Final semantic admission locks the optional linked Score, user capacity authority and
+reservation, then requires the exact live lease and unexpired Quota hold; a late
 physical result can only leave orphan evidence, never replace a current winner.
 Known media/admission failure immediately recovers the exact lease to RESERVED, or EXPIRED
 when its reservation expires. RESERVED recovery preserves the Manifest and quota hold.
@@ -211,3 +212,11 @@ StoredObjectRetirement owns asynchronous physical cleanup; its pending state and
 operation identity are not Take API state. Physical bytes may remain until retirement
 converges. My Performances removes the deleted resource from React Query caches,
 invalidates list and storage-usage queries and closes confirmation without polling.
+
+## Capacity lineage
+
+`PerformanceTakeUploadReservation.quota_hold_id` references a distinct durable
+[Storage Quota hold](storage-quota.md). Reservation expiry, leases and candidate cleanup
+remain business state; hold consumption and UPLOAD allocation commit with Take adoption.
+Cancellation and expiration release capacity without rewriting consumed terminal facts.
+Unknown-COMMIT recovery checks persisted Manifest/business and consumed-hold lineage.

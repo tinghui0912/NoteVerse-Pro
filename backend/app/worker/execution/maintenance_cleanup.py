@@ -91,3 +91,15 @@ def execute_mail_outbox_cleanup() -> dict[str, int]:
         return {"deleted": deleted}
 
     return run_scheduler_scan("mail_outbox_cleanup", scan)
+
+
+def execute_storage_quota_expiry() -> dict[str, int]:
+    """Expire bounded capacity holds independently of business cleanup."""
+    from app.composition.storage_resources import storage_quota_expiry
+
+    def scan() -> dict[str, int]:
+        with SessionLocal.begin() as db:
+            expired = storage_quota_expiry.expire_due(db)
+        return {"expired_holds": expired}
+
+    return run_scheduler_scan("storage_quota_expiry", scan)

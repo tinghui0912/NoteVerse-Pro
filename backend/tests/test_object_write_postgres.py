@@ -1,5 +1,7 @@
 """Independent PostgreSQL connections prove write/adoption/cleanup fences."""
 
+from app.composition.storage_resources import storage_quota_service
+
 from tests.support.practice_bundle import bind_bundle
 
 from app.db.models import StoragePlanPolicy, UserStorageEntitlement
@@ -267,14 +269,9 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
             StorageUsageAccount(
                 user_id=1,
                 used_bytes=0,
-                reserved_bytes=0,
             )
         )
-        db.add(
-            StorageUsageCounter(
-                user_id=1, category=StorageUsageCategory.UPLOAD, used_bytes=0, reserved_bytes=0
-            )
-        )
+        db.add(StorageUsageCounter(user_id=1, category=StorageUsageCategory.UPLOAD, used_bytes=0))
         db.commit()
 
     def upload(name):
@@ -437,14 +434,9 @@ async def test_revision_rechecks_head_after_prewrite_commit(
             StorageUsageAccount(
                 user_id=1,
                 used_bytes=0,
-                reserved_bytes=0,
             )
         )
-        db.add(
-            StorageUsageCounter(
-                user_id=1, category=StorageUsageCategory.SOURCE, used_bytes=0, reserved_bytes=0
-            )
-        )
+        db.add(StorageUsageCounter(user_id=1, category=StorageUsageCategory.SOURCE, used_bytes=0))
         db.commit()
     put = storage.put_bytes
 
@@ -483,6 +475,6 @@ async def test_revision_rechecks_head_after_prewrite_commit(
             assert db.scalar(select(ScoreRevisionSource)) is None
             assert db.scalar(select(StoredObject)) is None
             assert db.scalar(select(ObjectWriteIntent)).status == "WRITTEN"
-            assert db.get(StorageUsageAccount, 1).reserved_bytes == 0
+            assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
 
     await asyncio.to_thread(edit)

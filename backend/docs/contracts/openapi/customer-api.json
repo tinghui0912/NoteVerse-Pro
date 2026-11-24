@@ -5264,12 +5264,26 @@
       "StorageUsageQuotaRead": {
         "properties": {
           "available_bytes": {
-            "title": "Available Bytes",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Bytes"
           },
           "limit_bytes": {
-            "title": "Limit Bytes",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Bytes"
           },
           "reserved_bytes": {
             "title": "Reserved Bytes",

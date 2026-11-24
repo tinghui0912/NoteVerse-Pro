@@ -1,5 +1,10 @@
 """Current entitlement resolution, read-only projections and explicit provisioning."""
 
+from tests.support.quota import admit_hold
+from tests.support.quota import allocate_hold
+from app.composition.storage_resources import storage_quota_service
+from app.composition.storage_resources import read_storage_usage
+
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
@@ -16,7 +21,8 @@ from app.db.models import (
     StorageUsageCategory as Category,
     StorageUsageCounter,
     StorageUsageEvent,
-    StorageUsageReservation,
+    StorageQuotaHold,
+    StorageQuotaMode,
     User,
     UserStorageEntitlement,
 )
@@ -24,7 +30,7 @@ from app.db.models.auth import PendingRegistration
 from app.main import app
 from app.modules.auth.email_verification_service import EmailVerificationService
 from app.modules.auth.schemas import VerifyEmailRequest
-from app.modules.storage_usage.entitlements import provision_default_storage_state
+from app.composition.storage_resources import provision_storage_resources
 from app.modules.storage_usage.dependencies import get_storage_usage_service
 from app.modules.storage_usage.service import StorageUsageService
 from app.shared.time import utc_now
@@ -46,16 +52,14 @@ def provisioned(database):
         )
         db.flush()
         for n in (1, 2):
-            provision_default_storage_state(db, n)
+            provision_storage_resources(db, n)
         db.get(StoragePlanPolicy, "FREE").default_limit_bytes = 100
         db.commit()
     return database
 
 
 def hold(db, amount, *, user_id=1, category=Category.UPLOAD):
-    return StorageUsageService().reserve(
-        db, user_id=user_id, category=category, bytes_count=amount, reason="test"
-    )
+    return admit_hold(db, user_id=user_id, category=category, bytes_count=amount)
 
 
 def state(db):
@@ -68,7 +72,7 @@ def state(db):
             UserStorageEntitlement,
             StorageUsageAccount,
             StorageUsageCounter,
-            StorageUsageReservation,
+            StorageQuotaHold,
             StorageUsageEvent,
         )
     }
@@ -87,11 +91,11 @@ def test_plan_change_applies_to_existing_user_without_mutating_entitlement_or_us
         entitlement = reader.get(UserStorageEntitlement, 1)
         account = reader.get(StorageUsageAccount, 1)
         before = (entitlement.model_dump(), account.model_dump())
-        assert service.get_usage(reader, 1).quota.limit_bytes == policy.default_limit_bytes == 100
+        assert read_storage_usage(reader, 1).quota.limit_bytes == policy.default_limit_bytes == 100
         with Session(provisioned) as writer:
             writer.get(StoragePlanPolicy, "FREE").default_limit_bytes = 50
             writer.commit()
-        usage = service.get_usage(reader, 1)
+        usage = read_storage_usage(reader, 1)
         assert (usage.quota.limit_bytes, usage.quota.available_bytes) == (50, 20)
         assert (entitlement.model_dump(), account.model_dump()) == before
         with pytest.raises(ValidationException) as failure:
@@ -102,25 +106,26 @@ def test_plan_change_applies_to_existing_user_without_mutating_entitlement_or_us
 
 
 def test_override_is_current_user_authority_and_clearing_it_restores_current_plan(provisioned):
-    service = StorageUsageService()
     with Session(provisioned) as db:
         db.get(UserStorageEntitlement, 1).limit_override_bytes = 150
+        db.get(UserStorageEntitlement, 1).mode_override = StorageQuotaMode.HARD_LIMIT
         db.commit()
-        assert service.get_usage(db, 1).quota.limit_bytes == 150
+        assert read_storage_usage(db, 1).quota.limit_bytes == 150
         with Session(provisioned) as change:
             change.get(StoragePlanPolicy, "FREE").default_limit_bytes = 80
             change.commit()
-        assert service.get_usage(db, 1).quota.limit_bytes == 150
+        assert read_storage_usage(db, 1).quota.limit_bytes == 150
         with pytest.raises(ValidationException) as failure:
             hold(db, 151)
         assert failure.value.details["limit_bytes"] == 150
         db.rollback()
         with Session(provisioned) as change:
             change.get(UserStorageEntitlement, 1).limit_override_bytes = None
+            change.get(UserStorageEntitlement, 1).mode_override = None
             change.commit()
-        assert service.get_usage(db, 1).quota.limit_bytes == 80
+        assert read_storage_usage(db, 1).quota.limit_bytes == 80
         hold(db, 80)
-        assert service.get_usage(db, 1).quota.available_bytes == 0
+        assert read_storage_usage(db, 1).quota.available_bytes == 0
 
 
 def test_lowered_limit_keeps_usage_and_admitted_holds_and_only_blocks_new_counted_reserves(
@@ -136,7 +141,7 @@ def test_lowered_limit_keeps_usage_and_admitted_holds_and_only_blocks_new_counte
         db.commit()
         db.get(StoragePlanPolicy, "FREE").default_limit_bytes = 50
         db.commit()
-        usage = service.get_usage(db, 1)
+        usage = read_storage_usage(db, 1)
         assert (
             usage.quota.used_bytes,
             usage.quota.reserved_bytes,
@@ -145,13 +150,13 @@ def test_lowered_limit_keeps_usage_and_admitted_holds_and_only_blocks_new_counte
         with pytest.raises(ValidationException):
             hold(db, 1)
         db.rollback()
-        service.commit_reservation(db, claim.reservation_id)
-        service.release_reservation(db, released.reservation_id)
+        allocate_hold(db, claim.hold_id)
+        storage_quota_service.release_hold(db, released.hold_id)
         service.record_allocation(
             db, user_id=1, category=Category.DERIVED_RENDER, bytes_count=500, reason="render"
         )
         db.commit()
-        usage = service.get_usage(db, 1)
+        usage = read_storage_usage(db, 1)
         assert (
             usage.quota.used_bytes,
             usage.quota.reserved_bytes,
@@ -205,10 +210,13 @@ def test_missing_authority_fails_closed_without_repair(provisioned, client, monk
             db.delete(db.get(StorageUsageAccount, 1))
         else:
             # A missing referenced policy cannot be constructed under a valid FK.
-            monkeypatch.setattr(service.repository, "plan_policy", lambda *_args: None)
+            monkeypatch.setattr(storage_quota_service.repository, "policy", lambda *_args: None)
         db.commit()
         before = state(db)
-        for operation in (lambda: service.get_usage(db, 1), lambda: hold_with_service(service, db)):
+        for operation in (
+            lambda: read_storage_usage(db, 1),
+            lambda: hold_with_service(service, db),
+        ):
             with pytest.raises(AppException) as failure:
                 operation()
             assert failure.value.code == "quota_check_unavailable"
@@ -228,7 +236,7 @@ def test_missing_authority_fails_closed_without_repair(provisioned, client, monk
 
 
 def hold_with_service(service, db):
-    return service.reserve(db, user_id=1, category=Category.UPLOAD, bytes_count=1, reason="test")
+    return admit_hold(db, user_id=1, category=Category.UPLOAD, bytes_count=1)
 
 
 def test_different_users_do_not_serialize_on_the_shared_plan_row(provisioned):
@@ -246,8 +254,8 @@ def test_different_users_do_not_serialize_on_the_shared_plan_row(provisioned):
         finally:
             first.rollback()
     with Session(provisioned) as db:
-        assert db.get(StorageUsageAccount, 1).reserved_bytes == 0
-        assert db.get(StorageUsageAccount, 2).reserved_bytes == 20
+        assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
+        assert storage_quota_service.snapshot_user(db, 2).reserved_bytes == 20
 
 
 def test_aggregate_and_category_breakdown_remain_transactionally_consistent(provisioned):
@@ -257,16 +265,20 @@ def test_aggregate_and_category_breakdown_remain_transactionally_consistent(prov
             service.record_allocation(
                 db, user_id=1, category=category, bytes_count=5, reason="allocation"
             )
-            hold(db, 2, category=category)
+            if category in {Category.SOURCE, Category.UPLOAD, Category.INPUT_ASSET}:
+                hold(db, 2, category=category)
         db.commit()
-        usage = service.get_usage(db, 1)
+        usage = read_storage_usage(db, 1)
         assert (usage.quota.used_bytes, usage.quota.reserved_bytes) == (15, 6)
         assert {item.category for item in usage.breakdown if item.counts_toward_quota} == {
             Category.SOURCE,
             Category.UPLOAD,
             Category.INPUT_ASSET,
         }
-        assert all((item.used_bytes, item.reserved_bytes) == (5, 2) for item in usage.breakdown)
+        assert all(
+            (item.used_bytes, item.reserved_bytes) == (5, 2 if item.counts_toward_quota else 0)
+            for item in usage.breakdown
+        )
         assert (
             sum(item.used_bytes for item in usage.breakdown if item.counts_toward_quota)
             == usage.quota.used_bytes
@@ -320,7 +332,8 @@ def test_email_verification_provisions_user_storage_in_one_transaction(
             entitlement = observer.get(UserStorageEntitlement, identity)
             account = observer.get(StorageUsageAccount, identity)
             assert entitlement.plan_code == "FREE" and entitlement.limit_override_bytes is None
-            assert account.used_bytes == account.reserved_bytes == 0
+            assert account.used_bytes == 0
+            assert storage_quota_service.snapshot_user(observer, identity).reserved_bytes == 0
             assert observer.get(PendingRegistration, 1) is None
         else:
             assert observer.scalar(sa.select(sa.func.count()).select_from(User)) == 0
@@ -337,7 +350,6 @@ def test_email_verification_provisions_user_storage_in_one_transaction(
         (StoragePlanPolicy, "default_limit_bytes"),
         (UserStorageEntitlement, "limit_override_bytes"),
         (StorageUsageAccount, "used_bytes"),
-        (StorageUsageAccount, "reserved_bytes"),
     ],
 )
 def test_current_storage_facts_enforce_nonnegative_bytes(provisioned, model, field):
@@ -362,12 +374,12 @@ def test_plan_and_user_identity_constraints_and_user_delete_cascade(provisioned)
 
 
 def test_zero_override_and_current_plan_identity_are_resolved_without_snapshot(provisioned):
-    service = StorageUsageService()
     with Session(provisioned) as db:
         entitlement = db.get(UserStorageEntitlement, 1)
         entitlement.limit_override_bytes = 0
+        db.get(UserStorageEntitlement, 1).mode_override = StorageQuotaMode.HARD_LIMIT
         db.commit()
-        assert service.get_usage(db, 1).quota.limit_bytes == 0
+        assert read_storage_usage(db, 1).quota.limit_bytes == 0
         with pytest.raises(ValidationException) as failure:
             hold(db, 1)
         assert failure.value.details["limit_bytes"] == 0
@@ -376,10 +388,11 @@ def test_zero_override_and_current_plan_identity_are_resolved_without_snapshot(p
         db.flush()
         entitlement.plan_code = "LARGE"
         entitlement.limit_override_bytes = None
+        entitlement.mode_override = None
         db.commit()
-        assert service.get_usage(db, 1).quota.limit_bytes == 200
+        assert read_storage_usage(db, 1).quota.limit_bytes == 200
         hold(db, 200)
-        assert service.get_usage(db, 1).quota.available_bytes == 0
+        assert read_storage_usage(db, 1).quota.available_bytes == 0
 
 
 @pytest.mark.parametrize("limit", [100, 0, None])
@@ -411,6 +424,7 @@ def test_storage_records_use_plan_and_user_primary_identities(provisioned):
     assert {column["name"] for column in inspector.get_columns("storage_plan_policies")} == {
         "plan_code",
         "default_limit_bytes",
+        "mode",
         "created_at",
         "updated_at",
     }
@@ -418,13 +432,13 @@ def test_storage_records_use_plan_and_user_primary_identities(provisioned):
         "user_id",
         "plan_code",
         "limit_override_bytes",
+        "mode_override",
         "created_at",
         "updated_at",
     }
     assert {column["name"] for column in inspector.get_columns("storage_usage_accounts")} == {
         "user_id",
         "used_bytes",
-        "reserved_bytes",
         "created_at",
         "updated_at",
     }

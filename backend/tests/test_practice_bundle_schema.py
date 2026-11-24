@@ -31,7 +31,11 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
         for name, targets in {
             "performance_take_manifests": {"users"},
             "performance_takes": {"scores", "performance_take_manifests", "stored_objects"},
-            "performance_take_upload_reservations": {"users", "performance_take_manifests"},
+            "performance_take_upload_reservations": {
+                "users",
+                "performance_take_manifests",
+                "storage_quota_holds",
+            },
         }.items():
             assert {fk["referred_table"] for fk in inspector.get_foreign_keys(name)} == targets
         with Session(engine) as db:

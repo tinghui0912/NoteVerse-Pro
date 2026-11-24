@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from app.db.models import StorageUsageCategory
+from app.db.models.storage_usage import StorageUsageCategory
 from app.shared.api_model import ApiModel
 
 
@@ -17,8 +17,8 @@ class StorageUsageBreakdownRead(BaseModel):
 class StorageUsageQuotaRead(BaseModel):
     used_bytes: int
     reserved_bytes: int
-    limit_bytes: int
-    available_bytes: int
+    limit_bytes: int | None
+    available_bytes: int | None
 
 
 class StorageUsageRead(ApiModel):

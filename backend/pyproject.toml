@@ -162,6 +162,7 @@ files = [
   "app/__init__.py",
   "app/api",
   "app/core",
+  "app/composition",
   "app/db/__init__.py",
   "app/db/session.py",
   "app/main.py",

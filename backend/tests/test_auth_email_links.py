@@ -105,6 +105,9 @@ class FakeDb:
     def refresh(self, _record) -> None:
         return None
 
+    def scalar(self, statement):
+        return self.execute(statement).scalar_one_or_none()
+
     def execute(self, statement):
         entity = statement.column_descriptions[0].get("entity")
         if entity is StoragePlanPolicy:

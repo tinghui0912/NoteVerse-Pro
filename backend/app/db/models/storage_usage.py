@@ -34,71 +34,10 @@ class StorageUsageCategory(str, enum.Enum):
     TEMP_IMPORT = "TEMP_IMPORT"
 
 
-class StorageUsageReservationStatus(str, enum.Enum):
-    RESERVED = "RESERVED"
-    COMMITTED = "COMMITTED"
-    RELEASED = "RELEASED"
-
-
-class StoragePlanPolicy(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "storage_plan_policies"
-    __table_args__ = (
-        CheckConstraint(
-            "default_limit_bytes >= 0", name="ck_storage_plan_policies_default_limit_non_negative"
-        ),
-    )
-
-    plan_code: str = Field(sa_column=Column(String(64), primary_key=True))
-    default_limit_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
-    created_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
-    )
-    updated_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(
-            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
-        ),
-    )
-
-
-class UserStorageEntitlement(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "user_storage_entitlements"
-    __table_args__ = (
-        CheckConstraint(
-            "limit_override_bytes IS NULL OR limit_override_bytes >= 0",
-            name="ck_user_storage_entitlements_override_non_negative",
-        ),
-    )
-
-    user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    )
-    plan_code: str = Field(
-        sa_column=Column(String(64), ForeignKey("storage_plan_policies.plan_code"), nullable=False)
-    )
-    limit_override_bytes: Optional[int] = Field(
-        default=None, sa_column=Column(BigInteger, nullable=True)
-    )
-    created_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
-    )
-    updated_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(
-            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
-        ),
-    )
-
-
 class StorageUsageAccount(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "storage_usage_accounts"
     __table_args__ = (
         CheckConstraint("used_bytes >= 0", name="ck_storage_usage_accounts_used_non_negative"),
-        CheckConstraint(
-            "reserved_bytes >= 0", name="ck_storage_usage_accounts_reserved_non_negative"
-        ),
     )
 
     user_id: int = Field(
@@ -109,7 +48,6 @@ class StorageUsageAccount(SQLModel, table=True):  # type: ignore[call-arg]
         )
     )
     used_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
-    reserved_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
@@ -127,9 +65,6 @@ class StorageUsageCounter(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         UniqueConstraint("user_id", "category", name="uq_storage_usage_counters_user_category"),
         CheckConstraint("used_bytes >= 0", name="ck_storage_usage_counters_used_non_negative"),
-        CheckConstraint(
-            "reserved_bytes >= 0", name="ck_storage_usage_counters_reserved_non_negative"
-        ),
         Index("idx_storage_usage_counters_user", "user_id"),
     )
 
@@ -144,51 +79,6 @@ class StorageUsageCounter(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(SAEnum(StorageUsageCategory, name="storageusagecategory"), nullable=False)
     )
     used_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
-    reserved_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
-    updated_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(
-            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
-        ),
-    )
-
-
-class StorageUsageReservation(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "storage_usage_reservations"
-    __table_args__ = (
-        CheckConstraint(
-            "bytes_reserved >= 0", name="ck_storage_usage_reservations_bytes_non_negative"
-        ),
-        Index("idx_storage_usage_reservations_user_status", "user_id", "status"),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    reservation_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
-    user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    )
-    category: StorageUsageCategory = Field(
-        sa_column=Column(SAEnum(StorageUsageCategory, name="storageusagecategory"), nullable=False)
-    )
-    bytes_reserved: int = Field(sa_column=Column(BigInteger, nullable=False))
-    counts_toward_quota_snapshot: bool = Field(sa_column=Column(Boolean, nullable=False))
-    status: StorageUsageReservationStatus = Field(
-        sa_column=Column(
-            SAEnum(StorageUsageReservationStatus, name="storageusagereservationstatus"),
-            nullable=False,
-        )
-    )
-    reason: str = Field(sa_column=Column(String(64), nullable=False))
-    object_type: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    object_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    storage_key: Optional[str] = Field(default=None, sa_column=Column(String(768)))
-    created_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
-    )
     updated_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(

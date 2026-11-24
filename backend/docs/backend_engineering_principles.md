@@ -57,6 +57,7 @@ app/modules/
 |-- scores
 |-- storage_inventory
 |-- storage_objects
+|-- storage_quota
 |-- storage_usage
 `-- uploads
 ```
@@ -251,6 +252,12 @@ PracticeSession lifecycle, Practice WebSocket, backend score-following,
 server-owned audio buffers, or realtime Practice message codecs.
 
 ## 5. Storage And Artifact Rules
+
+[Storage resource governance](../../docs/architecture/storage-resource-governance.md)
+defines physical objects, logical usage and capacity quota as independent authorities.
+Storage Quota consumes the Usage reader/locking contract; Usage consumes domain-owned
+Inventory and does not import Quota or business ORM. Business commands compose hold
+consumption and logical allocation in the same caller-owned transaction.
 
 Durable file and object storage must go through `app/storage/*`.
 

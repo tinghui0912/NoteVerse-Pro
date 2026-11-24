@@ -2240,7 +2240,7 @@ def test_revision_semantic_admission_precedes_reservation_and_durable_put(
     with (
         patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
         patch(
-            "app.modules.revisions.service.storage_usage_service.reserve", new_callable=Mock
+            "app.modules.revisions.service.storage_quota_service.create_hold", new_callable=Mock
         ) as reserve,
     ):
         with pytest.raises(ValidationException) as caught:
@@ -2300,7 +2300,7 @@ def test_review_semantic_admission_precedes_storage(score_service_session, opera
     with (
         patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
         patch(
-            "app.modules.import_jobs.review.service.storage_usage_service.reserve",
+            "app.modules.import_jobs.review.service.storage_quota_service.create_hold",
             new_callable=Mock,
         ) as reserve,
     ):

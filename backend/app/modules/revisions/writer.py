@@ -18,14 +18,14 @@ from app.db.models import (
     ScoreRevisionEvent,
     User,
     StorageUsageCategory,
-    StorageUsageReservation,
-    StorageUsageReservationStatus,
 )
 from app.shared.realtime import RealtimeChangeKind
 from app.db.models.score import RevisionOrigin, RevisionSourceFormat, MetadataStatus
 from app.db.models.revision_metadata_outbox import RevisionMetadataOutbox
 from app.modules.storage_objects.writes import ObjectWriteReceipt, adopt_written_object
 from app.modules.storage_usage.service import storage_usage_service
+from app.composition.storage_resources import storage_quota_service
+from app.db.models.storage_quota import StorageQuotaHoldStatus
 from app.modules.revisions.render_admission import admit_revision_render
 from app.modules.playback.outbox_service import create_playback_outbox
 from app.modules.revisions.post_commit import RevisionPostCommitWork
@@ -43,7 +43,7 @@ class PreparedRevisionSource:
     content_hash: str
     generator: str
     generator_version: str
-    reservation_id: str
+    quota_hold_id: int
 
 
 @dataclass(frozen=True)
@@ -103,19 +103,13 @@ class RevisionWriter:
             )
         ):
             raise ValueError("Prepared canonical source identity disagrees with revision")
-        reservation = db.scalar(
-            select(StorageUsageReservation)
-            .where(StorageUsageReservation.reservation_uuid == prepared.reservation_id)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
+        hold = storage_quota_service.lock_hold(db, prepared.quota_hold_id)
         if (
-            reservation is None
-            or reservation.user_id != score.owner_user_id
-            or reservation.category != StorageUsageCategory.SOURCE
-            or reservation.bytes_reserved != prepared.receipt.facts.byte_size
+            hold.user_id != score.owner_user_id
+            or hold.category != StorageUsageCategory.SOURCE
+            or hold.bytes_held != prepared.receipt.facts.byte_size
         ):
-            raise ValueError("Canonical source requires its exact active reservation")
+            raise ValueError("Canonical source requires its exact quota hold")
         key = command.idempotency_key
         existing = (
             db.scalar(
@@ -128,8 +122,8 @@ class RevisionWriter:
         )
         if existing is not None:
             return self._unused(db, prepared, existing)
-        if reservation.status != StorageUsageReservationStatus.RESERVED:
-            raise ValueError("New canonical source requires an uncommitted reservation")
+        if hold.status != StorageQuotaHoldStatus.HELD:
+            raise ValueError("New canonical source requires an active quota hold")
         initial = isinstance(command, InitialRevisionWrite)
         target = None
         if isinstance(command, InitialRevisionWrite):
@@ -230,9 +224,14 @@ class RevisionWriter:
                     created_at=now,
                 )
             )
-        storage_usage_service.commit_reservation(
+        if not storage_quota_service.consume_hold(db, prepared.quota_hold_id):
+            raise ValueError("New canonical source requires an unconsumed quota hold")
+        storage_usage_service.record_allocation(
             db,
-            prepared.reservation_id,
+            user_id=score.owner_user_id,
+            category=StorageUsageCategory.SOURCE,
+            bytes_count=prepared.receipt.facts.byte_size,
+            reason="revision_source_created",
             object_type="score_revision_source",
             object_id=source_uuid,
             storage_key=prepared.receipt.object_key,
@@ -328,7 +327,7 @@ class RevisionWriter:
     def _unused(
         db: Session, source: PreparedRevisionSource, revision: ScoreRevision
     ) -> RevisionWriteResult:
-        storage_usage_service.release_reservation(db, source.reservation_id)
+        storage_quota_service.release_hold(db, source.quota_hold_id)
         return RevisionWriteResult(revision, None)
 
 

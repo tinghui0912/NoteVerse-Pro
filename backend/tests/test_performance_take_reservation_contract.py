@@ -40,7 +40,7 @@ def test_manifest_and_lifecycle_persistence_ownership():
         "manifest_id",
         "client_request_id",
         "staging_object_key",
-        "storage_reservation_id",
+        "quota_hold_id",
         "expires_at",
         "last_put_url_expires_at",
         "staging_cleanup_after",

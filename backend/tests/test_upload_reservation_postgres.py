@@ -1,6 +1,7 @@
 """Upload reservation ownership across independent PostgreSQL transactions."""
 
 from __future__ import annotations
+from app.composition.storage_resources import storage_quota_service
 
 from tests.support.practice_bundle import bind_bundle
 
@@ -28,7 +29,7 @@ from app.db.models import (
 from app.db.models.performance_take_manifest import PerformanceTakeManifest
 from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
-from app.db.models.storage_usage import StorageUsageReservation
+from app.db.models.storage_quota import StorageQuotaHold
 from app.modules.performance_takes.manifest_persistence import manifest_from_row
 from app.modules.performance_takes.repository import PerformanceTakeRepository
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
@@ -109,7 +110,7 @@ def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
             row.finalizing_token is row.finalizing_object_key is row.finalizing_expires_at is None
         )
         account = db.get(StorageUsageAccount, 1)
-        assert account.reserved_bytes == account.used_bytes == 0
+        assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == account.used_bytes == 0
         if command == "expire-finalizing":
             assert "worker-candidate" in row.orphan_final_object_keys
 
@@ -130,7 +131,7 @@ def test_take_creation_completion_and_quota_commit_share_one_transaction(postgre
             raise RuntimeError("quota transaction rejected")
 
         with patch.object(
-            service.storage_usage_service, "commit_reservation", side_effect=fail_commit
+            service.finalization.writer.quota, "consume_hold", side_effect=fail_commit
         ):
             with pytest.raises(RuntimeError, match="quota transaction rejected"):
                 service.finalize_take(db, 1, reserved.reservation_id)
@@ -160,7 +161,10 @@ def test_take_creation_completion_and_quota_commit_share_one_transaction(postgre
             is None
         )
         account = observer.get(StorageUsageAccount, 1)
-        assert account.reserved_bytes == len(MEDIA) and account.used_bytes == 0
+        assert (
+            storage_quota_service.snapshot_user(observer, 1).reserved_bytes == len(MEDIA)
+            and account.used_bytes == 0
+        )
 
 
 def setup_bundle(postgres_bundle):
@@ -175,14 +179,9 @@ def setup_bundle(postgres_bundle):
             StorageUsageAccount(
                 user_id=1,
                 used_bytes=0,
-                reserved_bytes=0,
             )
         )
-        db.add(
-            StorageUsageCounter(
-                user_id=1, category=StorageUsageCategory.UPLOAD, used_bytes=0, reserved_bytes=0
-            )
-        )
+        db.add(StorageUsageCounter(user_id=1, category=StorageUsageCategory.UPLOAD, used_bytes=0))
         db.commit()
         reference, verified_bundle = bind_bundle(
             db, storage, bundle, revision_id=repository.test_revision_id
@@ -221,20 +220,13 @@ def setup_bundle(postgres_bundle):
 
 def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_bundle):
     sessions, source, storage, request = setup_bundle(postgres_bundle)
-    both_absent = Barrier(2)
-
-    class SynchronizedRepository(PerformanceTakeRepository):
-        def get_reservation_by_client_request_id(self, *args, **kwargs):
-            value = super().get_reservation_by_client_request_id(*args, **kwargs)
-            if value is None:
-                both_absent.wait(5)
-            return value
-
+    starting = Barrier(2)
     service = TakeLifecycleServices(
-        repository=SynchronizedRepository(), storage=storage, practice_bundle_service=source
+        repository=PerformanceTakeRepository(), storage=storage, practice_bundle_service=source
     )
 
     def reserve():
+        starting.wait(5)
         with sessions() as db:
             return service.reserve_upload(db, 1, request)
 
@@ -245,9 +237,12 @@ def test_two_creators_share_one_reservation_and_one_quota_hold(postgres_bundle):
     with sessions() as db:
         assert db.scalar(select(func.count()).select_from(PerformanceTakeUploadReservation)) == 1
         assert db.scalar(select(func.count()).select_from(PerformanceTakeManifest)) == 1
-        assert db.scalar(select(func.count()).select_from(StorageUsageReservation)) == 1
+        assert db.scalar(select(func.count()).select_from(StorageQuotaHold)) == 1
         account = db.get(StorageUsageAccount, 1)
-        assert account.reserved_bytes == len(MEDIA) and account.used_bytes == 0
+        assert (
+            storage_quota_service.snapshot_user(db, 1).reserved_bytes == len(MEDIA)
+            and account.used_bytes == 0
+        )
 
 
 @pytest.mark.parametrize("takeover", [False, True])
@@ -340,7 +335,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
             manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id == bundle_id
             and manifest_from_row(take.manifest).snapshot.practice_binding.bundle_id == bundle_id
         )
-        assert row.reservation_uuid != row.storage_reservation_id
+        assert row.reservation_uuid != row.quota_hold_id
         assert storage.read_bytes(take.recording_object.object_key) == MEDIA
         import hashlib
 
@@ -362,7 +357,10 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
             assert not storage.exists(candidates[0])
             assert storage.exists(take.recording_object.object_key)
         account = db.get(StorageUsageAccount, 1)
-        assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
+        assert (
+            account.used_bytes == len(MEDIA)
+            and storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
+        )
 
 
 def test_exact_bundle_admission_lock_fences_owner_release_until_reservation_commit(postgres_bundle):
@@ -475,3 +473,37 @@ def test_persisted_manifest_coordinate_corruption_fails_closed(postgres_bundle, 
             if owner == "take":
                 with pytest.raises(ValidationException):
                     service.takes.get_take(db, 1, accepted.take_id)
+
+
+def test_take_reserve_parent_lock_precedes_user_capacity(postgres_bundle):
+    from sqlalchemy import text
+    from app.db.models import Score
+    from tests.test_stored_object_retirement_postgres import assert_blocked
+
+    sessions, source, storage, request = setup_bundle(postgres_bundle)
+    service = TakeLifecycleServices(storage=storage, practice_bundle_service=source)
+    started = Event()
+    pids = []
+
+    def reserve():
+        with sessions() as db:
+            pids.append(db.scalar(text("SELECT pg_backend_pid()")))
+            started.set()
+            return service.reserve_upload(db, 1, request)
+
+    with sessions() as parent, ThreadPoolExecutor(1) as pool:
+        parent.scalar(select(Score).with_for_update())
+        pending = pool.submit(reserve)
+        assert started.wait(10)
+        assert_blocked(parent.get_bind(), pids[0])
+        # This would fail NOWAIT if the blocked creator held quota before Score.
+        parent.scalar(
+            select(UserStorageEntitlement)
+            .where(UserStorageEntitlement.user_id == 1)
+            .with_for_update(nowait=True)
+        )
+        parent.commit()
+        accepted = pending.result(timeout=10)
+    with sessions() as db:
+        row = service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        assert db.get(StorageQuotaHold, row.quota_hold_id) is not None

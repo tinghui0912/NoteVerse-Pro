@@ -12,7 +12,7 @@ from sqlalchemy import select
 from starlette.datastructures import Headers
 
 from app.core.exceptions import ResourceNotFoundException, ValidationException
-from app.db.models import ObjectWriteIntent, StoredObject, StorageUsageReservation, Upload, User
+from app.db.models import ObjectWriteIntent, StoredObject, StorageQuotaHold, Upload, User
 from app.modules.uploads.service import UploadService
 from app.modules.uploads.repository import UploadRepository
 from app.modules.uploads.upload_admission import (
@@ -120,7 +120,7 @@ def test_invalid_images_have_no_durable_admission(score_service_session, content
             db.get(User, 1),
             UploadFile(filename=filename, file=io.BytesIO(content)),
         )
-    for model in (Upload, ObjectWriteIntent, StorageUsageReservation):
+    for model in (Upload, ObjectWriteIntent, StorageQuotaHold):
         assert db.scalar(select(model)) is None
     assert not storage.objects
 
@@ -146,7 +146,7 @@ def test_oversize_is_rejected_before_quota_or_object_prewrite(score_service_sess
                 filename="large.png", file=io.BytesIO(b"x" * (MAX_SCORE_IMPORT_UPLOAD_BYTES + 1))
             ),
         )
-    for model in (Upload, ObjectWriteIntent, StorageUsageReservation):
+    for model in (Upload, ObjectWriteIntent, StorageQuotaHold):
         assert db.scalar(select(model)) is None
     assert not storage.objects
 

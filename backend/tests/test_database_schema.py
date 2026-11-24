@@ -1,7 +1,5 @@
 """The standalone Alembic baseline agrees with the complete application metadata."""
 
-from pathlib import Path
-
 import sqlalchemy as sa
 from alembic import command
 from alembic.autogenerate import compare_metadata
@@ -187,13 +185,10 @@ def test_baseline_upgrade_parity_bootstrap_teardown_and_reupgrade(monkeypatch):
     with postgres_schema_database(monkeypatch) as (engine, config):
         script = ScriptDirectory.from_config(config)
         revisions = list(script.walk_revisions())
-        assert len(revisions) == 1
-        assert script.get_heads() == script.get_bases() == ["0001_current_schema"]
-        assert revisions[0].down_revision is None
-        assert (
-            len(list((Path(config.get_main_option("script_location")) / "versions").glob("*.py")))
-            == 1
-        )
+        assert script.get_heads() == ["0002_storage_quota"]
+        assert script.get_bases() == ["0001_current_schema"]
+        assert len(revisions) == 2
+        assert revisions[0].down_revision == revisions[1].revision
         for _ in range(2):
             command.upgrade(config, "head")
             assert_schema_parity(engine)

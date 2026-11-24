@@ -1,4 +1,9 @@
 from __future__ import annotations
+from app.composition.storage_resources import storage_quota_service
+from uuid import uuid4
+from datetime import timedelta
+from app.shared.time import utc_now
+
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 from app.modules.import_jobs.object_keys import review_musicxml_object_key
 from app.modules.import_jobs.artifact_records import REVIEW_MUSICXML_MIME_TYPE
@@ -60,7 +65,6 @@ from app.modules.storage_usage.service import storage_usage_service
 from app.shared.error_codes import CustomerErrorCode
 from app.db.models.import_job import ImportArtifactKind
 from app.storage import object_storage
-from app.shared.time import utc_now
 from app.processing.musicxml.notation_title import extract_notation_title
 
 
@@ -142,13 +146,13 @@ class ImportReviewService:
         key = canonical_revision_source_object_key(
             score_uuid=score_uuid, revision_uuid=revision_uuid
         )
-        reservation = storage_usage_service.reserve(
+        reservation = storage_quota_service.create_hold(
             db,
             user_id=user_id,
             category=StorageUsageCategory.SOURCE,
             bytes_count=len(content),
-            reason="review_confirm",
-            object_type="score_revision_source",
+            command_key=str(uuid4()),
+            expires_at=utc_now() + timedelta(minutes=15),
         )
         try:
             db.commit()
@@ -161,7 +165,7 @@ class ImportReviewService:
             )
         except Exception:
             db.rollback()
-            storage_usage_service.release_reservation(db, reservation.reservation_id)
+            storage_quota_service.release_hold(db, reservation.hold_id)
             db.commit()
             raise
 
@@ -191,7 +195,7 @@ class ImportReviewService:
                     .get(job.id)
                 )
                 if existing is not None:
-                    storage_usage_service.release_reservation(db, reservation.reservation_id)
+                    storage_quota_service.release_hold(db, reservation.hold_id)
                     db.commit()
                     return ReviewConfirmRead(score_id=existing.score_uuid)
             if job.user_id != user_id or job.state != ImportJobState.READY_FOR_REVIEW:
@@ -214,7 +218,7 @@ class ImportReviewService:
                 content_hash,
                 "review-confirm",
                 "1",
-                reservation.reservation_id,
+                reservation.hold_id,
             )
             write_result = revision_writer.write(
                 db,
@@ -243,6 +247,16 @@ class ImportReviewService:
                         object_id=promoted.upload_uuid,
                         storage_key=promoted.storage_key,
                     )
+                hold = storage_quota_service.create_hold(
+                    db,
+                    user_id=user_id,
+                    category=StorageUsageCategory.INPUT_ASSET,
+                    bytes_count=promoted.size_bytes,
+                    command_key="reclassification:" + promoted.asset_uuid,
+                    expires_at=utc_now() + timedelta(minutes=15),
+                )
+                if not storage_quota_service.consume_hold(db, hold.hold_id):
+                    raise RuntimeError("Reclassification requires fresh capacity admission")
                 storage_usage_service.record_allocation(
                     db,
                     user_id=user_id,
@@ -263,7 +277,7 @@ class ImportReviewService:
             db.commit()
         except Exception:
             db.rollback()
-            storage_usage_service.release_reservation(db, reservation.reservation_id)
+            storage_quota_service.release_hold(db, reservation.hold_id)
             db.commit()
             raise
 

@@ -1,4 +1,7 @@
 from __future__ import annotations
+from app.composition.storage_resources import storage_quota_service
+from datetime import timedelta
+from app.shared.time import utc_now
 from app.modules.storage_objects.retirement import retire_after_release
 
 from dataclasses import dataclass
@@ -151,7 +154,7 @@ class ScoreDeletionExecutor:
         )
         if input_rows:
             # Reclassification can allocate again after release; hold the admission lock first.
-            storage_usage_service.lock_user_projection(db, owner_user_id)
+            storage_quota_service.lock_user(db, owner_user_id)
         usage_releases.extend(
             StorageUsageReleaseRecord(
                 category=StorageUsageCategory.INPUT_ASSET,
@@ -209,6 +212,16 @@ class ScoreDeletionExecutor:
                 continue
             if import_refs:
                 # The final InputAsset is gone, but the Upload remains a semantic allocation.
+                hold = storage_quota_service.create_hold(
+                    db,
+                    user_id=upload.uploader_user_id,
+                    category=StorageUsageCategory.UPLOAD,
+                    bytes_count=upload.stored_object.byte_size,
+                    command_key="input-return:" + lease.operation_uuid + ":" + upload.upload_uuid,
+                    expires_at=utc_now() + timedelta(minutes=15),
+                )
+                if not storage_quota_service.consume_hold(db, hold.hold_id):
+                    raise RuntimeError("Reclassification requires fresh capacity admission")
                 storage_usage_service.record_allocation(
                     db,
                     user_id=upload.uploader_user_id,

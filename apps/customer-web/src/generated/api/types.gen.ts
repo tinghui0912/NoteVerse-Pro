@@ -2887,11 +2887,11 @@ export type StorageUsageQuotaRead = {
     /**
      * Available Bytes
      */
-    available_bytes: number;
+    available_bytes: number | null;
     /**
      * Limit Bytes
      */
-    limit_bytes: number;
+    limit_bytes: number | null;
     /**
      * Reserved Bytes
      */

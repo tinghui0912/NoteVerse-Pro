@@ -17,6 +17,7 @@ from app.worker.execution.maintenance_cleanup import (
     execute_mail_outbox_cleanup,
     execute_notification_maintenance,
     execute_realtime_maintenance,
+    execute_storage_quota_expiry,
 )
 from app.worker.execution.maintenance_dispatch import (
     execute_score_deletion_maintenance,
@@ -168,3 +169,8 @@ def object_write_cleanup_task(self: CeleryTaskLike, intent_uuid: str) -> dict[st
 @celery_app.task(name="app.worker.tasks.run_object_write_cleanup_maintenance")
 def run_object_write_cleanup_maintenance() -> dict[str, int]:
     return execute_object_write_cleanup_maintenance()
+
+
+@celery_app.task(name="app.worker.tasks.run_storage_quota_expiry")
+def run_storage_quota_expiry() -> dict[str, int]:
+    return execute_storage_quota_expiry()

@@ -20,6 +20,10 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
     """
 
     return {
+        "storage-quota-expiry": {
+            "task": "app.worker.tasks.run_storage_quota_expiry",
+            "schedule": 60.0,
+        },
         "revision-metadata-maintenance": {
             "task": "app.worker.tasks.run_revision_metadata_maintenance",
             "schedule": float(settings.REVISION_METADATA_DISPATCH_INTERVAL_SECONDS),

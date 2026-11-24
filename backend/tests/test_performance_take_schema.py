@@ -1,5 +1,7 @@
 """Fresh PostgreSQL persistence for independent media provenance."""
 
+from tests.support.quota import quota_hold_fact
+
 from app.shared.performance_take_upload import UploadReservationStatus
 
 import hashlib
@@ -29,14 +31,14 @@ def manifest_values(user_id):
     return row.model_dump(exclude={"id"})
 
 
-def reservation_values(user_id, manifest_id):
+def reservation_values(user_id, manifest_id, quota_hold_id):
     return PerformanceTakeUploadReservation(
         user_id=user_id,
         manifest_id=manifest_id,
         reservation_uuid="reservation",
         client_request_id="request",
         staging_object_key="staging",
-        storage_reservation_id="quota",
+        quota_hold_id=quota_hold_id,
         expires_at=utc_now() + timedelta(hours=1),
         status=UploadReservationStatus.RESERVED,
     ).model_dump(exclude={"id"})
@@ -60,7 +62,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                 reservation_uuid="reservation",
                 client_request_id="request",
                 staging_object_key="staging",
-                storage_reservation_id="quota",
+                quota_hold_id=quota_hold_fact(db, user.id),
                 expires_at=utc_now() + timedelta(hours=1),
                 status=UploadReservationStatus.RESERVED,
             )
@@ -140,7 +142,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                     reservation_uuid="other",
                     client_request_id="request",
                     staging_object_key="other-staging",
-                    storage_reservation_id="other-quota",
+                    quota_hold_id=quota_hold_fact(db, other.id),
                     expires_at=utc_now() + timedelta(hours=1),
                     status=UploadReservationStatus.RESERVED,
                 )

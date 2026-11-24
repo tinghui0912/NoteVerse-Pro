@@ -1,5 +1,7 @@
 """Authoritative Take admission, rollback, and persisted-lineage recovery on PostgreSQL."""
 
+from app.composition.storage_resources import storage_quota_service
+
 from app.shared.error_codes import CustomerErrorCode
 
 from dataclasses import replace
@@ -81,9 +83,10 @@ async def test_precommit_failure_preserves_manifest_quota_and_immediate_cleanup_
             return value
 
         def quota(*args, **kwargs):
-            original_quota(*args, **kwargs)
+            result = original_quota(*args, **kwargs)
             if stage == "quota":
                 fail()
+            return result
 
         def transition(*args, **kwargs):
             original_transition(*args, **kwargs)
@@ -98,14 +101,12 @@ async def test_precommit_failure_preserves_manifest_quota_and_immediate_cleanup_
                 fail()
 
         original_create = service.repository.create_take
-        original_quota = service.writer.storage_usage_service.commit_reservation
+        original_quota = service.writer.quota.consume_hold
         original_transition = effects.apply_transition
         event.listen(db, "after_flush", after_flush)
         with (
             patch.object(service.repository, "create_take", side_effect=create_take),
-            patch.object(
-                service.writer.storage_usage_service, "commit_reservation", side_effect=quota
-            ),
+            patch.object(service.writer.quota, "consume_hold", side_effect=quota),
             patch.object(effects, "apply_transition", side_effect=transition),
         ):
             with pytest.raises(RuntimeError, match="admission interrupted"):
@@ -121,7 +122,9 @@ async def test_precommit_failure_preserves_manifest_quota_and_immediate_cleanup_
             )
         ).all()
         account = observer.get(StorageUsageAccount, 1)
-        assert account.used_bytes == 0 and account.reserved_bytes == len(MEDIA)
+        assert account.used_bytes == 0 and storage_quota_service.snapshot_user(
+            observer, 1
+        ).reserved_bytes == len(MEDIA)
         candidates = lifecycle_from_row(row).orphan_candidates
         assert len(candidates) == 1 and storage.exists(candidates[0].key)
         assert candidates[0].remove_after <= utc_now()
@@ -156,7 +159,7 @@ def test_known_failure_recovers_immediately_and_preserves_upload_hold(postgres_b
         assert all(
             item.remove_after <= utc_now() for item in lifecycle_from_row(row).orphan_candidates
         )
-        assert (db.get(StorageUsageAccount, 1)).reserved_bytes == len(MEDIA)
+        assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == len(MEDIA)
         storage.put_bytes(key=key, content=MEDIA, content_type="audio/webm")
         take = service.finalize_take(db, 1, accepted.reservation_id)
         assert take.take_id == accepted.take_id
@@ -288,7 +291,7 @@ def test_writer_participates_without_commit_and_rejects_stale_evidence(postgres_
         row = reservations.repository.get_reservation_by_uuid(observer, 1, accepted.reservation_id)
         assert row.status == "FINALIZING" and row.finalizing_token == lease.token
         assert observer.scalar(select(PerformanceTake)) is None
-        assert (observer.get(StorageUsageAccount, 1)).reserved_bytes == len(MEDIA)
+        assert storage_quota_service.snapshot_user(observer, 1).reserved_bytes == len(MEDIA)
 
 
 @pytest.mark.asyncio
@@ -346,7 +349,11 @@ async def test_delete_after_finalize_visibility_has_one_serial_accounting_outcom
         row = reservations.repository.get_reservation_by_uuid(observer, 1, accepted.reservation_id)
         assert row.status == "COMPLETED"
         account = observer.get(StorageUsageAccount, 1)
-        assert account.used_bytes == account.reserved_bytes == 0
+        assert (
+            account.used_bytes
+            == storage_quota_service.snapshot_user(observer, 1).reserved_bytes
+            == 0
+        )
         retirement = observer.scalar(select(StoredObjectRetirement))
         assert retirement is not None
         assert storage.exists(retirement.object_key)
@@ -374,7 +381,7 @@ def test_known_failure_after_reservation_expiry_releases_hold(postgres_bundle):
         row = reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
         assert row.status == "EXPIRED" and row.finalizing_token is None
         account = db.get(StorageUsageAccount, 1)
-        assert account.used_bytes == account.reserved_bytes == 0
+        assert account.used_bytes == storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
 
 
 def test_late_io_records_orphan_after_winner_even_if_prior_cleanup_saw_absence(
@@ -444,7 +451,7 @@ async def test_independent_retry_can_complete_while_known_failure_returns(postgr
                 await asyncio.to_thread(recovered.wait, 10)
                 replay = reservations.reserve_upload(b, 1, request)
                 assert replay.status == "RESERVED" and replay.manifest == manifest.snapshot
-                assert (b.get(StorageUsageAccount, 1)).reserved_bytes == len(MEDIA)
+                assert storage_quota_service.snapshot_user(b, 1).reserved_bytes == len(MEDIA)
                 saved = service.finalize_take(b, 1, accepted.reservation_id)
                 assert saved.take_id == accepted.take_id
             finally:
@@ -456,7 +463,10 @@ async def test_independent_retry_can_complete_while_known_failure_returns(postgr
         assert row.status == "COMPLETED"
         assert observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1
         account = observer.get(StorageUsageAccount, 1)
-        assert account.used_bytes == len(MEDIA) and account.reserved_bytes == 0
+        assert (
+            account.used_bytes == len(MEDIA)
+            and storage_quota_service.snapshot_user(observer, 1).reserved_bytes == 0
+        )
 
 
 @pytest.mark.asyncio
@@ -520,7 +530,9 @@ async def test_late_candidate_cannot_adopt_or_recover_new_inflight_lease(postgre
                     is None
                 )
                 account = observer.get(StorageUsageAccount, 1)
-                assert account.used_bytes == 0 and account.reserved_bytes == len(MEDIA)
+                assert account.used_bytes == 0 and storage_quota_service.snapshot_user(
+                    observer, 1
+                ).reserved_bytes == len(MEDIA)
                 assert candidates[0] in {
                     item.key for item in lifecycle_from_row(row).orphan_candidates
                 }
@@ -538,3 +550,25 @@ async def test_late_candidate_cannot_adopt_or_recover_new_inflight_lease(postgre
         observer.refresh(take, attribute_names=["recording_object"])
         assert take.recording_object.object_key == candidates[1]
         assert observer.scalar(select(func.count()).select_from(PerformanceTake)) == 1
+
+
+def test_late_finalization_cannot_consume_expired_quota_hold(postgres_bundle):
+    from app.db.models.storage_quota import StorageQuotaHold, StorageQuotaHoldStatus
+    from app.core.exceptions import ConflictException
+
+    sessions, reservations, service, storage, request, accepted, manifest, key = setup(
+        postgres_bundle
+    )
+    with sessions() as db:
+        row = reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        hold = db.get(StorageQuotaHold, row.quota_hold_id)
+        hold.created_at = utc_now() - timedelta(hours=2)
+        hold.expires_at = utc_now() - timedelta(hours=1)
+        db.commit()
+        with pytest.raises(ConflictException):
+            service.finalize_take(db, 1, accepted.reservation_id)
+    with sessions() as db:
+        row = reservations.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
+        assert db.get(StorageQuotaHold, row.quota_hold_id).status == StorageQuotaHoldStatus.HELD
+        assert db.scalar(select(func.count()).select_from(PerformanceTake)) == 0
+        assert db.get(StorageUsageAccount, 1).used_bytes == 0

@@ -1,4 +1,9 @@
 from __future__ import annotations
+from app.composition.storage_resources import storage_quota_service
+from uuid import uuid4
+from datetime import timedelta
+from app.shared.time import utc_now
+
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.storage import ObjectStorage
@@ -41,11 +46,9 @@ from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
-from app.modules.storage_usage.service import storage_usage_service
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.shared.error_codes import CustomerErrorCode
 from app.storage import object_storage
-from app.shared.time import utc_now
 
 
 class RevisionService:
@@ -105,13 +108,13 @@ class RevisionService:
             db.commit()
             return self._read(db, existing)
         revision_uuid = str(uuid.uuid4())
-        reservation = storage_usage_service.reserve(
+        reservation = storage_quota_service.create_hold(
             db,
             user_id=owner_user_id,
             category=StorageUsageCategory.SOURCE,
             bytes_count=len(content),
-            reason="revision_restore" if restore else "revision_create",
-            object_type="score_revision_source",
+            command_key=str(uuid4()),
+            expires_at=utc_now() + timedelta(minutes=15),
         )
         try:
             db.commit()
@@ -131,7 +134,7 @@ class RevisionService:
                 hashlib.sha256(content).hexdigest(),
                 "restore" if restore else "editor",
                 "1",
-                reservation.reservation_id,
+                reservation.hold_id,
             )
             result = revision_writer.write(
                 db,
@@ -148,7 +151,7 @@ class RevisionService:
             db.commit()
         except Exception:
             db.rollback()
-            storage_usage_service.release_reservation(db, reservation.reservation_id)
+            storage_quota_service.release_hold(db, reservation.hold_id)
             db.commit()
             raise
 

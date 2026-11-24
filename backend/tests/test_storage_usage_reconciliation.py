@@ -1,5 +1,9 @@
 """Current semantic inventory and exact, caller-owned projection maintenance."""
 
+from tests.support.quota import admit_hold
+from tests.support.quota import allocate_hold
+from app.composition.storage_resources import storage_quota_service
+
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from time import monotonic, sleep
@@ -32,8 +36,7 @@ from app.db.models import (
     StorageUsageAccount,
     StorageUsageCounter,
     StorageUsageEvent,
-    StorageUsageReservation,
-    StorageUsageReservationStatus,
+    StorageQuotaHold,
     StorageUsageCategory as Category,
     UserStorageEntitlement,
 )
@@ -41,12 +44,12 @@ from app.db.models.score import RevisionOrigin, RevisionSourceFormat, RenderAsse
 from app.db.models.playback import PlaybackAssetKind
 from app.db.models.import_job import ImportJobState
 from app.modules.import_jobs.requested_options import encode_requested_options
+from app.modules.storage_usage.contracts import counts_toward_quota
 from app.modules.storage_usage.accounting import (
     StorageUsageInvariantError,
-    counts_toward_quota,
     new_usage_event,
 )
-from app.modules.storage_usage.entitlements import provision_default_storage_state
+from app.composition.storage_resources import provision_storage_resources
 from app.modules.storage_inventory.composition import build_storage_inventory_registry
 from app.modules.storage_usage.reconciliation import StorageUsageReconciliation, UsageTotals
 from app.modules.storage_usage.service import storage_usage_service as usage
@@ -61,7 +64,7 @@ def database(postgres_engine):
         db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=100000))
         db.flush()
         for n in (1, 2):
-            provision_default_storage_state(db, n)
+            provision_storage_resources(db, n)
         db.commit()
     return postgres_engine
 
@@ -211,36 +214,16 @@ def test_inventory_counts_semantic_rows_and_intentionally_excludes_unaccounted_o
         assert set(expected) == set(Category)
 
 
-def test_repair_uses_semantic_facts_and_active_holds_and_is_transactional_and_idempotent(database):
+def test_repair_uses_semantic_facts_preserves_holds_and_is_transactional_and_idempotent(database):
     reconcile = StorageUsageReconciliation(build_storage_inventory_registry())
     with Session(database) as db:
         expected = inventory(db)
         for category in Category:
-            db.add(
-                StorageUsageCounter(user_id=1, category=category, used_bytes=3, reserved_bytes=7)
-            )
+            db.add(StorageUsageCounter(user_id=1, category=category, used_bytes=3))
         account = db.get(StorageUsageAccount, 1)
-        account.used_bytes, account.reserved_bytes = 999, 888
-        for n, (category, status, counted, amount) in enumerate(
-            [
-                (Category.UPLOAD, StorageUsageReservationStatus.RESERVED, True, 5),
-                (Category.DERIVED_RENDER, StorageUsageReservationStatus.RESERVED, True, 7),
-                (Category.SOURCE, StorageUsageReservationStatus.RESERVED, False, 9),
-                (Category.UPLOAD, StorageUsageReservationStatus.COMMITTED, True, 100),
-                (Category.UPLOAD, StorageUsageReservationStatus.RELEASED, True, 100),
-            ]
-        ):
-            db.add(
-                StorageUsageReservation(
-                    reservation_uuid=f"hold-{n}",
-                    user_id=1,
-                    category=category,
-                    status=status,
-                    bytes_reserved=amount,
-                    counts_toward_quota_snapshot=counted,
-                    reason="test",
-                )
-            )
+        account.used_bytes = 999
+        claim = admit_hold(db, user_id=1, category=Category.UPLOAD, bytes_count=5)
+        held_before = db.get(StorageQuotaHold, claim.hold_id).model_dump()
         misleading = new_usage_event(
             user_id=1,
             category=Category.UPLOAD,
@@ -253,16 +236,9 @@ def test_repair_uses_semantic_facts_and_active_holds_and_is_transactional_and_id
         db.refresh(misleading)
         original_event = misleading.model_dump()
         before = reconcile.inspect_user(db, 1)
-        assert before.drift and before.actual_account == UsageTotals(999, 888)
-        assert before.expected_account == UsageTotals(123, 12)
-        assert {item.category: item.expected.reserved_bytes for item in before.categories} == {
-            Category.UPLOAD: 5,
-            Category.SOURCE: 9,
-            Category.DERIVED_RENDER: 7,
-            Category.INPUT_ASSET: 0,
-            Category.DERIVED_AUDIO: 0,
-            Category.TEMP_IMPORT: 0,
-        }
+        assert before.drift and before.actual_account == UsageTotals(999)
+        assert before.expected_account == UsageTotals(123)
+        assert db.get(StorageQuotaHold, claim.hold_id).model_dump() == held_before
         assert not db.new and not db.dirty
         assert reconcile.reconcile_user(db, 1) == before
         assert not reconcile.inspect_user(db, 1).drift
@@ -307,7 +283,7 @@ def test_repair_creates_missing_counters_without_reprovisioning_or_spurious_even
         assert db.scalar(select(func.count()).select_from(StorageUsageCounter)) == 0
 
 
-@pytest.mark.parametrize("missing", [StorageUsageAccount, UserStorageEntitlement])
+@pytest.mark.parametrize("missing", [StorageUsageAccount])
 def test_maintenance_does_not_repair_missing_provisioning_authorities(database, missing):
     from app.core.exceptions import AppException
 
@@ -378,9 +354,7 @@ def test_maintenance_serializes_with_semantic_and_hold_transactions(database, op
     hold = None
     if operation in {"commit", "release"}:
         with Session(database) as db:
-            hold = usage.reserve(
-                db, user_id=1, category=Category.UPLOAD, bytes_count=37, reason="hold"
-            )
+            hold = admit_hold(db, user_id=1, category=Category.UPLOAD, bytes_count=37)
             db.commit()
 
     def domain(db):
@@ -391,11 +365,11 @@ def test_maintenance_serializes_with_semantic_and_hold_transactions(database, op
             )
         elif operation == "commit":
             upload(db, "committed", 37)
-            usage.commit_reservation(db, hold.reservation_id)
+            allocate_hold(db, hold.hold_id)
         elif operation == "release":
-            usage.release_reservation(db, hold.reservation_id)
+            storage_quota_service.release_hold(db, hold.hold_id)
         else:
-            usage.reserve(db, user_id=1, category=Category.UPLOAD, bytes_count=37, reason="test")
+            admit_hold(db, user_id=1, category=Category.UPLOAD, bytes_count=37)
 
     def waiter():
         with Session(database, expire_on_commit=False) as db:
@@ -445,7 +419,7 @@ def test_maintenance_serializes_with_semantic_and_hold_transactions(database, op
     with Session(database) as db:
         assert not reconcile.inspect_user(db, 1).drift
         account = db.get(StorageUsageAccount, 1)
-        assert (account.used_bytes, account.reserved_bytes) == (
+        assert (account.used_bytes, storage_quota_service.snapshot_user(db, 1).reserved_bytes) == (
             (37, 0)
             if operation in {"allocation", "commit"}
             else ((0, 0) if operation == "release" else (0, 37))
@@ -475,14 +449,13 @@ def test_inventory_and_maintenance_have_no_object_store_or_event_reconstruction_
 
 def test_missing_plan_policy_fails_closed_without_mutation(database):
     from app.core.exceptions import AppException
-    from app.modules.storage_usage.repository import StorageUsageRepository
 
     with (
         Session(database) as db,
-        patch.object(StorageUsageRepository, "plan_policy", return_value=None),
+        patch.object(storage_quota_service.repository, "policy", return_value=None),
     ):
         with pytest.raises(AppException) as error:
-            StorageUsageReconciliation(build_storage_inventory_registry()).reconcile_user(db, 1)
+            storage_quota_service.snapshot_user(db, 1)
         assert error.value.code == "quota_check_unavailable"
         assert not db.new and not db.dirty
 
@@ -555,9 +528,9 @@ def test_inspection_never_flushes_pending_caller_writes(database):
             assert observer.scalar(select(func.count()).select_from(StorageUsageEvent)) == 0
 
 
-@pytest.mark.parametrize("model", [StorageUsageReservation, StorageUsageEvent])
+@pytest.mark.parametrize("model", [StorageUsageEvent])
 def test_durable_quota_classification_is_explicitly_a_snapshot(model):
-    from app.modules.storage_usage.schemas import StorageUsageBreakdownRead
+    from app.modules.storage_quota.schemas import StorageUsageBreakdownRead
 
     assert model.__table__.c.counts_toward_quota_snapshot.nullable is False
     assert "counts_toward_quota_snapshot" in model.model_fields
@@ -571,3 +544,14 @@ def test_request_accounting_uses_projection_while_inventory_is_a_maintenance_bou
     tree = ast.parse(Path(service.__file__).read_text())
     imports = [node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
     assert not any(name and name.endswith((".inventory", ".reconciliation")) for name in imports)
+
+
+def test_reconciliation_has_no_entitlement_dependency(database):
+    with Session(database) as db:
+        db.execute(delete(UserStorageEntitlement).where(UserStorageEntitlement.user_id == 1))
+        db.commit()
+        assert (
+            not StorageUsageReconciliation(build_storage_inventory_registry())
+            .reconcile_user(db, 1)
+            .drift
+        )

@@ -52,6 +52,7 @@ class PerformanceTakeFinalizationService:
         self.takes = PerformanceTakeService(repository=self.repository, storage=storage)
 
     def finalize_take(self, db: Session, user_id: int, reservation_id: str) -> PerformanceTakeRead:
+        self.writer.quota.lock_user(db, user_id)
         row = self.repository.get_reservation_by_uuid(db, user_id, reservation_id, lock=True)
         if row is None:
             raise ResourceNotFoundException("upload_reservation", reservation_id)
@@ -62,6 +63,7 @@ class PerformanceTakeFinalizationService:
             raise ResourceNotFoundException("performance_take", manifest.take_uuid)
         state.assert_take_presence(existing is not None)
         if existing is not None:
+            self.recovery.validate_completed_hold(db, row)
             db.commit()
             return self.takes.get_take(db, user_id, manifest.take_uuid)
         now = utc_now()
@@ -82,7 +84,12 @@ class PerformanceTakeFinalizationService:
         except ReservationTransitionError as error:
             if error.code == "reservation_expired":
                 apply_reservation_transition(
-                    self.writer.storage_usage_service, db, row, state.expire(now=now), now=now
+                    self.writer.storage_usage_service,
+                    self.writer.quota,
+                    db,
+                    row,
+                    state.expire(now=now),
+                    now=now,
                 )
             db.commit()
             raise ValidationException(
@@ -91,7 +98,7 @@ class PerformanceTakeFinalizationService:
                 details={"status": state.status.value, "reason": error.code},
             ) from error
         apply_reservation_transition(
-            self.writer.storage_usage_service, db, row, transition, now=now
+            self.writer.storage_usage_service, self.writer.quota, db, row, transition, now=now
         )
         staging_key = row.staging_object_key
         db.commit()
@@ -99,6 +106,8 @@ class PerformanceTakeFinalizationService:
             candidate = self.media.verify(manifest, lease, staging_key)
             # Long physical IO may outlive a connection; retry only the DB lock, never media.
             try:
+                self.writer.lock_allocation_parent(db, manifest)
+                self.writer.quota.lock_user(db, user_id)
                 row = self.repository.get_reservation_by_take_uuid(
                     db, user_id, manifest.take_uuid, lock=True
                 )
@@ -106,6 +115,8 @@ class PerformanceTakeFinalizationService:
                 if not is_transient_db_disconnect(error):
                     raise
                 self._discard_uncertain_session(db)
+                self.writer.lock_allocation_parent(db, manifest)
+                self.writer.quota.lock_user(db, user_id)
                 row = self.repository.get_reservation_by_take_uuid(
                     db, user_id, manifest.take_uuid, lock=True
                 )

@@ -1,5 +1,7 @@
 """Import delivery, domain outcomes and current-attempt mutation authority."""
 
+from app.composition.storage_resources import storage_quota_service
+
 from app.db.models.import_job import ImportArtifactKind
 
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -781,4 +783,8 @@ def test_pipeline_and_review_updates_share_content_addressed_musicxml_identity(
             StorageUsageCounter.category == StorageUsageCategory.TEMP_IMPORT,
         )
     )
-    assert counter.used_bytes == len(changed) and counter.reserved_bytes == 0
+    assert (
+        counter.used_bytes == len(changed)
+        and storage_quota_service.snapshot_user(db, counter.user_id).categories[counter.category]
+        == 0
+    )
