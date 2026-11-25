@@ -1,6 +1,7 @@
 # Asset Infrastructure Architecture Gates
 
-Task 0.1，调查基准 `76416316f5d8fcb2c475a8cf6552debbb21f3d98`。
+Task 0.2，调查基准 `480bff0180bd1d74f60679f23a0e0df362701b08`。
+Task 0/0.1 的调查与既有 Accepted Contracts 仍为依据；下面的新方案没有自动取得批准。
 本文件与 [RFC](asset-infrastructure-rfc.md) 一起供负责人审查；**不授权 Task 1**。
 状态中的 APPROVED 只引用已有 accepted contract，不能表示作者批准了新设计。
 新设计结论均为 UNRESOLVED，直到负责人明确接受；BLOCKED 表示指定的证据或环境仍缺失。
@@ -96,6 +97,12 @@ Objects的copy/adoption不能获取Quota、Usage或User；这些依赖不可通�
 `pg_blocking_pids`/Event屏障，无sleep或扩大timeout：
 
 - 同A下object-first adoption与counter-first accounting竞争：B在A处等待，之后可采用同一对象。
+- 跨 User 使用真实 UploadService.create_upload、真实 blob_object_key（同图片 SHA/extension）和各自独立连接：
+  两者先完成真实 prewrite phase，再分别持自己的 E/A/H 进入 semantic adoption。强制 user 1 持有 I/O/R、
+  user 2 在共享 Intent I 等待；pg_blocking_pids 确认 owner PID 是 blocker，而 owner 没有反向等待。
+  owner 继续 C/Allocation 并提交，第二个完成。结果是唯一 O、两份 Upload、每 User 一次 UsageEvent/Allocation、
+  两个 CONSUMED H，Retirement CANCELLED/无 fence。删除 user 1 的 Upload 后，user 2 用量与共享 O 均保留。
+  这证明当前真实 canonical 共享路径中的 I/O/R 串行化；不是声称没有 I 锁的任意双对象路径都安全。
 - H消费持E/A时，Account `_finalize` 在Lu下返回busy而不倒序阻塞；rollback保持H。
 - closure Ln可以在预准入Lk存在时提交；新准入被拒绝，最终Lu等旧writer释放。
 - Take完整candidate验证后暂停，另一事务按虚拟deadline执行reservation expiry；迟到finalize不能生成Take或Usage。
@@ -107,36 +114,57 @@ Objects的copy/adoption不能获取Quota、Usage或User；这些依赖不可通�
 
 ## B. 新资源的Account Erasure闭合设计
 
-以下都是**UNRESOLVED新提案**；现有SCORES/IMPORTS/TAKES/UPLOADS/FINALIZE语义保持APPROVED。
+以下都是 **UNRESOLVED 新提案**。现有五阶段实现没有 Session/CopyOperation；本批不修改它。
 
-推荐增加 **TRANSFERS** phase，放在UPLOADS之后、FINALIZE之前。
-UPLOADS拥有的是正式Upload语义资源，TAKES拥有独立录音业务状态；Avatar原图、未创建Upload的Session、
-未知initiate/copy既不属于正式Upload，也不能以“历史清理”塞入FINALIZE。
-TRANSFERS提供独立、可观测、可恢复的有界物理临时责任检查点，不成为另一个删除Operation。
+### 当前事实与需改变的职责
+
+[cleanup_account_take / account_take_cleanup_pending](../../backend/app/modules/performance_takes/account_cleanup.py)
+目前把 RESERVED/FINALIZING、`staging_cleanup_completed_at` 以及 `orphan_final_object_keys` 合并为 pending。
+现有 Take 自己的定期 cleanup 会产生 ACK，现有 executor 的 TAKES 可以等待它。
+但未来物理执行移交 Objects/TRANSFERS 后，**不能沿用这个混合条件作为 TAKES 的完成条件**，
+否则 TAKES 等后面的 TRANSFERS，TRANSFERS 又无法被执行。旧条件不能仅改名后保留。
+[Upload cleanup](../../backend/app/modules/uploads/account_cleanup.py) 已将语义删除和历史删除分开；
+[executor FINALIZE](../../backend/app/composition/account_deletion.py) 当前执行有界 Request/Manifest 历史擦除。
+目标保留这个分工，把物理传输收尾明确放在中间阶段。
 
 ```text
-原始closure事务：User Ln -> invalid credentials/tombstone -> durable deletion operation
-每个请求/签名入口检查User状态；不声称Provider能力已撤销
-
 SCORES -> IMPORTS -> TAKES -> UPLOADS -> TRANSFERS -> FINALIZE
-                   |                     |
-                   +-- domain取消/释放 ----+--> Objects临时cleanup异步执行
-正式StoredObject Retirement始终独立，不等待它全部完成
+                    |                    |
+                    +-- 业务 release ----+--> Objects phase workers -> 唯一物理 ACK
 ```
 
-| 资源 | FK与唯一职责 | erasure阶段 / 完成条件 |
+| Phase | Resource / 责任 | Completion Condition / 后续责任 |
 | --- | --- | --- |
-| upload_sessions | User FK RESTRICT，不能CASCADE；自己的不可变staging/generation、取消/释放事实 | TRANSFERS逐项取消尚未消费会话并提交；已消费input由显式binding的业务先释放。能力截止、物理未知结果、临时清理ACK均解决后才可删Session |
-| upload_session_parts | Session FK RESTRICT；只保存计划/观察，不是物理清理owner | TRANSFERS先确认Session满足可删除条件，再有界删除parts；part row删除不能代替Abort |
-| upload_session_operations | Session FK SET NULL；必要历史快照继续存活，无User FK | pending/unknown work存在时保留Session关联；全部IO已settled、无parts/临时对象且ack后才允许unlink最小terminal evidence。快照保留本身不阻止User删除 |
-| avatar_change_requests | User FK RESTRICT；Account的业务command，不是Objects业务owner | TRANSFERS终止未apply命令、释放其原图input；已apply command不能重放旧头像。对应Session清理完成后，先删binding、再有界删command |
-| upload_creation_requests | 保留业务command/Hold/result lineage | UPLOADS删除正式Upload但先保留未解决Session的command。TRANSFERS清理其Session/Binding后删command；FINALIZE不再提前删除有活跃binding的请求 |
-| Take Reservation / Manifest | 继续业务authority，Session通过明确FK binding关联 | TAKES调用现有cancel_for_account，释放H且安排input/candidate释放；先等Objects临时ack，再删binding和Reservation/Manifest；不能因Session取消强行把COMPLETED Hold RELEASED |
+| Closure 原始事务 | tombstone、认证凭证失效、durable erasure operation | 原子提交立即退出；不声称已撤销 Provider 能力 |
+| SCORES / IMPORTS | 既有 domain 正式删除、Usage release、Retirement admission | 既有语义资源为空；不等待正式对象物理删除 |
+| TAKES | 取消 RESERVED/FINALIZING，释放尚未消费 H；删除最终 Take 并精确释放 UPLOAD；明确 input/candidate 的业务 release，登记 Objects cleanup | **Semantic Cleanup Pending 为零**：无 live Take、无可继续完成的 Reservation、所需 release 已提交。保留 Reservation/Manifest、binding、copy lineage；不等待物理 ACK，不删除历史 |
+| UPLOADS | 删除正式 Upload 语义资源并 release Usage | 无正式 Upload；所有 UploadCreationRequest 历史继续保留，尤其仍有 binding 的请求；不等待 Session ACK |
+| TRANSFERS | 取消未消费 Session、处理 Avatar 未完成命令；执行已释放 staging 和未采用 copy candidate 的清理；核对 unknown/迟到 IO 和唯一 cleanup ACK | **Physical Transfer Cleanup Pending 为零**；满足全部 generation settlement/ACK 后，同一有界事务删除 parts、binding 和 Session。Operation SET NULL 保留最小快照；可在此删除终结且解绑定的 AvatarChangeRequest。保留 Request/Reservation/Manifest 到 FINALIZE |
+| FINALIZE | 独占 User fence、检查预准入 writer；有界删除 UploadCreationRequest、Reservation/Manifest 及既有其他历史；Quota/Inventory/Usage 零不变量；最后 User DELETE | **Final History Erasure Pending 为零**，无 Session/binding、无未解决物理责任，所有必要 FK 已解除。可保留独立物理 Operation/Retirement 证据，不等待正式对象 Retirement 完成 |
 
-TRANSFERS按ID一次一个/配置有界batch；每个unit单独commit。业务取消决定与Objects release/cleanup admission同事务；
-Provider abort/list/delete是独立worker phase，不在Account的User/Quota/Session锁下等待网络。
-任何失败保持当前phase和明确failure facts，遵循既有attempt/rearm，不假装成功。
-发现早先已准入writer新提交业务图时，FINALIZE仍通过既有restart回到相应业务阶段。
+这三类 pending 是目标职责和查询语义，不是新建三份持久化状态或账本：
+
+- Semantic pending 从业务事实读；Take API 必须将取消/删除与 input/candidate release admission 原子提交。
+- Physical pending 只从 Objects Session/Copy/CLEANUP operation 读；`account_take_cleanup_pending()` 的目标不能再把它当作 TAKES 的 busy 条件。
+  Reservation 不复制 `staging_cleanup_completed_at`；它只保留必要业务 release/候选 operation identity，ACK 由 Objects 读取。
+- History pending 仅表示 FINALIZE 还需有界擦除的业务记录。`erase_account_take_history()` 的目标 guard
+  先验证无语义资源、无 binding、且关联物理 ledger 已完成，再删 Reservation/Manifest；不能靠清空旧 JSON 掩盖未知候选。
+
+**没有阶段等待其后阶段生产前置条件**：TAKES 先提交 release，TRANSFERS 只等待独立 Objects workers。
+TRANSFERS 若发现缺失业务 release，应明确返回 semantic pending 并恢复对应业务阶段，不在本阶段猜测 Take 生命周期。
+FINALIZE 在 Lu 下发现迟到语义资源则恢复 SCORES；发现尚存传输/unknown 责任则恢复 TRANSFERS；
+仅历史未清理则留在 FINALIZE。busy/restart 都释放当前事务，不持 Lu 等网络或 Session worker。
+
+User→Session 为 RESTRICT；parts→Session 为 RESTRICT；binding 显式 concrete FK 为 RESTRICT；
+Operation→Session SET NULL，保留不可变 UUID/generation/key/result 快照，不含 User FK。
+只有 Session 已终结、domain input 已释放、全部 physical operations 已 settled 且 ACK 完整时才解除 binding。
+Session 清理失败时，Request/Reservation/Manifest 和唯一物理证据全部保留，不能以 User CASCADE 擦掉责任。
+Take CANCELLED/EXPIRED 与 Quota RELEASED/EXPIRED 仍是独立状态；已 CONSUMED 的 H 不会改回 RELEASED。
+正式 StoredObject adoption 过的对象只能由 Retirement 清理，TRANSFERS 不能直接删除它。
+
+这些调整是现有 AccountDeletionOperation 的阶段职责扩展，不是新删除账本/queue。
+需要在批准后的同一实现批次修改 Take pending predicates、executor 分支和 history guards；
+不能只追加 TRANSFERS enum 而沿用旧 TAKES guard。当前生产实现没有被改动。
 
 ### B1. 签名准入和User→Session顺序
 
@@ -235,16 +263,31 @@ UNIQUE(concrete_command_id, command_generation) for each concrete relation
 composite (id,user_id) FKs to Session and each command
 ```
 
-**UNRESOLVED新提案**：Session与binding都由domain admission在同一事务创建，UUID完全由服务端生成。
-三个domain使用各自明确的binding入口，任何客户端API均不接受“把已有session绑定到另一个业务”的命令。
-各业务表不再独立保存第二份可修改session FK；按自己的concrete binding查当前command generation。
-旧generation binding保留到其临时cleanup完成，新generation有新Session/binding；不能转移旧binding。
-Bindings repository只提供创建/查询/符合生命周期的删除，不提供retarget/update；不以通用owner switch执行domain cleanup。
-Session PRIMARY KEY全局排他，composite FK阻止跨User移交，CHECK防止同一row同时关联两域。
+**UNRESOLVED 新提案**：UUID 完全由服务端产生；三个 domain admission 在同一事务创建自己的 command、
+Session 和 concrete binding，不存在客户端重新绑定已有 Session 的 API。各业务表不保存第二份可修改 Session FK。
 
-[SQL prototype测试](../../backend/tests/test_asset_session_binding_design_postgres.py) 在独立测试schema创建
-`gate_*`实验表，不修改ORM/Alembic。真实PG验证空/多域arc拒绝、跨User拒绝、两连接争同Session的唯一赢家、
-以及尚有binding不能删除父command。它证明约束方案，不声称生产Session schema/API已经存在。
+基础 FK arc 只保证 **at-most-one** binding 和 row 内 exactly-one concrete FK；它本身不保证每个 Session 都有 binding，
+也不禁止 UPDATE。Task 0.2 的 [隔离 SQL 原型](../../backend/tests/test_asset_session_binding_design_postgres.py)
+另测试下列提案，不创建生产 ORM/Migration：
+
+| 保证 | 数据库原型的机制 | 不属于该机制的保证 |
+| --- | --- | --- |
+| 不可 retarget | BEFORE UPDATE trigger 比较 session/user/generation/三个 command FK，任意 identity 改变报 23514；no-op 可接受 | 不仅是 Repository 不提供 UPDATE；应用没有禁用 trigger/TRUNCATE 权限是部署前提 |
+| 跨域全局 at-most-one | binding 的 Session PK；CHECK num_nonnulls=1；User composite FK | 不代表 Session 无 binding 时也满足 exactly-one |
+| 每 command/generation 至多一 Session | 三个具体 UNIQUE；并发第二事务在真实 unique-key 等待后失败 | binding 最终删除后，已完成业务 command 不能再次准入仍由 domain 终态/幂等 lineage 保证，不能声称 UNIQUE 永久保存历史 |
+| 每个已提交 Session 恰有一 binding | Session AFTER INSERT/UPDATE 的 DEFERRABLE INITIALLY DEFERRED constraint trigger，在 commit 核实 binding | 同一 admission 事务内可先建 Session 后建 binding；不能独立提交未绑定 Session |
+| 受控删除、不可删除后重绑 | BEFORE DELETE 核对 Session terminal 和唯一 Objects cleanup result；binding DELETE 的 deferred trigger 要求同事务 Session 也已删除，即使 DELETE+INSERT 重绑仍拒绝 | 真实物理 settlement 由 Objects protocol 负责，数据库 flag 不能证明外部 IO 已永久停止 |
+| 删除原子性 | 先锁 Session 再核对 ledger，删除 parts、binding、Session（FK RESTRICT）；提交时反向一致性 guard；故障 rollback 恢复两者 | 在物理 ACK 未成立前不允许断 FK；业务历史之后由 FINALIZE 清理 |
+
+原型用 `gate_cleanup_operations` 独立保存模拟 ACK，不在 Session/Reservation 复制 ACK；
+Session 删除使该 operation FK SET NULL，snapshot/ACK 仍在。真实实现必须核对 Objects 的精确 generation、
+release 与全部 settled operations；原型不构成 N3 的物理终结证明。
+原型没有提交孤立 Session、没有允许终态 Session 跨域重绑；已删除 Session 的旧 ID 不能通过 FK 再绑定。
+“永不重用已删除 UUID”、业务身份和媒体/所有权准入仍是服务端生成规则及 Domain Admission 的责任，
+不能把普通 SQL 权限能手工重建任意行的行为混为外部产品 API 保证。
+
+SQL 原型验证 UPDATE/DELETE+INSERT、各 domain generation 唯一性和并发、无 binding 提交失败、
+清理前 unlink 拒绝、同事务删除与 rollback、父记录 RESTRICT。这里只证明设计约束，不表示已获实施批准。
 
 ### D2. Current state与execution history分离
 
@@ -278,53 +321,63 @@ Session删除仅在全部physical责任关闭后；Operation保留snapshot独立
 | N2 Provider/version/config | BLOCKED | 开发OSS托管服务已核实且部分能力实测；生产模板无实际Provider，managed版本、完整IAM/加密信息不足 |
 | N3 迟到IO/unknown结果 | BLOCKED | orphan发现和有界并发观测存在；无限迟到结果的结束证据未证明，且bucket未配置incomplete-MPU lifecycle |
 | N4 参数/size/copy/checksum | UNRESOLVED | 5MiB只是测试payload；未设置产品part size/TTL/最大对象；single-copy上限未实测；checksum响应不充分 |
-| N5 Account erasure / evidence retention | UNRESOLVED | TRANSFERS、RESTRICT、显式release与ACK设计已闭合，新增phase和最小证据保留仍需批准 |
+| N5 Account erasure / evidence retention | UNRESOLVED | TAKES semantic / TRANSFERS physical / FINALIZE history 分工消除循环；新增phase、触发器与证据保留仍待批准 |
 | N6 切换/历史数据 | UNRESOLVED | 仍推荐排空在途single-PUT；未执行数据迁移/清库，无兼容运行时实施 |
 | N7 adoption/copy/authority | UNRESOLVED | Opaque receipt + DB ledger + same-transaction adoption ACK，待接口审查与实现验证 |
-| N8 locks/binding | UNRESOLVED | 当前A/C/H与Objects条件层级已审计；新增primitive/prototype经PG验证；新生产实现尚不存在，不宣称已获无死锁资格 |
+| N8 locks/binding | UNRESOLVED | 当前A/C/H与Objects条件层级已审计；跨User真实Upload路径与binding原型新增验证；新生产实现尚不存在，不宣称已获无死锁资格 |
 
 没有新增提案被自动标为APPROVED。现有accepted Objects/Usage/Quota/Inventory/Take/Account合同继续有效；
 本批明确不改变生产代码、ORM、迁移、API、Frontend、运行时Provider或已批准ADR。
 
+## G. Task 0.2 Review Findings
+
+| Finding ID | Severity | Source | Resolution | Test Evidence | Remaining Risk | Approval Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| A1 | HIGH | Provider cleanup | 每次 Abort/Delete 独立隔离全部 Exception；prefix 分页发现；最终分别核验 MPU/object/version/marker；任意未知或错误 BLOCKED | probe logic suite；真实 schema=2 OSS 四项零遗留及逐阶段记录 | 有界观察不能证明 Provider 内部无限迟到 IO 永久结束 | 工具修复已验证；架构 UNRESOLVED |
+| A2 | HIGH | orphan_discovery | 移除 self.uploads 登记；按 exact key 发现、比较 oracle、只用发现 ID Abort并重查 | 独立工具测试 + OSS application_registration_removed/discovered_handle_matches/aborted_using_discovered_handle | 未模拟真实网络响应丢失或 Provider 内部迟到 | 修复已验证；N3 BLOCKED |
+| A3 | MEDIUM | 签名 URL 文件与 barrier | 删除两个 CLI 出口，仅 subprocess stdin 传递 URL | CLI 拒绝旧参数；write_text 禁用时 browser probe 仍可执行；临时目录为空 | 子进程/进程内存安全属于部署边界，不宣称 URL 可即时撤销 | 工具修复已验证 |
+| A4 | HIGH | CORS/checksum/lifecycle 标签 | preflight 五条件；三响应 checksum 检查仍不提升 full/composite 资格；无 lifecycle 直接 BLOCKED | 条件缺失 unit cases；OSS preflight 五项 true，checksum UNKNOWN / lifecycle BLOCKED | 正式 Origin、checksum 语义、策略待负责人 | N2/N3/N4 未升级 |
+| B1–B3 | HIGH | FK arc 原型 | immutable UPDATE trigger、三组 UNIQUE、deferred exactly-one/paired delete；唯一 ACK 仅在 operation | 23 项真实 PostgreSQL 原型测试，含并发、DELETE+INSERT、rollback 和 evidence SET NULL | 原型不验证外部物理 settlement；生产 DDL/权限/完整状态机尚未实现 | 新设计 UNRESOLVED |
+| C | HIGH | TAKES / TRANSFERS | 分开 semantic / physical / history pending；TAKES 不等物理 ACK，FINALIZE 擦除历史 | 本文 Phase/Resource/Completion matrix 对照真实 cleanup/executor 源码 | 仅文档修正，未来须同批修改所有 guard；不能只追加 phase | UNRESOLVED |
+| D | HIGH | 跨 User 共享 blob 假设 | 保留并缩窄到已审计 canonical Upload 调用链的结论 | 真实 UploadService、独立 A、同步屏障、pg_blocking_pids、每 User 用量与共享删除验证通过 | 不覆盖尚不存在的 Session/Copy 全系统锁图 | 当前行为已验证；N8 UNRESOLVED |
+| E | HIGH | Provider 决策输入 | RFC Owner Decision Checklist 列出 13 项明确输入 | 保留原始 JSON并新增 schema=2；没有 bucket 配置写入 | 生产/权限/参数仍 UNKNOWN；MinIO 固定 tag 拉取 BLOCKED | 未获 Task 1 授权 |
+
 ## 本地验证记录
 
-2026-11-25，既有 quality container，PostgreSQL 17 的独立测试 schema。
-没有重建开发数据库；测试 DB 选用项目专用 `noteverse_test_provenance`，连接凭据不写入报告。
-下列 pytest 在 `/repo/backend` 执行，沿用项目 fixture 的临时 schema；
-`NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL` 指向该测试 DB。
+2026-11-26，既有 quality container / PostgreSQL 17；只在项目专用测试 DB
+`noteverse_test_provenance` 的临时 schema 执行 SQL 原型，不修改生产 Schema/Migration。
+Backend 命令从 `/repo/backend` 执行；PG 行通过 quality container 的 Python entry 设置测试 URL 后
+调用 `pytest.main([...])`（下表用等价 CLI 展开测试选择）；PG fixture 使用
+`NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL` 指向该测试 DB，凭据不输出。
 
-```text
-python -m pytest -q tests/test_asset_gate_postgres.py
-  tests/test_asset_session_binding_design_postgres.py tests/test_object_write_postgres.py
-  tests/test_stored_object_retirement_postgres.py tests/test_upload_reservation_postgres.py
-  tests/test_account_deletion_postgres.py tests/test_storage_quota_postgres.py
-121 passed, 1 warning in 83.04s
+| 实际命令 | 最终输出 |
+| --- | --- |
+| `python -m pytest -q tests/test_asset_gate_postgres.py` | `5 passed, 1 warning in 28.81s` |
+| `python -m pytest -q tests/test_asset_session_binding_design_postgres.py` | `23 passed, 1 warning in 22.72s` |
+| `python -m pytest -q tests/test_asset_provider_probe.py` | `21 passed, 1 warning in 6.37s`；仅工具逻辑 doubles |
+| `python -m pytest -q tests/test_object_write_postgres.py tests/test_stored_object_retirement_postgres.py tests/test_upload_reservation_postgres.py tests/test_account_deletion_postgres.py tests/test_storage_quota_postgres.py` | `111 passed, 1 warning in 95.21s` |
+| `python -m ruff check app tests scripts` | `All checks passed!` |
+| `python -m ruff format --check tests` | **FAIL：10 files would be reformatted, 295 files already formatted**；10 项均是起点未改文件，见下方复核 |
+| `python -m ruff format --check tests/support/qualify_asset_provider.py tests/test_asset_gate_postgres.py tests/test_asset_session_binding_design_postgres.py tests/test_asset_provider_probe.py` | `4 files already formatted` |
+| `python -m mypy --config-file pyproject.toml` | `Success: no issues found in 488 source files` |
+| `node --check tests/support/qualify_asset_provider_browser.mjs` | exit 0（宿主机从根目录加 backend/ 前缀执行同一文件） |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality.ps1 -Check docs-links` | 11 tests OK；Documentation structure OK；Markdown links are valid |
+| `git diff --check` | exit 0 |
 
-python -m pytest -q tests/test_dependency_architecture.py tests/test_storage_inventory_architecture.py
-  tests/test_object_write_architecture.py tests/test_object_storage_architecture.py
-  tests/test_object_key_architecture.py tests/test_upload_reservation_architecture.py
-  tests/test_performance_take_finalization_architecture.py tests/test_runtime_checks.py
-44 passed, 1 warning in 28.72s
+格式基线复核：逐个 `git show 480bff01:backend/tests/<file>` 将起点源码通过 stdin 交给相同容器的
+`ruff format --check --stdin-filename tests/<file>`；全部返回 1，并确认本批对这些文件 `git diff --quiet HEAD`。
+未为了通过门禁修改以下无关文件：
+`test_health_api.py`、`test_image_contract.py`、`test_practice_physical_strike_contract.py`、
+`test_practice_render_identity_contract.py`、`test_practice_score_artifact.py`、`test_practice_score_time.py`、
+`test_prepare_model_assets.py`、`test_public_frontend_url_settings.py`、`test_text_integration.py`、`test_trusted_proxy_settings.py`。
+这是已确认的基线格式失败，不将全量 format 描述为通过。
 
-python -m ruff check app tests scripts
-All checks passed!
-python -m ruff format --check tests/test_asset_gate_postgres.py
-  tests/test_asset_session_binding_design_postgres.py tests/support/qualify_asset_provider.py
-3 files already formatted
-python -m mypy --config-file pyproject.toml
-Success: no issues found in 488 source files
+初次新增跨 User fixture 重复 provision 已存在的 user 1，导致唯一键失败（1 failed / 27 passed）；
+修正 fixture 为仅 provision 新 user 2 后，按以上最终命令重新运行并通过，没有修改生产逻辑或放宽断言。
+pytest warning 是既有 FastAPI/Starlette TestClient 的 httpx 弃用提示。
 
-node --check backend/tests/support/qualify_asset_provider_browser.mjs
-exit 0
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality.ps1 -Check docs-links
-11 tests OK; Documentation structure OK; Markdown links are valid
-git diff --check
-exit 0
-```
-
-pytest 的 warning 是既有 FastAPI/Starlette TestClient 对 httpx 的弃用提示。
-本批新增 10 项 PostgreSQL 测试，其中 6 项仅验证隔离 SQL binding 原型，不创建生产模型。
-真实 OSS 命令、原始结果和单项限制见 [qualification report](asset-provider-qualification.md)。
-固定 MinIO 拉取失败单独标为 BLOCKED，不能视为测试通过。
-没有运行完整 backend/frontend suites、build、Alembic 或 API regeneration：本批只有文档、独立测试与测试工具，
-没有生产、Schema、契约或前端变更。没有查询/等待 Hosted CI。
+真实 OSS 运行命令为 `python tests/support/qualify_asset_provider.py --run-isolated --browser-script tests/support/qualify_asset_provider_browser.mjs`，
+S3 配置经内存/stdin 传入；[脱敏原始结果](evidence/asset-provider-oss-review-02.json) 记录最终四类库存均为零。
+只执行一次本批真实运行；没有更改 bucket 配置、没有触碰生产、没有用 mock 代替资格证据。
+完整 Backend/Frontend、Build、Alembic/API regeneration 未执行：本批只修改允许的测试和架构材料。
+Hosted CI 未查询、未等待；Task 1 仍未获授权。

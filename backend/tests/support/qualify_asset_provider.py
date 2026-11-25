@@ -25,7 +25,7 @@ from uuid import uuid4
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 
 def safe_error(error: Exception) -> dict[str, str | int]:
@@ -39,6 +39,27 @@ def safe_error(error: Exception) -> dict[str, str | int]:
     return {"code": type(error).__name__}
 
 
+def cors_preflight_evidence(status: int, headers, origin: str) -> dict[str, object]:
+    def tokens(name: str) -> set[str]:
+        return {v.strip().lower() for v in headers.get(name, "").split(",") if v.strip()}
+
+    methods = tokens("Access-Control-Allow-Methods")
+    allowed_headers = tokens("Access-Control-Allow-Headers")
+    exposed = tokens("Access-Control-Expose-Headers")
+    checks = {
+        "http_success": 200 <= status < 300,
+        "allow_origin_matches": headers.get("Access-Control-Allow-Origin") in (origin, "*"),
+        "put_allowed": "put" in methods or "*" in methods,
+        "request_headers_allowed": "content-type" in allowed_headers or "*" in allowed_headers,
+        "etag_exposed": "etag" in exposed or "*" in exposed,
+    }
+    return {
+        "status": "PASS" if all(checks.values()) else "BLOCKED",
+        "http_status": status,
+        **checks,
+    }
+
+
 class Qualification:
     def __init__(self, settings: dict[str, str], origin: str) -> None:
         endpoint = settings["S3_ENDPOINT_URL"].rstrip("/")
@@ -48,8 +69,9 @@ class Qualification:
         self.prefix = "architecture-qualification/" + uuid4().hex + "/"
         self.keys: set[str] = set()
         self.uploads: set[tuple[str, str]] = set()
+        self.unsettled_io = False
         self.report: dict[str, object] = {
-            "schema": 1,
+            "schema": 2,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             "provider_family": "Aliyun OSS" if "aliyuncs.com" in endpoint else "UNKNOWN",
             "provider_version": "UNKNOWN (managed service)",
@@ -85,6 +107,17 @@ class Qualification:
 
     def record(self, name: str, status: str = "PASS", **evidence: object) -> None:
         self.report["checks"][name] = {"status": status, **evidence}
+
+    def observe_error(self, error: Exception) -> dict[str, str | int]:
+        if isinstance(
+            error, (BotoCoreError, OSError, subprocess.TimeoutExpired)
+        ) and not isinstance(error, ClientError):
+            self.unsettled_io = True
+        return safe_error(error)
+
+    def require_scoped_key(self, key: str) -> None:
+        if not key.startswith(self.prefix) or key == self.prefix:
+            raise ValueError("Provider returned an out-of-scope locator")
 
     def key(self, suffix: str) -> str:
         key = self.prefix + suffix
@@ -199,12 +232,15 @@ class Qualification:
                         "policy_present": bool(data.get("Policy")),
                         "effective_iam": "UNKNOWN; successful probes prove only exercised actions",
                     }
-                self.record("configuration_" + name, **facts)
+                self.record(
+                    "configuration_" + name, "UNKNOWN" if name == "lifecycle" else "PASS", **facts
+                )
             except Exception as error:
-                facts = safe_error(error)
+                facts = self.observe_error(error)
                 self.record(
                     "configuration_" + name,
-                    "PASS" if facts.get("code") == absent else "UNKNOWN",
+                    "BLOCKED" if name == "lifecycle" and facts.get("code") == absent else "UNKNOWN",
+                    configuration_absent=facts.get("code") == absent,
                     **facts,
                 )
 
@@ -272,7 +308,7 @@ class Qualification:
             self.finish(key, identity, [{"PartNumber": 1, "ETag": '"' + "0" * 32 + '"'}])
             self.record("invalid_completion", "FAIL")
         except ClientError as error:
-            facts = safe_error(error)
+            facts = self.observe_error(error)
             self.record("invalid_completion", **facts)
             self.record(
                 "embedded_error_in_http_200",
@@ -282,18 +318,43 @@ class Qualification:
             )
 
     def orphan_discovery(self) -> None:
-        key, _ = self.start("lost-initiation-receipt")
-        # Deliberately discard the application receipt, not simulate the provider.
+        key, original_id = self.start("lost-initiation-receipt")
+        # This local comparison oracle is never passed to cleanup or Abort.
+        self.uploads.remove((key, original_id))
         found = []
         for page in self.client.get_paginator("list_multipart_uploads").paginate(
             Bucket=self.bucket, Prefix=key, PaginationConfig={"PageSize": 1}
         ):
-            found.extend(u for u in page.get("Uploads", []) if u["Key"] == key)
-        assert len(found) == 1
+            for upload in page.get("Uploads", []):
+                self.require_scoped_key(upload["Key"])
+                if upload["Key"] == key:
+                    found.append(upload)
+        assert len(found) == 1 and found[0]["UploadId"] == original_id
+        discovered_id = found[0]["UploadId"]
+        self.client.abort_multipart_upload(Bucket=self.bucket, Key=key, UploadId=discovered_id)
+        # No application cleanup registration exists: the discovered handle owns this Abort.
+        assert (key, original_id) not in self.uploads
+        remaining = []
+        for page in self.client.get_paginator("list_multipart_uploads").paginate(
+            Bucket=self.bucket, Prefix=key
+        ):
+            remaining.extend(u for u in page.get("Uploads", []) if u["Key"] == key)
+        assert not remaining
+        try:
+            self.client.head_object(Bucket=self.bucket, Key=key)
+        except ClientError as missing:
+            assert missing.response["Error"]["Code"] in ("404", "NoSuchKey", "NotFound")
+        else:
+            raise AssertionError("An uncompleted orphan has a completed object")
         self.record(
             "unknown_initiate_orphan_discovery",
             matching_uploads=1,
-            injection="application receipt deliberately discarded; not a network uncertainty bound",
+            application_registration_removed=True,
+            discovered_handle_matches=True,
+            aborted_using_discovered_handle=True,
+            remaining_uploads=0,
+            completed_object_exists=False,
+            injection="application receipt discarded; network response loss and internal late IO remain unverified",
         )
 
     def abort_and_races(self) -> None:
@@ -319,7 +380,7 @@ class Qualification:
                             self.finish(key, identity, [{"PartNumber": 1, "ETag": part["ETag"]}])
                         return {"action": action, "result": "accepted"}
                     except Exception as error:
-                        return {"action": action, **safe_error(error)}
+                        return {"action": action, **self.observe_error(error)}
 
                 with ThreadPoolExecutor(2) as pool:
                     outcomes = list(pool.map(compete, ("abort", "write")))
@@ -386,7 +447,7 @@ class Qualification:
                 status = pending.result(timeout=35)
                 outcome = {"part_http_status": status}
             except Exception as error:
-                outcome = safe_error(error)
+                outcome = self.observe_error(error)
         try:
             remaining = len(self.parts(key, identity))
         except ClientError as error:
@@ -417,7 +478,11 @@ class Qualification:
             assert self.read(key) == body
             self.record(
                 "sha256_checksum_observations",
-                "PASS" if part.get("ChecksumSHA256") and head.get("ChecksumSHA256") else "UNKNOWN",
+                "UNKNOWN",
+                all_three_fields_present=all(r.get("ChecksumSHA256") for r in (part, result, head)),
+                single_part_fields_match=all(
+                    r.get("ChecksumSHA256") == digest for r in (part, result, head)
+                ),
                 part_checksum_present=bool(part.get("ChecksumSHA256")),
                 completion_checksum_present=bool(result.get("ChecksumSHA256")),
                 head_checksum_present=bool(head.get("ChecksumSHA256")),
@@ -425,11 +490,9 @@ class Qualification:
                 equivalence="UNKNOWN; response does not establish full-object/composite equivalence",
             )
         except Exception as error:
-            self.record("sha256_checksum_observations", "UNKNOWN", **safe_error(error))
+            self.record("sha256_checksum_observations", "UNKNOWN", **self.observe_error(error))
 
-    def signed_transport(
-        self, secret_output: Path | None, browser_script: Path | None = None
-    ) -> None:
+    def signed_transport(self, browser_script: Path | None = None) -> None:
         key, identity = self.start("browser-signed-part")
         target = self.signing.generate_presigned_url(
             "upload_part",
@@ -447,7 +510,7 @@ class Qualification:
                     etag_readable=bool(response.headers.get("ETag")),
                 )
         except Exception as error:
-            self.record("signed_endpoint_http_access", "BLOCKED", **safe_error(error))
+            self.record("signed_endpoint_http_access", "BLOCKED", **self.observe_error(error))
         try:
             request = Request(
                 target,
@@ -459,18 +522,10 @@ class Qualification:
                 },
             )
             with urlopen(request, timeout=30) as response:
-                self.record(
-                    "cors_preflight",
-                    allow_origin_matches=response.headers.get("Access-Control-Allow-Origin")
-                    in (self.origin, "*"),
-                    exposed_headers=response.headers.get("Access-Control-Expose-Headers"),
-                )
+                facts = cors_preflight_evidence(response.status, response.headers, self.origin)
+                self.record("cors_preflight", **facts)
         except Exception as error:
-            self.record("cors_preflight", "BLOCKED", **safe_error(error))
-        if secret_output:
-            secret_output.write_text(
-                json.dumps({"url": target, "origin": self.origin}), encoding="utf-8"
-            )
+            self.record("cors_preflight", "BLOCKED", **self.observe_error(error))
         self.record(
             "browser_access",
             "UNKNOWN",
@@ -490,57 +545,118 @@ class Qualification:
                 self.report["checks"]["browser_access"] = json.loads(result.stdout)
 
     def cleanup(self) -> None:
-        failures = []
-        for key, identity in self.uploads:
-            assert key.startswith(self.prefix)
-            try:
-                self.client.abort_multipart_upload(Bucket=self.bucket, Key=key, UploadId=identity)
-            except ClientError as error:
-                if error.response["Error"]["Code"] != "NoSuchUpload":
-                    failures.append(safe_error(error))
-        # Only the random namespace created by this run is listed or deleted.
-        try:
-            for page in self.client.get_paginator("list_object_versions").paginate(
-                Bucket=self.bucket, Prefix=self.prefix
-            ):
-                for item in page.get("Versions", []) + page.get("DeleteMarkers", []):
-                    assert item["Key"].startswith(self.prefix)
-                    self.client.delete_object(
-                        Bucket=self.bucket, Key=item["Key"], VersionId=item["VersionId"]
-                    )
-        except Exception as error:
-            failures.append(safe_error(error))
-        try:
-            for key in self.keys:
-                assert key.startswith(self.prefix)
-                # On unversioned buckets this is idempotent; no business locator is used.
-                if self.client.list_objects_v2(Bucket=self.bucket, Prefix=key, MaxKeys=1).get(
-                    "Contents"
-                ):
-                    self.client.delete_object(Bucket=self.bucket, Key=key)
-            objects = sum(
-                len(p.get("Contents", []))
-                for p in self.client.get_paginator("list_objects_v2").paginate(
-                    Bucket=self.bucket, Prefix=self.prefix
-                )
-            )
-            uploads = sum(
-                len(p.get("Uploads", []))
-                for p in self.client.get_paginator("list_multipart_uploads").paginate(
-                    Bucket=self.bucket, Prefix=self.prefix
-                )
-            )
-            self.record(
-                "cleanup",
-                "PASS" if not failures and objects == uploads == 0 else "BLOCKED",
-                remaining_objects=objects,
-                remaining_uploads=uploads,
-                failures=failures,
-            )
-        except Exception as error:
-            self.record("cleanup", "BLOCKED", failures=failures, **safe_error(error))
+        """Best-effort every item; PASS requires complete independent final inventories.
 
-    def run(self, secret_output: Path | None, browser_script: Path | None = None) -> None:
+        This establishes only a bounded observation after locally joined calls,
+        never a permanent late-IO guarantee. Unknown calls retain BLOCKED status.
+        """
+        stages = {}
+
+        def scan(name, method, fields):
+            stage = {"status": "PASS", "failures": [], "discovered": 0}
+            stages[name] = stage
+            items = {field: [] for field in fields}
+            try:
+                for page in self.client.get_paginator(method).paginate(
+                    Bucket=self.bucket, Prefix=self.prefix
+                ):
+                    for field in fields:
+                        for item in page.get(field, []):
+                            try:
+                                self.require_scoped_key(item["Key"])
+                                items[field].append(item)
+                                stage["discovered"] += 1
+                            except Exception as error:
+                                stage["status"] = "BLOCKED"
+                                stage["failures"].append(self.observe_error(error))
+            except Exception as error:
+                stage["status"] = "BLOCKED"
+                stage["failures"].append(self.observe_error(error))
+            return items
+
+        def clean_items(name, items, action):
+            stage = {"status": "PASS", "attempted": 0, "succeeded": 0, "failures": []}
+            stages[name] = stage
+            for item in items:
+                stage["attempted"] += 1
+                try:
+                    self.require_scoped_key(item["Key"])
+                    action(item)
+                    stage["succeeded"] += 1
+                except ClientError as error:
+                    if (
+                        name.startswith("abort_")
+                        and error.response["Error"]["Code"] == "NoSuchUpload"
+                    ):
+                        stage["succeeded"] += 1
+                    else:
+                        stage["status"] = "BLOCKED"
+                        stage["failures"].append(self.observe_error(error))
+                except Exception as error:
+                    stage["status"] = "BLOCKED"
+                    stage["failures"].append(self.observe_error(error))
+
+        def abort(item):
+            self.client.abort_multipart_upload(
+                Bucket=self.bucket, Key=item["Key"], UploadId=item["UploadId"]
+            )
+
+        clean_items(
+            "abort_registered", [{"Key": k, "UploadId": u} for k, u in sorted(self.uploads)], abort
+        )
+        found = scan("discover_mpu", "list_multipart_uploads", ("Uploads",))
+        clean_items("abort_discovered", found["Uploads"], abort)
+        found = scan("discover_objects", "list_objects_v2", ("Contents",))
+        keys = self.keys | {item["Key"] for item in found["Contents"]}
+        clean_items(
+            "delete_objects",
+            [{"Key": k} for k in sorted(keys)],
+            lambda item: self.client.delete_object(Bucket=self.bucket, Key=item["Key"]),
+        )
+        # Deleting current objects may create markers; enumerate versions afterwards.
+        found = scan("discover_versions", "list_object_versions", ("Versions", "DeleteMarkers"))
+        for field in ("Versions", "DeleteMarkers"):
+            clean_items(
+                "delete_" + field.lower(),
+                found[field],
+                lambda item: self.client.delete_object(
+                    Bucket=self.bucket, Key=item["Key"], VersionId=item["VersionId"]
+                ),
+            )
+        final_mpu = scan("verify_mpu", "list_multipart_uploads", ("Uploads",))
+        final_objects = scan("verify_objects", "list_objects_v2", ("Contents",))
+        final_versions = scan(
+            "verify_versions", "list_object_versions", ("Versions", "DeleteMarkers")
+        )
+        counts = {
+            "remaining_uploads": len(final_mpu["Uploads"])
+            if stages["verify_mpu"]["status"] == "PASS"
+            else None,
+            "remaining_objects": len(final_objects["Contents"])
+            if stages["verify_objects"]["status"] == "PASS"
+            else None,
+            "remaining_versions": len(final_versions["Versions"])
+            if stages["verify_versions"]["status"] == "PASS"
+            else None,
+            "remaining_delete_markers": len(final_versions["DeleteMarkers"])
+            if stages["verify_versions"]["status"] == "PASS"
+            else None,
+        }
+        passed = (
+            all(s["status"] == "PASS" for s in stages.values())
+            and all(v == 0 for v in counts.values())
+            and not self.unsettled_io
+        )
+        self.record(
+            "cleanup",
+            "PASS" if passed else "BLOCKED",
+            stages=stages,
+            **counts,
+            unsettled_io=self.unsettled_io,
+            observation="bounded final inventories; not a permanent late-IO guarantee",
+        )
+
+    def run(self, browser_script: Path | None = None) -> None:
         for operation in (
             self.configuration,
             self.basic,
@@ -553,29 +669,23 @@ class Qualification:
             try:
                 operation()
             except Exception as error:
-                self.record(operation.__name__, "BLOCKED", **safe_error(error))
+                self.record(operation.__name__, "BLOCKED", **self.observe_error(error))
         try:
-            self.signed_transport(secret_output, browser_script)
+            self.signed_transport(browser_script)
         except Exception as error:
-            self.record("signed_transport", "BLOCKED", **safe_error(error))
+            self.record("signed_transport", "BLOCKED", **self.observe_error(error))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-isolated", action="store_true", required=True)
     parser.add_argument("--origin", default="http://localhost:3000")
-    parser.add_argument("--browser-target-file", type=Path)
     parser.add_argument("--browser-script", type=Path)
-    parser.add_argument("--browser-barrier", type=Path)
     args = parser.parse_args()
     settings = json.load(sys.stdin)
     probe = Qualification(settings, args.origin)
     try:
-        probe.run(args.browser_target_file, args.browser_script)
-        if args.browser_barrier:
-            # Parent writes one line after the browser settles; no timer/poll loop.
-            with args.browser_barrier.open("r", encoding="utf-8") as barrier:
-                barrier.readline()
+        probe.run(args.browser_script)
     finally:
         probe.cleanup()
     print(json.dumps(probe.report, indent=2, ensure_ascii=False))

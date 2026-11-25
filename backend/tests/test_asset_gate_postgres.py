@@ -7,7 +7,7 @@ retry or changed timeout policy is used to evade an application lock conflict.
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from queue import Queue
-from threading import Event
+from threading import Barrier, Event
 from time import monotonic
 
 import pytest
@@ -232,3 +232,145 @@ def test_take_finalization_loses_to_reservation_expiry_after_physical_copy(
 
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
+
+
+def test_two_upload_owners_share_canonical_object_without_cross_account_wait_cycle(
+    gate_database, monkeypatch
+):
+    """Real UploadService phases; only bytes and deterministic scheduling are fixtures.
+
+    Both users hold their own capacity/account locks in semantic admission.
+    The second waits on the shared write Intent held by the first adopter;
+    that adopter can allocate and commit without ever waiting on user 2.
+    """
+    import hashlib
+    import io
+
+    from fastapi import UploadFile
+    from starlette.datastructures import Headers
+
+    from app.db.models import StoredObject, StoredObjectRetirement, StorageUsageEvent, Upload
+    from app.modules.storage_objects.retirement import retire_after_release, retire_if_unreferenced
+    from app.modules.uploads import service as upload_module
+    from app.composition.storage_resources import provision_storage_resources
+    from tests.support.images import image_bytes
+
+    engine, storage = gate_database, InMemoryObjectStorage()
+    content = image_bytes()
+    key = upload_module.blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
+    with Session(engine) as db:
+        db.add(
+            User(id=2, email="gate-other@example.com", password_hash=get_password_hash("secret123"))
+        )
+        db.flush()
+        # User 1 was provisioned by gate_database; provision only the new owner.
+        provision_storage_resources(db, 2)
+        db.commit()
+        receipt = write_object(db, storage, key=key, content=content, content_type="image/png")
+        blob_id = adopt_written_object(db, receipt).id
+        retire_after_release(db, blob_id)
+        db.commit()
+
+    physical_phases_done = Barrier(2)
+    holder_ready, release = Event(), Event()
+    owner_pid, contender_pid = Queue(), Queue()
+    original_write = upload_module.write_object
+    original_adopt = upload_module.adopt_written_object
+
+    def synchronized_write(db, *args, **kwargs):
+        written = original_write(db, *args, **kwargs)
+        physical_phases_done.wait(timeout=10)
+        return written
+
+    def observed_adopt(db, written):
+        user_id = db.info["gate_user"]
+        # Reentrant: the real Upload command already owns this Account and Hold.
+        usage.committed_bytes(db, user_id, lock=True)
+        if user_id == 1:
+            result = original_adopt(db, written)
+            owner_pid.put(db.scalar(text("SELECT pg_backend_pid()")))
+            holder_ready.set()
+            assert release.wait(10)
+            return result
+        assert holder_ready.wait(10)
+        contender_pid.put(db.scalar(text("SELECT pg_backend_pid()")))
+        return original_adopt(db, written)
+
+    monkeypatch.setattr(upload_module, "write_object", synchronized_write)
+    monkeypatch.setattr(upload_module, "adopt_written_object", observed_adopt)
+
+    def create(user_id):
+        with Session(engine) as db:
+            db.info["gate_user"] = user_id
+            return upload_module.UploadService(storage=storage).create_upload(
+                db,
+                db.get(User, user_id),
+                UploadFile(
+                    filename="shared.png",
+                    file=io.BytesIO(content),
+                    headers=Headers({"content-type": "image/png"}),
+                ),
+                client_request_id=f"cross-user-{user_id}",
+            )
+
+    with ThreadPoolExecutor(2) as pool:
+        first, second = pool.submit(create, 1), pool.submit(create, 2)
+        try:
+            owner, contender = owner_pid.get(timeout=10), contender_pid.get(timeout=10)
+            assert owner != contender
+            wait_for_blocker(engine, owner, contender)
+            with engine.connect() as observer:
+                assert (
+                    observer.scalar(
+                        text("SELECT cardinality(pg_blocking_pids(:pid))"), {"pid": owner}
+                    )
+                    == 0
+                )
+        finally:
+            release.set()
+        results = first.result(timeout=10), second.result(timeout=10)
+
+    with Session(engine) as db:
+        assert len(list(db.scalars(select(StoredObject)))) == 1
+        uploads = list(db.scalars(select(Upload).order_by(Upload.uploader_user_id)))
+        assert len(uploads) == 2 and {u.stored_object_id for u in uploads} == {blob_id}
+        assert {u.upload_uuid for u in uploads} == {r.upload_id for r in results}
+        for user_id in (1, 2):
+            assert db.get(StorageUsageAccount, user_id).used_bytes == len(content)
+            assert db.scalar(
+                select(StorageUsageCounter.used_bytes).where(
+                    StorageUsageCounter.user_id == user_id,
+                    StorageUsageCounter.category == Category.UPLOAD,
+                )
+            ) == len(content)
+            assert (
+                len(
+                    list(
+                        db.scalars(
+                            select(StorageUsageEvent).where(StorageUsageEvent.user_id == user_id)
+                        )
+                    )
+                )
+                == 1
+            )
+            assert (
+                db.scalar(
+                    select(StorageQuotaHold).where(StorageQuotaHold.user_id == user_id)
+                ).status.value
+                == "CONSUMED"
+            )
+        retirement = db.scalar(select(StoredObjectRetirement))
+        assert retirement.status.value == "CANCELLED" and retirement.deletion_fenced_at is None
+        assert retire_if_unreferenced(db, blob_id) is None
+        upload_module.UploadService(storage=storage).delete_upload(
+            db, db.get(User, 1), results[0].upload_id
+        )
+        db.commit()
+        assert db.get(StorageUsageAccount, 1).used_bytes == 0
+        assert db.get(StorageUsageAccount, 2).used_bytes == len(content)
+        assert db.get(StoredObject, blob_id) is not None
+        assert (
+            db.scalar(select(Upload).where(Upload.uploader_user_id == 2)).stored_object_id
+            == blob_id
+        )
+        assert retire_if_unreferenced(db, blob_id) is None and storage.exists(key)
