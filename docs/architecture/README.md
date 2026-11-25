@@ -26,6 +26,9 @@ accepted current decisions and their rationale.
 
 - [Asset Infrastructure Re-foundation RFC](asset-infrastructure-rfc.md): investigated baseline and proposed design; not an approved runtime contract
 
+- [Asset Infrastructure Gate Closure](asset-infrastructure-gates.md): lock audit and proposed lifecycle/authority refinements
+- [Asset Provider Qualification](asset-provider-qualification.md): isolated real-provider observations and outstanding gates
+
 ## Score
 
 - [Written Score Semantics](score-semantics.md)

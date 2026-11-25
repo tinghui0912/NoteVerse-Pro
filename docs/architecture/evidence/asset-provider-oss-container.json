@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "timestamp_utc": "2026-11-25T15:02:11.419390+00:00",
+  "provider_family": "Aliyun OSS",
+  "provider_version": "UNKNOWN (managed service)",
+  "bucket_fingerprint": "137f2c244ed0",
+  "endpoint_equals_signing_endpoint": true,
+  "https": true,
+  "boto3_version": "1.43.114",
+  "test_prefix": "architecture-qualification/463f2994dc59452fabc3a9bd300796e4/",
+  "origin": "http://localhost:3000",
+  "checks": {
+    "configuration_versioning": {
+      "status": "PASS",
+      "versioning_status": "Disabled"
+    },
+    "configuration_encryption": {
+      "status": "UNKNOWN",
+      "code": "OperationNotSupported",
+      "http_status": 400
+    },
+    "configuration_policy": {
+      "status": "UNKNOWN",
+      "code": "OperationNotSupported",
+      "http_status": 400
+    },
+    "configuration_cors": {
+      "status": "PASS",
+      "rules": [
+        {
+          "AllowedMethods": [
+            "GET",
+            "HEAD",
+            "PUT"
+          ],
+          "AllowedHeaders": [
+            "content-type",
+            "x-amz-meta-sha256"
+          ],
+          "ExposeHeaders": [
+            "Content-Length",
+            "Content-Type",
+            "ETag"
+          ],
+          "origin_matches": true
+        }
+      ]
+    },
+    "configuration_lifecycle": {
+      "status": "PASS",
+      "code": "NoSuchLifecycleConfiguration",
+      "http_status": 404
+    },
+    "create_multipart": {
+      "status": "PASS"
+    },
+    "upload_part_overwrite": {
+      "status": "PASS",
+      "bytes_per_nonfinal_part": 5242880
+    },
+    "list_parts_pagination": {
+      "status": "PASS",
+      "max_parts": 1,
+      "observed_parts": 2
+    },
+    "complete_multipart": {
+      "status": "PASS",
+      "http_status": 200,
+      "full_read_sha256": "567617745d8b4d73da8a644f91cd633eaabddfa4b9d4271c0d5ec3c926e3cca3"
+    },
+    "no_such_upload_after_completion": {
+      "status": "PASS",
+      "completed_object_exists": true
+    },
+    "single_copy_small_object": {
+      "status": "PASS",
+      "bytes": 5242894,
+      "actual_maximum": "UNKNOWN; no large-object boundary test"
+    },
+    "multipart_copy": {
+      "status": "PASS",
+      "bytes": 5242894
+    },
+    "invalid_completion": {
+      "status": "PASS",
+      "code": "InvalidPart",
+      "http_status": 400
+    },
+    "embedded_error_in_http_200": {
+      "status": "UNKNOWN",
+      "observed_error_http_status": 400,
+      "note": "Only observed provider responses count; no fake success response injection"
+    },
+    "unknown_initiate_orphan_discovery": {
+      "status": "PASS",
+      "matching_uploads": 1,
+      "injection": "application receipt deliberately discarded; not a network uncertainty bound"
+    },
+    "abort": {
+      "status": "PASS",
+      "outcomes": [],
+      "upload_absent_after_both_calls_settled": true,
+      "scheduling": "simultaneous caller barrier; internal provider overlap not proven"
+    },
+    "abort_and_races": {
+      "status": "BLOCKED",
+      "code": "ConnectionClosedError"
+    },
+    "sha256_checksum_observations": {
+      "status": "UNKNOWN",
+      "part_checksum_present": false,
+      "completion_checksum_present": false,
+      "head_checksum_present": false,
+      "full_sha256_independently_verified": true,
+      "equivalence": "UNKNOWN; response does not establish full-object/composite equivalence"
+    },
+    "signed_endpoint_http_access": {
+      "status": "PASS",
+      "http_status": 200,
+      "etag_readable": true
+    },
+    "cors_preflight": {
+      "status": "PASS",
+      "allow_origin_matches": true,
+      "exposed_headers": "Content-Length, Content-Type, ETag"
+    },
+    "browser_access": {
+      "status": "UNKNOWN",
+      "note": "Requires separate real-browser PUT before scoped cleanup"
+    },
+    "cleanup": {
+      "status": "PASS",
+      "remaining_objects": 0,
+      "remaining_uploads": 0,
+      "failures": []
+    }
+  },
+  "server_header": "AliyunOSS"
+}
