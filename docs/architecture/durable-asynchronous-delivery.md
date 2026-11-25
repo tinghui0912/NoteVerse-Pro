@@ -89,7 +89,7 @@ Domain responsibilities remain explicit:
 | Domain                  | Domain-owned semantics                                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Render / Playback       | Revision presentation demand, SUPERSEDED, resource admission, asset short circuits, payloads, revision/score locks and explicit failure facts          |
-| Mail                    | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and explicit mail failure facts; success is SENT |
+| Mail                    | Source identity/cancellation, expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and explicit mail failure facts; success is SENT |
 | Import                  | Job admission/exhaustion, upload availability, Dispatch-before-Job lock order, execution payload and transactional terminal notification/realtime consequences |
 | Score deletion          | Score graph cleanup, resource/operation identity and lock order |
 | Account erasure         | Closure intent, saved phases and bounded domain cleanup; physical retirement remains independent |
@@ -193,3 +193,12 @@ failures stop automatic retry. Ops exposes `can_retry` from domain eligibility; 
 revalidates that eligibility under a row lock. Account rearm preserves its phase;
 Retirement rearm preserves its deletion fence. Active leases, success and cancellation
 cannot be manually reset. Automatic retryability and operator eligibility are different facts.
+
+
+Mail delivery uses explicit source identities and domain validity admission described
+in [business resource lifecycles](business-resource-lifecycle.md#credential-and-contact-data-lifecycle).
+CANCELLED is a terminal Mail state projected as cancelled in Ops. Cancelling a source
+clears its current attempt capability and scrubs contact/payload; SENT evidence is
+not relabeled as cancelled. Claim and final provider-handoff admission validate the
+source without holding database locks across the network. Provider requests already
+in flight cannot be recalled; credentials retain their independent invalidation.

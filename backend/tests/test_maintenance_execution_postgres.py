@@ -57,6 +57,8 @@ def seed_batch(engine, storage, kind):
                 )
             elif kind == "mail":
                 row = MailOutbox(
+                    source_kind="ACCOUNT",
+                    source_id=1,
                     category="test",
                     dedupe_key=str(index),
                     recipient="recipient@example.com",

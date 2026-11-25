@@ -124,6 +124,8 @@ def test_derivative_execution_failure_is_explicit_and_attempt_fenced(
 @pytest.mark.parametrize("exhausted", [False, True])
 def test_mail_provider_outcome_owns_failure_taxonomy(method, code, classification, exhausted):
     row = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         status=MailOutboxStatus.PROCESSING,
         attempt_count=settings.MAIL_OUTBOX_MAX_ATTEMPTS if exhausted else 1,
         attempt_token="current",
@@ -307,6 +309,8 @@ def test_mail_admission_records_non_retryable_failure(cause, code, classificatio
     from datetime import timedelta
 
     row = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         status=MailOutboxStatus.PENDING,
         text_body="body" if cause != "body" else None,
         attempt_count=settings.MAIL_OUTBOX_MAX_ATTEMPTS if cause == "attempts" else 0,
@@ -326,6 +330,8 @@ def test_mail_lease_recovery_preserves_transient_cause_until_attempts_exhausted(
     from datetime import timedelta
 
     row = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         status=MailOutboxStatus.PROCESSING,
         text_body="body",
         attempt_token="current",

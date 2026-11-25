@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 
 from app.core.background_tracing import record_current_attempt_failure
+from app.composition.mail_delivery import validate_mail_source
 from app.db.session import SessionLocal
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.task_queue.protocols import CeleryTaskLike
@@ -24,7 +25,8 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
     trace_scope = None
     try:
         with SessionLocal() as db:
-            payload = mail_outbox_service.claim(db, outbox_uuid)
+            source_active = validate_mail_source(db, outbox_uuid)
+            payload = mail_outbox_service.claim(db, outbox_uuid) if source_active else None
             db.commit()
         if payload is None:
             operation_logger(
@@ -54,6 +56,12 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
             "originating_request_id": payload.originating_request_id,
         }
         operation_logger("mail.started", **context).info("mail.started")
+        with SessionLocal.begin() as db:
+            permitted = validate_mail_source(
+                db, outbox_uuid
+            ) and mail_outbox_service.delivery_permitted(db, outbox_uuid, lease=payload.lease)
+        if not permitted:
+            return {"status": "stale", "outbox_uuid": outbox_uuid}
         try:
             provider_message_id = send_email(
                 to_email=payload.recipient,

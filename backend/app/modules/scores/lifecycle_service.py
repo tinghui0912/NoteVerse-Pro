@@ -11,6 +11,7 @@ from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreDeletionOperation, Score, User
 from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.scores.repository import ScoreRepository
+from app.modules.collaboration.mail_lifecycle import cancel_invite_mail_for_scores
 from app.modules.score_access.actions import ScoreAction, semantics_for
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
@@ -108,6 +109,9 @@ class ScoreLifecycleService:
                     next_attempt_at=now,
                 )
             )
+        cancel_invite_mail_for_scores(
+            db, [require_persisted_id(score.id, entity="score") for score in scores]
+        )
         db.execute(
             insert(ScoreDeletionOperation).values(
                 [operation.model_dump(exclude={"id"}) for operation in operations]

@@ -1484,6 +1484,8 @@ def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
 ) -> None:
     session, _storage = score_service_session
     outbox = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         outbox_uuid="mail-outbox-test",
         category="verification.register",
         dedupe_key="verification:test",
@@ -1528,6 +1530,8 @@ def test_expired_verification_mail_is_never_dispatched(
 ) -> None:
     session, _storage = score_service_session
     outbox = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         outbox_uuid="expired-mail-outbox",
         category="verification.password_reset",
         dedupe_key="verification:expired",

@@ -55,6 +55,8 @@ CASES = [
         "MAIL_OUTBOX",
         MailOutbox,
         dict(
+            source_kind="ACCOUNT",
+            source_id=1,
             category="test",
             dedupe_key="mail",
             recipient="reader@example.test",

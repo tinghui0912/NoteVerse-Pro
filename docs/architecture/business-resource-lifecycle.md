@@ -62,7 +62,7 @@ deactivation must not erase the rows that still own that cleanup.
 ## Account deletion
 
 `DELETE /me` verifies the current password and returns 202 with an operation identity.
-Its request transaction tombstones User, disables authentication, revokes refresh tokens
+Its request transaction tombstones User, disables authentication, invalidates AuthToken and EmailChangeRequest credentials, revokes refresh tokens
 and persists AccountDeletionOperation. Owned Scores cease active authority through the
 canonical active-parent predicate. Request admission does not enumerate the graph.
 
@@ -197,3 +197,59 @@ closed subject when the write executes. A concurrent surviving-owner edit or new
 is preserved. Revision render outbox attribution belongs to Revisions delivery; Playback
 owns playback requester attribution. PostgreSQL tests interleave selection, another user's
 committed note edit and erasure to verify that no new attribution is overwritten.
+
+
+## Credential and contact-data lifecycle
+
+Authentication credential mutation serializes User → AuthToken/EmailChangeRequest →
+MailOutbox. Credential commands and Account Closure use User NO KEY UPDATE locks,
+which serialize with one another and remain compatible with resource KEY SHARE admission. Closure invalidates
+all unused AuthTokens and unconsumed email changes, revokes refresh tokens and cancels
+its source-owned mail in the same transaction as the tombstone and erasure operation.
+Password reset discovers the token without mutation, locks and refreshes the User,
+requires active/not-deleted state, then locks and rechecks the token. Token issuance,
+password change and email-change commands use the same User-first serialization.
+The clock is checked after lock acquisition. A closed principal cannot reset a
+password or generate a password-change notification. Token rows remain for bounded
+FINALIZE history erasure; invalidation does not substitute for that cleanup.
+
+Personal data is not limited to User foreign keys. `ACCOUNT_CONTACT_DATA_POLICIES`
+is an explicit review contract alongside the User-FK and StoredObject-reference
+contracts. Metadata tests require every email/contact/body column to have a policy;
+application cleanup never discovers ownership by reflection or recipient matching.
+
+| Data | Responsible domain / ownership | Closure, invalidation and minimization | Retention / completion |
+| --- | --- | --- | --- |
+| `ScoreInvite.email`, token hash | Collaboration; contact supplied by the Score owner, not a User ownership edge to the target email | Owned Score deletion removes the invite. Revoke/accept/decline/expiry/inactive Score or owner invalidates invitation delivery. Closing its issuer cancels its mail. Another owner's invitation/contact is preserved even if its email matches the closed User; the closed User cannot accept it. | Contact belongs to the surviving Score's invitation history until that domain removes its graph; no invented legal retention term. Hash is never a plaintext token reveal. |
+| `MailOutbox.recipient`, subject, text/html bodies | Mail delivery payload, owned by explicit source kind + numeric source ID | Account authentication mail uses ACCOUNT, AUTH_TOKEN or EMAIL_CHANGE; signup uses REGISTRATION; Collaboration uses SCORE_INVITE. Source invalidation cancels unfinished attempts and scrubs recipient, subject, bodies, provider ID, raw dedupe content and error detail. No recipient-email bulk deletion. | SENT, CANCELLED, EXPIRED and PERMANENT_FAILURE evidence is cleaned after configured `MAIL_OUTBOX_RETENTION_DAYS` (default 7 days). SENT bodies are cleared at accepted completion; source invalidation clears remaining contact data immediately. |
+| Password reset / email-change / verification URLs | Auth owns credentials; Mail holds a temporary delivery copy | Token consumption/replacement/closure or verification cancels the exact source delivery. Worker validates domain source before claim and before provider handoff. TTL also bounds validity. | No URL is copied into Ops or a new deletion ledger. Credential history follows its domain cleanup; bodies follow Mail retention. |
+| `EmailChangeRequest.new_email`, token hash, IP/User-Agent | Authenticated requester, not the owner of the proposed address | Closure invalidates immediately, cancels source mail, and bounded Account security erasure removes history. Completed old-address notices belong to ACCOUNT source identity and are scrubbed on closure. | Removed before User erasure completes. A matching third-party address never grants ownership of that third party's data. |
+| `PendingRegistration.email`, display name, password/token hashes, IP/User-Agent | Independent unverified applicant | Verification consumes and removes the row and cancels its source mail; re-registration replaces the credential and cancels previous delivery. TTL makes expired tokens unusable. It is not assigned to an existing User merely by email equality. | Successful verification removes it. Expired pending-registration row retention has no configured purge policy in this repository; a product/deployment retention decision is still required. |
+| AuthToken/RefreshToken hashes and client metadata | Auth; explicit User ownership | Immediate credential invalidation/revocation, then bounded erasure | Removed before User deletion; never restored by mail retry. |
+| Foreign-owner content and minimal actor snapshots | Owning Score/Notification domain | Departing actor attribution is anonymized where nullable; content is not deleted merely because it mentions a person. Numeric historical actor snapshots reveal no email/name. | Surviving resource lifecycle and existing Notification retention apply; no blanket legal-retention claim. |
+| Ops operator identity and audit reason | Platform operator / Ops | Operator identity is separate from customer User. Erasure audit uses stable internal IDs; customer mail content and credential URLs are not operation payloads. | Existing operational policy applies; legal retention periods are not configured here. |
+
+Mail cancellation is terminal and clears the attempt capability. Late provider
+completion/failure cannot revive a cancelled operation; Ops cannot rearm it. SENT
+history remains SENT rather than claiming a delivered message was recalled. FAILED
+mail can retry only while its source and expiry are valid; exhausted recoverable
+failures remain visible to Ops until repair/rearm or source cancellation. Expired
+and permanent delivery failures cannot be rearmed. No second queue or status copy
+exists. Score tombstone and invitation-mail cancellation commit together, before
+asynchronous Score graph erasure. Batch Score deletion cancels the complete invitation
+source set in constant-count SQL statements, without a per-Score mail loop.
+
+Source validity is a domain read composed in `app/composition/mail_delivery.py`.
+This also rejects mail admitted by a pre-closure business transaction that finishes
+after the closure's cancellation scan. No DB lock spans provider IO. A provider
+handoff already admitted before closure can be in flight and cannot be recalled;
+its credential is still invalid after closure, and cancellation prevents further
+retry. Mail remains at-least-once external delivery, not an atomic DB/provider send.
+
+Migration `0007_mail_source_lifecycle` backfills exact persisted identities from
+known domain dedupe formats, never recipient-address ownership. Unresolved active
+lineage aborts the upgrade with bounded operation IDs and leaves schema/data intact;
+the owning domain must explicitly resolve it. Terminal evidence without a surviving
+source is retained with contact/payload scrubbed. Existing closed subjects' tokens
+are invalidated, and source-invalid active mail is cancelled without dispatch. Downgrade
+refuses to discard persisted source/cancellation evidence.

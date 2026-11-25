@@ -109,6 +109,8 @@ def database(monkeypatch):
                         source_fingerprint="f" * 64,
                     ),
                     MailOutbox(
+                        source_kind="ACCOUNT",
+                        source_id=1,
                         outbox_uuid="mail",
                         category="test",
                         dedupe_key="mail",

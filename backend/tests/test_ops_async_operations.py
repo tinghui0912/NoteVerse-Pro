@@ -314,6 +314,8 @@ def test_ops_projects_domain_delivery_state(ops_session, status, retryable, expe
     from app.modules.durable_work.failure import DurableFailure, set_failure_facts
 
     row = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         category="auth",
         dedupe_key="status",
         recipient="user@example.com",
@@ -344,6 +346,8 @@ def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None
     ops_session.add_all(
         [
             MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
                 category="auth",
                 dedupe_key="mail:summary:failed",
                 recipient="user@example.com",
@@ -358,6 +362,8 @@ def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None
                 failure_classification=DurableFailureClass.TRANSIENT.value,
             ),
             MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
                 category="auth",
                 dedupe_key="mail:summary:sent",
                 recipient="user2@example.com",
@@ -436,6 +442,8 @@ def test_ops_api_summary_is_available_to_admin(
 ) -> None:
     ops_session.add(
         MailOutbox(
+            source_kind="ACCOUNT",
+            source_id=1,
             category="auth",
             dedupe_key="mail:api-summary:failed",
             recipient="user@example.com",
@@ -478,6 +486,8 @@ def test_ops_api_async_operations_supports_offset_pagination(
     ops_session.add_all(
         [
             MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
                 category="auth",
                 dedupe_key="mail:pagination:oldest",
                 recipient="oldest@example.com",
@@ -489,6 +499,8 @@ def test_ops_api_async_operations_supports_offset_pagination(
                 updated_at=now - timedelta(minutes=3),
             ),
             MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
                 category="auth",
                 dedupe_key="mail:pagination:middle",
                 recipient="middle@example.com",
@@ -504,6 +516,8 @@ def test_ops_api_async_operations_supports_offset_pagination(
                 updated_at=now - timedelta(minutes=2),
             ),
             MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
                 category="auth",
                 dedupe_key="mail:pagination:newest",
                 recipient="newest@example.com",
@@ -548,6 +562,8 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     ops_session: Session,
 ) -> None:
     outbox = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         category="auth",
         dedupe_key="mail:api-retry:failed",
         recipient="user@example.com",
@@ -698,6 +714,8 @@ def test_ops_api_retry_rejects_completed_mail_and_records_audit(
     ops_session: Session,
 ) -> None:
     outbox = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         category="auth",
         dedupe_key="mail:api-retry:sent",
         recipient="user@example.com",
@@ -1165,6 +1183,8 @@ def test_filtered_pagination_reaches_matching_work_beyond_recent_batches(ops_ses
     ops_session.add_all(
         [
             MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
                 category="auth",
                 dedupe_key=f"batch-{index}",
                 recipient="user@example.com",
@@ -1176,6 +1196,8 @@ def test_filtered_pagination_reaches_matching_work_beyond_recent_batches(ops_ses
         ]
     )
     target = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         category="recovery",
         dedupe_key="target",
         recipient="user@example.com",

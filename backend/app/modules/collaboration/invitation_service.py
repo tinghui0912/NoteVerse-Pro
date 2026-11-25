@@ -19,7 +19,9 @@ from app.modules.collaboration.invite_lifecycle import (
 )
 from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
-from app.modules.mail.outbox_service import queue_mail
+from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
+from app.db.models.mail_outbox import MailSourceKind
+from sqlalchemy import select
 from app.modules.mail.templates.score_invites import build_invite_email, invite_role_label
 from app.modules.collaboration.pagination import DEFAULT_PAGE_SIZE
 from app.modules.collaboration.repository import CollaborationRepository
@@ -120,6 +122,11 @@ class InvitationService:
             invite.terminal_outcome = InviteTerminalOutcome.REVOKED
             invite.terminal_at = now
             invite.terminal_actor_user_id = user_id
+        cancel_source_mail(
+            db,
+            MailSourceKind.SCORE_INVITE,
+            select(ScoreInvite.id).where(ScoreInvite.id == invite.id),
+        )
         db.flush()
         return self.read_model.invite(db, invite)
 
@@ -195,6 +202,11 @@ class InvitationService:
         invite.terminal_outcome = InviteTerminalOutcome.DECLINED
         invite.terminal_at = now
         invite.terminal_actor_user_id = user_id
+        cancel_source_mail(
+            db,
+            MailSourceKind.SCORE_INVITE,
+            select(ScoreInvite.id).where(ScoreInvite.id == invite.id),
+        )
         self._notify_invite_response(db, invite=invite, score=score, actor=user, accepted=False)
         read = self.read_model.pending_invite(db, invite)
         db.flush()
@@ -230,6 +242,11 @@ class InvitationService:
         invite.terminal_outcome = InviteTerminalOutcome.ACCEPTED
         invite.terminal_actor_user_id = user_id
         invite.terminal_at = now
+        cancel_source_mail(
+            db,
+            MailSourceKind.SCORE_INVITE,
+            select(ScoreInvite.id).where(ScoreInvite.id == invite.id),
+        )
         self._notify_invite_response(
             db,
             invite=invite,
@@ -348,6 +365,8 @@ class InvitationService:
         queue_mail(
             db,
             category="score.invite",
+            source_kind=MailSourceKind.SCORE_INVITE,
+            source_id=require_persisted_id(invite.id, entity="score invite"),
             dedupe_key=f"score-invite:{invite.invite_uuid}",
             recipient=invite.email,
             subject=email.subject,

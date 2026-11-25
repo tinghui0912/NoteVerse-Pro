@@ -17,7 +17,9 @@ from app.db.model_utils import require_persisted_id
 from app.db.models.auth import EmailChangeRequest
 from app.db.models.user import User
 from app.modules.auth.schemas import ConfirmEmailChangeRequest, RequestEmailChangeRequest
-from app.modules.mail.outbox_service import queue_mail
+from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
+from app.db.models.mail_outbox import MailSourceKind
+from app.modules.auth.credential_lifecycle import lock_credential_user
 from app.modules.mail.templates.auth import (
     build_email_change_confirmation_email,
     build_email_changed_email,
@@ -48,6 +50,7 @@ class EmailChangeService:
         user_agent: str | None = None,
         ip_address: str | None = None,
     ) -> None:
+        user = lock_credential_user(db, require_persisted_id(user.id, entity="user"))
         new_email = str(request.new_email).strip().lower()
         if new_email == user.email.lower():
             raise ValidationException(
@@ -71,6 +74,11 @@ class EmailChangeService:
 
         now = utc_now()
         user_id = require_persisted_id(user.id, entity="user")
+        cancel_source_mail(
+            db,
+            MailSourceKind.EMAIL_CHANGE,
+            select(EmailChangeRequest.id).where(EmailChangeRequest.user_id == user_id),
+        )
         consumed_at_column = EmailChangeRequest.__table__.c.consumed_at
         pending_result = db.execute(
             select(EmailChangeRequest).where(
@@ -105,6 +113,8 @@ class EmailChangeService:
         queue_mail(
             db,
             category="email.change.requested",
+            source_kind=MailSourceKind.EMAIL_CHANGE,
+            source_id=require_persisted_id(email_change.id, entity="email change request"),
             dedupe_key=f"email.change:{user_id}:{self._hash_token(token)}",
             recipient=new_email,
             subject=email_content.subject,
@@ -136,11 +146,19 @@ class EmailChangeService:
         if not record or record.consumed_at is not None or record.expires_at <= now:
             raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
-        user_result = db.execute(select(User).where(User.id == record.user_id))
-        user = next(
-            (item for item in user_result.scalars().all() if item.id == record.user_id), None
+        user = lock_credential_user(db, record.user_id)
+        record = (
+            db.execute(
+                select(EmailChangeRequest)
+                .where(EmailChangeRequest.id == record.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+            .scalars()
+            .one_or_none()
         )
-        if not user or not user.is_active or user.deleted_at is not None:
+        now = utc_now()
+        if record is None or record.consumed_at is not None or record.expires_at <= now:
             raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
         existing_result = db.execute(select(User).where(User.email == record.new_email))
@@ -158,6 +176,11 @@ class EmailChangeService:
         user.email = record.new_email
         user.email_verified_at = now
         record.consumed_at = now
+        cancel_source_mail(
+            db,
+            MailSourceKind.EMAIL_CHANGE,
+            select(EmailChangeRequest.id).where(EmailChangeRequest.id == record.id),
+        )
 
         email_content = build_email_changed_email(
             locale=record.locale,
@@ -167,6 +190,8 @@ class EmailChangeService:
         queue_mail(
             db,
             category="email.change.completed",
+            source_kind=MailSourceKind.ACCOUNT,
+            source_id=require_persisted_id(user.id, entity="user"),
             dedupe_key=f"email.change.completed:{require_persisted_id(user.id, entity='user')}:{now.isoformat()}",
             recipient=old_email,
             subject=email_content.subject,

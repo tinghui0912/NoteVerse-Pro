@@ -53,6 +53,8 @@ def test_failures_share_the_typed_request_correlated_contract(
         identity = "missing"
         if case == "retry_state":
             row = MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
                 category="auth",
                 dedupe_key="complete",
                 recipient="user@example.test",

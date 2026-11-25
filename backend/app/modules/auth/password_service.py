@@ -10,6 +10,8 @@ from app.db.models.user import User
 from app.modules.auth.schemas import ChangePasswordRequest
 from app.modules.auth.sessions_service import SessionService
 from app.modules.mail.outbox_service import queue_mail
+from app.db.models.mail_outbox import MailSourceKind
+from app.modules.auth.credential_lifecycle import lock_credential_user
 from app.modules.mail.templates.auth import build_password_changed_email
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
@@ -31,6 +33,7 @@ class PasswordService:
         ip_address: str | None = None,
         device_id: str | None = None,
     ) -> tuple[str, str]:
+        user = lock_credential_user(db, require_persisted_id(user.id, entity="user"))
         if not security.verify_password(request.current_password, user.password_hash):
             raise ValidationException(
                 code=CustomerErrorCode.CURRENT_PASSWORD_WRONG,
@@ -63,6 +66,8 @@ class PasswordService:
         queue_mail(
             db,
             category="password.changed",
+            source_kind=MailSourceKind.ACCOUNT,
+            source_id=user_id,
             dedupe_key=f"password.changed:{user_id}:{changed_at.isoformat()}",
             recipient=user.email,
             subject=email_content.subject,

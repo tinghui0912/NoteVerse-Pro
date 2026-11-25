@@ -48,6 +48,8 @@ def test_login_and_logout_are_bodyless_cookie_transitions(operator_client, contr
 def test_ops_representations_are_direct_and_utc_in_nested_pages(operator_client, control_db):
     timestamp = datetime(2026, 11, 15, 12, 34, 56, tzinfo=UTC)
     row = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         category="auth",
         dedupe_key="contract",
         recipient="user@example.test",

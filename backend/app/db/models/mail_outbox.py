@@ -7,6 +7,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     Column,
     DateTime,
     Index,
@@ -46,11 +47,25 @@ class MailOutboxStatus(str, enum.Enum):
     FAILED = "FAILED"
     PERMANENT_FAILURE = "PERMANENT_FAILURE"
     EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+
+
+class MailSourceKind(str, enum.Enum):
+    ACCOUNT = "ACCOUNT"
+    AUTH_TOKEN = "AUTH_TOKEN"
+    EMAIL_CHANGE = "EMAIL_CHANGE"
+    REGISTRATION = "REGISTRATION"
+    SCORE_INVITE = "SCORE_INVITE"
 
 
 class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "mail_outbox"
     __table_args__ = (
+        CheckConstraint(
+            "(source_kind IS NULL AND source_id IS NULL AND CAST(status AS TEXT) IN ('SENT','PERMANENT_FAILURE','EXPIRED','CANCELLED')) OR (source_kind IS NOT NULL AND source_id IS NOT NULL AND source_kind IN ('ACCOUNT','AUTH_TOKEN','EMAIL_CHANGE','REGISTRATION','SCORE_INVITE') AND source_id > 0)",
+            name="ck_mail_outbox_source",
+        ),
+        Index("idx_mail_outbox_source", "source_kind", "source_id"),
         durable_failure_facts_constraint(name="ck_mail_outbox_failure_facts"),
         delivery_attempt_token_constraint(
             name="ck_mail_outbox_attempt_token", processing_status=MailOutboxStatus.PROCESSING
@@ -69,6 +84,10 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         default_factory=lambda: str(uuid.uuid4()),
         sa_column=Column(String(36), unique=True, nullable=False),
     )
+    # Stable domain identity, deliberately not a cascading FK: delivery evidence
+    # outlives source deletion. Only terminal pre-lineage history may lack it.
+    source_kind: Optional[str] = Field(default=None, sa_column=Column(String(32)))
+    source_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     category: str = Field(sa_column=Column(String(64), nullable=False))
     dedupe_key: str = Field(sa_column=Column(String(160), unique=True, nullable=False))
     originating_request_id: Optional[str] = Field(

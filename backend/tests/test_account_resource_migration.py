@@ -126,6 +126,6 @@ def test_downgrade_cannot_discard_account_erasure_evidence(monkeypatch):
         with engine.connect() as db:
             assert (
                 db.scalar(sa.text("SELECT version_num FROM alembic_version"))
-                == "0006_erasure_failure_facts"
+                == "0007_mail_source_lifecycle"
             )
             assert db.scalar(sa.text("SELECT count(*) FROM account_deletion_operations")) == 1

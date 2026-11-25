@@ -18,7 +18,9 @@ from app.db.models.auth import AuthToken
 from app.db.models.user import User
 from app.modules.auth.schemas import ForgotPasswordRequest, ResetPasswordRequest
 from app.modules.auth.sessions_service import SessionService
-from app.modules.mail.outbox_service import queue_mail
+from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
+from app.db.models.mail_outbox import MailSourceKind
+from app.modules.auth.credential_lifecycle import lock_credential_user
 from app.modules.mail.templates.auth import (
     build_password_changed_email,
     build_password_reset_email,
@@ -55,6 +57,13 @@ class PasswordResetService:
         ip_address: str | None = None,
     ) -> str:
         now = utc_now()
+        cancel_source_mail(
+            db,
+            MailSourceKind.AUTH_TOKEN,
+            select(AuthToken.id).where(
+                AuthToken.user_id == user_id, AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET
+            ),
+        )
         used_at_column = AuthToken.__table__.c.used_at
         result = db.execute(
             select(AuthToken).where(
@@ -80,22 +89,32 @@ class PasswordResetService:
         db.flush()
         return token
 
-    def _consume_token(self, db: Session, token: str) -> AuthToken:
-        result = db.execute(
-            select(AuthToken).where(
-                AuthToken.token_hash == self._hash_token(token),
-                AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET,
-            )
+    def _consume_token(self, db: Session, token: str) -> tuple[AuthToken, User]:
+        query = select(AuthToken).where(
+            AuthToken.token_hash == self._hash_token(token),
+            AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET,
         )
-        record = result.scalars().one_or_none()
-        now = utc_now()
-
-        if not record or record.used_at is not None or record.expires_at <= now:
+        record = db.execute(query).scalars().one_or_none()
+        if record is None:
             raise ValidationException(code=CustomerErrorCode.RESET_TOKEN_INVALID, field="token")
-
+        # Discovery is unlocked; every mutation then takes User before credential.
+        user = lock_credential_user(
+            db, record.user_id, invalid_code=CustomerErrorCode.RESET_TOKEN_INVALID
+        )
+        record = (
+            db.execute(query.with_for_update().execution_options(populate_existing=True))
+            .scalars()
+            .one_or_none()
+        )
+        now = utc_now()
+        if record is None or record.used_at is not None or record.expires_at <= now:
+            raise ValidationException(code=CustomerErrorCode.RESET_TOKEN_INVALID, field="token")
         record.used_at = now
+        cancel_source_mail(
+            db, MailSourceKind.AUTH_TOKEN, select(AuthToken.id).where(AuthToken.id == record.id)
+        )
         db.flush()
-        return record
+        return record, user
 
     def request_password_reset(
         self,
@@ -106,7 +125,12 @@ class PasswordResetService:
         ip_address: str | None = None,
     ) -> None:
         email = str(request.email).strip().lower()
-        result = db.execute(select(User).where(User.email == email))
+        result = db.execute(
+            select(User)
+            .where(User.email == email)
+            .with_for_update(key_share=True)
+            .execution_options(populate_existing=True)
+        )
         user = result.scalars().one_or_none()
         if not user or not user.is_active or user.deleted_at is not None:
             return
@@ -120,6 +144,11 @@ class PasswordResetService:
             user_agent=user_agent,
             ip_address=ip_address,
         )
+        token_record = (
+            db.execute(select(AuthToken).where(AuthToken.token_hash == self._hash_token(token)))
+            .scalars()
+            .one()
+        )
         email_content = build_password_reset_email(
             locale=request.locale,
             project_name=settings.PROJECT_NAME,
@@ -129,6 +158,8 @@ class PasswordResetService:
         queue_mail(
             db,
             category="password.reset.requested",
+            source_kind=MailSourceKind.AUTH_TOKEN,
+            source_id=require_persisted_id(token_record.id, entity="auth token"),
             dedupe_key=f"password.reset:{user_id}:{self._hash_token(token)}",
             recipient=email,
             subject=email_content.subject,
@@ -143,11 +174,7 @@ class PasswordResetService:
         db: Session,
         request: ResetPasswordRequest,
     ) -> None:
-        token_record = self._consume_token(db, request.token)
-        result = db.execute(select(User).where(User.id == token_record.user_id))
-        user = result.scalars().one_or_none()
-        if not user:
-            raise ValidationException(code=CustomerErrorCode.RESET_TOKEN_INVALID, field="token")
+        _, user = self._consume_token(db, request.token)
 
         user.password_hash = security.get_password_hash(request.new_password)
         changed_at = utc_now()
@@ -167,6 +194,8 @@ class PasswordResetService:
         queue_mail(
             db,
             category="password.reset.completed",
+            source_kind=MailSourceKind.ACCOUNT,
+            source_id=user_id,
             dedupe_key=f"password.reset.completed:{user_id}:{changed_at.isoformat()}",
             recipient=user.email,
             subject=email_content.subject,

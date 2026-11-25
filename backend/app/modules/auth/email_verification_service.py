@@ -16,7 +16,8 @@ from app.db.models.user import User
 from app.db.model_utils import require_persisted_id
 from app.composition.storage_resources import provision_storage_resources
 from app.modules.auth.schemas import RegisterRequest, VerifyEmailRequest
-from app.modules.mail.outbox_service import queue_mail
+from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
+from app.db.models.mail_outbox import MailSourceKind
 from app.modules.mail.templates.auth import build_email_verification_email
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
@@ -56,10 +57,18 @@ class EmailVerificationService:
         now = utc_now()
         password_hash = security.get_password_hash(request.password)
         pending_result = db.execute(
-            select(PendingRegistration).where(PendingRegistration.email == email)
+            select(PendingRegistration)
+            .where(PendingRegistration.email == email)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         pending = pending_result.scalars().one_or_none()
         if pending:
+            cancel_source_mail(
+                db,
+                MailSourceKind.REGISTRATION,
+                select(PendingRegistration.id).where(PendingRegistration.id == pending.id),
+            )
             pending.display_name = request.display_name
             pending.password_hash = password_hash
             pending.token_hash = self._hash_token(token)
@@ -91,7 +100,9 @@ class EmailVerificationService:
         queue_mail(
             db,
             category="verification.email",
-            dedupe_key=f"verification.email:{email}:{self._hash_token(token)}",
+            source_kind=MailSourceKind.REGISTRATION,
+            source_id=require_persisted_id(pending.id, entity="pending registration"),
+            dedupe_key=f"verification.email:{pending.id}:{self._hash_token(token)}",
             recipient=email,
             subject=email_content.subject,
             text_body=email_content.text_body,
@@ -103,9 +114,10 @@ class EmailVerificationService:
     def verify_email(self, db: Session, request: VerifyEmailRequest) -> User:
         now = utc_now()
         result = db.execute(
-            select(PendingRegistration).where(
-                PendingRegistration.token_hash == self._hash_token(request.token)
-            )
+            select(PendingRegistration)
+            .where(PendingRegistration.token_hash == self._hash_token(request.token))
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
         pending = result.scalars().one_or_none()
         if not pending or pending.consumed_at is not None or pending.expires_at <= now:
@@ -129,6 +141,11 @@ class EmailVerificationService:
         db.add(user)
         db.flush()
         provision_storage_resources(db, require_persisted_id(user.id, entity="user"))
+        cancel_source_mail(
+            db,
+            MailSourceKind.REGISTRATION,
+            select(PendingRegistration.id).where(PendingRegistration.id == pending.id),
+        )
         db.delete(pending)
         db.commit()
         db.refresh(user)

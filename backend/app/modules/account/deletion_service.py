@@ -8,6 +8,9 @@ from app.shared.time import utc_now
 from app.db.models import AccountDeletionOperation
 from app.modules.auth.sessions_service import SessionService
 from .deletion_repository import AccountDeletionRepository
+from app.modules.auth.credential_lifecycle import invalidate_user_credentials
+from app.modules.auth.mail_lifecycle import cancel_user_authentication_mail
+from app.modules.collaboration.mail_lifecycle import cancel_closed_account_invite_mail
 
 
 class AccountDeletionService:
@@ -28,6 +31,9 @@ class AccountDeletionService:
         now = utc_now()
         user.deleted_at = now
         user.is_active = False
+        invalidate_user_credentials(db, user_id, now=now)
+        cancel_user_authentication_mail(db, user_id)
+        cancel_closed_account_invite_mail(db, user_id)
         SessionService().revoke_user_refresh_tokens(db, user_id, revoked_at=now, commit=False)
         operation = AccountDeletionOperation(
             user_id=user_id,

@@ -210,3 +210,52 @@ ACCOUNT_RESOURCE_POLICIES = (
         "CASCADE after holds released and usage verified zero",
     ),
 )
+
+
+@dataclass(frozen=True)
+class AccountContactDataPolicy:
+    table: str
+    columns: tuple[str, ...]
+    domain: str
+    responsibility: str
+    invalidation: str
+
+
+# Reviewed non-FK contact/payload facts. This is a review contract, not cleanup dispatch.
+ACCOUNT_CONTACT_DATA_POLICIES = (
+    AccountContactDataPolicy(
+        "users",
+        ("email",),
+        "account",
+        "Current identity; erased with User",
+        "Closure disables access immediately",
+    ),
+    AccountContactDataPolicy(
+        "score_invites",
+        ("email",),
+        "collaboration",
+        "Score-owner contact record, not recipient-owned by email equality",
+        "Terminal outcome, expiry or inactive parent invalidates credential; owning Score deletion removes row and cancels source mail",
+    ),
+    AccountContactDataPolicy(
+        "mail_outbox",
+        ("recipient", "subject", "text_body", "html_body", "dedupe_key"),
+        "mail",
+        "Source-owned delivery payload and contact; never recipient-inferred ownership",
+        "Source invalidation cancels active attempts and scrubs payload; terminal retention uses MAIL_OUTBOX_RETENTION_DAYS",
+    ),
+    AccountContactDataPolicy(
+        "pending_registrations",
+        ("email", "display_name", "password_hash", "token_hash", "user_agent", "ip_address"),
+        "auth",
+        "Independent unverified applicant, not a matching existing account",
+        "Token TTL, replacement or verification invalidates mail; successful verification deletes pending identity",
+    ),
+    AccountContactDataPolicy(
+        "email_change_requests",
+        ("new_email",),
+        "auth",
+        "Authenticated requester's proposed identity, independent of target-address ownership",
+        "Closure consumes immediately and cancels mail; bounded Account security erasure removes history",
+    ),
+)

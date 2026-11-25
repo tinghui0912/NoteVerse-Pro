@@ -130,6 +130,8 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
                 source_fingerprint="a" * 64,
             )
             mail = MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
                 category="auth",
                 dedupe_key="failure",
                 recipient="user@example.test",

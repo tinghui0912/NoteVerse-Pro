@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from uuid import uuid4
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, or_, select, update
+from sqlalchemy.sql import Select
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
@@ -12,6 +13,7 @@ from app.core.async_trace_context import get_async_trace_context
 from app.core.config import settings
 from app.core.request_correlation import get_request_id
 from app.db.models import MailOutbox, MailOutboxStatus
+from app.db.models.mail_outbox import MailSourceKind
 from app.modules.durable_work.failure import (
     DurableFailure,
     set_failure_facts,
@@ -65,6 +67,8 @@ def queue_mail(
     db: Session,
     *,
     category: str,
+    source_kind: MailSourceKind,
+    source_id: int,
     dedupe_key: str,
     recipient: str,
     subject: str,
@@ -72,13 +76,19 @@ def queue_mail(
     html_body: str | None,
     expires_at: datetime | None = None,
 ) -> MailOutbox:
+    if type(source_id) is not int or source_id <= 0:
+        raise ValueError("Mail requires a persisted source identity")
     existing = (
         db.execute(select(MailOutbox).where(MailOutbox.dedupe_key == dedupe_key))
     ).scalar_one_or_none()
     if existing is not None:
+        if existing.source_kind != source_kind.value or existing.source_id != source_id:
+            raise ValueError("Mail command identity belongs to another source")
         return existing
     traceparent, tracestate = get_async_trace_context()
     outbox = MailOutbox(
+        source_kind=source_kind.value,
+        source_id=source_id,
         category=category,
         dedupe_key=dedupe_key,
         originating_request_id=get_request_id(),
@@ -108,6 +118,7 @@ class MailOutboxService:
             MailOutboxStatus.SENT,
             MailOutboxStatus.PERMANENT_FAILURE,
             MailOutboxStatus.EXPIRED,
+            MailOutboxStatus.CANCELLED,
         }:
             return None
         now = utc_now()
@@ -133,6 +144,15 @@ class MailOutboxService:
                     "mail_attempts_exhausted", "delivery", DurableFailureClass.TRANSIENT, False
                 ),
                 detail=outbox.failure_detail,
+            )
+            return None
+        if outbox.source_kind is None or outbox.source_id is None:
+            self._finish(outbox, MailOutboxStatus.PERMANENT_FAILURE, now=now, error=None)
+            set_failure_facts(
+                outbox,
+                DurableFailure(
+                    "mail_source_missing", "admission", DurableFailureClass.PERMANENT, False
+                ),
             )
             return None
         if not outbox.text_body:
@@ -168,6 +188,22 @@ class MailOutboxService:
             traceparent=outbox.traceparent,
             tracestate=outbox.tracestate,
         )
+
+    def delivery_permitted(
+        self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease
+    ) -> bool:
+        """Final DB admission before provider IO; never holds locks across the network."""
+        outbox = self._get(db, outbox_uuid)
+        if outbox is None or not _delivery_lifecycle().attempt_matches(outbox, lease):
+            return False
+        if outbox.expires_at is not None and outbox.expires_at <= utc_now():
+            self._finish(outbox, MailOutboxStatus.EXPIRED, now=utc_now(), error=None)
+            set_failure_facts(
+                outbox,
+                DurableFailure("mail_expired", "delivery", DurableFailureClass.PERMANENT, False),
+            )
+            return False
+        return True
 
     def sent(
         self,
@@ -384,6 +420,7 @@ class MailOutboxService:
                         MailOutboxStatus.SENT,
                         MailOutboxStatus.PERMANENT_FAILURE,
                         MailOutboxStatus.EXPIRED,
+                        MailOutboxStatus.CANCELLED,
                     ]
                 ),
                 col(MailOutbox.completed_at) < cutoff,
@@ -410,3 +447,55 @@ class MailOutboxService:
 
 
 mail_outbox_service = MailOutboxService()
+
+
+def cancel_source_mail(
+    db: Session, source_kind: MailSourceKind, source_ids: Select[tuple[int]]
+) -> None:
+    """Source owner invalidates delivery and erases payload in its own transaction.
+
+    SENT evidence remains SENT; provider handoff cannot be recalled. Cancelling an
+    active attempt clears its lease, so late provider results cannot revive it.
+    Identities and attempts remain auditable; no recipient-based ownership inference.
+    """
+    table = MailOutbox.__table__
+    condition = (table.c.source_kind == source_kind.value) & table.c.source_id.in_(source_ids)
+    db.execute(
+        update(table)
+        .where(
+            condition,
+            table.c.status.in_(
+                [
+                    MailOutboxStatus.PENDING,
+                    MailOutboxStatus.DISPATCHED,
+                    MailOutboxStatus.PROCESSING,
+                    MailOutboxStatus.FAILED,
+                ]
+            ),
+        )
+        .values(
+            status=MailOutboxStatus.CANCELLED,
+            attempt_token=None,
+            completed_at=utc_now(),
+            updated_at=utc_now(),
+            failure_code=None,
+            failure_stage=None,
+            failure_classification=None,
+            failure_retryable=None,
+            failure_detail=None,
+        )
+    )
+    db.execute(
+        update(table)
+        .where(condition)
+        .values(
+            recipient="",
+            subject="",
+            text_body=None,
+            html_body=None,
+            dedupe_key="erased:" + table.c.outbox_uuid,
+            provider_message_id=None,
+            failure_detail=None,
+            updated_at=utc_now(),
+        )
+    )
