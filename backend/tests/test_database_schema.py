@@ -187,9 +187,9 @@ def test_baseline_upgrade_parity_bootstrap_teardown_and_reupgrade(monkeypatch):
     with postgres_schema_database(monkeypatch) as (engine, config):
         script = ScriptDirectory.from_config(config)
         revisions = list(script.walk_revisions())
-        assert script.get_heads() == ["0005_account_resource_commands"]
+        assert script.get_heads() == ["0006_erasure_failure_facts"]
         assert script.get_bases() == ["0001_current_schema"]
-        assert len(revisions) == 5
+        assert len(revisions) == 6
         assert all(
             current.down_revision == parent.revision
             for current, parent in zip(revisions, revisions[1:])

@@ -26,6 +26,11 @@ from app.db.durable_delivery import (
     delivery_next_attempt_at_field,
     delivery_optional_timestamp_field,
     failure_detail_field,
+    failure_code_field,
+    failure_stage_field,
+    failure_classification_field,
+    failure_retryable_field,
+    durable_failure_facts_constraint,
 )
 from app.shared.time import utc_now
 
@@ -42,6 +47,7 @@ class StoredObjectRetirementStatus(StrEnum):
 class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "stored_object_retirements"
     __table_args__ = (
+        durable_failure_facts_constraint(name="ck_object_retirement_failure_facts"),
         CheckConstraint(
             "deletion_fenced_at IS NULL OR status <> 'CANCELLED'",
             name="ck_object_retirement_deletion_fence",
@@ -97,6 +103,10 @@ class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     started_at: datetime | None = delivery_optional_timestamp_field()
     completed_at: datetime | None = delivery_optional_timestamp_field()
     deletion_fenced_at: datetime | None = delivery_optional_timestamp_field()
+    failure_code: str | None = failure_code_field()
+    failure_stage: str | None = failure_stage_field()
+    failure_classification: str | None = failure_classification_field()
+    failure_retryable: bool | None = failure_retryable_field()
     failure_detail: str | None = failure_detail_field()
     created_at: datetime = Field(
         default_factory=utc_now,

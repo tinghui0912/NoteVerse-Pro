@@ -3,10 +3,12 @@
 from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
 
 from dataclasses import dataclass
+from datetime import timedelta
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.core.config import settings
 from app.db.models.stored_object import StoredObject
@@ -21,6 +23,10 @@ from app.modules.storage_objects.persistence import object_from_row
 from app.modules.storage_objects.facts import StoredObjectFacts
 from app.modules.storage_objects.references import stored_object_has_semantic_references
 from app.shared.time import utc_now
+from app.core.exceptions import ResourceNotFoundException, ValidationException
+from app.modules.durable_work.failure import DurableFailure, set_failure_facts, clear_failure_facts
+from app.shared.durable_failure import DurableFailureClass
+from app.storage.base import ObjectStorageUnavailableError
 
 
 def delivery_lifecycle() -> DurableDeliveryLifecycle[StoredObjectRetirementStatus]:
@@ -75,6 +81,7 @@ def retain_for_reference(db: Session, object_id: int) -> StoredObject | None:
         delivery_lifecycle().finish(
             operation, status=StoredObjectRetirementStatus.CANCELLED, error=None, now=utc_now()
         )
+        clear_failure_facts(operation)
     return row
 
 
@@ -99,6 +106,7 @@ def retire_if_unreferenced(db: Session, object_id: int) -> StoredObjectRetiremen
         if snapshot(operation) != facts:
             raise ValueError("Retirement snapshot disagrees with StoredObject")
         delivery_lifecycle().rearm(operation, now=utc_now())
+        clear_failure_facts(operation)
     return operation
 
 
@@ -132,11 +140,12 @@ class StoredObjectRetirementDelivery:
 
     def claim(self, db: Session, uuid: str) -> RetirementAttempt | None:
         row = self.get(db, uuid, lock=True)
-        if row is None:
+        if row is None or row.failure_retryable is False:
             return None
         lease = delivery_lifecycle().claim(row, token=str(uuid4()), now=utc_now())
         if lease is None:
             return None
+        clear_failure_facts(row)
         return RetirementAttempt(
             retirement_uuid=row.retirement_uuid,
             stored_object_id=row.stored_object_id,
@@ -146,17 +155,76 @@ class StoredObjectRetirementDelivery:
 
     def mark_dispatched(self, db: Session, uuid: str) -> bool:
         row = self.get(db, uuid, lock=True)
-        return row is not None and delivery_lifecycle().dispatch(row, now=utc_now())
+        return (
+            row is not None
+            and row.failure_retryable is not False
+            and delivery_lifecycle().dispatch(row, now=utc_now())
+        )
 
     def release_dispatch(self, db: Session, uuid: str, error: str) -> None:
         row = self.get(db, uuid, lock=True)
-        if row is not None:
-            delivery_lifecycle().release_dispatch(row, error=error, now=utc_now())
+        if row is not None and delivery_lifecycle().release_dispatch(
+            row, error="Dispatch failed", now=utc_now()
+        ):
+            self._failure(row, "dispatch_failed", "dispatch", DurableFailureClass.TRANSIENT)
 
-    def fail(self, db: Session, attempt: RetirementAttempt, error: str) -> bool:
+    def fail(
+        self,
+        db: Session,
+        attempt: RetirementAttempt,
+        error: Exception | str,
+        *,
+        stage: str = "retirement",
+    ) -> bool:
         row = self.get(db, attempt.retirement_uuid, lock=True)
-        return row is not None and delivery_lifecycle().fail_attempt(
-            row, lease=attempt, error=error, now=utc_now()
+        if row is None or not delivery_lifecycle().fail_attempt(
+            row, lease=attempt, error="Retirement failed", now=utc_now()
+        ):
+            return False
+        permanent = isinstance(error, (ValueError, IntegrityError))
+        self._failure(
+            row,
+            "integrity_violation" if permanent else "execution_failed",
+            stage,
+            DurableFailureClass.PERMANENT
+            if permanent
+            else DurableFailureClass.TRANSIENT
+            if isinstance(
+                error, (ObjectStorageUnavailableError, TimeoutError, OSError, OperationalError)
+            )
+            else DurableFailureClass.SYSTEM_ERROR,
+        )
+        return True
+
+    @staticmethod
+    def can_rearm(status: str, failure_code: str | None) -> bool:
+        return status in ("PENDING", "FAILED") and failure_code is not None
+
+    def rearm_for_operator(self, db: Session, uuid: str) -> str:
+        row = self.get(db, uuid, lock=True)
+        if row is None:
+            raise ResourceNotFoundException("async_operation", uuid)
+        if not self.can_rearm(row.status.value, row.failure_code):
+            raise ValidationException(field="status", details={"status": row.status.value})
+        previous = row.status.value
+        delivery_lifecycle().rearm(row, now=utc_now())
+        clear_failure_facts(row)
+        return previous
+
+    @staticmethod
+    def _failure(
+        row: StoredObjectRetirement, code: str, stage: str, classification: DurableFailureClass
+    ) -> None:
+        exhausted = row.attempt_count >= settings.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS
+        set_failure_facts(
+            row,
+            DurableFailure(
+                "stored_object_retirement_" + ("attempts_exhausted" if exhausted else code),
+                stage,
+                classification,
+                not exhausted and classification != DurableFailureClass.PERMANENT,
+            ),
+            detail="Physical retirement stopped; inspect the recorded operation and integrity checks.",
         )
 
     def recover_and_list_due(self, db: Session) -> list[str]:
@@ -166,19 +234,36 @@ class StoredObjectRetirementDelivery:
             db.scalars(
                 select(StoredObjectRetirement)
                 .where(
-                    StoredObjectRetirement.status.in_(
-                        [
-                            StoredObjectRetirementStatus.DISPATCHED,
-                            StoredObjectRetirementStatus.PROCESSING,
-                        ]
+                    or_(
+                        and_(
+                            StoredObjectRetirement.status
+                            == StoredObjectRetirementStatus.DISPATCHED,
+                            StoredObjectRetirement.dispatched_at
+                            <= now
+                            - timedelta(
+                                seconds=settings.STORED_OBJECT_RETIREMENT_DISPATCH_TIMEOUT_SECONDS
+                            ),
+                        ),
+                        and_(
+                            StoredObjectRetirement.status
+                            == StoredObjectRetirementStatus.PROCESSING,
+                            StoredObjectRetirement.started_at
+                            <= now
+                            - timedelta(
+                                seconds=settings.STORED_OBJECT_RETIREMENT_PROCESSING_TIMEOUT_SECONDS
+                            ),
+                        ),
                     )
                 )
+                .order_by(StoredObjectRetirement.id)
+                .limit(settings.STORED_OBJECT_RETIREMENT_DISPATCH_BATCH_SIZE)
                 .with_for_update(skip_locked=True)
                 .execution_options(populate_existing=True)
             )
         )
         for row in rows:
-            lifecycle.recover_lease(row, error="StoredObject retirement lease expired", now=now)
+            if lifecycle.recover_lease(row, error="StoredObject retirement lease expired", now=now):
+                self._failure(row, "lease_expired", "retirement", DurableFailureClass.TRANSIENT)
         db.flush()
         return list(
             db.scalars(
@@ -187,6 +272,7 @@ class StoredObjectRetirementDelivery:
                     StoredObjectRetirement.status.in_(
                         [StoredObjectRetirementStatus.PENDING, StoredObjectRetirementStatus.FAILED]
                     ),
+                    StoredObjectRetirement.failure_retryable.is_not(False),
                     StoredObjectRetirement.next_attempt_at <= now,
                     StoredObjectRetirement.attempt_count < lifecycle.policy.max_attempts,
                 )

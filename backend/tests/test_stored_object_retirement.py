@@ -316,6 +316,12 @@ def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
             else StoredObjectRetirementStatus.PENDING
         )
         assert operation.attempt_count == 0
-        assert operation.failure_detail == (None if broker_accepts else "broker rejected")
+        if broker_accepts:
+            assert operation.failure_detail is None
+        else:
+            assert operation.failure_code == "stored_object_retirement_dispatch_failed"
+            assert operation.failure_classification == "transient"
+            assert operation.failure_retryable is True
+            assert "broker rejected" not in operation.failure_detail
         if not broker_accepts:
             assert operation.dispatched_at is None

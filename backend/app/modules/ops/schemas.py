@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from app.shared.time import Instant
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from app.shared.api_model import ApiModel
 from app.shared.durable_failure import DurableFailureClass
 
@@ -14,6 +14,8 @@ class AsyncOperationKind(str, enum.Enum):
     PLAYBACK = "playback"
     MAIL = "mail"
     SCORE_DELETION = "score_deletion"
+    ACCOUNT_DELETION = "account_deletion"
+    STORED_OBJECT_RETIREMENT = "stored_object_retirement"
 
 
 class AsyncOperationStatus(str, enum.Enum):
@@ -24,6 +26,7 @@ class AsyncOperationStatus(str, enum.Enum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     SUPERSEDED = "superseded"
+    CANCELLED = "cancelled"
 
 
 class AsyncOperationFailure(BaseModel):
@@ -37,6 +40,14 @@ class AsyncOperationFailure(BaseModel):
 class RetryAsyncOperationCommand(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
+    @field_validator("reason")
+    @classmethod
+    def meaningful_reason(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("A meaningful recovery reason is required")
+        return value
+
 
 class AsyncOperationRead(ApiModel):
     operation_id: str
@@ -46,6 +57,8 @@ class AsyncOperationRead(ApiModel):
     originating_request_id: str | None = None
     status: AsyncOperationStatus
     attempts: int
+    can_retry: bool = False
+    execution_stage: str | None = None
     max_attempts: int | None
     next_attempt_at: Instant | None
     failure: AsyncOperationFailure | None = None

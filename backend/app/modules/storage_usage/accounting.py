@@ -8,7 +8,10 @@ from app.db.models.storage_usage import (
 from app.shared.time import utc_now
 
 
-class StorageUsageInvariantError(RuntimeError):
+from app.shared.integrity import ResourceIntegrityError
+
+
+class StorageUsageInvariantError(ResourceIntegrityError):
     """Accounting transition unsupported by the committed projection."""
 
 

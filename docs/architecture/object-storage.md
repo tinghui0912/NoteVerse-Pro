@@ -183,8 +183,8 @@ Schema installation does not create runtime operation state.
 
 ### Initialization and runtime integrity
 
-An empty database is initialized by `alembic upgrade head` through 0001 → 0002 →
-0003. Initialization installs schema and the FREE quota policy, without users,
+An empty database is initialized by `alembic upgrade head` through the complete
+checked-in migration chain. Initialization installs schema and finite quota policies, without users,
 semantic resources or retirement operations. Development databases are disposable
 and are recreated through the complete migration chain. The deletion-fence migration
 adds its column and constraint without inferring runtime outcomes from historical rows.
@@ -290,3 +290,18 @@ Replacement transactions acquire all applicable write intents before retirement 
 Import replacement defers retirement until all new artifact references/accounting are
 admitted. Playback replacement follows the same order. This preserves the shared parent →
 Intent → StoredObject → retirement direction without moving business lifecycle policy.
+
+## Account erasure and operations
+
+Account resource erasure releases its domain references/accounting and admits retirement
+in the same transaction. It does not wait for physical deletion. Shared objects remain
+while any registered semantic reference survives. Account completion does not imply
+provider version or backup destruction; see the [account ownership and retained-data
+contract](business-resource-lifecycle.md#account-erasure-ownership-contract).
+
+Retirement failure facts use the common durable taxonomy and a safe bounded detail.
+The stage distinguishes reference validation, fence persistence, physical deletion and
+completion commit. Integrity failures stop automatic retry. The unified Ops projection
+exposes retirement UUIDs, never object keys or signed capabilities. Operator retry requires
+a reason and an audit event; Domain validation rejects active, completed or cancelled work
+and preserves every irreversible fence. No new reference is admitted after fencing.

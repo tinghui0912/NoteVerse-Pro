@@ -534,3 +534,310 @@ def test_account_score_admission_serializes_with_pre_admitted_customer_deletion(
     with Session(account_database) as db:
         assert db.get(User, 1) is None
         assert db.scalar(select(Score)) is None
+
+
+def test_real_access_cookie_is_rejected_immediately_and_missed_dispatch_is_discoverable(
+    account_database, monkeypatch
+):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.api.deps import get_db
+    from app.modules.auth.sessions_service import SessionService
+    from app.core.generated.customer_browser_protocol import (
+        AUTH_COOKIE_NAME,
+        CSRF_COOKIE_NAME,
+        CSRF_HEADER_NAME,
+    )
+    from app.worker.dispatch import account_deletion as dispatcher
+
+    with Session(account_database) as db:
+        db.get(User, 1).email = "closed@example.com"
+        access, _, _ = SessionService().create_token_pair(db, 1)
+        db.commit()
+
+    def database():
+        with Session(account_database) as db:
+            yield db
+
+    def unavailable(uuid):
+        raise OSError("broker unavailable")
+
+    monkeypatch.setattr(dispatcher, "dispatch_account_deletion", unavailable)
+    app.dependency_overrides[get_db] = database
+    try:
+        with TestClient(app) as client:
+            client.cookies.set(AUTH_COOKIE_NAME, access)
+            client.cookies.set(CSRF_COOKIE_NAME, "csrf-test")
+            assert client.get("/api/v1/me/profile").status_code == 200
+            result = client.request(
+                "DELETE",
+                "/api/v1/me",
+                json={"current_password": "secret123"},
+                headers={CSRF_HEADER_NAME: "csrf-test"},
+            )
+            assert result.status_code == 202, result.text
+            assert "Max-Age=0" in result.headers["set-cookie"]
+            operation = result.json()["operation_id"]
+            client.cookies.set(AUTH_COOKIE_NAME, access)
+            assert client.get("/api/v1/me/profile").status_code == 401
+            assert client.get("/api/v1/me/deletion-status").status_code == 404
+            with Session(account_database) as observer:
+                assert delivery.recover_and_list_due(observer) == [operation]
+            for _ in range(20):
+                if unit(account_database, operation):
+                    break
+            assert client.get("/api/v1/me/profile").status_code == 401
+        with Session(account_database) as db:
+            assert delivery.recover_and_list_due(db) == []
+            assert db.get(User, 1) is None
+            assert (
+                db.scalar(select(AccountDeletionOperation)).status
+                == AccountDeletionStatus.COMPLETED
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.mark.parametrize(
+    "error,classification,retryable",
+    [
+        (TimeoutError("secret provider URL"), "transient", True),
+        (RuntimeError("unexpected worker failure"), "system_error", True),
+        (ValueError("secret resource facts"), "permanent", False),
+    ],
+)
+def test_account_failure_facts_classify_typed_errors_and_do_not_leak_details(
+    account_database, error, classification, retryable
+):
+    uuid = request(account_database)
+    with Session(account_database) as db:
+        lease = delivery.claim(db, uuid)
+        db.commit()
+        delivery.fail(db, lease, error)
+        db.commit()
+        row = db.scalar(select(AccountDeletionOperation))
+        assert row.failure_classification == classification and row.failure_retryable is retryable
+        assert row.failure_stage == "scores" and len(row.failure_detail) <= 4000
+        assert str(error) not in row.failure_detail
+        from app.shared.time import utc_now
+
+        row.next_attempt_at = utc_now()
+        db.commit()
+        assert (uuid in delivery.recover_and_list_due(db)) is retryable
+
+
+def test_private_history_erasure_is_bounded_and_preserves_other_recipients(
+    account_database, monkeypatch
+):
+    from app.core.config import settings
+    from app.db.models import AccountDeletionPhase, Notification, NotificationKind
+
+    monkeypatch.setattr(settings, "ACCOUNT_DELETION_RESOURCE_BATCH_SIZE", 2)
+    with Session(account_database) as db:
+        for number in range(5):
+            db.add(
+                Notification(
+                    recipient_user_id=1,
+                    kind=NotificationKind.IMPORT_FAILED,
+                    import_job_id=f"job-{number}",
+                )
+            )
+        db.add(
+            Notification(
+                recipient_user_id=2,
+                kind=NotificationKind.IMPORT_FAILED,
+                import_job_id="retained-job",
+            )
+        )
+        db.commit()
+    uuid = request(account_database)
+    with Session(account_database) as db:
+        operation = db.scalar(select(AccountDeletionOperation))
+        operation.phase = AccountDeletionPhase.FINALIZE
+        db.commit()
+    assert not unit(account_database, uuid)
+    with Session(account_database) as db:
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(Notification)
+                .where(Notification.recipient_user_id == 1)
+            )
+            == 3
+        )
+        assert db.get(User, 1) is not None
+    for _ in range(15):
+        if unit(account_database, uuid):
+            break
+    with Session(account_database) as db:
+        assert db.get(User, 1) is None
+        assert db.scalar(select(Notification)).recipient_user_id == 2
+
+
+def test_closed_recipient_admission_does_not_recreate_private_history(account_database):
+    from app.modules.notifications.service import NotificationService
+    from app.db.models import Notification, RealtimeChange
+    from app.shared.time import utc_now
+
+    request(account_database)
+    with Session(account_database) as db:
+        assert (
+            NotificationService().admit_import_failed(
+                db,
+                recipient_user_id=1,
+                import_job_id="late-job",
+                import_display_title=None,
+                created_at=utc_now(),
+            )
+            is None
+        )
+        db.commit()
+        assert db.scalar(select(func.count()).select_from(Notification)) == 0
+        assert db.scalar(select(func.count()).select_from(RealtimeChange)) == 0
+
+
+def test_foreign_revision_actor_is_anonymized_without_erasing_the_resource(account_database):
+    from tests.test_score_revision_services import add_active_score_with_head_revision
+    from app.db.models import ScoreRevision
+
+    with Session(account_database) as db:
+        score = add_active_score_with_head_revision(
+            db,
+            score_id=81,
+            revision_id=82,
+            score_uuid="retained-score",
+            revision_uuid="retained-revision",
+            title="Other owner's work",
+        )
+        score.owner_user_id = 2
+        revision = db.get(ScoreRevision, 82)
+        revision.created_by_user_id = 1
+        db.commit()
+    uuid = request(account_database)
+    for _ in range(20):
+        if unit(account_database, uuid):
+            break
+    with Session(account_database) as db:
+        assert db.get(User, 1) is None
+        assert db.get(Score, 81).owner_user_id == 2
+        assert db.get(ScoreRevision, 82).created_by_user_id is None
+
+
+def test_account_completion_precedes_independent_physical_retirement(account_database, monkeypatch):
+    from sqlalchemy.orm import sessionmaker
+    from app.worker.execution import stored_object_retirement as worker
+    from app.modules.storage_objects.persistence import object_from_bytes
+    from tests.support.object_storage import InMemoryObjectStorage
+    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+
+    storage = InMemoryObjectStorage()
+    content = b"owned resource"
+    storage.put_bytes(
+        key="account-only-object", content=content, content_type="application/octet-stream"
+    )
+    with Session(account_database) as db:
+        obj = object_from_bytes(
+            object_key="account-only-object",
+            content=content,
+            content_type="application/octet-stream",
+        )
+        db.add(obj)
+        db.flush()
+        object_id = obj.id
+        db.add(
+            Upload(
+                upload_uuid="owned-upload",
+                uploader_user_id=1,
+                original_filename="owned.bin",
+                stored_object_id=object_id,
+            )
+        )
+        usage.record_allocation(
+            db, user_id=1, category=Category.UPLOAD, bytes_count=len(content), reason="seed"
+        )
+        db.commit()
+    uuid = request(account_database)
+    for _ in range(20):
+        if unit(account_database, uuid):
+            break
+    with Session(account_database) as db:
+        assert db.get(User, 1) is None
+        assert db.scalar(select(AccountDeletionOperation)).status == AccountDeletionStatus.COMPLETED
+        retirement = db.scalar(select(StoredObjectRetirement))
+        assert retirement.status == StoredObjectRetirementStatus.PENDING
+        assert db.get(StoredObject, object_id) is not None
+        retirement_uuid = retirement.retirement_uuid
+    assert storage.exists("account-only-object")
+    monkeypatch.setattr(worker, "SessionLocal", sessionmaker(account_database))
+    monkeypatch.setattr(worker, "object_storage", storage)
+    assert (
+        worker.execute_stored_object_retirement_task(None, retirement_uuid)["status"] == "completed"
+    )
+    with Session(account_database) as db:
+        assert db.get(StoredObject, object_id) is None
+        retirement = db.scalar(select(StoredObjectRetirement))
+        assert retirement.stored_object_id is None and retirement.deletion_fenced_at is not None
+        assert db.scalar(select(AccountDeletionOperation)).status == AccountDeletionStatus.COMPLETED
+    assert not storage.exists("account-only-object")
+
+
+def test_actor_anonymization_does_not_erase_a_concurrent_other_user_attribution(account_database):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    from sqlalchemy import event, update
+    from tests.test_score_revision_services import add_active_score_with_head_revision
+    from app.db.models import ScoreRevision, ScoreRevisionNote
+    from app.modules.revisions.account_cleanup import erase_revision_actor_links
+    from app.modules.account.deletion_repository import AccountDeletionRepository
+
+    with Session(account_database) as db:
+        score = add_active_score_with_head_revision(
+            db,
+            score_id=91,
+            revision_id=92,
+            score_uuid="foreign-score",
+            revision_uuid="foreign-revision",
+            title="Foreign owner",
+        )
+        score.owner_user_id = 2
+        db.get(ScoreRevision, 92).created_by_user_id = 2
+        db.add(
+            ScoreRevisionNote(score_id=91, revision_id=92, author_user_id=1, note="Original note")
+        )
+        db.commit()
+    request(account_database)
+    selected, edited = Event(), Event()
+
+    def edit():
+        assert selected.wait(10)
+        try:
+            with Session(account_database) as db:
+                db.execute(
+                    update(ScoreRevisionNote)
+                    .where(ScoreRevisionNote.revision_id == 92)
+                    .values(author_user_id=2, note="Updated by surviving owner")
+                )
+                db.commit()
+        finally:
+            edited.set()
+
+    with Session(account_database) as db, ThreadPoolExecutor(1) as pool:
+        AccountDeletionRepository().lock_user(db, 1, erasure=True)
+        connection = db.connection()
+
+        def before_update(_connection, _cursor, statement, _parameters, _context, _executemany):
+            if statement.startswith("UPDATE score_revision_notes"):
+                selected.set()
+                assert edited.wait(10)
+
+        event.listen(connection, "before_cursor_execute", before_update)
+        future = pool.submit(edit)
+        try:
+            assert erase_revision_actor_links(db, 1, limit=1)
+            db.commit()
+            future.result(timeout=10)
+        finally:
+            event.remove(connection, "before_cursor_execute", before_update)
+    with Session(account_database) as db:
+        note = db.scalar(select(ScoreRevisionNote))
+        assert note.author_user_id == 2 and note.note == "Updated by surviving owner"

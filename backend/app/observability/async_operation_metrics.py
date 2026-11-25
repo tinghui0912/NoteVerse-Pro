@@ -6,21 +6,15 @@ from collections.abc import Iterable
 
 from datetime import timedelta
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.models import (
-    ImportDispatchStatus,
     ImportJob,
-    ImportDispatch,
-    ImportJobState,
     MailOutbox,
-    MailOutboxStatus,
     PlaybackOutbox,
-    PlaybackOutboxStatus,
     ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
     SchedulerHeartbeat,
     SchedulerLeaderStatus,
     ScoreDeletionOperation,
@@ -82,6 +76,17 @@ def async_operation_metrics_text(db: Session) -> str:
         "# HELP noteverse_async_operation_oldest_open_age_seconds Oldest non-terminal async operation age in seconds.",
         "# TYPE noteverse_async_operation_oldest_open_age_seconds gauge",
         *_oldest_open_age_lines(db),
+        "# HELP noteverse_async_operation_oldest_unfinished_age_seconds Oldest unfinished operation including stopped failures.",
+        "# TYPE noteverse_async_operation_oldest_unfinished_age_seconds gauge",
+        *_projected_age_lines(
+            db,
+            statuses=("queued", "dispatched", "processing", "retrying", "failed"),
+            column="created_at",
+            metric="noteverse_async_operation_oldest_unfinished_age_seconds",
+        ),
+        "# HELP noteverse_async_operations_by_status Durable operations by unified kind and status.",
+        "# TYPE noteverse_async_operations_by_status gauge",
+        *_projected_status_lines(db),
         "# HELP noteverse_async_operation_oldest_processing_age_seconds Oldest currently processing async operation age in seconds.",
         "# TYPE noteverse_async_operation_oldest_processing_age_seconds gauge",
         *_oldest_processing_age_lines(db),
@@ -224,12 +229,16 @@ def _projected_age_lines(
 
 def _completed_duration_average_lines(db: Session) -> list[str]:
     c = operation_projection().c
+    start = case(
+        (c.kind.in_(("account_deletion", "stored_object_retirement")), c.created_at),
+        else_=c.started_at,
+    )
     rows = dict(
         db.execute(
-            select(c.kind, func.avg(_duration_seconds(c.started_at, c.completed_at)))
+            select(c.kind, func.avg(_duration_seconds(start, c.completed_at)))
             .where(
                 c.status == "succeeded",
-                c.started_at.is_not(None),
+                start.is_not(None),
                 c.completed_at.is_not(None),
                 c.completed_at >= utc_now() - timedelta(hours=24),
             )
@@ -408,91 +417,48 @@ def _scheduler_leader_lines(db: Session) -> list[str]:
     ]
 
 
-def _scheduler_lag_lines(db: Session) -> list[str]:
-    now = utc_now()
-    rows = [
-        (
-            "import",
-            _oldest_age_seconds(
-                db,
-                select(func.min(ImportDispatch.next_attempt_at))
-                .join(ImportJob, ImportJob.id == ImportDispatch.job_id)
-                .where(
-                    ImportJob.state == ImportJobState.QUEUED,
-                    ImportDispatch.status.in_(
-                        (ImportDispatchStatus.PENDING, ImportDispatchStatus.FAILED)
-                    ),
-                    ImportDispatch.next_attempt_at <= now,
-                    ImportDispatch.attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "revision_render",
-            _oldest_age_seconds(
-                db,
-                select(func.min(ScoreRevisionRenderOutbox.next_attempt_at)).where(
-                    ScoreRevisionRenderOutbox.status.in_(
-                        (ScoreRevisionRenderStatus.PENDING, ScoreRevisionRenderStatus.FAILED)
-                    ),
-                    ScoreRevisionRenderOutbox.next_attempt_at <= now,
-                    ScoreRevisionRenderOutbox.attempt_count < settings.REVISION_RENDER_MAX_ATTEMPTS,
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "playback",
-            _oldest_age_seconds(
-                db,
-                select(func.min(PlaybackOutbox.next_attempt_at)).where(
-                    PlaybackOutbox.status.in_(
-                        (PlaybackOutboxStatus.PENDING, PlaybackOutboxStatus.FAILED)
-                    ),
-                    PlaybackOutbox.next_attempt_at <= now,
-                    PlaybackOutbox.attempt_count < settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
-                ),
-                now=now,
-            ),
-        ),
-        (
-            "mail",
-            _oldest_age_seconds(
-                db,
-                select(func.min(MailOutbox.next_attempt_at)).where(
-                    MailOutbox.status.in_((MailOutboxStatus.PENDING, MailOutboxStatus.FAILED)),
-                    MailOutbox.next_attempt_at <= now,
-                    MailOutbox.attempt_count < settings.MAIL_OUTBOX_MAX_ATTEMPTS,
-                    or_(MailOutbox.expires_at.is_(None), MailOutbox.expires_at > now),
-                ),
-                now=now,
-            ),
-        ),
+def _projected_status_lines(db: Session) -> list[str]:
+    c = operation_projection().c
+    rows = db.execute(select(c.kind, c.status, func.count()).group_by(c.kind, c.status)).all()
+    from app.modules.ops.schemas import AsyncOperationStatus
+
+    counts = {(kind, status): count for kind, status, count in rows}
+    return [
+        _metric_line(
+            "noteverse_async_operations_by_status",
+            ("kind", "status"),
+            (kind.value, status.value),
+            counts.get((kind.value, status.value), 0),
+        )
+        for kind in AsyncOperationKind
+        for status in AsyncOperationStatus
     ]
+
+
+def _scheduler_lag_lines(db: Session) -> list[str]:
+    c = operation_projection().c
+    now = utc_now()
+    rows = dict(
+        db.execute(
+            select(c.kind, func.min(c.next_attempt_at))
+            .where(
+                c.status.in_(("queued", "retrying")),
+                c.next_attempt_at <= now,
+                c.attempts < c.max_attempts,
+                c.failure_retryable.is_not(False),
+            )
+            .group_by(c.kind)
+        ).all()
+    )
     return [
         _metric_line(
             "noteverse_scheduler_lag_seconds",
             ("kind",),
-            (kind,),
-            seconds,
+            (kind.value,),
+            max(0, int((now - rows[kind.value]).total_seconds())) if kind.value in rows else 0,
         )
-        for kind, seconds in rows
+        for kind in AsyncOperationKind
     ]
-
-
-def _oldest_age_seconds(
-    db: Session,
-    statement: Select[tuple[object]],
-    *,
-    now,
-) -> int:
-    result = db.execute(statement)
-    row = result.one_or_none()
-    oldest = row[0] if row is not None else None
-    if oldest is None:
-        return 0
-    return max(0, int((now - oldest).total_seconds()))
 
 
 def _duration_seconds(start_column, end_column):

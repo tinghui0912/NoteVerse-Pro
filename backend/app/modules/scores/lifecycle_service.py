@@ -2,6 +2,7 @@
 
 from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
+from app.shared.integrity import ResourceIntegrityError
 from app.core.async_trace_context import get_async_trace_context
 from app.core.request_correlation import get_request_id
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
@@ -41,13 +42,13 @@ class ScoreLifecycleService:
             )
         )
         if operation is None:
-            raise RuntimeError("Tombstoned Score has no deletion operation")
+            raise ResourceIntegrityError("Tombstoned Score has no deletion operation")
         lease = score_deletion_delivery.claim(db, operation.operation_uuid)
         if lease is None:
             from app.core.config import settings
 
             if operation.attempt_count >= settings.SCORE_DELETION_MAX_ATTEMPTS:
-                raise RuntimeError("Owned Score deletion has exhausted retries")
+                raise ResourceIntegrityError("Owned Score deletion has exhausted retries")
             return "busy"
         db.flush()
         ScoreDeletionExecutor().execute(db, lease)
@@ -137,3 +138,8 @@ class ScoreLifecycleService:
 
 
 score_lifecycle_service = ScoreLifecycleService()
+
+
+def has_account_scores(db: Session, user_id: int) -> bool:
+    """Whether this domain still owns semantic resources for the account."""
+    return db.scalar(select(Score.id).where(Score.owner_user_id == user_id).limit(1)) is not None

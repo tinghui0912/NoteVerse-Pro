@@ -26,7 +26,7 @@ def test_operations_declare_unique_semantic_ids_matching_the_committed_contract(
                 == committed["paths"][context.path_format][method.lower()]["operationId"]
             )
             identities.append(identity)
-    assert len(identities) == len(set(identities)) == 9
+    assert len(identities) == len(set(identities)) == 10
 
 
 def test_success_schema_owns_the_direct_representation_or_bodyless_acknowledgement(control_app):
@@ -36,6 +36,7 @@ def test_success_schema_owns_the_direct_representation_or_bodyless_acknowledgeme
         "opsAsyncOperationsList": "OffsetPage_AsyncOperationRead_",
         "opsAsyncOperationsSummaryGet": "AsyncOperationsSummaryRead",
         "opsAsyncOperationRetry": "AsyncOperationRead",
+        "opsAsyncOperationGet": "AsyncOperationRead",
         "opsAuditEventsList": "OffsetPage_OpsAuditEventRead_",
         "healthLive": "LivenessRead",
         "healthReady": "ReadinessRead",

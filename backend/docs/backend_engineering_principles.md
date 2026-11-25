@@ -379,7 +379,7 @@ Import confirmation, and Score deletion retain their domain protocol boundaries.
 Durable-delivery recovery commits lease/state changes and releases database locks before
 broker dispatch; terminal retention cleanup has its own worker-owned transaction.
 
-Account erasure admission tombstones User and persists its durable operation in the
+Account closure admission tombstones User and persists its durable erasure operation in the
 HTTP command transaction. Worker execution commits one semantic cleanup unit at a
 time, preserves Take staging/candidate cleanup lineage until acknowledged, and verifies
 empty inventory/zero usage before final identity removal. Active resource admission
@@ -531,3 +531,12 @@ Backend code is usually healthy when:
 - workers can retry and materialize inputs across processes or machines;
 - complex runtime failures have diagnostics;
 - docs explain the current architecture and its owning contracts.
+
+Account closure ends authentication immediately. Account erasure completion describes
+business ownership/accounting and identity removal; StoredObject retirement runs
+independently. The [account ownership contract](../../docs/architecture/business-resource-lifecycle.md#account-erasure-ownership-contract)
+reviews every User FK and references the canonical Objects reference registry.
+Ops projects both domain tables without copying state. Structured failure facts control
+automatic retry; domain-owned operator rearm preserves erasure phases and deletion fences.
+The rearm and successful Ops audit share one commit. Backup/version/legal retention
+policies require deployment ownership and are not invented by application cleanup.

@@ -46,7 +46,9 @@
           "revision_render",
           "playback",
           "mail",
-          "score_deletion"
+          "score_deletion",
+          "account_deletion",
+          "stored_object_retirement"
         ],
         "title": "AsyncOperationKind",
         "type": "string"
@@ -82,6 +84,11 @@
             "title": "Attempts",
             "type": "integer"
           },
+          "can_retry": {
+            "default": false,
+            "title": "Can Retry",
+            "type": "boolean"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -93,6 +100,17 @@
               }
             ],
             "title": "Created At"
+          },
+          "execution_stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Stage"
           },
           "failure": {
             "anyOf": [
@@ -192,7 +210,8 @@
           "retrying",
           "succeeded",
           "failed",
-          "superseded"
+          "superseded",
+          "cancelled"
         ],
         "title": "AsyncOperationStatus",
         "type": "string"
@@ -1132,6 +1151,82 @@
           }
         },
         "summary": "Async Operations Summary",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/api/v1/ops/async-operations/{kind}/{operation_id}": {
+      "get": {
+        "operationId": "opsAsyncOperationGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AsyncOperationKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "operation_id",
+            "required": true,
+            "schema": {
+              "title": "Operation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_operator_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Operator Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncOperationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Get Async Operation",
         "tags": [
           "Operations"
         ]

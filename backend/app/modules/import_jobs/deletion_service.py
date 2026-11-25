@@ -4,6 +4,7 @@ from __future__ import annotations
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from app.shared.integrity import ResourceIntegrityError
 
 from app.db.models import (
     ImportArtifact,
@@ -39,7 +40,7 @@ class ImportJobDeletionService:
         from app.db.models import User
 
         if db.scalar(select(User.deleted_at).where(User.id == user_id)) is None:
-            raise RuntimeError("Account cleanup requires a tombstoned User")
+            raise ResourceIntegrityError("Account cleanup requires a tombstoned User")
         job = db.scalar(
             select(ImportJob).where(ImportJob.user_id == user_id).order_by(ImportJob.id).limit(1)
         )
@@ -70,7 +71,7 @@ class ImportJobDeletionService:
             )
         ).scalar_one_or_none()
         if dispatch is None:
-            raise RuntimeError("Import job requires a durable dispatch")
+            raise ResourceIntegrityError("Import job requires a durable dispatch")
         job = (
             db.execute(
                 select(ImportJob)
@@ -100,7 +101,7 @@ class ImportJobDeletionService:
         storage_usage_service.committed_bytes(db, user_id, lock=True)
         uploads = self._orphan_uploads_after_job_delete(db, job_id)
         if any(upload.uploader_user_id != user_id for upload, _ in uploads):
-            raise RuntimeError("Import Upload ownership disagrees with its Job")
+            raise ResourceIntegrityError("Import Upload ownership disagrees with its Job")
         artifacts = list(
             (db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id))).scalars()
         )
@@ -182,3 +183,8 @@ class ImportJobDeletionService:
             for upload, blob in rows
             if upload.id not in other_jobs and upload.id not in inputs
         ]
+
+
+def has_account_imports(db: Session, user_id: int) -> bool:
+    """Whether this domain still owns semantic resources for the account."""
+    return db.scalar(select(ImportJob.id).where(ImportJob.user_id == user_id).limit(1)) is not None

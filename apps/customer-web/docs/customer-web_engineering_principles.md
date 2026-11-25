@@ -225,3 +225,10 @@ Account Security owns permanent account-deletion confirmation. Accepted deletion
 the authenticated principal and its private server state; backend domain cleanup remains
 durable background work. Storage Usage presents finite server-projected limits and
 availability. Import upload commands retain a stable request identity across retries.
+
+Account deletion HTTP 202 ends this browser principal immediately and clears
+principal-sensitive queries/mutation state before navigation. The session cookies are
+cleared by the accepted backend response; browser storage contains no auth token copy.
+The UI does not query erasure progress or wait for workers. Rejected deletion preserves
+the authenticated session. Copy distinguishes immediate closure, asynchronous resource
+erasure and policy-governed retention of backups/provider versions.

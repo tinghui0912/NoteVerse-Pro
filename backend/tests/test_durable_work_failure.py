@@ -384,9 +384,18 @@ def test_healthy_queued_delivery_rejects_operator_rearm(model, service):
 
 
 @pytest.mark.parametrize(
-    "kind", ["import", "revision_render", "playback", "mail", "score_deletion"]
+    "kind",
+    [
+        "import",
+        "revision_render",
+        "playback",
+        "mail",
+        "score_deletion",
+        "account_deletion",
+        "stored_object_retirement",
+    ],
 )
-def test_ops_commits_the_domain_owned_rearm_and_reads_the_sql_projection(kind, monkeypatch):
+def test_ops_flushes_domain_rearm_for_atomic_audit_and_reads_the_sql_projection(kind, monkeypatch):
     from app.modules.ops import command_service
     from app.modules.ops.schemas import AsyncOperationKind
 
@@ -396,6 +405,8 @@ def test_ops_commits_the_domain_owned_rearm_and_reads_the_sql_projection(kind, m
         "playback": command_service.playback_outbox_service,
         "mail": command_service.mail_outbox_service,
         "score_deletion": command_service.score_deletion_delivery,
+        "account_deletion": command_service.account_deletion_delivery,
+        "stored_object_retirement": command_service.retirement_delivery,
     }
     owner = Mock(return_value="FAILED")
     monkeypatch.setattr(owners[kind], "rearm_for_operator", owner)
@@ -406,7 +417,8 @@ def test_ops_commits_the_domain_owned_rearm_and_reads_the_sql_projection(kind, m
         db, kind=AsyncOperationKind(kind), operation_id="operation"
     )
     owner.assert_called_once_with(db, "operation")
-    db.commit.assert_called_once()
+    db.flush.assert_called_once()
+    db.commit.assert_not_called()
     read.assert_called_once_with(db, kind=AsyncOperationKind(kind), operation_id="operation")
     assert result.operation is read.return_value and result.previous_state == "FAILED"
 

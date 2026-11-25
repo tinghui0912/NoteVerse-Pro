@@ -41,6 +41,7 @@ export function DeleteAccountForm() {
   return <form onSubmit={submit} className="mt-8 space-y-4 border-t border-red-200 pt-6">
     <h3 className="font-semibold text-red-700">{t('title')}</h3>
     <p className="text-sm text-gray-600">{t('description')}</p>
+    <p className="text-sm text-gray-600">{t('retention')}</p>
     <Label htmlFor="delete-account-password">{t('password')}</Label>
     <Input id="delete-account-password" type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} disabled={pending} />
     <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={pending} />{t('confirm')}</label>

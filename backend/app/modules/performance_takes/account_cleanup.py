@@ -2,6 +2,7 @@
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
+from app.shared.integrity import ResourceIntegrityError
 from app.db.models import (
     PerformanceTake,
     PerformanceTakeManifest,
@@ -63,7 +64,7 @@ def account_take_cleanup_pending(db: Session, user_id: int) -> bool:
     )
 
 
-def erase_account_take_history(db: Session, user_id: int) -> None:
+def erase_account_take_history(db: Session, user_id: int, *, limit: int) -> bool:
     """Called only after all temporary cleanup ACKs and final recordings are gone."""
     if (
         account_take_cleanup_pending(db, user_id)
@@ -72,6 +73,29 @@ def erase_account_take_history(db: Session, user_id: int) -> None:
         )
         is not None
     ):
-        raise RuntimeError("Take cleanup lineage is still live")
-    db.execute(delete(Reservation).where(Reservation.user_id == user_id))
-    db.execute(delete(PerformanceTakeManifest).where(PerformanceTakeManifest.user_id == user_id))
+        raise ResourceIntegrityError("Take cleanup lineage is still live")
+    ids = list(
+        db.scalars(
+            select(PerformanceTakeManifest.id)
+            .where(PerformanceTakeManifest.user_id == user_id)
+            .order_by(PerformanceTakeManifest.id)
+            .limit(limit)
+        )
+    )
+    if not ids:
+        return False
+    db.execute(
+        delete(Reservation).where(Reservation.user_id == user_id, Reservation.manifest_id.in_(ids))
+    )
+    db.execute(delete(PerformanceTakeManifest).where(PerformanceTakeManifest.id.in_(ids)))
+    return True
+
+
+def has_account_takes(db: Session, user_id: int) -> bool:
+    """Whether this domain still owns semantic resources for the account."""
+    return (
+        db.scalar(
+            select(PerformanceTake.id).where(PerformanceTake.owner_user_id == user_id).limit(1)
+        )
+        is not None
+    )

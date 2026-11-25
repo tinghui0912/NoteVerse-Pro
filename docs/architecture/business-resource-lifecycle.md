@@ -109,3 +109,91 @@ exclusive User fence. A busy accounting transaction yields a durable retry check
 missing entitlement/Usage still fails closed. It never waits on an audit writer that
 needs the User FK parent, avoiding a parent/account lock cycle. Take cleanup holds a
 non-active User KEY SHARE only during DB phases and releases it before temporary IO.
+
+## Account erasure ownership contract
+
+Account Closure, Account Resource Erasure and StoredObject Retirement are independent.
+Closure revokes access atomically with durable erasure admission. Account COMPLETED
+means the owned semantic graph, allocations and identity are removed. It does not
+assert destruction of shared physical bytes, provider versions or backups.
+
+`account/resource_ownership.py` explicitly reviews every User FK. Metadata tests
+compare actual ownership edges against that contract. Cleanup dispatch stays explicit;
+no runtime scanning decides ownership. The Objects reference registry independently
+covers all nine semantic StoredObject FKs, including both shared Bundle representations.
+
+| Resource / User edge | Domain owner | Ownership | Deletion authority and completion | Storage references / accounting | Retention |
+| --- | --- | --- | --- | --- | --- |
+| `account_deletion_operations.user_id` | account | system | SET NULL after finalization; operation UUID and numeric subject snapshot remain for recovery | No direct counted allocation | Operation evidence; no email, password or content snapshot |
+| `auth_tokens.user_id` | auth | owned | Bounded authentication erasure after closure revokes access | No direct counted allocation | Removed with its owned lifecycle |
+| `email_change_requests.user_id` | account | owned | Bounded Account security erasure before identity removal | No direct counted allocation | Removed with its owned lifecycle |
+| `import_jobs.user_id` | import_jobs | owned | Domain cleanup deletes artifacts and releases TEMP_IMPORT | ImportArtifact StoredObject; TEMP_IMPORT release | Removed with its owned lifecycle |
+| `notifications.recipient_user_id` | notifications | owned | erase_recipient_history before User deletion | No direct counted allocation | Removed with its owned lifecycle |
+| `performance_take_manifests.user_id` | performance_takes | owned | erase history only after staging and candidate cleanup ACK | Recording through Take; UPLOAD release, temporary cleanup ACK | Removed with its owned lifecycle |
+| `performance_take_upload_reservations.user_id` | performance_takes | owned | cancel business reservation; release hold; retain temporary cleanup lineage until ACK | quota_hold_id; staging/candidate cleanup; no premature allocation | Removed with its owned lifecycle |
+| `playback_outbox.requested_by_user_id` | playback | history | SET NULL; another owner retains playback work | No direct counted allocation | Minimal absent-actor context in surviving owner history |
+| `practice_activities.user_id` | practice | owned | Bounded Practice activity erasure | No direct counted allocation | Removed with its owned lifecycle |
+| `realtime_changes.recipient_user_id` | realtime | owned | Bounded recipient replay erasure | No direct counted allocation | Removed with its owned lifecycle |
+| `realtime_stream_state.recipient_user_id` | realtime | owned | CASCADE private replay cursor | No direct counted allocation | Removed with its owned lifecycle |
+| `refresh_tokens.user_id` | auth | owned | revoke immediately; bounded credential erasure | No direct counted allocation | Removed with its owned lifecycle |
+| `score_invites.created_by_user_id` | collaboration | owned | Owned Score deletion removes invites; foreign Score belongs to its owner | No direct counted allocation | Removed with its owned lifecycle |
+| `score_library_folders.user_id` | library | owned | erase_user_state | No direct counted allocation | Removed with its owned lifecycle |
+| `score_library_organizations.user_id` | library | owned | erase_user_state without deleting foreign Scores | No direct counted allocation | Removed with its owned lifecycle |
+| `score_memberships.user_id` | collaboration | shared | erase_user_memberships preserves foreign Score | No direct counted allocation | Removed with its owned lifecycle |
+| `score_memberships.created_by_user_id` | collaboration | owned | Score owner created membership; owned Score erasure removes it | No direct counted allocation | Removed with its owned lifecycle |
+| `score_revision_events.actor_user_id` | revisions | history | SET NULL preserves foreign Score history | No direct counted allocation | Minimal absent-actor context in surviving owner history |
+| `score_revision_notes.author_user_id` | revisions | history | SET NULL preserves foreign Score note | No direct counted allocation | Minimal absent-actor context in surviving owner history |
+| `score_revision_render_outbox.requested_by_user_id` | revisions | history | SET NULL preserves foreign render work | No direct counted allocation | Minimal absent-actor context in surviving owner history |
+| `score_revisions.created_by_user_id` | revisions | history | SET NULL preserves foreign Score revision | No direct counted allocation | Minimal absent-actor context in surviving owner history |
+| `scores.owner_user_id` | scores | owned | ScoreLifecycleService and ScoreDeletionExecutor release graph and accounting | Revision Sources, input Uploads, render/playback; exact category releases and shared-reference retirement | Removed with its owned lifecycle |
+| `storage_quota_holds.user_id` | storage_quota | owned | release HELD; erase terminal holds after business lineage | Release remaining HELD; erase terminal history after business lineage | Removed with its owned lifecycle |
+| `storage_usage_accounts.user_id` | storage_usage | owned | assert zero then CASCADE | Aggregate must be zero | Removed with its owned lifecycle |
+| `storage_usage_counters.user_id` | storage_usage | owned | assert every category zero then CASCADE | Every category must be zero | Removed with its owned lifecycle |
+| `storage_usage_events.user_id` | storage_usage | owned | Bounded erasure after verified semantic release; events do not establish ownership | No direct counted allocation | Removed with its owned lifecycle |
+| `upload_creation_requests.user_id` | uploads | owned | erase command history after semantic Upload erasure | No direct counted allocation | Removed with its owned lifecycle |
+| `uploads.uploader_user_id` | uploads | owned | delete_upload releases standalone UPLOAD and retires only unreferenced object | Upload StoredObject; UPLOAD release exactly once | Removed with its owned lifecycle |
+| `user_storage_entitlements.user_id` | storage_quota | owned | CASCADE after holds released and usage verified zero | No direct counted allocation | Removed with its owned lifecycle |
+
+User profile and current avatar belong to Account. Avatar replacement/removal uses
+AvatarService, releases its reference and admits retirement in the same transaction;
+it has no Usage allocation. Practice Bundles belong to their Score/Revision bindings,
+not to an uploader or physical byte payer. Score erasure releases bindings through
+Practice retention; shared READY Bundles remain while any binding survives. ObjectWriteIntent
+has no User ownership: unadopted generations keep their own cleanup lifecycle after
+User erasure. UploadCreationRequest and Take reservation evidence are not deleted until
+their domain permits final cleanup. Remaining healthy foreign-owner resources never
+become account-erasure targets merely because the departing user once accessed them.
+
+Account delivery preserves its phase on operator rearm. Integrity violations stop
+automatic retry; repair the invariant before rearming through audited Ops. Remaining
+Usage drift is not clamped, reconciled away or erased to force completion.
+
+### Backup and retained-data boundary
+
+The repository does not configure a backup schedule, provider version expiry or legal
+retention period. These require deployment/product policy before launch; no immediate
+backup-destruction guarantee is made. AccountDeletionOperation is the authoritative
+closure/erasure evidence, including after User deletion. A restored database must not
+serve traffic until deletion operations newer than the backup have been recovered from
+the authoritative recovery set, closed subjects remain disabled and erasure is resumed.
+Restoring only an old business backup without current deletion evidence is unsafe and
+must fail the operational release gate. This requires an external backup/recovery process;
+the application cannot reconstruct closure intents absent from every restored source.
+
+FINALIZE drains private histories in domain-owned bounded batches controlled by
+`ACCOUNT_DELETION_RESOURCE_BATCH_SIZE`. Take manifests/reservations are removed only
+after temporary cleanup acknowledgements; Upload request history precedes terminal hold
+erasure. Library organization, membership, recipient Notification, authentication/security,
+practice activity, replay history and zero-account accounting evidence each have explicit
+cleanup owners. Surviving foreign Revision actors/notes/events and render/playback requesters
+are anonymized in bounded updates, preserving their owner's resources. The remaining User
+cascades cover only the fixed-size account/counters/stream/entitlement projections.
+Notification admission locks a live recipient before creating history; a closed or missing
+recipient creates neither private history nor a realtime wake-up. This prevents foreign
+business work from recreating an erased private graph.
+
+Actor/requester anonymization uses guarded SQL updates: the actor must still be the
+closed subject when the write executes. A concurrent surviving-owner edit or new requester
+is preserved. Revision render outbox attribution belongs to Revisions delivery; Playback
+owns playback requester attribution. PostgreSQL tests interleave selection, another user's
+committed note edit and erasure to verify that no new attribution is overwritten.

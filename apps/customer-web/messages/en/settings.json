@@ -105,10 +105,11 @@
   },
   "deletion": {
     "title": "Delete account",
-    "description": "Permanently close your account and remove your owned scores, uploads and recordings. Access ends immediately; background cleanup continues until complete. This cannot be undone.",
+    "description": "Account access ends immediately. Your owned business resources will continue to be erased in the background. This action cannot be undone.",
     "password": "Current password",
     "confirm": "I understand that my account and owned content will be permanently deleted.",
     "submit": "Delete my account",
-    "pending": "Closing account…"
+    "pending": "Closing account…",
+    "retention": "Records retained under applicable policy, backups and storage versions follow their respective retention policies; physical erasure is not immediate."
   }
 }

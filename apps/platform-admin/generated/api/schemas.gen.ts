@@ -46,7 +46,9 @@ export const AsyncOperationKindSchema = {
         'revision_render',
         'playback',
         'mail',
-        'score_deletion'
+        'score_deletion',
+        'account_deletion',
+        'stored_object_retirement'
     ],
     title: 'AsyncOperationKind',
     type: 'string'
@@ -84,6 +86,11 @@ export const AsyncOperationReadSchema = {
             title: 'Attempts',
             type: 'integer'
         },
+        can_retry: {
+            default: false,
+            title: 'Can Retry',
+            type: 'boolean'
+        },
         created_at: {
             anyOf: [
                 {
@@ -95,6 +102,17 @@ export const AsyncOperationReadSchema = {
                 }
             ],
             title: 'Created At'
+        },
+        execution_stage: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Execution Stage'
         },
         failure: {
             anyOf: [
@@ -195,7 +213,8 @@ export const AsyncOperationStatusSchema = {
         'retrying',
         'succeeded',
         'failed',
-        'superseded'
+        'superseded',
+        'cancelled'
     ],
     title: 'AsyncOperationStatus',
     type: 'string'

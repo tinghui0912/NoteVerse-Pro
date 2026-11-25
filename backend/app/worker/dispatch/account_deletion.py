@@ -26,7 +26,7 @@ def dispatch_account_deletion(uuid: str) -> bool:
         span_name="noteverse.account_deletion.dispatch",
         success_event="account_deletion.dispatched",
         failure_event="account_deletion.dispatch_failed",
-        log_context={},
+        log_context={"operation_id": uuid},
         trace_context=DurableTraceContext(None, None),
         release_dispatch=lambda error: _release(uuid, error),
     )

@@ -1,16 +1,41 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 from app.db.models.storage_usage import (
     StorageUsageAccount,
     StorageUsageCategory,
     StorageUsageCounter,
+    StorageUsageEvent,
 )
 
 
 class StorageUsageRepository:
+    def has_nonzero_counters(self, db: Session, user_id: int) -> bool:
+        return (
+            db.scalar(
+                select(StorageUsageCounter.user_id)
+                .where(StorageUsageCounter.user_id == user_id, StorageUsageCounter.used_bytes != 0)
+                .limit(1)
+            )
+            is not None
+        )
+
+    def erase_user_events(self, db: Session, user_id: int, *, limit: int) -> bool:
+        ids = list(
+            db.scalars(
+                select(StorageUsageEvent.id)
+                .where(StorageUsageEvent.user_id == user_id)
+                .order_by(StorageUsageEvent.id)
+                .limit(limit)
+            )
+        )
+        if not ids:
+            return False
+        db.execute(delete(StorageUsageEvent).where(StorageUsageEvent.id.in_(ids)))
+        return True
+
     def account(
         self, db: Session, user_id: int, *, lock: bool = False, skip_locked: bool = False
     ) -> StorageUsageAccount | None:

@@ -31,6 +31,7 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
         db.commit()
     if attempt is None:
         return {"status": "ignored", "retirement_uuid": retirement_uuid}
+    stage = "reference_check"
     try:
         with SessionLocal() as db:
             # A common Store -> operation lock order prevents retention/destruction deadlocks.
@@ -68,6 +69,7 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
             if operation.deletion_fenced_at is None:
                 # Persist irreversibility before external IO. A rolled-back completion must
                 # never make a possibly deleted physical object available for reference reuse.
+                stage = "deletion_fence"
                 operation.deletion_fenced_at = utc_now()
                 db.commit()
                 assert attempt.stored_object_id is not None
@@ -83,7 +85,9 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
                     raise ValueError("Fenced retirement authority changed")
             db.delete(row)
             db.flush()  # RESTRICT is the final barrier before any physical IO.
+            stage = "physical_delete"
             object_storage.delete(operation.object_key)
+            stage = "completion"
             if not lifecycle.complete_attempt(operation, lease=attempt, now=utc_now()):
                 raise ValueError("Retirement completion attempt mismatch")
             db.commit()
@@ -93,6 +97,6 @@ def _execute(retirement_uuid: str) -> dict[str, str]:
             "stored_object_retirement.failed"
         )
         with SessionLocal() as db:
-            retirement_delivery.fail(db, attempt, str(error))
+            retirement_delivery.fail(db, attempt, error, stage=stage)
             db.commit()
         return {"status": "failed", "retirement_uuid": retirement_uuid}

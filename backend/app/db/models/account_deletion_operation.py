@@ -22,6 +22,11 @@ from app.db.durable_delivery import (
     delivery_next_attempt_at_field,
     delivery_optional_timestamp_field,
     failure_detail_field,
+    failure_code_field,
+    failure_stage_field,
+    failure_classification_field,
+    failure_retryable_field,
+    durable_failure_facts_constraint,
 )
 from app.shared.time import utc_now
 
@@ -45,6 +50,7 @@ class AccountDeletionPhase(StrEnum):
 class AccountDeletionOperation(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "account_deletion_operations"
     __table_args__ = (
+        durable_failure_facts_constraint(name="ck_account_deletion_failure_facts"),
         delivery_attempt_count_constraint(name="ck_account_deletion_attempts"),
         delivery_attempt_token_constraint(
             name="ck_account_deletion_attempt_token",
@@ -101,6 +107,10 @@ class AccountDeletionOperation(SQLModel, table=True):  # type: ignore[call-arg]
     dispatched_at: datetime | None = delivery_optional_timestamp_field()
     started_at: datetime | None = delivery_optional_timestamp_field()
     completed_at: datetime | None = delivery_optional_timestamp_field()
+    failure_code: str | None = failure_code_field()
+    failure_stage: str | None = failure_stage_field()
+    failure_classification: str | None = failure_classification_field()
+    failure_retryable: bool | None = failure_retryable_field()
     failure_detail: str | None = failure_detail_field()
     created_at: datetime = Field(
         default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)

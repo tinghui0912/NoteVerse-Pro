@@ -548,7 +548,7 @@ def test_account_erasure_retains_temporary_cleanup_authority(postgres_bundle, fi
         db.rollback()
         assert storage.exists(row.staging_object_key)
         with pytest.raises(RuntimeError, match="lineage"):
-            erase_account_take_history(db, 1)
+            erase_account_take_history(db, 1, limit=1)
         db.rollback()
         with patch(
             "app.modules.performance_takes.upload_reservation.cleanup.utc_now",
@@ -558,6 +558,6 @@ def test_account_erasure_retains_temporary_cleanup_authority(postgres_bundle, fi
                 db, storage, StorageUsageService()
             )
         assert cleanup_account_take(db, 1) == "empty"
-        erase_account_take_history(db, 1)
+        erase_account_take_history(db, 1, limit=1)
         db.commit()
         assert db.scalar(select(PerformanceTakeUploadReservation)) is None

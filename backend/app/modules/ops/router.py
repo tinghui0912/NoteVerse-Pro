@@ -145,6 +145,23 @@ def async_operations_summary(
     return result
 
 
+@router.get(
+    "/async-operations/{kind}/{operation_id}",
+    response_model=AsyncOperationRead,
+    operation_id="opsAsyncOperationGet",
+)
+def get_async_operation(
+    kind: AsyncOperationKind,
+    operation_id: str,
+    _operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.READ)
+    ),
+    db: Session = Depends(get_db, scope="function"),
+    service: OpsAsyncOperationQueryService = Depends(get_ops_async_operation_query_service),
+) -> AsyncOperationRead:
+    return service.get_operation(db, kind=kind, operation_id=operation_id)
+
+
 @router.post(
     "/async-operations/{kind}/{operation_id}/retry",
     response_model=AsyncOperationRead,

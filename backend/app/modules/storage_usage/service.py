@@ -2,6 +2,7 @@
 
 from types import MappingProxyType
 from sqlalchemy.orm import Session
+from app.shared.integrity import ResourceIntegrityError
 from app.db.models.storage_usage import (
     StorageUsageAccount,
     StorageUsageCategory,
@@ -19,6 +20,16 @@ from app.shared.time import utc_now
 
 
 class StorageUsageService:
+    def assert_empty_account(self, db: Session, user_id: int) -> None:
+        if self.committed_bytes(db, user_id, lock=True) or self.repository.has_nonzero_counters(
+            db, user_id
+        ):
+            raise ResourceIntegrityError("Account erasure found unreleased usage accounting")
+
+    def erase_empty_account_history(self, db: Session, user_id: int, *, limit: int) -> bool:
+        self.assert_empty_account(db, user_id)
+        return self.repository.erase_user_events(db, user_id, limit=limit)
+
     def __init__(self, repository: StorageUsageRepository | None = None) -> None:
         self.repository = repository or StorageUsageRepository()
 

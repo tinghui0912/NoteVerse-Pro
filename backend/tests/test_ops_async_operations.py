@@ -1279,3 +1279,258 @@ def revision_render_ids(db, user_id):
     db.flush()
     score.head_revision_id = revision.id
     return dict(score_id=score.id, revision_id=revision.id, requested_by_user_id=user_id)
+
+
+@pytest.mark.parametrize(
+    "kind", [AsyncOperationKind.ACCOUNT_DELETION, AsyncOperationKind.STORED_OBJECT_RETIREMENT]
+)
+def test_erasure_ops_query_summary_and_audited_rearm_preserve_domain_lineage(
+    client, ops_session, kind
+):
+    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.db.models import (
+        AccountDeletionOperation,
+        AccountDeletionPhase,
+        AccountDeletionStatus,
+        StoredObjectRetirement,
+    )
+    from app.modules.durable_work.failure import DurableFailure, set_failure_facts
+
+    if kind == AsyncOperationKind.ACCOUNT_DELETION:
+        row = AccountDeletionOperation(
+            user_id=1,
+            user_id_snapshot=1,
+            phase=AccountDeletionPhase.TAKES,
+            status=AccountDeletionStatus.FAILED,
+        )
+        identity = row.operation_uuid
+    else:
+        row = StoredObjectRetirement(
+            object_key="private/object-key",
+            byte_size=1,
+            sha256="a" * 64,
+            content_type="audio/wav",
+            status=StoredObjectRetirementStatus.FAILED,
+            deletion_fenced_at=utc_now(),
+        )
+        identity = row.retirement_uuid
+    row.attempt_count = 5
+    set_failure_facts(
+        row,
+        DurableFailure("erasure_integrity", "cleanup", DurableFailureClass.PERMANENT, False),
+        detail="Integrity check requires repair.",
+    )
+    ops_session.add(row)
+    ops_session.commit()
+    query = OpsAsyncOperationQueryService()
+    item = query.get_operation(ops_session, kind=kind, operation_id=identity)
+    assert item.status == AsyncOperationStatus.FAILED and item.can_retry
+    assert item.failure.stage == "cleanup" and not item.failure.retryable
+    assert item.resource_id == identity
+    if kind == AsyncOperationKind.ACCOUNT_DELETION:
+        assert item.execution_stage == "takes"
+    assert "private/object-key" not in item.model_dump_json()
+    assert query.summary(ops_session, kind=kind).total == 1
+    _override_ops_dependencies(ops_session, authorized=True)
+    try:
+        detail = client.get(f"/api/v1/ops/async-operations/{kind.value}/{identity}")
+        assert detail.status_code == 200
+        assert detail.json()["operation_id"] == identity
+        assert detail.json()["failure"]["classification"] == "permanent"
+        rejected = client.post(
+            f"/api/v1/ops/async-operations/{kind.value}/{identity}/retry", json={"reason": "   "}
+        )
+        assert rejected.status_code == 422
+        response = client.post(
+            f"/api/v1/ops/async-operations/{kind.value}/{identity}/retry",
+            json={"reason": "Verified underlying integrity repair"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["status"] == "queued"
+        ops_session.refresh(row)
+        assert row.attempt_count == 0 and row.failure_code is None
+        if kind == AsyncOperationKind.ACCOUNT_DELETION:
+            assert row.phase == AccountDeletionPhase.TAKES
+        else:
+            assert row.deletion_fenced_at is not None
+        audit = ops_session.scalars(select(OpsAuditEvent)).one()
+        assert (
+            audit.operation_kind == kind.value
+            and audit.previous_state == "FAILED"
+            and audit.new_state == "queued"
+        )
+        assert audit.reason == "Verified underlying integrity repair"
+    finally:
+        _clear_ops_dependency_overrides()
+
+
+def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_session):
+    from app.db.models import StoredObjectRetirement
+    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.observability.async_operation_metrics import async_operation_metrics_text
+    from app.modules.storage_objects.retirement import retirement_delivery
+    from app.core.exceptions import ValidationException
+
+    row = StoredObjectRetirement(
+        object_key="private",
+        byte_size=1,
+        sha256="b" * 64,
+        content_type="audio/wav",
+        status=StoredObjectRetirementStatus.CANCELLED,
+    )
+    ops_session.add(row)
+    ops_session.commit()
+    query = OpsAsyncOperationQueryService()
+    result = query.list_operations(
+        ops_session,
+        limit=10,
+        kind=AsyncOperationKind.STORED_OBJECT_RETIREMENT,
+        status=AsyncOperationStatus.CANCELLED,
+    )
+    assert len(result.items) == 1 and not result.items[0].can_retry
+    summary = query.summary(ops_session, kind=AsyncOperationKind.STORED_OBJECT_RETIREMENT)
+    assert (
+        next(
+            count.count
+            for count in summary.statuses
+            if count.status == AsyncOperationStatus.CANCELLED
+        )
+        == 1
+    )
+    assert (
+        'noteverse_async_operations_by_status{kind="stored_object_retirement",status="cancelled"} 1'
+        in async_operation_metrics_text(ops_session)
+    )
+    with pytest.raises(ValidationException):
+        retirement_delivery.rearm_for_operator(ops_session, row.retirement_uuid)
+
+
+@pytest.mark.parametrize(
+    "kind", [AsyncOperationKind.ACCOUNT_DELETION, AsyncOperationKind.STORED_OBJECT_RETIREMENT]
+)
+def test_erasure_ops_rejects_live_leases_and_completed_work(ops_session, kind):
+    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.db.models import (
+        AccountDeletionOperation,
+        AccountDeletionStatus,
+        StoredObjectRetirement,
+    )
+    from app.modules.account.deletion_delivery import account_deletion_delivery
+    from app.modules.storage_objects.retirement import retirement_delivery
+    from app.core.exceptions import ValidationException
+
+    if kind == AsyncOperationKind.ACCOUNT_DELETION:
+        row = AccountDeletionOperation(user_id=1, user_id_snapshot=1)
+        owner, identity, completed = (
+            account_deletion_delivery,
+            row.operation_uuid,
+            AccountDeletionStatus.COMPLETED,
+        )
+    else:
+        row = StoredObjectRetirement(
+            object_key="safe", byte_size=1, sha256="c" * 64, content_type="audio/wav"
+        )
+        owner, identity, completed = (
+            retirement_delivery,
+            row.retirement_uuid,
+            StoredObjectRetirementStatus.COMPLETED,
+        )
+    ops_session.add(row)
+    ops_session.commit()
+    lease = owner.claim(ops_session, identity)
+    ops_session.commit()
+    assert lease is not None
+    with pytest.raises(ValidationException):
+        owner.rearm_for_operator(ops_session, identity)
+    assert row.attempt_token == lease.token
+    row.status, row.attempt_token, row.completed_at = completed, None, utc_now()
+    ops_session.commit()
+    with pytest.raises(ValidationException):
+        owner.rearm_for_operator(ops_session, identity)
+
+
+def test_operator_rearm_rolls_back_when_audit_persistence_fails(ops_session):
+    from app.db.models import AccountDeletionOperation, AccountDeletionStatus
+    from app.modules.ops.command_service import OpsAsyncOperationCommandService
+    from app.modules.ops.audit_service import OpsAuditService
+    from app.modules.durable_work.failure import DurableFailure, set_failure_facts
+    from sqlalchemy.exc import IntegrityError
+
+    row = AccountDeletionOperation(
+        user_id=1, user_id_snapshot=1, status=AccountDeletionStatus.FAILED
+    )
+    set_failure_facts(
+        row, DurableFailure("account_failure", "takes", DurableFailureClass.PERMANENT, False)
+    )
+    ops_session.add(row)
+    ops_session.commit()
+    identity = row.operation_uuid
+    OpsAsyncOperationCommandService().retry_operation(
+        ops_session, kind=AsyncOperationKind.ACCOUNT_DELETION, operation_id=identity
+    )
+    with pytest.raises(IntegrityError):
+        OpsAuditService().record_event(
+            ops_session,
+            actor_operator_id=999999,
+            action="retry_async_operation",
+            operation_kind=AsyncOperationKind.ACCOUNT_DELETION,
+            operation_id=identity,
+            outcome="succeeded",
+            reason="Verified repair",
+            previous_state="FAILED",
+            new_state="queued",
+        )
+    ops_session.rollback()
+    ops_session.refresh(row)
+    assert row.status == AccountDeletionStatus.FAILED and row.failure_code == "account_failure"
+    assert ops_session.scalar(select(OpsAuditEvent)) is None
+
+
+def test_erasure_metrics_measure_total_duration_and_keep_stopped_failures_visible(
+    ops_session, monkeypatch
+):
+    from app.db.models import AccountDeletionOperation, AccountDeletionStatus
+    from app.observability import async_operation_metrics as metrics
+    from app.modules.durable_work.failure import DurableFailure, set_failure_facts
+
+    now = utc_now()
+    monkeypatch.setattr(metrics, "utc_now", lambda: now)
+    done = AccountDeletionOperation(
+        user_id_snapshot=90,
+        status=AccountDeletionStatus.COMPLETED,
+        created_at=now - timedelta(hours=2),
+        started_at=now - timedelta(seconds=2),
+        completed_at=now,
+    )
+    stopped = AccountDeletionOperation(
+        user_id_snapshot=91,
+        status=AccountDeletionStatus.FAILED,
+        created_at=now - timedelta(hours=3),
+    )
+    set_failure_facts(
+        stopped, DurableFailure("integrity", "finalize", DurableFailureClass.PERMANENT, False)
+    )
+    ops_session.add_all([done, stopped])
+    ops_session.commit()
+    text = metrics.async_operation_metrics_text(ops_session)
+    assert (
+        'noteverse_async_operation_completed_duration_average_seconds{kind="account_deletion"} 7200'
+        in text
+    )
+    assert (
+        'noteverse_async_operation_oldest_unfinished_age_seconds{kind="account_deletion"} 10800'
+        in text
+    )
+    assert 'noteverse_async_operations_by_status{kind="account_deletion",status="failed"} 1' in text
+
+
+@pytest.mark.parametrize("kind", ["account_deletion", "stored_object_retirement"])
+def test_erasure_details_require_operator_read_authority(client, ops_session, kind):
+    _override_ops_dependencies(ops_session, authorized=False)
+    try:
+        assert (
+            client.get(f"/api/v1/ops/async-operations/{kind}/internal-operation").status_code == 403
+        )
+    finally:
+        _clear_ops_dependency_overrides()
+    assert client.get(f"/api/v1/ops/async-operations/{kind}/internal-operation").status_code == 401

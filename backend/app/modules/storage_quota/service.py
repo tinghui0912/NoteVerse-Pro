@@ -21,6 +21,16 @@ from app.shared.time import utc_now
 
 
 class StorageQuotaService:
+    def release_next_held_for_user(self, db: Session, user_id: int) -> bool:
+        hold = self.repository.first_held_for_user(db, user_id)
+        if hold is None:
+            return False
+        self.release_hold(db, require_persisted_id(hold.id, entity="quota hold"))
+        return True
+
+    def erase_terminal_user_holds(self, db: Session, user_id: int, *, limit: int) -> bool:
+        return self.repository.erase_terminal_user_holds(db, user_id, limit=limit)
+
     def __init__(
         self, usage: StorageUsageReader, repository: StorageQuotaRepository | None = None
     ) -> None:

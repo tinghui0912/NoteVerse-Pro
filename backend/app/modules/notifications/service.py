@@ -19,14 +19,36 @@ from app.shared.time import utc_now
 
 
 class NotificationService:
-    def erase_recipient_history(self, db: Session, user_id: int) -> None:
-        """User erasure removes private history; foreign actor snapshots survive."""
-        db.execute(delete(Notification).where(Notification.recipient_user_id == user_id))
+    def erase_recipient_history(self, db: Session, user_id: int, *, limit: int) -> bool:
+        """Remove one private batch; caller owns transaction and closed-user fence."""
+        ids = list(
+            db.scalars(
+                select(Notification.id)
+                .where(Notification.recipient_user_id == user_id)
+                .order_by(Notification.id)
+                .limit(limit)
+            )
+        )
+        if not ids:
+            return False
+        db.execute(delete(Notification).where(Notification.id.in_(ids)))
+        return True
 
     def __init__(self, repository: NotificationRepository | None = None) -> None:
         self.repository = repository or NotificationRepository()
 
-    def _admit(self, db: Session, notification: Notification) -> Notification:
+    def _admit(self, db: Session, notification: Notification) -> Notification | None:
+        recipient = db.scalar(
+            select(User.id)
+            .where(
+                User.id == notification.recipient_user_id,
+                User.deleted_at.is_(None),
+                User.is_active.is_(True),
+            )
+            .with_for_update(read=True, key_share=True)
+        )
+        if recipient is None:
+            return None
         if notification.dedupe_key is not None:
             notification, created = self.repository.admit_deduplicated(db, notification)
             if not created:
@@ -110,7 +132,7 @@ class NotificationService:
         import_job_id: str,
         import_display_title: str | None,
         created_at: datetime,
-    ) -> Notification:
+    ) -> Notification | None:
         return self._admit(
             db,
             Notification(
@@ -131,7 +153,7 @@ class NotificationService:
         import_job_id: str,
         import_display_title: str | None,
         created_at: datetime,
-    ) -> Notification:
+    ) -> Notification | None:
         return self._admit(
             db,
             Notification(

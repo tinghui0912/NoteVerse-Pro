@@ -1,6 +1,7 @@
 """Account deletion lease and bounded unit transactions, followed by durable continuation."""
 
 from app.db.session import SessionLocal
+from app.core.logger import logger
 from app.modules.account.deletion_delivery import (
     account_deletion_delivery as delivery,
     StaleAccountDeletionAttempt,
@@ -30,7 +31,13 @@ def execute_account_deletion_task(task, operation_uuid: str) -> dict[str, str]:
             return {"status": "ignored"}
         except Exception as error:
             with SessionLocal.begin() as db:
-                delivery.fail(db, lease, str(error))
+                delivery.fail(db, lease, error)
+            logger.bind(
+                operation_kind="account_deletion",
+                operation_id=operation_uuid,
+                attempt=lease.attempt,
+                exception_type=type(error).__name__,
+            ).error("account_deletion.failed")
             raise
         if not completed:
             dispatch_account_deletion_best_effort(operation_uuid)

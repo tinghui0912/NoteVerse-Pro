@@ -64,3 +64,13 @@ exclusive User fence. A busy accounting transaction yields a durable retry check
 missing entitlement/Usage still fails closed. It never waits on an audit writer that
 needs the User FK parent, avoiding a parent/account lock cycle. Take cleanup holds a
 non-active User KEY SHARE only during DB phases and releases it before temporary IO.
+
+Account/retirement failure schema upgrades preserve operation UUIDs, phases, attempts,
+leases and deletion fences. Existing untyped failures become non-automatic review-required
+facts with a safe diagnostic, rather than inferred retries. Downgrade refuses to discard
+structured failure evidence until operators resolve those operations. No task rows are dropped.
+
+Downgrade also refuses when Ops audit records use the account-erasure or retirement
+operation kinds: the prior operator contract cannot represent those records. Schema
+rollback never deletes the audit trail to bypass that guard. Schema changes require
+quiesced application/worker writers under the deployment migration procedure.

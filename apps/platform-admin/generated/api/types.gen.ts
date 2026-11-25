@@ -30,7 +30,7 @@ export type AsyncOperationFailure = {
 /**
  * AsyncOperationKind
  */
-export type AsyncOperationKind = 'import' | 'revision_render' | 'playback' | 'mail' | 'score_deletion';
+export type AsyncOperationKind = 'import' | 'revision_render' | 'playback' | 'mail' | 'score_deletion' | 'account_deletion' | 'stored_object_retirement';
 
 /**
  * AsyncOperationKindSummary
@@ -56,9 +56,17 @@ export type AsyncOperationRead = {
      */
     attempts: number;
     /**
+     * Can Retry
+     */
+    can_retry?: boolean;
+    /**
      * Created At
      */
     created_at: string | null;
+    /**
+     * Execution Stage
+     */
+    execution_stage?: string | null;
     failure?: AsyncOperationFailure | null;
     kind: AsyncOperationKind;
     /**
@@ -95,7 +103,7 @@ export type AsyncOperationRead = {
 /**
  * AsyncOperationStatus
  */
-export type AsyncOperationStatus = 'queued' | 'dispatched' | 'processing' | 'retrying' | 'succeeded' | 'failed' | 'superseded';
+export type AsyncOperationStatus = 'queued' | 'dispatched' | 'processing' | 'retrying' | 'succeeded' | 'failed' | 'superseded' | 'cancelled';
 
 /**
  * AsyncOperationStatusCount
@@ -540,6 +548,41 @@ export type OpsAsyncOperationsSummaryGetResponses = {
 };
 
 export type OpsAsyncOperationsSummaryGetResponse = OpsAsyncOperationsSummaryGetResponses[keyof OpsAsyncOperationsSummaryGetResponses];
+
+export type OpsAsyncOperationGetData = {
+    body?: never;
+    path: {
+        kind: AsyncOperationKind;
+        /**
+         * Operation Id
+         */
+        operation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/ops/async-operations/{kind}/{operation_id}';
+};
+
+export type OpsAsyncOperationGetErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OpsAsyncOperationGetError = OpsAsyncOperationGetErrors[keyof OpsAsyncOperationGetErrors];
+
+export type OpsAsyncOperationGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: AsyncOperationRead;
+};
+
+export type OpsAsyncOperationGetResponse = OpsAsyncOperationGetResponses[keyof OpsAsyncOperationGetResponses];
 
 export type OpsAsyncOperationRetryData = {
     body: RetryAsyncOperationCommand;

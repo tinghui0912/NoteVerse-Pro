@@ -1,6 +1,6 @@
 """Current Score membership commands and collection reads."""
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from app.core.exceptions import (
     ResourceNotFoundException,
@@ -20,9 +20,20 @@ from app.shared.time import utc_now
 
 
 class MembershipService:
-    def erase_user_memberships(self, db: Session, user_id: int) -> None:
-        """Account erasure removes membership without rewriting Invite actor history."""
-        db.execute(delete(ScoreMembership).where(ScoreMembership.user_id == user_id))
+    def erase_user_memberships(self, db: Session, user_id: int, *, limit: int) -> bool:
+        """Remove one private batch; caller owns transaction and closed-user fence."""
+        ids = list(
+            db.scalars(
+                select(ScoreMembership.id)
+                .where(ScoreMembership.user_id == user_id)
+                .order_by(ScoreMembership.id)
+                .limit(limit)
+            )
+        )
+        if not ids:
+            return False
+        db.execute(delete(ScoreMembership).where(ScoreMembership.id.in_(ids)))
+        return True
 
     def __init__(
         self,

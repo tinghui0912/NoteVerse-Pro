@@ -21,7 +21,6 @@ from app.core.config import settings
 from app.core.exceptions import (
     AuthenticationException,
     ExternalServiceException,
-    ResourceNotFoundException,
 )
 from app.db.session import get_session
 from app.db.models.user import User
@@ -105,10 +104,9 @@ def get_current_user(
     user = result.scalars().first()
 
     if not user:
-        raise ResourceNotFoundException(
-            resource_type="user",
-            resource_id=str(token_data.sub),
-            code=CustomerErrorCode.USER_NOT_FOUND,
+        raise AuthenticationException(
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
+            details={"reason": "principal_missing"},
         )
     if not user.is_active or user.deleted_at is not None:
         raise AuthenticationException(

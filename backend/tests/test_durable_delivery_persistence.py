@@ -10,6 +10,7 @@ from sqlmodel import SQLModel
 
 from app.db import durable_delivery
 from app.db.models import (
+    AccountDeletionOperation,
     ImportDispatch,
     ImportJob,
     MailOutbox,
@@ -26,6 +27,7 @@ from app.shared.durable_failure import DurableFailureClass
 from app.shared.time import utc_now
 
 DELIVERIES = (
+    AccountDeletionOperation,
     ImportDispatch,
     ScoreRevisionRenderOutbox,
     PlaybackOutbox,
@@ -36,6 +38,8 @@ DELIVERIES = (
     ObjectWriteIntent,
 )
 STRUCTURED_FAILURES = (
+    AccountDeletionOperation,
+    StoredObjectRetirement,
     ImportJob,
     ImportDispatch,
     ScoreRevisionRenderOutbox,
@@ -43,7 +47,7 @@ STRUCTURED_FAILURES = (
     MailOutbox,
     ScoreDeletionOperation,
 )
-DETAIL_ONLY = (RevisionMetadataOutbox, StoredObjectRetirement, ObjectWriteIntent)
+DETAIL_ONLY = (RevisionMetadataOutbox, ObjectWriteIntent)
 FAILURE_LENGTHS = {"failure_code": 128, "failure_stage": 64, "failure_classification": 32}
 
 
@@ -91,6 +95,7 @@ def test_factories_create_independent_columns_without_registering_a_table():
     importlib.reload(durable_delivery)
     assert set(SQLModel.metadata.tables) == tables
     assert {model.__tablename__ for model in DELIVERIES} == {
+        "account_deletion_operations",
         "import_dispatches",
         "score_revision_render_outbox",
         "playback_outbox",

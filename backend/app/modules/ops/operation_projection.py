@@ -1,6 +1,7 @@
 """Query-time projection of domain-owned durable work; no persisted Ops entity."""
 
-from sqlalchemy import String, cast, case, func, literal, select, union_all
+from sqlalchemy import String, cast, case, func, literal, select, union_all, and_, or_
+from app.shared.time import utc_now
 from app.core.config import settings
 from app.db.models import (
     ImportJob,
@@ -10,6 +11,8 @@ from app.db.models import (
     MailOutbox,
     ScoreDeletionOperation,
     ScoreRevision,
+    AccountDeletionOperation,
+    StoredObjectRetirement,
 )
 from app.modules.ops.operation_filters import AsyncOperationFilters
 from app.modules.ops.schemas import AsyncOperationKind
@@ -20,6 +23,7 @@ def _delivery_status(c, *, succeeded="COMPLETED"):
     return case(
         (status == succeeded, "succeeded"),
         (status == "SUPERSEDED", "superseded"),
+        (status == "CANCELLED", "cancelled"),
         (status == "PROCESSING", "processing"),
         (status == "DISPATCHED", "dispatched"),
         (c.failure_retryable.is_(True), "retrying"),
@@ -32,12 +36,26 @@ def _delivery_projection(
     model, *, kind, identity, resource_type, resource_id, max_attempts, succeeded="COMPLETED"
 ):
     c = model.__table__.c
+    can_retry = and_(c.status.in_(("PENDING", "FAILED")), c.failure_code.is_not(None))
+    if model is MailOutbox:
+        can_retry = and_(
+            can_retry,
+            or_(c.expires_at.is_(None), c.expires_at > utc_now()),
+            c.text_body.is_not(None),
+            c.text_body != "",
+        )
     return select(
+        can_retry.label("can_retry"),
+        (func.lower(c.phase) if model is AccountDeletionOperation else literal(None)).label(
+            "execution_stage"
+        ),
         identity.label("operation_id"),
         literal(kind.value).label("kind"),
         resource_type.label("resource_type"),
         resource_id.label("resource_id"),
-        c.originating_request_id,
+        c.originating_request_id
+        if "originating_request_id" in c
+        else literal(None).label("originating_request_id"),
         _delivery_status(c, succeeded=succeeded).label("status"),
         c.attempt_count.label("attempts"),
         literal(max_attempts).label("max_attempts"),
@@ -67,6 +85,12 @@ def _import_projection():
         return case((terminal_failure, j["failure_" + name]), else_=d["failure_" + name])
 
     return select(
+        and_(
+            j.state.in_(("QUEUED", "FAILED")),
+            d.status.in_(("PENDING", "FAILED", "COMPLETED")),
+            or_(j.state == "FAILED", d.failure_code.is_not(None)),
+        ).label("can_retry"),
+        literal(None).label("execution_stage"),
         d.dispatch_uuid.label("operation_id"),
         literal("import").label("kind"),
         literal("import_job").label("resource_type"),
@@ -130,6 +154,22 @@ def operation_projection():
             resource_type=literal("score_deletion"),
             resource_id=s.score_uuid,
             max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
+        ),
+        _delivery_projection(
+            AccountDeletionOperation,
+            kind=AsyncOperationKind.ACCOUNT_DELETION,
+            identity=AccountDeletionOperation.operation_uuid,
+            resource_type=literal("account_erasure"),
+            resource_id=AccountDeletionOperation.operation_uuid,
+            max_attempts=settings.ACCOUNT_DELETION_MAX_ATTEMPTS,
+        ),
+        _delivery_projection(
+            StoredObjectRetirement,
+            kind=AsyncOperationKind.STORED_OBJECT_RETIREMENT,
+            identity=StoredObjectRetirement.retirement_uuid,
+            resource_type=literal("stored_object"),
+            resource_id=StoredObjectRetirement.retirement_uuid,
+            max_attempts=settings.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS,
         ),
     ).subquery("durable_work")
 

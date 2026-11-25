@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 
 from alembic import command
 from app.db.models import (
+    AccountDeletionOperation,
+    StoredObject,
+    StoredObjectRetirement,
     ImportDispatch,
     ImportJob,
     ImportJobState,
@@ -133,9 +136,25 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
                 subject="Subject",
             )
             deletion = ScoreDeletionOperation(score_uuid="score", owner_user_id=1)
-            db.add_all([dispatch, render, playback, mail, deletion])
+            account = AccountDeletionOperation(user_id=1, user_id_snapshot=1)
+            physical = StoredObject(
+                object_key="failure-evidence",
+                byte_size=1,
+                sha256="b" * 64,
+                content_type="image/png",
+            )
+            db.add(physical)
+            db.flush()
+            retirement = StoredObjectRetirement(
+                stored_object_id=physical.id,
+                object_key=physical.object_key,
+                byte_size=physical.byte_size,
+                sha256=physical.sha256,
+                content_type=physical.content_type,
+            )
+            db.add_all([dispatch, render, playback, mail, deletion, account, retirement])
             db.commit()
-            rows = [job, dispatch, render, playback, mail, deletion]
+            rows = [job, dispatch, render, playback, mail, deletion, account, retirement]
             for row in rows:
                 for values in [
                     {"failure_code": "failure"},
@@ -190,7 +209,7 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
                 db, limit=10, failure_class=DurableFailureClass.SYSTEM_ERROR
             )
             summary = query.summary(db, failure_class=DurableFailureClass.SYSTEM_ERROR)
-            assert len(page.items) == summary.total == 5
+            assert len(page.items) == summary.total == 7
             assert {item.status.value for item in page.items} == {"retrying"}
             assert {item.kind for item in page.items} == set(AsyncOperationKind)
             job.state = ImportJobState.FAILED

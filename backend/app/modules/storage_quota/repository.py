@@ -1,7 +1,7 @@
 """SQL persistence for entitlement and durable capacity hold facts; no commits."""
 
 from datetime import datetime
-from sqlalchemy import select, func, update
+from sqlalchemy import select, func, update, delete
 from sqlalchemy.orm import Session
 from app.db.models.storage_quota import (
     StoragePlanPolicy,
@@ -13,6 +13,34 @@ from app.db.models.storage_usage import StorageUsageCategory
 
 
 class StorageQuotaRepository:
+    def first_held_for_user(self, db: Session, user_id: int) -> StorageQuotaHold | None:
+        return db.scalar(
+            select(StorageQuotaHold)
+            .where(
+                StorageQuotaHold.user_id == user_id,
+                StorageQuotaHold.status == StorageQuotaHoldStatus.HELD,
+            )
+            .order_by(StorageQuotaHold.id)
+            .limit(1)
+        )
+
+    def erase_terminal_user_holds(self, db: Session, user_id: int, *, limit: int) -> bool:
+        ids = list(
+            db.scalars(
+                select(StorageQuotaHold.id)
+                .where(
+                    StorageQuotaHold.user_id == user_id,
+                    StorageQuotaHold.status != StorageQuotaHoldStatus.HELD,
+                )
+                .order_by(StorageQuotaHold.id)
+                .limit(limit)
+            )
+        )
+        if not ids:
+            return False
+        db.execute(delete(StorageQuotaHold).where(StorageQuotaHold.id.in_(ids)))
+        return True
+
     def entitlement(
         self, db: Session, user_id: int, *, lock: bool = False, skip_locked: bool = False
     ) -> UserStorageEntitlement | None:

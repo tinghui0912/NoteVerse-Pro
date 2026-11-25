@@ -1,17 +1,13 @@
 """One bounded erasure unit per caller transaction; business services retain lifecycle authority."""
 
 from datetime import timedelta
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from app.shared.integrity import ResourceIntegrityError
 from app.core.config import settings
 from app.db.models import (
     AccountDeletionPhase as Phase,
     User,
-    Upload,
-    UploadCreationRequest,
-    StorageQuotaHold,
-    StorageQuotaHoldStatus,
-    StorageUsageCounter,
 )
 from app.modules.account.avatar_service import avatar_service
 from app.modules.account.deletion_delivery import (
@@ -26,7 +22,14 @@ from app.modules.performance_takes.account_cleanup import (
     account_take_cleanup_pending,
     erase_account_take_history,
 )
-from app.modules.uploads.service import upload_service
+from app.modules.uploads.account_cleanup import (
+    cleanup_account_upload,
+    has_account_uploads,
+    erase_account_upload_history,
+)
+from app.modules.scores.lifecycle_service import has_account_scores
+from app.modules.import_jobs.deletion_service import has_account_imports
+from app.modules.performance_takes.account_cleanup import has_account_takes
 from app.composition.storage_resources import storage_quota_service
 from app.modules.storage_usage.service import storage_usage_service
 from app.modules.storage_inventory.contracts import StorageInventoryReader
@@ -41,7 +44,9 @@ class AccountDeletionExecutor:
         operation = delivery.require(db, lease)
         user_id = operation.user_id_snapshot
         if db.scalar(select(User.deleted_at).where(User.id == user_id)) is None:
-            raise RuntimeError("Account cleanup requires its tombstoned User lifecycle authority")
+            raise ResourceIntegrityError(
+                "Account cleanup requires its tombstoned User lifecycle authority"
+            )
         if operation.phase == Phase.SCORES:
             result = score_lifecycle_service.cleanup_for_account(db, user_id)
             if result == "empty":
@@ -59,20 +64,8 @@ class AccountDeletionExecutor:
             if result == "empty":
                 operation.phase = Phase.UPLOADS
         elif operation.phase == Phase.UPLOADS:
-            storage_usage_service.committed_bytes(db, user_id, lock=True)
-            upload = db.scalar(
-                select(Upload)
-                .where(Upload.uploader_user_id == user_id)
-                .order_by(Upload.id)
-                .limit(1)
-            )
-            if upload is None:
+            if not cleanup_account_upload(db, user_id):
                 operation.phase = Phase.FINALIZE
-            else:
-                user = db.get(User, user_id)
-                if user is None:
-                    raise RuntimeError("Account disappeared before resource cleanup")
-                upload_service.delete_upload(db, user, upload.upload_uuid)
             result = "progress"
         else:
             result = self._finalize(db, user_id)
@@ -96,54 +89,58 @@ class AccountDeletionExecutor:
     def _finalize(self, db: Session, user_id: int) -> str:
         user = AccountDeletionRepository().lock_user(db, user_id, erasure=True)
         if user is None or user.deleted_at is None:
-            raise RuntimeError("Erasure requires its tombstoned User")
+            raise ResourceIntegrityError("Erasure requires its tombstoned User")
         # No pre-admitted writer can cross the exclusive User lock. A writer
         # admitted before the tombstone may have added a graph after a phase scan.
-        from app.db.models import Score, ImportJob, PerformanceTake
-
-        for model, owner in (
-            (Score, Score.owner_user_id),
-            (ImportJob, ImportJob.user_id),
-            (PerformanceTake, PerformanceTake.owner_user_id),
-            (Upload, Upload.uploader_user_id),
+        if any(
+            check(db, user_id)
+            for check in (
+                has_account_scores,
+                has_account_imports,
+                has_account_takes,
+                has_account_uploads,
+            )
         ):
-            if db.scalar(select(model.id).where(owner == user_id).limit(1)) is not None:
-                return "restart"
+            return "restart"
         if account_take_cleanup_pending(db, user_id):
             return "restart"
         if not storage_quota_service.try_lock_user(db, user_id):
             return "busy"
         storage_quota_service.lock_user(db, user_id)
-        hold = db.scalar(
-            select(StorageQuotaHold)
-            .where(
-                StorageQuotaHold.user_id == user_id,
-                StorageQuotaHold.status == StorageQuotaHoldStatus.HELD,
-            )
-            .order_by(StorageQuotaHold.id)
-            .limit(1)
-        )
-        if hold is not None:
-            storage_quota_service.release_hold(db, hold.id)
+        if storage_quota_service.release_next_held_for_user(db, user_id):
             return "progress"
-        erase_account_take_history(db, user_id)
+        limit = settings.ACCOUNT_DELETION_RESOURCE_BATCH_SIZE
+        if erase_account_take_history(db, user_id, limit=limit):
+            return "progress"
         if any(self.inventory.snapshot_user(db, user_id).used_bytes.values()):
-            raise RuntimeError("Account erasure found live semantic storage inventory")
-        if storage_usage_service.committed_bytes(db, user_id, lock=True) or db.scalar(
-            select(StorageUsageCounter.user_id)
-            .where(StorageUsageCounter.user_id == user_id, StorageUsageCounter.used_bytes != 0)
-            .limit(1)
-        ):
-            raise RuntimeError("Account erasure found unreleased usage accounting")
+            raise ResourceIntegrityError("Account erasure found live semantic storage inventory")
+        storage_usage_service.assert_empty_account(db, user_id)
         from app.modules.library.service import LibraryService
         from app.modules.collaboration.membership_service import MembershipService
         from app.modules.notifications.service import NotificationService
 
-        LibraryService().erase_user_state(db, user_id)
-        MembershipService().erase_user_memberships(db, user_id)
-        NotificationService().erase_recipient_history(db, user_id)
-        db.execute(delete(UploadCreationRequest).where(UploadCreationRequest.user_id == user_id))
+        from app.modules.auth.account_cleanup import erase_authentication_history
+        from app.modules.revisions.account_cleanup import erase_revision_actor_links
+        from app.modules.playback.account_cleanup import erase_playback_requester_links
+        from app.modules.realtime.account_cleanup import erase_recipient_replay
+        from app.modules.practice.activities.account_cleanup import erase_account_activities
+
+        if (
+            erase_account_upload_history(db, user_id, limit=limit)
+            or LibraryService().erase_user_state(db, user_id, limit=limit)
+            or MembershipService().erase_user_memberships(db, user_id, limit=limit)
+            or NotificationService().erase_recipient_history(db, user_id, limit=limit)
+            or erase_revision_actor_links(db, user_id, limit=limit)
+            or erase_playback_requester_links(db, user_id, limit=limit)
+            or erase_authentication_history(db, user_id, limit=limit)
+            or AccountDeletionRepository().erase_security_history(db, user_id, limit=limit)
+            or erase_account_activities(db, user_id, limit=limit)
+            or erase_recipient_replay(db, user_id, limit=limit)
+            or storage_usage_service.erase_empty_account_history(db, user_id, limit=limit)
+            or storage_quota_service.erase_terminal_user_holds(db, user_id, limit=limit)
+        ):
+            return "progress"
         avatar_service.clear_user_avatar(db, user)
         db.flush()
-        db.execute(delete(User).where(User.id == user_id))
+        AccountDeletionRepository().erase_closed_identity(db, user)
         return "completed"

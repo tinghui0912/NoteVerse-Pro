@@ -1,5 +1,5 @@
 from __future__ import annotations
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 import sqlite3
@@ -29,12 +29,35 @@ from app.shared.error_codes import CustomerErrorCode
 
 
 class LibraryService:
-    def erase_user_state(self, db: Session, user_id: int) -> None:
-        """Erase private organization after Account has removed owned graphs."""
-        db.execute(
-            delete(ScoreLibraryOrganization).where(ScoreLibraryOrganization.user_id == user_id)
+    def erase_user_state(self, db: Session, user_id: int, *, limit: int) -> bool:
+        """Remove a bounded organization/folder batch without touching foreign Scores."""
+        organization_ids = list(
+            db.scalars(
+                select(ScoreLibraryOrganization.id)
+                .where(ScoreLibraryOrganization.user_id == user_id)
+                .order_by(ScoreLibraryOrganization.id)
+                .limit(limit)
+            )
         )
-        db.execute(delete(ScoreLibraryFolder).where(ScoreLibraryFolder.user_id == user_id))
+        if organization_ids:
+            db.execute(
+                delete(ScoreLibraryOrganization).where(
+                    ScoreLibraryOrganization.id.in_(organization_ids)
+                )
+            )
+            return True
+        folder_ids = list(
+            db.scalars(
+                select(ScoreLibraryFolder.id)
+                .where(ScoreLibraryFolder.user_id == user_id)
+                .order_by(ScoreLibraryFolder.id)
+                .limit(limit)
+            )
+        )
+        if folder_ids:
+            db.execute(delete(ScoreLibraryFolder).where(ScoreLibraryFolder.id.in_(folder_ids)))
+            return True
+        return False
 
     def __init__(
         self,

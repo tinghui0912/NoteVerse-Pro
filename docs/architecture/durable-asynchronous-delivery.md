@@ -92,9 +92,11 @@ Domain responsibilities remain explicit:
 | Mail                    | Expiry, EXPIRED/PERMANENT_FAILURE decisions, body availability and scrubbing, recipients, provider message identity and explicit mail failure facts; success is SENT |
 | Import                  | Job admission/exhaustion, upload availability, Dispatch-before-Job lock order, execution payload and transactional terminal notification/realtime consequences |
 | Score deletion          | Score graph cleanup, resource/operation identity and lock order |
+| Account erasure         | Closure intent, saved phases and bounded domain cleanup; physical retirement remains independent |
 | StoredObject retirement | Repo-wide reference checks, exact physical snapshots, CANCELLED when ownership exists, attempt-token fencing and physical deletion; success is COMPLETED  |
 
-Services own SQL predicates, row locks, maintenance ordering/batches and transactions.
+Domains own SQL predicates, row locks and maintenance ordering/batches. Application
+or execution boundaries own transactions and explicit durable-delivery phases.
 They supply immutable `DurableFailure(code, stage, classification, retryable)` facts
 and use `set_failure_facts()` / `clear_failure_facts()` after shared transitions.
 `app/shared/durable_failure.py` owns the shared `DurableFailureClass` vocabulary.
@@ -134,7 +136,8 @@ Structured failure field factories and the all-null/all-present predicate serve
 ImportJob, ImportDispatch, ScoreRevisionRenderOutbox, PlaybackOutbox, MailOutbox and
 ScoreDeletionOperation. The predicate derives accepted classifications directly
 from the same `app/shared/durable_failure.py` vocabulary, without a DB dependency
-on application modules. RevisionMetadataOutbox, StoredObjectRetirement and
+on application modules. AccountDeletionOperation and StoredObjectRetirement use the
+same structured facts and all-or-none constraint. RevisionMetadataOutbox and
 ObjectWriteIntent persist diagnostic detail without structured failure facts.
 ImportJob retains its domain state/failure coupling and lifecycle checks.
 `DurableDeliveryLifecycle` remains table-free, IO-free and ORM-free;
@@ -143,9 +146,10 @@ ImportJob retains its domain state/failure coupling and lifecycle checks.
 Broker publication uses the single
 `app.task_queue.producer.send_durable_task` mechanical authority.
 
-Ops reads five kinds: import, render, playback, mail and score_deletion. Its canonical
+Ops reads import, render, playback, mail, score_deletion, account_deletion and
+stored_object_retirement. Its canonical
 query-time UNION ALL projection normalizes queued, dispatched, processing, retrying,
-succeeded, failed and superseded. Automatic retry facts determine retrying regardless
+succeeded, failed, superseded and cancelled. Automatic retry facts determine retrying regardless
 of due time. Terminal ImportJob failure supplies domain facts; active delivery uses
 ImportDispatch facts. ImportJob.failure_detail holds bounded operator-only
 exception evidence. Customer Import responses expose only an explicit product-code
@@ -154,12 +158,13 @@ projection as `public_code`; unknown causes have no invented public code.
 List filtering, stable ordering and pagination happen in SQL after this projection.
 Summary groups the same projection, and generic open/processing/completed-duration
 metrics use its status policy. Open work is queued/dispatched/processing/retrying;
-superseded is terminal and contributes neither backlog nor successful duration.
+superseded and cancelled are terminal and contribute neither backlog nor successful duration.
 The operator response exposes failure={code,stage,classification,retryable,detail}
 or null, and accepts failure_class as its classification filter.
 
-Ops delegates manual rearm to each domain owner, commits, and reads that same projection.
-Healthy queued, dispatched, processing, succeeded and superseded work reject rearm.
+Ops delegates manual rearm to each domain owner and reads that same projection.
+The Ops audit commit atomically persists the accepted rearm and its audit event.
+Healthy queued, dispatched, processing, succeeded, cancelled and superseded work reject rearm.
 Failed Render, Playback and Score deletion can be manually rearmed after exhaustion;
 permanent/expired Mail cannot. Import rearm takes Dispatch then Job locks and resets
 execution steps under those locks. Audit remains owned by the Ops route. Domain-owned
@@ -180,3 +185,11 @@ max attempts, retry base, dispatch timeout and processing timeout. Defaults are
 5 seconds, 50 rows, 5 attempts, 60 seconds, 300 seconds and 300 seconds respectively.
 Beat and delivery read the composed runtime Settings. The lifecycle policy uses
 explicit keyword arguments; processing timeout is separate from retry ceiling.
+
+Account erasure and physical retirement persist safe fixed diagnostic summaries, never
+raw exception strings containing user data or object keys. Domain failure facts distinguish
+dispatch, expired leases, execution, integrity and attempt exhaustion. Permanent integrity
+failures stop automatic retry. Ops exposes `can_retry` from domain eligibility; execution
+revalidates that eligibility under a row lock. Account rearm preserves its phase;
+Retirement rearm preserves its deletion fence. Active leases, success and cancellation
+cannot be manually reset. Automatic retryability and operator eligibility are different facts.
