@@ -22,6 +22,10 @@ accepted current decisions and their rationale.
 - [Storage Usage](storage-usage.md)
 - [Storage Quota](storage-quota.md)
 
+## RFCs Awaiting Architecture Review
+
+- [Asset Infrastructure Re-foundation RFC](asset-infrastructure-rfc.md): investigated baseline and proposed design; not an approved runtime contract
+
 ## Score
 
 - [Written Score Semantics](score-semantics.md)
