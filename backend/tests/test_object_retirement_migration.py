@@ -81,7 +81,7 @@ def test_downgrade_requires_unfinished_runtime_fence_to_complete(monkeypatch):
         with sessions() as db:
             assert (
                 db.scalar(text("SELECT version_num FROM alembic_version"))
-                == "0007_mail_source_lifecycle"
+                == "0008_collaboration_closure"
             )
             assert db.scalar(select(StoredObjectRetirement)).deletion_fenced_at == fence
             assert db.get(StoredObject, identity) is not None

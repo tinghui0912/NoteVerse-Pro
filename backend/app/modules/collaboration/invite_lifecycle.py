@@ -16,6 +16,8 @@ class InviteStatus(str, Enum):
     ACCEPTED = "ACCEPTED"
     DECLINED = "DECLINED"
     REVOKED = "REVOKED"
+    RECIPIENT_ACCOUNT_CLOSED = "RECIPIENT_ACCOUNT_CLOSED"
+    INVITER_ACCOUNT_CLOSED = "INVITER_ACCOUNT_CLOSED"
     EXPIRED = "EXPIRED"
 
 
@@ -30,12 +32,16 @@ def effective_invite_status(invite: ScoreInvite, *, now: datetime) -> InviteStat
 def require_pending_invite(invite: ScoreInvite, *, field: str, now: datetime) -> None:
     status = effective_invite_status(invite, now=now)
     if status == InviteStatus.PENDING:
+        if invite.email is None or invite.token_hash is None or invite.created_by_user_id is None:
+            raise ValidationException(CustomerErrorCode.INVITE_INVITER_ACCOUNT_CLOSED, field=field)
         return
     code = {
         InviteStatus.EXPIRED: CustomerErrorCode.INVITE_EXPIRED,
         InviteStatus.REVOKED: CustomerErrorCode.INVITE_REVOKED,
         InviteStatus.ACCEPTED: CustomerErrorCode.INVITE_ALREADY_ACCEPTED,
         InviteStatus.DECLINED: CustomerErrorCode.INVITE_DECLINED,
+        InviteStatus.RECIPIENT_ACCOUNT_CLOSED: CustomerErrorCode.INVITE_RECIPIENT_ACCOUNT_CLOSED,
+        InviteStatus.INVITER_ACCOUNT_CLOSED: CustomerErrorCode.INVITE_INVITER_ACCOUNT_CLOSED,
     }[status]
     raise ValidationException(code, field=field)
 
@@ -52,7 +58,9 @@ def generate_invite_token() -> str:
 
 
 def can_user_accept_invite(invite: ScoreInvite, user: User | None, *, now: datetime) -> bool:
-    if user is None:
+    if user is None or not user.is_active or user.deleted_at is not None:
+        return False
+    if invite.email is None or invite.token_hash is None or invite.created_by_user_id is None:
         return False
     if effective_invite_status(invite, now=now) != InviteStatus.PENDING:
         return False

@@ -55,7 +55,7 @@ def test_failure_upgrade_preserves_pending_and_failed_operations_and_guards_down
             assert db.scalar(sa.text("SELECT count(*) FROM stored_object_retirements")) == 2
             assert (
                 db.scalar(sa.text("SELECT version_num FROM alembic_version"))
-                == "0007_mail_source_lifecycle"
+                == "0008_collaboration_closure"
             )
         with engine.begin() as db:
             for table in ("account_deletion_operations", "stored_object_retirements"):
@@ -93,7 +93,7 @@ def test_downgrade_preserves_operator_audit_for_erasure_kinds(monkeypatch):
             assert db.scalar(sa.text("SELECT count(*) FROM ops_audit_events")) == 1
             assert (
                 db.scalar(sa.text("SELECT version_num FROM alembic_version"))
-                == "0007_mail_source_lifecycle"
+                == "0008_collaboration_closure"
             )
             assert "failure_code" in {
                 column["name"]

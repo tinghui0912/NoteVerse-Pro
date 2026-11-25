@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, exists
 from sqlalchemy.orm import Session
 
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
@@ -37,6 +37,23 @@ class CollaborationRepository:
                 populate_existing=True, autoflush=False
             )
         return db.scalar(query)
+
+    def active_creator(self, db: Session, user_id: int | None) -> User | None:
+        if user_id is None:
+            return None
+        return db.scalar(
+            select(User)
+            .where(User.id == user_id, User.is_active.is_(True), User.deleted_at.is_(None))
+            .with_for_update(read=True, key_share=True)
+            .execution_options(populate_existing=True)
+        )
+
+    def lock_invite_recipient(self, db: Session, email: str) -> None:
+        # A pre-closure invite creator retains the recipient until finalization can
+        # observe its commit. This lock is compatible with request tombstoning.
+        db.scalar(
+            select(User.id).where(User.email == email).with_for_update(read=True, key_share=True)
+        )
 
     def invite_by_token_hash(
         self, db: Session, token_hash: str, *, lock: bool = False
@@ -117,6 +134,14 @@ class CollaborationRepository:
                 active_score_predicate(),
                 columns.email == email,
                 columns.terminal_outcome.is_(None),
+                columns.token_hash.is_not(None),
+                exists(
+                    select(User.id).where(
+                        User.id == columns.created_by_user_id,
+                        User.is_active.is_(True),
+                        User.deleted_at.is_(None),
+                    )
+                ).correlate(ScoreInvite),
                 or_(columns.expires_at.is_(None), columns.expires_at > now),
             )
         )

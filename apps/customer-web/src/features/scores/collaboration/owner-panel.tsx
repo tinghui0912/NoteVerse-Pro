@@ -233,7 +233,10 @@ export function ScoreCollaborationPanel({
                     return (
                       <div key={invite.invite_id} className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_120px_auto] sm:items-center">
                         <div className="min-w-0">
-                          <p className="truncate font-medium">{invite.email}</p>
+                          <p className="truncate font-medium">{invite.email ?? t('anonymizedRecipient')}</p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {t('invitationCreator', { name: invite.created_by?.display_name || invite.created_by?.email || t('closedInviter') })}
+                          </p>
                           <p className="truncate text-sm text-muted-foreground">
                             {t(`status.${invite.status.toLowerCase()}`)} · {t(membershipRoleTranslationKey[invite.role])}
                             {invite.expires_at ? ` · ${formatApiDateTime(invite.expires_at, locale)}` : ''}

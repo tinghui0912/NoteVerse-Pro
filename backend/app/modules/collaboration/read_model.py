@@ -25,7 +25,7 @@ class CollaborationReadModel:
 
     @staticmethod
     def actor_read(user: User | None) -> InviteActorRead | None:
-        if user is None:
+        if user is None or not user.is_active or user.deleted_at is not None:
             return None
         return InviteActorRead(
             display_name=user.display_name, email=user.email, avatar_url=avatar_url_for_user(user)
@@ -39,7 +39,9 @@ class CollaborationReadModel:
         )
 
     def invites(self, db: Session, invites: Sequence[ScoreInvite]) -> list[InviteRead]:
-        user_ids = {row.created_by_user_id for row in invites} | {
+        user_ids = {
+            row.created_by_user_id for row in invites if row.created_by_user_id is not None
+        } | {
             row.terminal_actor_user_id for row in invites if row.terminal_actor_user_id is not None
         }
         users = self.repository.users(db, user_ids)
@@ -53,7 +55,9 @@ class CollaborationReadModel:
                 expires_at=row.expires_at,
                 terminal_at=row.terminal_at,
                 created_at=row.created_at,
-                created_by=self.actor_read(users.get(row.created_by_user_id)),
+                created_by=self.actor_read(users.get(row.created_by_user_id))
+                if row.created_by_user_id is not None
+                else None,
                 terminal_actor=self.actor_read(users.get(row.terminal_actor_user_id))
                 if row.terminal_actor_user_id is not None
                 else None,
@@ -68,19 +72,25 @@ class CollaborationReadModel:
         self, db: Session, invites: Sequence[ScoreInvite]
     ) -> list[PendingInviteRead]:
         scores = self.repository.scores(db, {row.score_id for row in invites})
-        users = self.repository.users(db, {row.created_by_user_id for row in invites})
+        users = self.repository.users(
+            db, {row.created_by_user_id for row in invites if row.created_by_user_id is not None}
+        )
         now = utc_now()
         result = []
         for row in invites:
             score = scores.get(row.score_id)
             if score is None:
                 raise ResourceNotFoundException("score", code=CustomerErrorCode.SCORE_NOT_FOUND)
+            if row.email is None:
+                raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
             result.append(
                 PendingInviteRead(
                     invite_id=row.invite_uuid,
                     score_id=score.score_uuid,
                     score_display_title=score.display_title,
-                    inviter=self.actor_read(users.get(row.created_by_user_id)),
+                    inviter=self.actor_read(users.get(row.created_by_user_id))
+                    if row.created_by_user_id is not None
+                    else None,
                     email=row.email,
                     role=row.role,
                     status=effective_invite_status(row, now=now),

@@ -17,6 +17,7 @@ from app.db.model_utils import require_persisted_id
 from app.composition.storage_resources import provision_storage_resources
 from app.modules.auth.schemas import RegisterRequest, VerifyEmailRequest
 from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
+from app.modules.account.email_identity import lock_email_identity
 from app.db.models.mail_outbox import MailSourceKind
 from app.modules.mail.templates.auth import build_email_verification_email
 from app.shared.error_codes import CustomerErrorCode
@@ -45,6 +46,7 @@ class EmailVerificationService:
         ip_address: str | None = None,
     ) -> None:
         email = str(request.email).strip().lower()
+        lock_email_identity(db, email)
         result = db.execute(select(User).where(User.email == email))
         if result.scalars().one_or_none():
             raise ResourceAlreadyExistsException(
@@ -114,15 +116,28 @@ class EmailVerificationService:
     def verify_email(self, db: Session, request: VerifyEmailRequest) -> User:
         now = utc_now()
         result = db.execute(
-            select(PendingRegistration)
-            .where(PendingRegistration.token_hash == self._hash_token(request.token))
-            .with_for_update()
-            .execution_options(populate_existing=True)
+            select(PendingRegistration).where(
+                PendingRegistration.token_hash == self._hash_token(request.token)
+            )
         )
         pending = result.scalars().one_or_none()
         if not pending or pending.consumed_at is not None or pending.expires_at <= now:
             raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
+        lock_email_identity(db, pending.email)
+        pending = (
+            db.execute(
+                select(PendingRegistration)
+                .where(PendingRegistration.token_hash == self._hash_token(request.token))
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+            .scalars()
+            .one_or_none()
+        )
+        now = utc_now()
+        if pending is None or pending.consumed_at is not None or pending.expires_at <= now:
+            raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
         existing_result = db.execute(select(User).where(User.email == pending.email))
         if existing_result.scalars().one_or_none():
             raise ResourceAlreadyExistsException(

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.modules.account.email_identity import lock_email_identity
 from app.core.exceptions import (
     ResourceNotFoundException,
     UnauthorizedException,
@@ -66,6 +68,7 @@ class InvitationService:
         user_id: int,
         request: InviteCreateRequest,
     ) -> InviteCreatedRead:
+        lock_email_identity(db, str(request.email))
         access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id, lock_score=True
         )
@@ -74,6 +77,19 @@ class InvitationService:
             raise ResourceNotFoundException("user", code=CustomerErrorCode.USER_NOT_FOUND)
         if request.email == owner.email.lower():
             raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="email")
+        self.repository.lock_invite_recipient(db, str(request.email))
+        now = utc_now()
+        expires_at = (
+            require_utc(request.expires_at)
+            if request.expires_at is not None
+            else now + timedelta(days=settings.SCORE_INVITE_TTL_DAYS)
+        )
+        if expires_at <= now:
+            raise ValidationException(
+                CustomerErrorCode.VALIDATION_ERROR,
+                field="expires_at",
+                details={"reason": "invite_expiry_must_be_future"},
+            )
         invite_uuid = str(uuid.uuid4())
         token = generate_invite_token()
         invite = ScoreInvite(
@@ -83,8 +99,8 @@ class InvitationService:
             email=request.email,
             role=request.role,
             created_by_user_id=user_id,
-            created_at=utc_now(),
-            expires_at=require_utc(request.expires_at) if request.expires_at is not None else None,
+            created_at=now,
+            expires_at=expires_at,
         )
         db.add(invite)
         db.flush()
@@ -138,6 +154,9 @@ class InvitationService:
         from app.modules.account.resource_admission import lock_active_resource_user
 
         user = lock_active_resource_user(db, user_id) if user_id is not None else None
+        self._require_active_creator(db, invite)
+        if invite.email is None or invite.token_hash is None:
+            raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
         now = utc_now()
         can_accept = can_user_accept_invite(invite, user, now=now) and (
             user is None or score.owner_user_id != user.id
@@ -300,7 +319,14 @@ class InvitationService:
         if invite is None or invite.score_id != score_id:
             raise ResourceNotFoundException("invite", code=CustomerErrorCode.INVITE_NOT_FOUND)
         require_pending_invite(invite, field="invite_id", now=utc_now())
+        self._require_active_creator(db, invite)
         return score, invite
+
+    def _require_active_creator(self, db: Session, invite: ScoreInvite) -> None:
+        if self.repository.active_creator(db, invite.created_by_user_id) is None:
+            raise ValidationException(
+                CustomerErrorCode.INVITE_INVITER_ACCOUNT_CLOSED, field="invite_id"
+            )
 
     def _ensure_invite_target_user(self, db: Session, invite: ScoreInvite, user_id: int) -> User:
         from app.modules.account.resource_admission import lock_active_resource_user
@@ -324,6 +350,8 @@ class InvitationService:
     ) -> None:
         if invite.terminal_at is None:
             raise ValueError("Invite response requires a terminal timestamp")
+        if invite.created_by_user_id is None:
+            return
         self.notification_service.admit_score_invite_response(
             db,
             recipient_user_id=invite.created_by_user_id,
@@ -343,6 +371,8 @@ class InvitationService:
         token: str,
         locale: str,
     ) -> None:
+        if invite.email is None:
+            raise ValueError("Invitation delivery requires a recipient")
         inviter = self.read_model.actor(db, invite.created_by_user_id)
         inviter_name = (
             inviter.display_name

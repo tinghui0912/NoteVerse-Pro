@@ -16,6 +16,7 @@ from app.db.models import (
     StorageUsageAccount,
     StoredObjectRetirement,
 )
+from app.db.models.score_access import InviteTerminalOutcome
 from app.modules.account.deletion_service import AccountDeletionService
 from app.modules.account.deletion_delivery import account_deletion_delivery as delivery
 from app.composition.account_deletion import AccountDeletionExecutor
@@ -139,7 +140,10 @@ def test_account_tombstone_cuts_guest_and_invite_authorities_before_graph_cleanu
     request(account_database)
     with Session(account_database) as db:
         assert db.get(Score, 70).deleted_at is None
-        assert db.scalar(select(ScoreInvite)).terminal_outcome is None
+        assert (
+            db.scalar(select(ScoreInvite)).terminal_outcome
+            == InviteTerminalOutcome.INVITER_ACCOUNT_CLOSED
+        )
         with pytest.raises(ResourceNotFoundException):
             guests.read(db, credential.token)
         with pytest.raises(ResourceNotFoundException):
@@ -233,7 +237,7 @@ def test_session_revocation_and_foreign_actor_history_survive_correctly(account_
     with Session(account_database) as db:
         assert db.get(User, 1) is None
         assert db.scalar(select(RefreshToken)) is None
-        assert db.scalar(select(ScoreInvite)).terminal_actor_user_id == 1
+        assert db.scalar(select(ScoreInvite)).terminal_actor_user_id is None
         assert db.scalar(select(Notification)).actor_user_id == 1
         assert db.scalar(select(Score)).owner_user_id == 2
 

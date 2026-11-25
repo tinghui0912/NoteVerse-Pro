@@ -58,7 +58,11 @@ def test_collaboration_http_representations_describe_email_targets_and_current_m
     schema = app.openapi()
     components = schema["components"]["schemas"]
     for name in ("InviteRead", "InviteCreatedRead", "PendingInviteRead", "InviteAccessRead"):
-        assert components[name]["properties"]["email"]["type"] == "string"
+        email = components[name]["properties"]["email"]
+        if name in {"InviteRead", "InviteCreatedRead"}:
+            assert email["anyOf"] == [{"type": "string"}, {"type": "null"}]
+        else:
+            assert email["type"] == "string"
         assert "email" in components[name]["required"]
     assert set(components["MemberRead"]["properties"]) == {
         "membership_id",

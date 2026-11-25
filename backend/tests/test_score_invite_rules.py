@@ -24,16 +24,27 @@ NOW = datetime(2026, 8, 11, 8, tzinfo=UTC)
 
 
 def invite(*, outcome=None, expires_at=None):
+    closed = outcome in {
+        InviteTerminalOutcome.RECIPIENT_ACCOUNT_CLOSED,
+        InviteTerminalOutcome.INVITER_ACCOUNT_CLOSED,
+    }
     return ScoreInvite(
         score_id=1,
         invite_uuid="invite-1",
-        token_hash="hash",
-        email="target@example.com",
+        token_hash=None if closed else "hash",
+        email=None if closed else "target@example.com",
         role=MembershipRole.EDITOR,
-        created_by_user_id=2,
+        created_by_user_id=None if outcome == InviteTerminalOutcome.INVITER_ACCOUNT_CLOSED else 2,
         terminal_outcome=outcome,
         terminal_at=NOW if outcome else None,
-        terminal_actor_user_id=2 if outcome else None,
+        terminal_actor_user_id=2
+        if outcome
+        in {
+            InviteTerminalOutcome.ACCEPTED,
+            InviteTerminalOutcome.DECLINED,
+            InviteTerminalOutcome.REVOKED,
+        }
+        else None,
         expires_at=expires_at,
     )
 

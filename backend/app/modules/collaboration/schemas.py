@@ -35,7 +35,7 @@ class InviteCreateRequest(BaseModel):
 
 class InviteRead(ApiModel):
     invite_id: str
-    email: str
+    email: str | None
     role: MembershipRole
     status: InviteStatus
     expires_at: Instant | None

@@ -15,6 +15,7 @@ from app.modules.account.deletion_delivery import (
     account_deletion_delivery as delivery,
 )
 from app.modules.account.deletion_repository import AccountDeletionRepository
+from app.modules.account.email_identity import try_lock_email_identity
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.scores.lifecycle_service import score_lifecycle_service
 from app.modules.performance_takes.account_cleanup import (
@@ -90,6 +91,8 @@ class AccountDeletionExecutor:
         user = AccountDeletionRepository().lock_user(db, user_id, erasure=True)
         if user is None or user.deleted_at is None:
             raise ResourceIntegrityError("Erasure requires its tombstoned User")
+        if not try_lock_email_identity(db, user.email):
+            return "busy"
         # No pre-admitted writer can cross the exclusive User lock. A writer
         # admitted before the tombstone may have added a graph after a phase scan.
         if any(
@@ -110,6 +113,12 @@ class AccountDeletionExecutor:
         if storage_quota_service.release_next_held_for_user(db, user_id):
             return "progress"
         limit = settings.ACCOUNT_DELETION_RESOURCE_BATCH_SIZE
+        from app.modules.collaboration.mail_lifecycle import close_account_collaboration_data
+
+        if close_account_collaboration_data(
+            db, user_id=user_id, email=user.email, closed_at=user.deleted_at, limit=limit
+        ):
+            return "progress"
         if erase_account_take_history(db, user_id, limit=limit):
             return "progress"
         if any(self.inventory.snapshot_user(db, user_id).used_bytes.values()):

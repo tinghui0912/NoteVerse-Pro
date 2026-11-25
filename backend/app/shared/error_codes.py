@@ -63,6 +63,8 @@ class CustomerErrorCode(StrEnum):
     INVITE_EXPIRED = "invite_expired"
     INVITE_REVOKED = "invite_revoked"
     INVITE_DECLINED = "invite_declined"
+    INVITE_RECIPIENT_ACCOUNT_CLOSED = "invite_recipient_account_closed"
+    INVITE_INVITER_ACCOUNT_CLOSED = "invite_inviter_account_closed"
     INVITE_ALREADY_ACCEPTED = "invite_already_accepted"
     INVITE_EMAIL_MISMATCH = "invite_email_mismatch"
     MEMBERSHIP_NOT_FOUND = "membership_not_found"

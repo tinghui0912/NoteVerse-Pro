@@ -39,7 +39,14 @@ def test_all_semantic_stored_object_references_have_explicit_protection():
 def test_contact_columns_without_user_foreign_keys_have_reviewed_policies():
     from app.modules.account.resource_ownership import ACCOUNT_CONTACT_DATA_POLICIES
 
-    contact_names = {"email", "new_email", "recipient", "text_body", "html_body"}
+    contact_names = {
+        "email",
+        "new_email",
+        "recipient",
+        "text_body",
+        "html_body",
+        "terminal_actor_user_id",
+    }
     actual = {
         (table.name, column.name)
         for table in SQLModel.metadata.tables.values()

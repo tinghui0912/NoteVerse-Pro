@@ -342,6 +342,8 @@
           "invite_expired",
           "invite_revoked",
           "invite_declined",
+          "invite_recipient_account_closed",
+          "invite_inviter_account_closed",
           "invite_already_accepted",
           "invite_email_mismatch",
           "membership_not_found",
@@ -1299,8 +1301,15 @@
             ]
           },
           "email": {
-            "title": "Email",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
           },
           "expires_at": {
             "anyOf": [
@@ -1412,8 +1421,15 @@
             ]
           },
           "email": {
-            "title": "Email",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
           },
           "expires_at": {
             "anyOf": [
@@ -1480,6 +1496,8 @@
           "ACCEPTED",
           "DECLINED",
           "REVOKED",
+          "RECIPIENT_ACCOUNT_CLOSED",
+          "INVITER_ACCOUNT_CLOSED",
           "EXPIRED"
         ],
         "title": "InviteStatus",

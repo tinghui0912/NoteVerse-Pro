@@ -28,12 +28,20 @@ NOW = datetime(2026, 1, 1, 12, tzinfo=UTC)
 
 
 def invite(score_id, index, *, created_at=NOW, **kwargs):
+    closed = kwargs.get("terminal_outcome") in {
+        InviteTerminalOutcome.RECIPIENT_ACCOUNT_CLOSED,
+        InviteTerminalOutcome.INVITER_ACCOUNT_CLOSED,
+    }
+    if closed:
+        kwargs["terminal_actor_user_id"] = None
     return ScoreInvite(
         score_id=score_id,
         invite_uuid=f"invite-{index}",
-        token_hash=f"{index:064x}",
-        created_by_user_id=1,
-        email="other@example.com",
+        token_hash=None if closed else f"{index:064x}",
+        created_by_user_id=None
+        if kwargs.get("terminal_outcome") == InviteTerminalOutcome.INVITER_ACCOUNT_CLOSED
+        else 1,
+        email=None if closed else "other@example.com",
         role=MembershipRole.VIEWER,
         created_at=created_at,
         **kwargs,

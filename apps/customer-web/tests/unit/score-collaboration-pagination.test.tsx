@@ -10,6 +10,8 @@ import { NotificationCenterDialog } from '@/features/notifications/center/notifi
 import { useMyPendingScoreInvites, useScoreInvites, useScoreMembers } from '@/features/scores/collaboration/queries';
 import type { InviteRead, MemberRead, PendingInviteRead } from '@/generated/api';
 import messages from '../../messages/en/scoreCollaboration.json';
+import chineseMessages from '../../messages/zh/scoreCollaboration.json';
+const translationState = vi.hoisted(() => ({ locale: 'en' }));
 
 const api = vi.hoisted(() => ({
   listInvites: vi.fn(),
@@ -34,8 +36,16 @@ vi.mock('@/i18n/routing', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
-  useTranslations: () => (key: string) => (key === 'invitations' ? 'Invitations' : key),
+  useLocale: () => translationState.locale,
+  useTranslations: () => (key: string, values?: Record<string, string>) => {
+    const dictionary = translationState.locale === 'zh' ? chineseMessages : messages;
+    if (key === 'invitations') return 'Invitations';
+    if (key === 'closedInviter' || key === 'anonymizedRecipient') return dictionary[key];
+    if (key === 'invitationCreator') return dictionary.invitationCreator.replace('{name}', values?.name ?? '');
+    if (key === 'status.recipient_account_closed') return dictionary.status.recipient_account_closed;
+    if (key === 'status.inviter_account_closed') return dictionary.status.inviter_account_closed;
+    return key;
+  },
 }));
 vi.mock('@/features/notifications/queries', () => ({
   useMyNotifications: () => ({ data: { pages: [{ items: [], next_cursor: null }], pageParams: [undefined] }, isLoading: false, isError: false }),
@@ -86,6 +96,7 @@ function wrapper(
   };
 }
 beforeEach(() => {
+  translationState.locale = 'en';
   Object.values(api).forEach((mock) => mock.mockReset());
   api.listInvites.mockResolvedValue(page([]));
   api.listMembers.mockResolvedValue(page([]));
@@ -206,7 +217,7 @@ it.each(['accept', 'decline'] as const)(
   },
 );
 
-it.each(['ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'] as const)(
+it.each(['ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED', 'RECIPIENT_ACCOUNT_CLOSED', 'INVITER_ACCOUNT_CLOSED'] as const)(
   'offers no terminal invitation commands or token copy for %s',
   async (status) => {
     const client = new QueryClient({
@@ -232,7 +243,10 @@ it.each(['ACCEPTED', 'DECLINED', 'REVOKED', 'EXPIRED'] as const)(
         pageParams: [undefined],
       });
     });
-    expect(await screen.findByText(new RegExp(`status.${status.toLowerCase()}`))).toBeInTheDocument();
+    const label = status === 'RECIPIENT_ACCOUNT_CLOSED'
+      ? messages.status.recipient_account_closed
+      : status === 'INVITER_ACCOUNT_CLOSED' ? messages.status.inviter_account_closed : `status.${status.toLowerCase()}`;
+    expect(await screen.findByText(new RegExp(label))).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'copy' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'revoke' })).not.toBeInTheDocument();
     expect(
@@ -253,4 +267,21 @@ it('refreshes the members collection after removal', async () => {
   await waitFor(() => expect(api.listMembers).toHaveBeenCalledTimes(2));
   await waitFor(() => expect(screen.queryByText('member-1@example.com')).not.toBeInTheDocument());
   expect(screen.queryByRole('button', { name: 'remove' })).not.toBeInTheDocument();
+});
+
+
+it.each(['en', 'zh'] as const)('renders anonymized invitation history in %s', async (locale) => {
+  translationState.locale = locale;
+  const dictionary = locale === 'zh' ? chineseMessages : messages;
+  api.listInvites.mockResolvedValue(page([
+    { ...invite('recipient'), email: null, created_by: null, status: 'RECIPIENT_ACCOUNT_CLOSED' },
+    { ...invite('issuer'), email: null, created_by: null, status: 'INVITER_ACCOUNT_CLOSED' },
+  ]));
+  render(<ScoreCollaborationPanel scoreId="score" scoreDisplayTitle="Score" />, { wrapper: wrapper() });
+  expect(await screen.findAllByText(dictionary.anonymizedRecipient)).toHaveLength(2);
+  expect(screen.getAllByText(dictionary.invitationCreator.replace('{name}', dictionary.closedInviter))).toHaveLength(2);
+  expect(screen.getByText(new RegExp(dictionary.status.recipient_account_closed))).toBeInTheDocument();
+  expect(screen.getByText(new RegExp(dictionary.status.inviter_account_closed))).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'revoke' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'copy' })).not.toBeInTheDocument();
 });

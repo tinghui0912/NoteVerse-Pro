@@ -61,9 +61,15 @@
     "accepted": "已接受",
     "revoked": "已撤销",
     "expired": "已过期",
-    "declined": "已拒绝"
+    "declined": "已拒绝",
+    "recipient_account_closed": "接收账户已注销",
+    "inviter_account_closed": "创建账户已注销"
   },
   "practitioner": "练习者",
   "roleDescription": "查看者可以查看；练习者可以查看和练习；编辑者可以查看、练习和编辑。仅所有者可使用显式下载操作。",
-  "invitations": "邀请"
+  "invitations": "邀请",
+  "anonymizedRecipient": "接收者信息已清除",
+  "closedInviter": "已注销账户",
+  "invitationCreator": "创建者：{name}",
+  "accountClosedTitle": "邀请已失效"
 }

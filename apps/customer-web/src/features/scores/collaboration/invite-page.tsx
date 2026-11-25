@@ -46,6 +46,10 @@ function getInviteErrorConfig(
     };
   }
 
+  if (error.code === 'invite_recipient_account_closed' || error.code === 'invite_inviter_account_closed') {
+    return { icon: Ban, title: t('accountClosedTitle'), description: translateErrorCode(errors, error.code, t('cannotAccept')) };
+  }
+
   if (error.code === 'invite_expired') {
     return {
       icon: Clock3,
@@ -134,7 +138,9 @@ export default function InvitePage({ token }: { token: string }) {
     );
   }
 
-  const statusMessage = invite.status === 'ACCEPTED'
+  const statusMessage = invite.status === 'RECIPIENT_ACCOUNT_CLOSED' || invite.status === 'INVITER_ACCOUNT_CLOSED'
+    ? t(`status.${invite.status.toLowerCase()}`)
+    : invite.status === 'ACCEPTED'
     ? t('alreadyAccepted')
     : invite.status === 'REVOKED'
       ? t('revokedDescription')
@@ -192,7 +198,9 @@ export default function InvitePage({ token }: { token: string }) {
         ) : null}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          {!isAuthenticated ? (
+          {invite.status === 'RECIPIENT_ACCOUNT_CLOSED' || invite.status === 'INVITER_ACCOUNT_CLOSED' ? (
+            <Button className="flex-1" disabled>{t('cannotAccept')}</Button>
+          ) : !isAuthenticated ? (
             <Button asChild className="flex-1">
               <Link href={loginHref}>
                 <UserPlus className="h-4 w-4" />

@@ -27,15 +27,19 @@ default to VIEWER. Acceptance preserves the stronger role, owner changes may upg
 or downgrade, and membership revocation denies subsequent operations immediately.
 Score membership never grants access to another user's personal practice data.
 
-ScoreInvite stores an optional actor terminal outcome with a coherent terminal
-timestamp and actor, enforced by a database constraint. With no actor outcome,
-effective status is PENDING or EXPIRED according to expires_at and the current
-time. Expiry requires no database write; admission and effective-status helpers
-perform no IO or commits. Collaboration mutations lock the active Score parent first,
-then Invite and Membership when both participate. Acceptance commits its outcome and
-membership admission atomically. A Score tombstone immediately ends child active
-authority; pending collections omit that parent and token commands cannot act on it.
-Revoke retries preserve the recorded terminal time and actor.
+ScoreInvite stores optional terminal outcome/time and nullable human attribution.
+Human outcomes are ACCEPTED, DECLINED and REVOKED; system closure outcomes are
+RECIPIENT_ACCOUNT_CLOSED and INVITER_ACCOUNT_CLOSED. Closed invitation contact and
+credential hashes are NULL, with no fabricated system actor. Pending status derives
+from expiry and requires usable contact/credential facts and a live creator at
+admission. New invitations default to the configured seven-day lifetime.
+Collaboration responses lock the active Score, then Invite and creator/recipient User
+admission; acceptance and membership changes commit atomically. A Score tombstone ends
+child authority immediately. Pending collections omit inactive parents/creators.
+Account Closure and final erasure preserve foreign-owner history and use the exact
+cutoff and lock rules in the canonical
+[Collaboration retention contract](../architecture/business-resource-lifecycle.md#account-closure-and-collaboration-retention).
+Revoke retries preserve the recorded terminal time and actor until attribution erasure.
 Owner member removal and Self Leave change current membership access without
 rewriting invitation history. Only explicit acceptance of a new valid Invite can
 reactivate revoked membership; owner role PATCH cannot restore it.

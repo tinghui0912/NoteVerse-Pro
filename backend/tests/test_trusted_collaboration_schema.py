@@ -32,7 +32,7 @@ def test_fresh_membership_role_enum_and_both_consumers(monkeypatch):
                 for column in inspector.get_columns("score_invites")
                 if column["name"] == "email"
             )["nullable"]
-            is False
+            is True
         )
         membership_index = next(
             index
@@ -138,13 +138,24 @@ def test_postgres_invitation_terminal_facts_and_unresolved_index(monkeypatch):
             db.commit()
             for number, (outcome, at, actor) in enumerate(
                 product(
-                    [None, *InviteTerminalOutcome],
+                    [
+                        None,
+                        InviteTerminalOutcome.ACCEPTED,
+                        InviteTerminalOutcome.DECLINED,
+                        InviteTerminalOutcome.REVOKED,
+                    ],
                     [None, datetime(2026, 1, 1, tzinfo=UTC)],
                     [None, 2],
                 )
             ):
                 valid = (outcome is None and at is None and actor is None) or (
-                    outcome is not None and at is not None and actor is not None
+                    outcome
+                    in {
+                        InviteTerminalOutcome.ACCEPTED,
+                        InviteTerminalOutcome.DECLINED,
+                        InviteTerminalOutcome.REVOKED,
+                    }
+                    and at is not None
                 )
 
                 def insert():
@@ -170,6 +181,4 @@ def test_postgres_invitation_terminal_facts_and_unresolved_index(monkeypatch):
                     with pytest.raises(IntegrityError, match="ck_score_invites_terminal_facts"):
                         insert()
             db.commit()
-            assert db.scalar(sa.select(sa.func.count()).select_from(ScoreInvite)) == 1 + len(
-                InviteTerminalOutcome
-            )
+            assert db.scalar(sa.select(sa.func.count()).select_from(ScoreInvite)) == 7

@@ -15,7 +15,7 @@ vi.mock('./queries', () => ({
   useScoreInviteAccess: () => ({ data: invite, isLoading: false, error: null, refetch: state.refetch }),
   useAcceptScoreInvite: () => ({ isPending: false, error: null, mutate: (token: string, callbacks: { onSuccess: (data: { score_id: string }) => void }) => { state.accept(token); callbacks.onSuccess({ score_id: 'score' }); } }),
 }));
-beforeEach(() => { vi.clearAllMocks(); state.authenticated = false; state.email = 'member@example.com'; window.history.replaceState(null, '', '/invite/token'); });
+beforeEach(() => { vi.clearAllMocks(); state.authenticated = false; state.email = 'member@example.com'; invite.status = 'PENDING'; invite.can_accept = true; window.history.replaceState(null, '', '/invite/token'); });
 
 it('preserves accept intent through the login return location', () => {
   render(<InvitePage token="token" />);
@@ -36,5 +36,16 @@ it('keeps a mismatched account from accepting the invitation', () => {
   render(<InvitePage token="token" />);
   expect(screen.getByRole('button', { name: 'acceptInvite' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'acceptInvite' }));
+  expect(state.accept).not.toHaveBeenCalled();
+});
+
+
+it.each(['RECIPIENT_ACCOUNT_CLOSED', 'INVITER_ACCOUNT_CLOSED'] as const)('does not offer acceptance for %s', (status) => {
+  invite.status = status;
+  invite.can_accept = false;
+  render(<InvitePage token="token" />);
+  expect(screen.getByText(`status.${status.toLowerCase()}`)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'cannotAccept' })).toBeDisabled();
+  expect(screen.queryByRole('link', { name: 'acceptInvite' })).not.toBeInTheDocument();
   expect(state.accept).not.toHaveBeenCalled();
 });

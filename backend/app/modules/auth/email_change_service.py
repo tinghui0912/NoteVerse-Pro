@@ -20,6 +20,7 @@ from app.modules.auth.schemas import ConfirmEmailChangeRequest, RequestEmailChan
 from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
 from app.db.models.mail_outbox import MailSourceKind
 from app.modules.auth.credential_lifecycle import lock_credential_user
+from app.modules.account.email_identity import lock_email_identity
 from app.modules.mail.templates.auth import (
     build_email_change_confirmation_email,
     build_email_changed_email,
@@ -147,6 +148,7 @@ class EmailChangeService:
             raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
         user = lock_credential_user(db, record.user_id)
+        lock_email_identity(db, record.new_email)
         record = (
             db.execute(
                 select(EmailChangeRequest)

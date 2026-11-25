@@ -60,6 +60,8 @@ export const CUSTOMER_ERROR_MESSAGE_KEYS = {
   invite_expired: 'invite_expired',
   invite_revoked: 'invite_revoked',
   invite_declined: 'invite_declined',
+  invite_recipient_account_closed: 'invite_recipient_account_closed',
+  invite_inviter_account_closed: 'invite_inviter_account_closed',
   invite_already_accepted: 'invite_already_accepted',
   invite_email_mismatch: 'invite_email_mismatch',
   membership_not_found: 'membership_not_found',

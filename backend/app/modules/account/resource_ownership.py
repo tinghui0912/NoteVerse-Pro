@@ -102,8 +102,8 @@ ACCOUNT_RESOURCE_POLICIES = (
         "score_invites",
         "created_by_user_id",
         "collaboration",
-        "owned",
-        "Owned Score deletion removes invites; foreign Score belongs to its owner",
+        "history",
+        "Invalidate issuer pending invitations, scrub contact and SET NULL creator; preserve foreign Score invitation history",
     ),
     AccountResourcePolicy(
         "score_library_folders", "user_id", "library", "owned", "erase_user_state"
@@ -126,8 +126,8 @@ ACCOUNT_RESOURCE_POLICIES = (
         "score_memberships",
         "created_by_user_id",
         "collaboration",
-        "owned",
-        "Score owner created membership; owned Score erasure removes it",
+        "history",
+        "SET NULL creator; preserve other users memberships and roles",
     ),
     AccountResourcePolicy(
         "score_revision_events",
@@ -232,10 +232,10 @@ ACCOUNT_CONTACT_DATA_POLICIES = (
     ),
     AccountContactDataPolicy(
         "score_invites",
-        ("email",),
+        ("email", "token_hash", "terminal_actor_user_id"),
         "collaboration",
-        "Score-owner contact record, not recipient-owned by email equality",
-        "Terminal outcome, expiry or inactive parent invalidates credential; owning Score deletion removes row and cancels source mail",
+        "Invitation recipient personal data scoped by normalized email and created_at <= closed_at; Score owner retains anonymized history",
+        "Recipient/issuer closure scrubs email/hash and cancels source mail; post-closure invitations from a live issuer survive; terminal outcome/time remain",
     ),
     AccountContactDataPolicy(
         "mail_outbox",

@@ -35,6 +35,8 @@ class InviteTerminalOutcome(str, enum.Enum):
     ACCEPTED = "ACCEPTED"
     DECLINED = "DECLINED"
     REVOKED = "REVOKED"
+    RECIPIENT_ACCOUNT_CLOSED = "RECIPIENT_ACCOUNT_CLOSED"
+    INVITER_ACCOUNT_CLOSED = "INVITER_ACCOUNT_CLOSED"
 
 
 class AccessOrigin(str, enum.Enum):
@@ -55,6 +57,7 @@ class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
             sqlite_where=text("revoked_at IS NULL"),
         ),
         Index("idx_score_memberships_user_active", "user_id", "revoked_at"),
+        Index("idx_score_memberships_creator", "created_by_user_id", "id"),
     )
 
     id: Optional[int] = Field(
@@ -72,8 +75,8 @@ class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
     role: MembershipRole = Field(
         sa_column=Column(SAEnum(MembershipRole, name="membershiprole"), nullable=False)
     )
-    created_by_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    created_by_user_id: Optional[int] = Field(
+        default=None, sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
     )
     created_at: datetime = Field(
         default_factory=utc_now,
@@ -87,6 +90,9 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         Index("idx_score_invites_score_created", "score_id", "created_at", "id"),
         Index("idx_score_invites_token_hash", "token_hash", unique=True),
+        Index("idx_score_invites_creator", "created_by_user_id", "id"),
+        Index("idx_score_invites_recipient_created", "email", "created_at", "id"),
+        Index("idx_score_invites_terminal_actor", "terminal_actor_user_id", "id"),
         Index(
             "idx_score_invites_email_unresolved_created",
             "email",
@@ -97,8 +103,16 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
         ),
         CheckConstraint(
             "(terminal_outcome IS NULL AND terminal_at IS NULL AND terminal_actor_user_id IS NULL) OR "
-            "(terminal_outcome IS NOT NULL AND terminal_at IS NOT NULL AND terminal_actor_user_id IS NOT NULL)",
+            "(terminal_outcome IS NOT NULL AND terminal_at IS NOT NULL)",
             name="ck_score_invites_terminal_facts",
+        ),
+        CheckConstraint(
+            "(email IS NOT NULL AND token_hash IS NOT NULL) OR (terminal_outcome IS NOT NULL AND email IS NULL AND token_hash IS NULL)",
+            name="ck_score_invites_contact_facts",
+        ),
+        CheckConstraint(
+            "(terminal_outcome NOT IN ('RECIPIENT_ACCOUNT_CLOSED','INVITER_ACCOUNT_CLOSED') OR (email IS NULL AND token_hash IS NULL AND terminal_actor_user_id IS NULL)) AND (terminal_outcome != 'INVITER_ACCOUNT_CLOSED' OR created_by_user_id IS NULL)",
+            name="ck_score_invites_closed_facts",
         ),
     )
 
@@ -117,8 +131,8 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    token_hash: str = Field(sa_column=Column(String(64), nullable=False))
-    email: str = Field(sa_column=Column(String(255), nullable=False))
+    token_hash: Optional[str] = Field(default=None, sa_column=Column(String(64)))
+    email: Optional[str] = Field(default=None, sa_column=Column(String(255)))
     role: MembershipRole = Field(
         sa_column=Column(SAEnum(MembershipRole, name="membershiprole"), nullable=False)
     )
@@ -126,8 +140,8 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
         default=None,
         sa_column=Column(SAEnum(InviteTerminalOutcome, name="inviteterminaloutcome")),
     )
-    created_by_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    created_by_user_id: Optional[int] = Field(
+        default=None, sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
     )
     terminal_actor_user_id: Optional[int] = Field(
         default=None,

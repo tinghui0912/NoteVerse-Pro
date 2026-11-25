@@ -61,9 +61,15 @@
     "accepted": "Accepted",
     "revoked": "Revoked",
     "expired": "Expired",
-    "declined": "Declined"
+    "declined": "Declined",
+    "recipient_account_closed": "Recipient account closed",
+    "inviter_account_closed": "Inviter account closed"
   },
   "practitioner": "Practitioner",
   "roleDescription": "Viewer: view. Practitioner: view and practice. Editor: view, practice, and edit. Only the owner can use explicit download actions.",
-  "invitations": "Invitations"
+  "invitations": "Invitations",
+  "anonymizedRecipient": "Recipient removed",
+  "closedInviter": "Closed account",
+  "invitationCreator": "Created by {name}",
+  "accountClosedTitle": "Invitation no longer available"
 }

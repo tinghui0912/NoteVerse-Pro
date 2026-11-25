@@ -329,7 +329,9 @@ def test_invite_terminal_and_token_consumption_cancel_credential_mail(credential
         )
 
 
-def test_closure_does_not_erase_foreign_owner_contact_by_email(credential_database):
+def test_closure_anonymizes_old_recipient_contact_without_erasing_foreign_score(
+    credential_database,
+):
     with Session(credential_database) as db:
         _, _, row = invite(
             db, owner=2, recipient="closer@example.com", score_uuid="foreign-contact"
@@ -339,10 +341,11 @@ def test_closure_does_not_erase_foreign_owner_contact_by_email(credential_databa
         close(db)
         db.commit()
         db.expire_all()
-        assert db.scalar(select(ScoreInvite)).email == "closer@example.com"
+        assert db.scalar(select(ScoreInvite)).email is None
+        assert db.scalar(select(Score).where(Score.score_uuid == "foreign-contact")) is not None
         row = db.scalar(select(MailOutbox).where(MailOutbox.outbox_uuid == uuid))
-        assert row.status == MailOutboxStatus.PENDING
-        assert validate_mail_source(db, uuid)
+        assert row.status == MailOutboxStatus.CANCELLED
+        assert not validate_mail_source(db, uuid)
 
 
 def test_expiry_and_cancelled_mail_retention(credential_database, monkeypatch):
