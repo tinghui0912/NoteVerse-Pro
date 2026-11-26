@@ -1,5 +1,9 @@
 """Bindings own Bundle lifetime; each representation retires independently."""
 
+from app.storage.base import ObjectStorageOperationFailedError
+
+from tests.support.uploads import settled_upload_session
+
 from app.modules.practice.bundle.states import PracticeBundleStatus
 
 from tests.support.practice_bundle import bind_bundle
@@ -20,7 +24,7 @@ from app.db.models import (
 from app.modules.practice.bundle.retention import practice_bundle_retention
 from app.modules.media_storage.retirement import retire_after_release
 from app.shared.time import utc_now
-from tests.test_performance_takes import (
+from tests.support.take_fixtures import (
     test_env as test_env,
     _create_default_bundle,
     _create_default_take,
@@ -37,7 +41,10 @@ def test_bundle_gc_protects_each_representation_shared_elsewhere(test_env):
     prepared_id, artifact_id = prepared.id, artifact.id
     prepared_key, artifact_key = prepared.object_key, artifact.object_key
     upload = Upload(
-        stored_object_id=prepared_id, original_filename="score.xml", uploader_user_id=user.id
+        upload_session=settled_upload_session(user_id=user.id),
+        stored_object_id=prepared_id,
+        original_filename="score.xml",
+        uploader_user_id=user.id,
     )
     db.add(upload)
     db.commit()
@@ -121,14 +128,15 @@ def test_creation_write_failure_queues_both_representations_without_binding(test
 
     def fail_artifact(**kwargs):
         if kwargs["key"].endswith("artifact.json"):
-            raise OSError("object store unavailable")
+            raise ObjectStorageOperationFailedError("object store unavailable")
         return put(**kwargs)
 
     with patch.object(storage, "put_bytes", side_effect=fail_artifact):
         with pytest.raises(ValidationException) as error:
             bind_bundle(db, storage, candidate, revision_id=100)
     assert error.value.details["reason"] == "practice_bundle_storage_write_failed"
-    assert db.scalar(select(PracticeBundleRecord)) is None
+    creation = db.scalar(select(PracticeBundleRecord))
+    assert creation.status == PracticeBundleStatus.CREATING
     assert db.get(ScoreRevisionPracticeBinding, 100) is None
     from app.db.models import ObjectWriteIntent
     from tests.support.write_cleanup import drain_write_cleanup

@@ -1,5 +1,7 @@
 """Durable account erasure, authority cutoff and caller-owned cleanup transactions."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.storage import object_storage as _storage_provider
 
 from app.composition import storage_resources as _resource_wiring
@@ -172,6 +174,7 @@ def test_shared_physical_object_and_other_owner_survive_erasure(account_database
         for n in (1, 2):
             db.add(
                 Upload(
+                    upload_session=settled_upload_session(user_id=n),
                     upload_uuid=f"upload-{n}",
                     uploader_user_id=n,
                     original_filename="image.png",
@@ -260,6 +263,7 @@ def test_unit_rollback_preserves_resource_and_usage(account_database, monkeypatc
         db.flush()
         db.add(
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 upload_uuid="one",
                 uploader_user_id=1,
                 original_filename="one.png",
@@ -278,6 +282,7 @@ def test_unit_rollback_preserves_resource_and_usage(account_database, monkeypatc
         db.flush()
         db.add(
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 upload_uuid="two",
                 uploader_user_id=1,
                 original_filename="two.png",
@@ -759,6 +764,7 @@ def test_account_completion_precedes_independent_physical_retirement(account_dat
         object_id = obj.id
         db.add(
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 upload_uuid="owned-upload",
                 uploader_user_id=1,
                 original_filename="owned.bin",

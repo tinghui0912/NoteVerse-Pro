@@ -166,8 +166,13 @@ def test_gateway_customer_bindings_match_protocol_and_openapi_sources():
     "identity,owner,method,mime",
     [
         ("guestPreviewPageView", "guest", "image", "image/svg+xml"),
-        ("guestPreviewPlaybackStream", "guest", "audio", "audio/wav"),
-        ("scoreRevisionPlaybackStream", "playback", "score_revision_delivery", "audio/mpeg"),
+        ("guestPreviewPlaybackAccessGet", "guest", "audio", "application/json"),
+        (
+            "scoreRevisionPlaybackAccessGet",
+            "playback",
+            "score_revision_delivery",
+            "application/json",
+        ),
         ("scoreRenderAssetView", "asset", "render_asset_delivery", "image/png"),
         ("realtimeEventsStream", None, None, "text/event-stream"),
     ],
@@ -203,7 +208,7 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
         app.dependency_overrides[dependencies[owner]] = lambda: service
 
     def database():
-        yield object()
+        yield Mock()
 
     def events(*args):
         yield ": connected\n\n"
@@ -218,7 +223,10 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
         response = client.request(route["method"], url)
     assert response.status_code == 200
     assert response.headers["content-type"].split(";")[0] == mime
-    assert response.content == (b": connected\n\n" if owner is None else b"native bytes")
+    if mime == "application/json":
+        assert response.json()["playback_url"].startswith("https://objects.example/")
+    else:
+        assert response.content == (b": connected\n\n" if owner is None else b"native bytes")
     if owner:
         getattr(service, method).assert_called_once()
 

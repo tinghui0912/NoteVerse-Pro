@@ -1,5 +1,8 @@
 """Independent PostgreSQL connections prove write/adoption/cleanup fences."""
 
+from tests.support.uploads import complete_image_upload
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 from app.composition import media_resources as _media_wiring
 from tests.support.media_writes import persist_prepared_bytes
@@ -173,7 +176,14 @@ async def test_cleanup_delete_lock_blocks_new_generation(retirement_postgres, mo
                 adopt_written_object(db, receipt)
             db.rollback()
             row = adopt_written_object(db, current)
-            db.add(Upload(stored_object_id=row.id, original_filename="current", uploader_user_id=1))
+            db.add(
+                Upload(
+                    upload_session=settled_upload_session(user_id=1),
+                    stored_object_id=row.id,
+                    original_filename="current",
+                    uploader_user_id=1,
+                )
+            )
             db.commit()
 
     await asyncio.to_thread(check)
@@ -194,7 +204,12 @@ async def test_adoption_and_cleanup_have_one_safe_winner(
             with Session(engine) as db:
                 obj = adopt_written_object(db, receipt)
                 db.add(
-                    Upload(stored_object_id=obj.id, original_filename="owned", uploader_user_id=1)
+                    Upload(
+                        upload_session=settled_upload_session(user_id=1),
+                        stored_object_id=obj.id,
+                        original_filename="owned",
+                        uploader_user_id=1,
+                    )
                 )
                 entered.set()
                 assert release.wait(15)
@@ -262,7 +277,9 @@ async def test_adoption_and_cleanup_have_one_safe_winner(
 
 
 @pytest.mark.asyncio
-async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_postgres, monkeypatch):
+async def test_equal_upload_bytes_have_distinct_command_objects_and_both_commit(
+    retirement_postgres, monkeypatch
+):
     from fastapi import UploadFile
     from app.modules.uploads.service import UploadService
     import io
@@ -289,11 +306,12 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
     def upload(name):
         with Session(engine, expire_on_commit=False) as db:
             user = db.get(User, 1)
-            return UploadService(
-                quota=_resource_wiring.storage_quota_service,
-                usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
-            ).create_upload(
+            return complete_image_upload(
+                UploadService(
+                    quota=_resource_wiring.storage_quota_service,
+                    usage=_resource_wiring.storage_usage_service,
+                    uploads=_resource_wiring.build_upload_session_service(storage),
+                ),
                 db,
                 user,
                 UploadFile(filename=name, file=io.BytesIO(image_bytes())),
@@ -308,8 +326,8 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
         uploads = list(db.scalars(select(Upload)))
         objects = list(db.scalars(select(StoredObject)))
         intents = list(db.scalars(select(ObjectWriteIntent)))
-        assert len(uploads) == 2 and len(objects) == len(intents) == 1
-        assert len({row.stored_object_id for row in uploads}) == 1
+        assert len(uploads) == len(objects) == len(intents) == 2
+        assert len({row.stored_object_id for row in uploads}) == 2
         assert (
             intents[0].status == "ADOPTED"
             and storage.read_bytes(objects[0].object_key) == image_bytes()
@@ -323,7 +341,7 @@ async def test_bundle_creating_gc_during_put_leaves_only_cleanup_owned_bytes(
     from app.db.models import PracticeBundleRecord, ScoreRevisionPracticeBinding
     from app.core.exceptions import ValidationException
     from app.modules.practice.bundle.retention import practice_bundle_retention
-    from tests.test_performance_takes import Session
+    from tests.support.take_fixtures import Session
 
     engine, sessions, storage = setup_worker(retirement_postgres, monkeypatch)
     _, repository, bundle, _ = postgres_bundle
@@ -419,7 +437,14 @@ async def test_retirement_of_reused_authority_forces_fresh_write(retirement_post
             )
             assert current.write_token != receipt.write_token
             obj = adopt_written_object(db, current)
-            db.add(Upload(stored_object_id=obj.id, original_filename="fresh", uploader_user_id=1))
+            db.add(
+                Upload(
+                    upload_session=settled_upload_session(user_id=1),
+                    stored_object_id=obj.id,
+                    original_filename="fresh",
+                    uploader_user_id=1,
+                )
+            )
             db.commit()
             assert storage.read_bytes(current.object_key) == b"bytes"
 
@@ -441,7 +466,7 @@ async def test_revision_rechecks_head_after_prewrite_commit(
     from app.modules.revisions.service import RevisionService
     from app.modules.revisions.schemas import RevisionCreateRequest
     from app.core.exceptions import ConflictException
-    from tests.test_performance_takes import Session
+    from tests.support.take_fixtures import Session
     from tests.test_score_revision_services import MUSICXML_2
 
     engine, sessions, storage = setup_worker(retirement_postgres, monkeypatch)

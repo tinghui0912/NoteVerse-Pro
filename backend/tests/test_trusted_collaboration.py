@@ -1,5 +1,7 @@
 """Authenticated collaboration matrix and real source disclosure boundaries."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 from app.composition import media_resources as _media_wiring
 
@@ -48,7 +50,7 @@ from tests.test_score_revision_services import (
     add_active_score_with_head_revision,
     MUSICXML_2,
 )
-from tests.test_performance_takes import DEFAULT_TAKE_RECORDING_TIMEBASE
+from tests.support.take_fixtures import DEFAULT_TAKE_RECORDING_TIMEBASE
 from tests.test_guest_previews import add_page, add_audio
 
 
@@ -121,6 +123,7 @@ def collaboration(score_service_session):
     session.flush()
     session.add(
         Upload(
+            upload_session=settled_upload_session(user_id=1),
             id=4003,
             upload_uuid="trusted-upload",
             stored_object_id=4002,

@@ -1,5 +1,7 @@
 """Real foreign-key ownership and durable retirement behavior without a broker."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.modules.media_storage.domain import StoredObjectRetirementStatus
 
 from contextlib import contextmanager
@@ -78,7 +80,10 @@ def test_two_different_semantic_owners_release_independently(retirement_db):
         db.flush()
         identity = obj.id
         upload = Upload(
-            stored_object_id=identity, original_filename="photo.jpg", uploader_user_id=1
+            upload_session=settled_upload_session(user_id=1),
+            stored_object_id=identity,
+            original_filename="photo.jpg",
+            uploader_user_id=1,
         )
         db.add(upload)
         user = db.get(User, 1)
@@ -134,7 +139,14 @@ def test_reacquisition_cancels_and_last_release_rearms(retirement_db):
     identity, uuid = unowned(retirement_db)
     with transaction() as db:
         obj = retain_for_reference(db, identity)
-        db.add(Upload(stored_object_id=obj.id, original_filename="again.png", uploader_user_id=1))
+        db.add(
+            Upload(
+                upload_session=settled_upload_session(user_id=1),
+                stored_object_id=obj.id,
+                original_filename="again.png",
+                uploader_user_id=1,
+            )
+        )
     with transaction() as db:
         assert retirement_delivery.get(db, uuid).status is StoredObjectRetirementStatus.CANCELLED
         upload = db.scalar(select(Upload))
@@ -151,7 +163,14 @@ def test_worker_cancels_if_reference_appears_before_destruction(retirement_db, m
     engine, storage, transaction = retirement_db
     identity, uuid = unowned(retirement_db)
     with transaction() as db:
-        db.add(Upload(stored_object_id=identity, original_filename="live.png", uploader_user_id=1))
+        db.add(
+            Upload(
+                upload_session=settled_upload_session(user_id=1),
+                stored_object_id=identity,
+                original_filename="live.png",
+                uploader_user_id=1,
+            )
+        )
     delete = Mock(wraps=storage.delete)
     monkeypatch.setattr(storage, "delete", delete)
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "cancelled"
@@ -173,7 +192,10 @@ def test_failures_do_not_retire_live_or_unverified_bytes(retirement_db, monkeypa
         elif failure == "foreign_key":
             db.add(
                 Upload(
-                    stored_object_id=identity, original_filename="protected.png", uploader_user_id=1
+                    upload_session=settled_upload_session(user_id=1),
+                    stored_object_id=identity,
+                    original_filename="protected.png",
+                    uploader_user_id=1,
                 )
             )
     delete = (

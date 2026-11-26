@@ -1,3 +1,5 @@
+from .take_processing_outbox import TakeProcessingOutbox
+from .upload_session import UploadSession
 from .practice_activity import PracticeActivity
 from .guest_preview import GuestPreviewCredential
 from .import_dispatch import ImportDispatch, ImportDispatchStatus
@@ -56,6 +58,8 @@ from .performance_take_upload_reservation import (
 from .stored_object_retirement import StoredObjectRetirement
 
 __all__ = [
+    "TakeProcessingOutbox",
+    "UploadSession",
     "UploadCreationRequest",
     "AccountDeletionOperation",
     "AccountDeletionStatus",

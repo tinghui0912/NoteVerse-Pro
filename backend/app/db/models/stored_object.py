@@ -23,13 +23,17 @@ class StoredObject(SQLModel, table=True):  # type: ignore[call-arg]
     __table_args__ = (
         UniqueConstraint("object_key", name="uq_stored_object_locator"),
         Index("ix_stored_objects_sha256", "sha256"),
+        CheckConstraint(
+            "(transport_checksum_algorithm IS NULL) = (transport_checksum IS NULL)",
+            name="ck_stored_object_transport_checksum",
+        ),
         CheckConstraint("byte_size >= 0", name="ck_stored_object_nonnegative_size"),
         CheckConstraint(
             "length(trim(object_key)) > 0 AND length(trim(content_type)) > 0",
             name="ck_stored_object_locator_type",
         ),
         CheckConstraint(
-            "length(sha256) = 64 AND replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(sha256, '0', ''), '1', ''), '2', ''), '3', ''), '4', ''), '5', ''), '6', ''), '7', ''), '8', ''), '9', ''), 'a', ''), 'b', ''), 'c', ''), 'd', ''), 'e', ''), 'f', '') = ''",
+            "sha256 IS NULL OR length(sha256) = 64 AND replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(sha256, '0', ''), '1', ''), '2', ''), '3', ''), '4', ''), '5', ''), '6', ''), '7', ''), '8', ''), '9', ''), 'a', ''), 'b', ''), 'c', ''), 'd', ''), 'e', ''), 'f', '') = ''",
             name="ck_stored_object_digest",
         ),
     )
@@ -39,7 +43,14 @@ class StoredObject(SQLModel, table=True):  # type: ignore[call-arg]
 
     object_key: str = Field(sa_column=Column(String(768), nullable=False))
     byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
-    sha256: str = Field(sa_column=Column(String(64), nullable=False))
+    sha256: str | None = Field(default=None, sa_column=Column(String(64), nullable=True))
+    provider_etag: str | None = Field(default=None, sa_column=Column(String(255), nullable=True))
+    transport_checksum_algorithm: str | None = Field(
+        default=None, sa_column=Column(String(32), nullable=True)
+    )
+    transport_checksum: str | None = Field(
+        default=None, sa_column=Column(String(255), nullable=True)
+    )
     content_type: str = Field(sa_column=Column(String(255), nullable=False))
     created_at: datetime = Field(
         default_factory=utc_now,

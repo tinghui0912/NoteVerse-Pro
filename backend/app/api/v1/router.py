@@ -1,3 +1,4 @@
+from app.modules.media_storage.upload_sessions.router import router as upload_sessions_router
 from fastapi import APIRouter
 
 from app.modules.account.router import router as account
@@ -77,4 +78,8 @@ api_router.include_router(practice_bundles, prefix="/practice", tags=["Practice 
 
 api_router.include_router(
     practice_activities, prefix="/practice-activities", tags=["Practice Activities"]
+)
+
+api_router.include_router(
+    upload_sessions_router, prefix="/upload-sessions", tags=["upload-sessions"]
 )

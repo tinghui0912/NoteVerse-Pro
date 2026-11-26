@@ -62,7 +62,7 @@ def test_demand_and_retention_are_independent_policy_owners():
     )
 
 
-def test_worker_generation_admission_and_completion_share_the_callers_transaction():
+def test_worker_publication_revalidates_generation_after_physical_io():
     cases = [
         (
             "modules/score_assets/score_revision_rendering.py",
@@ -99,6 +99,7 @@ def test_worker_generation_admission_and_completion_share_the_callers_transactio
         assert object_adoptions and all(
             gate.lineno < node.lineno < adoption.lineno for node in object_adoptions
         )
-        assert all(node.func.attr != "commit" for node in calls)
+        boundaries = by_name.get("commit", [])
+        assert boundaries and all(node.lineno < gate.lineno for node in boundaries)
         assert {kw.arg for kw in gate.keywords} >= {"outbox_uuid", "lease", "source_fingerprint"}
         assert {kw.arg for kw in adoption.keywords} >= {"lease"}

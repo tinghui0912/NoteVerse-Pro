@@ -1,5 +1,8 @@
 """Accounting and semantic ownership follow the caller's PostgreSQL transaction."""
 
+from tests.support.uploads import complete_image_upload
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 
 from uuid import uuid4
@@ -8,7 +11,6 @@ from tests.support.quota import admit_hold
 from tests.support.quota import allocate_hold
 from app.composition.storage_resources import storage_quota_service
 
-import hashlib
 import io
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
@@ -18,7 +20,7 @@ from fastapi import UploadFile
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import FileException, ValidationException
+from app.core.exceptions import ValidationException
 from tests.support.storage_state import provision_storage_users
 from app.db.models import (
     ObjectWriteIntent,
@@ -34,7 +36,7 @@ from app.db.models import (
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.media_storage.persistence import object_from_bytes
 from app.composition.storage_resources import storage_usage_service as usage
-from app.modules.uploads.service import UploadService, blob_object_key
+from app.modules.uploads.service import UploadService
 from tests.support.images import image_bytes
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_object_write_postgres import setup_worker
@@ -117,6 +119,7 @@ def add_owner(db):
     )
     db.add(
         Upload(
+            upload_session=settled_upload_session(user_id=1),
             upload_uuid="transaction-owner",
             stored_object=obj,
             original_filename="owner.png",
@@ -236,11 +239,13 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
 ):
     engine, sessions, storage = accounting
     content = image_bytes()
-    key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
-    put = storage.put_bytes
+    from app.db.models import UploadSession
+    from app.storage.base import ObjectStorageUnavailableError
+
+    copy = storage.copy
     observations = []
 
-    def physical_put(**kwargs):
+    def physical_copy(source_key, target_key):
         with Session(engine) as observer:
             account = observer.scalar(
                 select(StorageUsageAccount)
@@ -254,12 +259,12 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
             hold = observer.scalar(select(StorageQuotaHold))
             assert hold.status.value == "HELD"
             observations.append(hold.hold_uuid)
-        result = put(**kwargs)
+        result = copy(source_key, target_key)
         if outcome == "put_failure":
-            raise RuntimeError("provider acknowledgement unavailable")
+            raise ObjectStorageUnavailableError("provider acknowledgement unavailable")
         return result
 
-    monkeypatch.setattr(storage, "put_bytes", physical_put)
+    monkeypatch.setattr(storage, "copy", physical_copy)
     complete = storage_quota_service.consume_hold
 
     def reject_adoption(*args, **kwargs):
@@ -272,11 +277,12 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
         user = db.get(User, 1)
 
         def operation():
-            return UploadService(
-                quota=_resource_wiring.storage_quota_service,
-                usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
-            ).create_upload(
+            return complete_image_upload(
+                UploadService(
+                    quota=_resource_wiring.storage_quota_service,
+                    usage=_resource_wiring.storage_usage_service,
+                    uploads=_resource_wiring.build_upload_session_service(storage),
+                ),
                 db,
                 user,
                 UploadFile(file=io.BytesIO(content), filename="score.png"),
@@ -286,12 +292,14 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
         if outcome == "success":
             result = operation()
         else:
-            with pytest.raises(FileException):
+            with pytest.raises((ObjectStorageUnavailableError, RuntimeError)):
                 operation()
     assert len(observations) == 1
     with Session(engine) as observer:
         account = observer.get(StorageUsageAccount, 1)
         hold = observer.scalar(select(StorageQuotaHold))
+        transfer = observer.scalar(select(UploadSession))
+        key = transfer.final_object_key
         intent = observer.scalar(
             select(ObjectWriteIntent).where(ObjectWriteIntent.object_key == key)
         )
@@ -308,16 +316,17 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
             assert (
                 observer.scalar(select(StoredObject).where(StoredObject.object_key == key)) is None
             )
-            assert (
-                account.used_bytes
-                == storage_quota_service.snapshot_user(observer, 1).reserved_bytes
-                == 0
-            )
-            assert hold.status.value == "RELEASED"
-            assert intent.status == ("CLEANUP_PENDING" if outcome == "put_failure" else "WRITTEN")
+            assert account.used_bytes == 0
+            assert storage_quota_service.snapshot_user(observer, 1).reserved_bytes == len(content)
+            assert hold.status.value == "HELD"
+            assert intent.status == ("WRITE_UNKNOWN" if outcome == "put_failure" else "WRITTEN")
     if outcome != "success":
         assert storage.exists(key)
         setup_worker(accounting, monkeypatch)
         with Session(engine) as db:
-            assert all(row["status"] == "cleaned" for row in drain_write_cleanup(db, storage))
-        assert not storage.exists(key)
+            results = drain_write_cleanup(db, storage)
+            if outcome == "put_failure":
+                assert results == [] and storage.exists(key)
+            else:
+                assert all(row["status"] == "cleaned" for row in results)
+                assert not storage.exists(key)

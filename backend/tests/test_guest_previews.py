@@ -296,7 +296,8 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
             audio = await client.get(
                 f"/api/v1/guest-previews/{token}/playback", headers={"Range": "bytes=0-3"}
             )
-            assert audio.status_code == 206 and audio.content == b"RIFF"
+            assert audio.status_code == 200
+            assert audio.json()["playback_url"].startswith("https://objects.example/")
             assert audio.headers["cache-control"] == "private, no-store"
         assert session.execute(select(ScoreLibraryOrganization)).all() == []
         assert session.execute(select(ScoreMembership)).all() == []

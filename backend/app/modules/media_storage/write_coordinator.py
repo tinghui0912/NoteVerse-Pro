@@ -19,6 +19,7 @@ from app.modules.media_storage.write_intents import (
 from app.modules.media_storage.write_lifecycle import cleanup_lifecycle
 from app.shared.time import utc_now
 from app.storage import ObjectStorage, ObjectWriteResult
+from app.storage.base import ObjectStorageUnavailableError
 
 SessionFactory = Callable[[], Session]
 
@@ -32,9 +33,9 @@ class _PhysicalWrite:
 class ObjectWriteCoordinator:
     """Own only write sessions; semantic adoption belongs to the caller's transaction.
 
-    Intent locks cover synchronous provider IO and WRITTEN persistence. They prevent
-    cleanup or another generation from mutating the same key during execution.
-    No business session or business parent lock is acquired by this coordinator.
+    Every provider call executes after the preparation session has closed. A durable
+    WRITING generation excludes cleanup and replacement until its IO result settles.
+    Unknown mutations remain fail-closed and retain their physical responsibility.
     """
 
     def __init__(self, storage: ObjectStorage, sessions: SessionFactory) -> None:
@@ -115,23 +116,32 @@ class ObjectWriteCoordinator:
             for op in ordered:
                 reserve_intent(db, facts[op.item.key])
             prepared = {op.item.key: prepare_write(db, facts[op.item.key]) for op in ordered}
+            pending = []
+            for op in ordered:
+                row, needs_write = inspect_write(db, prepared[op.item.key], op.item.content)
+                if needs_write:
+                    row.status = ObjectWriteIntentStatus.WRITING
+                    pending.append(op)
             db.commit()
         receipts = tuple(prepared[op.item.key] for op in operations)
+        results: dict[str, ObjectWriteResult | None] = {}
         try:
+            for op in pending:
+                results[op.item.key] = op.execute()
             with self.sessions() as db:
-                for receipt in sorted(receipts, key=lambda receipt: receipt.object_key):
-                    require_generation(lock_intent(db, receipt.intent_uuid), receipt)
-                inspected = [
-                    (op, *inspect_write(db, prepared[op.item.key], op.item.content))
-                    for op in ordered
-                ]
-                for op, row, needs_write in inspected:
-                    result = op.execute() if needs_write else None
-                    finalize_write(row, prepared[op.item.key], result)
+                for receipt in sorted(receipts, key=lambda value: value.object_key):
+                    row = lock_intent(db, receipt.intent_uuid)
+                    require_generation(row, receipt)
+                    if receipt.object_key in results and row.status not in (
+                        ObjectWriteIntentStatus.WRITING,
+                        ObjectWriteIntentStatus.WRITE_UNKNOWN,
+                    ):
+                        raise ValueError("Write result has no matching unsettled generation")
+                    finalize_write(row, receipt, results.get(receipt.object_key))
                 db.commit()
         except BaseException as error:
             try:
-                self._queue_cleanup(receipts)
+                self._queue_cleanup(receipts, pending, results, error)
             except BaseException as cleanup_error:
                 raise BaseExceptionGroup(
                     "Write execution and cleanup registration failed", [error, cleanup_error]
@@ -139,15 +149,36 @@ class ObjectWriteCoordinator:
             raise
         return receipts
 
-    def _queue_cleanup(self, receipts: Sequence[ObjectWriteReceipt]) -> None:
+    def _queue_cleanup(
+        self,
+        receipts: Sequence[ObjectWriteReceipt],
+        pending: Sequence[_PhysicalWrite],
+        results: dict[str, ObjectWriteResult | None],
+        error: BaseException,
+    ) -> None:
         with self.sessions() as db:
             for receipt in sorted(receipts, key=lambda receipt: receipt.object_key):
                 row = lock_intent(db, receipt.intent_uuid)
                 if row.write_token != receipt.write_token:
                     continue  # The current generation owns its independent cleanup lineage.
                 require_generation(row, receipt)
+                uncertain_key = next(
+                    (op.item.key for op in pending if op.item.key not in results), None
+                )
+                if (
+                    row.status == ObjectWriteIntentStatus.WRITING
+                    and receipt.object_key == uncertain_key
+                    and (
+                        isinstance(error, (ObjectStorageUnavailableError, OSError))
+                        or not isinstance(error, Exception)
+                    )
+                ):
+                    row.status = ObjectWriteIntentStatus.WRITE_UNKNOWN
+                    row.updated_at = utc_now()
+                    continue
                 if row.status in (
                     ObjectWriteIntentStatus.PREPARED,
+                    ObjectWriteIntentStatus.WRITING,
                     ObjectWriteIntentStatus.WRITTEN,
                 ):
                     cleanup_lifecycle().reset(

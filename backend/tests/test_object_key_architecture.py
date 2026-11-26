@@ -65,9 +65,8 @@ def test_producers_and_identity_verifiers_consume_domain_key_authorities():
             "practice_bundle_musicxml_object_key",
             "practice_bundle_artifact_object_key",
         },
-        "modules/performance_takes/finalization.py": {"performance_take_recording_object_key"},
         "modules/performance_takes/upload_reservation/reservation_service.py": {
-            "performance_take_staging_object_key"
+            "performance_take_recording_object_key"
         },
     }
     for relative, required in consumers.items():

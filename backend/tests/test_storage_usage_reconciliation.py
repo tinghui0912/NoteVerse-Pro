@@ -1,5 +1,7 @@
 """Current semantic inventory and exact, caller-owned projection maintenance."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 
 from tests.support.quota import admit_hold
@@ -91,6 +93,7 @@ def obj(db, name, size):
 
 def upload(db, name, size, user=1):
     row = Upload(
+        upload_session=settled_upload_session(user_id=user),
         upload_uuid=name,
         uploader_user_id=user,
         stored_object_id=obj(db, name, size).id,

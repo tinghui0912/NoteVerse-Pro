@@ -5,6 +5,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    Enum as SAEnum,
     Column,
     DateTime,
     ForeignKey,
@@ -17,6 +18,7 @@ from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .performance_take_manifest import PerformanceTakeManifest
 from .stored_object import StoredObject
+from app.modules.performance_takes.processing_states import TakeMediaStatus
 
 from app.shared.time import utc_now
 
@@ -46,6 +48,18 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     id: Optional[int] = Field(
         default=None,
         sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
+    media_status: TakeMediaStatus = Field(
+        default=TakeMediaStatus.UPLOADED,
+        sa_column=Column(
+            SAEnum(
+                TakeMediaStatus,
+                native_enum=False,
+                create_constraint=True,
+                name="ck_take_media_status",
+            ),
+            nullable=False,
+        ),
     )
     manifest_id: int = Field(sa_column=Column(bigint_pk_type, nullable=False))
     owner_user_id: int = Field(sa_column=Column(bigint_pk_type, nullable=False))

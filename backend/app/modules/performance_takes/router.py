@@ -3,12 +3,10 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi.responses import Response
-from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, get_command_db
-from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.api.resource_dependencies import (
@@ -134,37 +132,15 @@ def get_take(
 )
 def get_playback_url(
     take_id: str,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db, scope="function"),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     data = service.get_playback_url(db, user_id, take_id)
+    response.headers["Cache-Control"] = "private, no-store"
     return data
-
-
-@router.get(
-    "/{take_id}/media",
-    response_class=Response,
-    responses=binary_responses("audio/*", "video/*", byte_ranges=True),
-    operation_id="performanceTakeMediaStream",
-)
-def stream_take_media(
-    take_id: str,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db, scope="function"),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    delivery = service.get_media_delivery(db, user_id, take_id)
-    return stream_storage_object(
-        storage=service.storage,
-        target=delivery,
-        attachment=False,
-        request=request,
-        enable_range=True,
-    )
 
 
 @router.delete(

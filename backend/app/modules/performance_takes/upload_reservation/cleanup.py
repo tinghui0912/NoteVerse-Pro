@@ -1,176 +1,63 @@
-from __future__ import annotations
+"""Bounded business expiry releases quota; upload sessions own physical cleanup."""
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from app.core.logger import logger
-from app.db.models.stored_object import StoredObject
-from app.db.models import PerformanceTake, PerformanceTakeUploadReservation, User
-from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
-from app.modules.performance_takes.upload_reservation.persistence import (
-    apply_transition,
-    lifecycle_from_row,
+from app.db.models.performance_take_upload_reservation import (
+    PerformanceTakeUploadReservation as Reservation,
 )
-from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.upload_sessions.service import UploadSessionService
 from app.modules.storage_governance.quota.service import StorageQuotaService
-from app.storage.base import ObjectStorage
+from app.modules.storage_governance.usage.service import StorageUsageService
 from app.shared.time import utc_now
+from .states import UploadReservationStatus as Status
+from .persistence import lifecycle_from_row
+from .effects import apply_reservation_transition
 
 
 class UploadReservationCleanupService:
-    """Bounded recovery and reference-aware cleanup of reservation-owned objects."""
+    def __init__(
+        self, uploads: UploadSessionService, quota: StorageQuotaService, usage: StorageUsageService
+    ) -> None:
+        self.uploads, self.quota, self.usage = uploads, quota, usage
 
-    def cleanup_expired_reservations(
-        self,
-        db: Session,
-        storage: ObjectStorage,
-        storage_usage_service: StorageUsageService,
-        *,
-        quota: StorageQuotaService,
-    ) -> int:
-        now = utc_now()
+    def expire(self, db: Session, *, limit: int = 100) -> int:
         ids = list(
-            db.execute(
-                select(
-                    PerformanceTakeUploadReservation.user_id, PerformanceTakeUploadReservation.id
-                )
+            db.scalars(
+                select(Reservation.id)
                 .where(
-                    or_(
-                        (
-                            PerformanceTakeUploadReservation.status
-                            == UploadReservationStatus.RESERVED
-                        )
-                        & (PerformanceTakeUploadReservation.expires_at <= now),
-                        (
-                            PerformanceTakeUploadReservation.status
-                            == UploadReservationStatus.FINALIZING
-                        )
-                        & (PerformanceTakeUploadReservation.finalizing_expires_at <= now),
-                        (
-                            PerformanceTakeUploadReservation.status.in_(
-                                [
-                                    UploadReservationStatus.COMPLETED,
-                                    UploadReservationStatus.CANCELLED,
-                                    UploadReservationStatus.EXPIRED,
-                                ]
-                            )
-                        )
-                        & PerformanceTakeUploadReservation.staging_cleanup_completed_at.is_(None)
-                        & (PerformanceTakeUploadReservation.staging_cleanup_after <= now),
-                        PerformanceTakeUploadReservation.orphan_final_object_keys != "[]",
-                    )
+                    Reservation.status.in_([Status.RESERVED, Status.FINALIZING]),
+                    Reservation.expires_at <= utc_now(),
                 )
-                .order_by(PerformanceTakeUploadReservation.created_at)
-                .limit(100)
+                .order_by(Reservation.id)
+                .limit(limit)
             )
         )
-        db.commit()
-        cleaned = 0
-        for user_id, row_id in ids:
-            # Commit recovery before slow storage IO. A candidate is eligible
-            # only after its lease has relinquished it and its grace has elapsed.
-            with db.begin():
-                # The cleanup owner may be tombstoned, but final Account erasure
-                # must not remove its quota lineage during this DB phase.
-                owner = db.scalar(
-                    select(User.id)
-                    .where(User.id == user_id)
-                    .with_for_update(read=True, key_share=True)
-                )
-                if owner is None:
-                    if db.get(PerformanceTakeUploadReservation, row_id) is not None:
-                        raise RuntimeError("Take cleanup lost its User lifecycle authority")
-                    continue
-                if db.get(PerformanceTakeUploadReservation, row_id) is None:
-                    continue
-                quota.lock_user(db, user_id)
-                row = db.scalar(
-                    select(PerformanceTakeUploadReservation)
-                    .where(PerformanceTakeUploadReservation.id == row_id)
-                    .with_for_update()
-                    .execution_options(populate_existing=True)
-                )
-                if row is None:
-                    continue
-                state = lifecycle_from_row(row)
-                take = db.scalar(
-                    select(PerformanceTake).where(PerformanceTake.manifest_id == row.manifest_id)
-                )
-                state.assert_take_presence(take is not None, allow_deleted_take=True)
-                transition = state.recover_due(now=now)
-                apply_transition(row, transition, now=now)
-                effects = transition.effects
-                if effects.release_quota_hold:
-                    quota.release_hold(db, row.quota_hold_id)
-                state = transition.after
-                staging_key = row.staging_object_key if state.can_cleanup_staging(now=now) else None
-                orphan_keys = tuple(
-                    candidate.key
-                    for candidate in state.cleanup_candidates(now=now)
-                    if db.scalar(
-                        select(StoredObject.id).where(
-                            StoredObject.object_key == candidate.key,
-                        )
-                    )
-                    is None
-                )
-            absent: set[str] = set()
-            staging_absent = False
-            try:
-                if staging_key is not None:
-                    if storage.exists(staging_key):
-                        storage.delete(staging_key)
-                    staging_absent = not storage.exists(staging_key)
-                for key in orphan_keys:
-                    # Candidates are immutable unique lease keys; recovery never
-                    # installs an abandoned candidate as a new current lease.
-                    if storage.exists(key):
-                        storage.delete(key)
-                    if not storage.exists(key):
-                        absent.add(key)
-            except Exception:
-                logger.bind(resource_id=row_id).opt(exception=True).error(
-                    "performance_take_upload_reservation.cleanup_object_delete_failed"
-                )
-            with db.begin():
-                owner = db.scalar(
-                    select(User.id)
-                    .where(User.id == user_id)
-                    .with_for_update(read=True, key_share=True)
-                )
-                if owner is None:
-                    if db.get(PerformanceTakeUploadReservation, row_id) is not None:
-                        raise RuntimeError("Take cleanup lost its User lifecycle authority")
-                    continue
-                if db.get(PerformanceTakeUploadReservation, row_id) is None:
-                    continue
-                quota.lock_user(db, user_id)
-                row = db.scalar(
-                    select(PerformanceTakeUploadReservation)
-                    .where(PerformanceTakeUploadReservation.id == row_id)
-                    .with_for_update()
-                    .execution_options(populate_existing=True)
-                )
-                if row is None:
-                    continue
-                state = lifecycle_from_row(row)
-                # A refreshed grace or newly observed Take always wins over a
-                # stale cleanup result.
-                referenced = set(
-                    db.scalars(
-                        select(StoredObject.object_key).where(
-                            StoredObject.object_key.in_(absent),
-                        )
-                    )
-                )
-                absent -= referenced
-                completion = state.finish_cleanup(
-                    now=now, absent_candidates=frozenset(absent), staging_absent=staging_absent
-                )
-                apply_transition(row, completion, now=now)
-                if transition.after != transition.before or completion.after != completion.before:
-                    cleaned += 1
-        return cleaned
-
-
-upload_reservation_cleanup_service = UploadReservationCleanupService()
+        expired = 0
+        for identity in ids:
+            owner = db.scalar(select(Reservation.user_id).where(Reservation.id == identity))
+            if owner is None:
+                continue
+            self.quota.lock_user(db, owner)
+            row = db.scalar(
+                select(Reservation)
+                .where(Reservation.id == identity)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+            if (
+                row is None
+                or row.status not in (Status.RESERVED, Status.FINALIZING)
+                or row.expires_at > utc_now()
+            ):
+                continue
+            apply_reservation_transition(
+                self.usage,
+                self.quota,
+                db,
+                row,
+                lifecycle_from_row(row).expire(now=utc_now()),
+                now=utc_now(),
+            )
+            self.uploads.cancel(db, row.upload_session_id)
+            expired += 1
+        return expired

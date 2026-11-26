@@ -13,7 +13,6 @@ from app.core.generated.customer_browser_protocol import (
 
 import pytest
 
-from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -54,7 +53,7 @@ def test_upload_delete_projects_resource_and_persistence_errors(upload_exists, s
         repository=repository,
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+        uploads=_resource_wiring.build_upload_session_service(_storage_provider),
     )
     with TestClient(application, raise_server_exceptions=False) as client:
         response = client.delete("/api/v1/uploads/upload-requested")
@@ -122,71 +121,30 @@ def test_legacy_task_as_score_routes_are_absent(client: TestClient) -> None:
     assert not any(path.startswith("/api/v1/shares") for path in paths)
 
 
-def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> None:
-    audio_bytes = b"RIFF\x24\x00\x00\x00WAVEfmt "
-    audio_path = tmp_path / "playback.wav"
-    audio_path.write_bytes(audio_bytes)
+def test_external_playback_returns_signed_media_access(client: TestClient) -> None:
+    from unittest.mock import Mock
+    from tests.support.object_storage import InMemoryObjectStorage
 
-    class FakePlaybackStorage:
-        def read_bytes(self, key: str) -> bytes:
-            assert key in {"playback/score-audio.wav"}
-            return audio_bytes
-
-        def size_bytes(self, key: str) -> int:
-            raise AssertionError("Streaming uses admitted byte size")
-
-        def iter_bytes(
-            self,
-            key: str,
-            *,
-            chunk_size: int = 1024 * 1024,
-            start: int | None = None,
-            end: int | None = None,
-        ) -> Iterator[bytes]:
-            assert key in {"playback/score-audio.wav"}
-            content = audio_bytes[start : end + 1 if end is not None else None]
-            for index in range(0, len(content), chunk_size):
-                yield content[index : index + chunk_size]
-
-    class FakePlaybackService:
-        from app.storage import AsyncObjectReader
-
-        storage = FakePlaybackStorage()
-        async_storage = AsyncObjectReader(storage)
-
-        def score_revision_delivery(self, db, score_uuid: str, revision_uuid: str, user_id: int):
-            token = "score-audio"
-            return StoredObjectDelivery(
-                stored_object_id=1,
-                byte_size=len(audio_bytes),
-                filename=f"{token}.wav",
-                media_type="audio/wav",
-                storage_key=f"playback/{token}.wav",
-            )
-
-    def fake_get_db():
-        yield object()
-
-    app.dependency_overrides[get_db] = fake_get_db
-    app.dependency_overrides[get_playback_delivery_service] = lambda: FakePlaybackService()
-    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, is_active=True)
+    storage = InMemoryObjectStorage()
+    target = StoredObjectDelivery(1, "playback/private.wav", 16, "audio/wav", "score.wav")
+    service = SimpleNamespace(
+        score_revision_delivery=Mock(return_value=target),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
+    app.dependency_overrides[get_db] = lambda: Mock()
+    app.dependency_overrides[get_playback_delivery_service] = lambda: service
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     try:
-        audio_response = client.get("/api/v1/scores/score/revisions/revision/playback")
-        audio_range_response = client.get(
-            "/api/v1/scores/score/revisions/revision/playback",
-            headers={"Range": "bytes=5-8"},
+        response = client.get(
+            "/api/v1/scores/score/revisions/revision/playback", headers={"Range": "bytes=5-8"}
         )
+        assert response.status_code == 200
+        assert response.json()["playback_url"].startswith("https://objects.example/")
+        assert response.json()["expires_in"] == 900
+        assert "content-range" not in response.headers
     finally:
-        app.dependency_overrides.pop(get_current_user, None)
-        app.dependency_overrides.pop(get_playback_delivery_service, None)
-        app.dependency_overrides.pop(get_db, None)
-
-    assert audio_response.status_code == 200
-    assert audio_response.headers["content-type"].startswith("audio/wav")
-    assert audio_response.content == audio_bytes
-    assert audio_range_response.status_code == 206
-    assert audio_range_response.headers["content-range"] == f"bytes 5-8/{len(audio_bytes)}"
-    assert audio_range_response.content == audio_bytes[5:9]
+        for dependency in (get_db, get_playback_delivery_service, get_current_user):
+            app.dependency_overrides.pop(dependency, None)
 
 
 @pytest.mark.parametrize("include_notation", [False, True])

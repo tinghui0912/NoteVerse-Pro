@@ -1,11 +1,9 @@
-from fastapi.responses import Response
 from app.api.resource_dependencies import get_playback_delivery_service
-from app.api.response_contracts import binary_responses
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
-from app.api.storage_streaming import stream_storage_object
+from app.modules.media_storage.delivery import MediaAccessRead
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.playback.delivery import PlaybackDeliveryService
@@ -29,28 +27,20 @@ def create_performance_plan(payload: PerformancePlanRequest) -> PerformancePlanR
 
 @router.get(
     "/scores/{score_id}/revisions/{revision_id}/playback",
-    response_class=Response,
-    responses=binary_responses("audio/*", byte_ranges=True),
-    operation_id="scoreRevisionPlaybackStream",
+    response_model=MediaAccessRead,
+    operation_id="scoreRevisionPlaybackAccessGet",
 )
-def stream_score_revision_playback(
+def get_score_revision_playback(
     score_id: str,
     revision_id: str,
-    request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db, scope="function"),
     service: PlaybackDeliveryService = Depends(get_playback_delivery_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = service.score_revision_delivery(db, score_id, revision_id, user_id)
-    return _stream(delivery, service, request)
-
-
-def _stream(delivery, service: PlaybackDeliveryService, request: Request):
-    return stream_storage_object(
-        storage=service.storage,
-        target=delivery,
-        attachment=False,
-        request=request,
-        enable_range=True,
-    )
+    db.commit()
+    db.close()
+    response.headers["Cache-Control"] = "private, no-store"
+    return service.delivery.access(delivery)

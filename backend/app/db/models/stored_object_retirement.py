@@ -70,7 +70,14 @@ class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     )
     object_key: str = Field(sa_column=Column(String(768), nullable=False))
     byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
-    sha256: str = Field(sa_column=Column(String(64), nullable=False))
+    sha256: str | None = Field(default=None, sa_column=Column(String(64), nullable=True))
+    provider_etag: str | None = Field(default=None, sa_column=Column(String(255), nullable=True))
+    transport_checksum_algorithm: str | None = Field(
+        default=None, sa_column=Column(String(32), nullable=True)
+    )
+    transport_checksum: str | None = Field(
+        default=None, sa_column=Column(String(255), nullable=True)
+    )
     content_type: str = Field(sa_column=Column(String(255), nullable=False))
     status: media_states.StoredObjectRetirementStatus = Field(
         default=media_states.StoredObjectRetirementStatus.PENDING,

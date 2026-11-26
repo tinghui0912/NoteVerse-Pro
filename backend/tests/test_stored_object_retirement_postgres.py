@@ -1,5 +1,8 @@
 """Real PostgreSQL retirement/reference fences across independent connections."""
 
+from tests.support.uploads import complete_image_upload
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 
 
@@ -20,7 +23,6 @@ from threading import Event
 import pytest
 from tests.support.images import image_bytes
 from fastapi import UploadFile
-from starlette.datastructures import Headers
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.exc import OperationalError
@@ -34,7 +36,7 @@ from app.db.models import (
     StorageUsageCounter,
 )
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
-from app.modules.uploads.service import UploadService, blob_object_key
+from app.modules.uploads.service import UploadService
 from app.modules.media_storage.persistence import object_from_bytes
 from app.modules.media_storage.retirement import (
     retire_after_release,
@@ -75,10 +77,9 @@ def assert_blocked(engine, pid):
 
 
 def seed(fixture, *, prior_owner=False, queued=True):
-    import hashlib
 
     engine, sessions, storage = fixture
-    key = blob_object_key(hashlib.sha256(CONTENT).hexdigest(), ".png")
+    key = "shared/retirement-fixture.png"
     storage.put_bytes(key=key, content=CONTENT, content_type="image/png")
     with sessions() as db:
         obj = object_from_bytes(object_key=key, content=CONTENT, content_type="image/png")
@@ -104,7 +105,10 @@ def seed(fixture, *, prior_owner=False, queued=True):
         )
         if prior_owner:
             upload = Upload(
-                stored_object_id=identity, original_filename="initial.png", uploader_user_id=1
+                upload_session=settled_upload_session(user_id=1),
+                stored_object_id=identity,
+                original_filename="initial.png",
+                uploader_user_id=1,
             )
             db.add(upload)
         db.commit()
@@ -112,7 +116,7 @@ def seed(fixture, *, prior_owner=False, queued=True):
             UploadService(
                 quota=_resource_wiring.storage_quota_service,
                 usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
+                uploads=_resource_wiring.build_upload_session_service(storage),
             ).delete_upload(db, db.get(User, 1), upload.upload_uuid)
             db.commit()
         elif queued:
@@ -125,7 +129,7 @@ def seed(fixture, *, prior_owner=False, queued=True):
 
 @pytest.mark.parametrize("worker_wins", [False, True])
 @pytest.mark.parametrize("prior_owner", [False, True])
-def test_retirement_vs_upload_reacquisition_after_last_reference_release(
+def test_retirement_vs_reference_reacquisition_after_last_reference_release(
     retirement_postgres, monkeypatch, worker_wins, prior_owner
 ):
     engine, sessions, storage = retirement_postgres
@@ -150,23 +154,42 @@ def test_retirement_vs_upload_reacquisition_after_last_reference_release(
     )
     pid = []
 
+    acquisition_started = Event()
+
     def upload():
+        from app.modules.media_storage.retirement import retain_for_reference
+        from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+        from app.modules.media_storage.adoption import adopt_written_object
+
         with sessions() as db:
             pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-            return UploadService(
-                quota=_resource_wiring.storage_quota_service,
-                usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
-            ).create_upload(
-                db,
-                db.get(User, 1),
-                UploadFile(
-                    filename="again.png",
-                    file=io.BytesIO(CONTENT),
-                    headers=Headers({"content-type": "image/png"}),
-                ),
-                client_request_id=uuid4().hex,
+            acquisition_started.set()
+            obj = retain_for_reference(db, identity)
+            if obj is None:
+                db.commit()
+                db.close()
+                receipt = ObjectWriteCoordinator(storage, sessions).write_bytes(
+                    key=key, content=CONTENT, content_type="image/png"
+                )
+                obj = adopt_written_object(db, receipt)
+            row = Upload(
+                upload_session=settled_upload_session(user_id=1),
+                stored_object_id=obj.id,
+                original_filename="reference.png",
+                uploader_user_id=1,
             )
+            db.add(row)
+            _resource_wiring.storage_usage_service.record_allocation(
+                db,
+                user_id=1,
+                category=StorageUsageCategory.UPLOAD,
+                bytes_count=len(CONTENT),
+                reason="reference_acquired",
+            )
+            db.flush()
+            result = row.upload_uuid
+            db.commit()
+            return result
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         deleting = pool.submit(worker.execute_stored_object_retirement_task, None, uuid)
@@ -174,10 +197,7 @@ def test_retirement_vs_upload_reacquisition_after_last_reference_release(
             assert entered.wait(10)
             uploading = pool.submit(upload)
             if worker_wins:
-                deadline = monotonic() + 10
-                while not pid:
-                    assert monotonic() < deadline
-                    sleep(0.01)
+                assert acquisition_started.wait(10)
                 assert_blocked(engine, pid[0])
                 assert not uploading.done()
                 release.set()
@@ -188,7 +208,7 @@ def test_retirement_vs_upload_reacquisition_after_last_reference_release(
             release.set()
     assert outcome["status"] == ("completed" if worker_wins else "ignored")
     with sessions() as db:
-        row = db.scalar(select(Upload).where(Upload.upload_uuid == uploaded.upload_id))
+        row = db.scalar(select(Upload).where(Upload.upload_uuid == uploaded))
         assert storage.read_bytes(row.stored_object.object_key) == CONTENT
         assert (row.stored_object_id != identity) is worker_wins
         operation = db.scalar(
@@ -309,8 +329,10 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         accepted = service.reserve_upload(db, 1, request)
         reservation = service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
         storage.put_bytes(
-            key=reservation.staging_object_key, content=MEDIA, content_type="audio/webm"
+            key=reservation.upload_session.object_key, content=MEDIA, content_type="audio/webm"
         )
+        db.commit()
+        service.uploads.complete(reservation.upload_session.session_uuid, 1)
         saved = service.finalize_take(db, 1, accepted.reservation_id)
         take = service.repository.get_by_uuid(db, 1, saved.take_id)
         identity, key, manifest_id = (
@@ -321,7 +343,10 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         manifest = manifest_from_row(take.manifest)
         retain_for_reference(db, identity)
         upload = Upload(
-            stored_object_id=identity, original_filename="recording.webm", uploader_user_id=1
+            upload_session=settled_upload_session(user_id=1),
+            stored_object_id=identity,
+            original_filename="recording.webm",
+            uploader_user_id=1,
         )
         db.add(upload)
         storage_usage_service.record_allocation(
@@ -345,7 +370,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         UploadService(
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            uploads=_resource_wiring.build_upload_session_service(storage),
         ).delete_upload(db, db.get(User, 1), upload.upload_uuid)
         db.commit()
         operation = db.scalar(select(StoredObjectRetirement))
@@ -439,11 +464,12 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
         assert operation.stored_object_id is None and operation.object_key == key
         assert operation.deletion_fenced_at is not None
     with sessions() as db:
-        uploaded = UploadService(
-            quota=_resource_wiring.storage_quota_service,
-            usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
-        ).create_upload(
+        uploaded = complete_image_upload(
+            UploadService(
+                quota=_resource_wiring.storage_quota_service,
+                usage=_resource_wiring.storage_usage_service,
+                uploads=_resource_wiring.build_upload_session_service(storage),
+            ),
             db,
             db.get(User, 1),
             UploadFile(filename="rewritten.png", file=io.BytesIO(CONTENT)),
@@ -455,7 +481,9 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
             ).stored_object_id
             != identity
         )
-        assert storage.read_bytes(key) == CONTENT
+        current = db.scalar(select(Upload).where(Upload.upload_uuid == uploaded.upload_id))
+        assert storage.read_bytes(current.stored_object.object_key) == CONTENT
+        assert not storage.exists(key)
 
 
 @pytest.mark.parametrize("missing", [False, True])

@@ -43,7 +43,7 @@ def execute_retirement(
                 return {"status": "ignored", "retirement_uuid": retirement_uuid}
             if row is None or operation.stored_object_id != row.id:
                 raise ValueError("Processing retirement has no matching StoredObject")
-            if snapshot(operation) != object_from_row(row):
+            if not snapshot(operation).agrees_with(object_from_row(row)):
                 raise ValueError("Retirement snapshot disagrees with StoredObject")
             if stored_object_has_semantic_references(db, row.id):
                 if operation.deletion_fenced_at is not None:
@@ -72,8 +72,8 @@ def execute_retirement(
                     return {"status": "ignored", "retirement_uuid": retirement_uuid}
                 if row is None or operation.stored_object_id != row.id:
                     raise ValueError("Fenced retirement has no matching StoredObject")
-                if snapshot(operation) != object_from_row(
-                    row
+                if not snapshot(operation).agrees_with(
+                    object_from_row(row)
                 ) or stored_object_has_semantic_references(db, row.id):
                     raise ValueError("Fenced retirement authority changed")
             db.delete(row)

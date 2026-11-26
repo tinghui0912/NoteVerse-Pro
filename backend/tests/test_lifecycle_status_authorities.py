@@ -1,6 +1,7 @@
 """Canonical lifecycle vocabularies are projected through ORM and PostgreSQL."""
 
 from tests.support.quota import quota_hold_fact
+from tests.support.uploads import settled_upload_session
 
 import ast
 from datetime import timedelta
@@ -93,7 +94,7 @@ def status_database(database):  # noqa: F811 - imported PostgreSQL fixture
                     user_id=user.id,
                     manifest_id=manifest.id,
                     client_request_id="status",
-                    staging_object_key="status/staging",
+                    upload_session=settled_upload_session(user_id=user.id),
                     quota_hold_id=quota_hold_fact(db, user.id),
                     expires_at=utc_now() + timedelta(hours=1),
                 ),
@@ -124,7 +125,6 @@ def state_values(model, status, object_ids):
         active = status is UploadReservationStatus.FINALIZING
         values.update(
             finalizing_token="lease" if active else None,
-            finalizing_object_key="candidate" if active else None,
             finalizing_expires_at=utc_now() if active else None,
         )
     return values

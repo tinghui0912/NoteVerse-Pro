@@ -1,5 +1,7 @@
 """Same-user classification preserves admitted occupancy; extra semantic inputs need capacity."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 from app.composition import media_resources as _media_wiring
 
@@ -46,7 +48,12 @@ def inputs(postgres_engine):
         )
         db.add(obj)
         db.flush()
-        upload = Upload(uploader_user_id=1, original_filename="input.png", stored_object_id=obj.id)
+        upload = Upload(
+            upload_session=settled_upload_session(user_id=1),
+            uploader_user_id=1,
+            original_filename="input.png",
+            stored_object_id=obj.id,
+        )
         db.add(upload)
         db.flush()
         for n in (1, 2):

@@ -1,5 +1,6 @@
 """Quota authorities, capacity races and caller-owned allocation transactions."""
 
+from tests.support.uploads import settled_upload_session
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Barrier
@@ -480,7 +481,7 @@ def test_cleanup_release_of_rolled_back_hold_is_idempotent(database):
         assert db.scalar(select(func.count()).select_from(StorageQuotaHold)) == 0
 
 
-def test_user_cascade_preserves_business_hold_fk_consistency(database):
+def test_upload_session_prevents_user_erasure_without_physical_cleanup(database):
     from app.db.models import PerformanceTakeManifest, PerformanceTakeUploadReservation
 
     with Session(database) as db:
@@ -495,16 +496,20 @@ def test_user_cascade_preserves_business_hold_fk_consistency(database):
                 user_id=1,
                 manifest_id=manifest.id,
                 client_request_id="teardown",
-                staging_object_key="staging",
+                upload_session=settled_upload_session(user_id=1),
                 quota_hold_id=claim.hold_id,
                 expires_at=claim.expires_at,
             )
         )
         db.commit()
-        db.delete(db.get(User, 1))
-        db.commit()
-        assert db.get(StorageQuotaHold, claim.hold_id) is None
-        assert db.scalar(select(func.count()).select_from(PerformanceTakeUploadReservation)) == 0
+        from sqlalchemy.exc import IntegrityError
+
+        with pytest.raises(IntegrityError):
+            db.delete(db.get(User, 1))
+            db.commit()
+        db.rollback()
+        assert db.get(User, 1) is not None
+        assert db.get(StorageQuotaHold, claim.hold_id) is not None
 
 
 def test_customer_snapshot_serializes_with_consumption_and_allocation(database):

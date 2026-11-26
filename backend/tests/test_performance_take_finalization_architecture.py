@@ -32,35 +32,25 @@ def test_take_semantic_construction_has_one_transaction_participant():
     assert not {
         call.func.attr for call in calls(writer) if isinstance(call.func, ast.Attribute)
     } & {"commit", "rollback", "copy", "delete", "upload_url", "download_url"}
-    assert {"object_to_row", "PerformanceTake"} <= {
+    assert {"PerformanceTake"} <= {
         call.func.id for call in calls(writer) if isinstance(call.func, ast.Name)
     }
 
 
-def test_physical_verifier_and_reservation_commands_have_distinct_dependencies():
-    assert not any(
-        name.startswith(("sqlalchemy", "app.db"))
-        for name in dependencies(MODULE / "final_media.py")
-    )
-    assert not any(
-        name.endswith(("final_media", "writer", "finalization"))
-        for name in dependencies(MODULE / "upload_reservation/reservation_service.py")
-    )
-    for name in [
-        "final_media.py",
+def test_physical_verification_and_business_commands_have_distinct_owners():
+    for name in (
         "finalization.py",
         "writer.py",
         "upload_reservation/reservation_service.py",
         "upload_reservation/recovery.py",
-    ]:
+        "upload_reservation/cleanup.py",
+    ):
         assert not any(
-            isinstance(call.func, ast.Attribute) and call.func.attr == "delete"
+            isinstance(call.func, ast.Attribute)
+            and call.func.attr in {"put_bytes", "copy", "generate_put_upload_url", "delete"}
             for call in calls(MODULE / name)
         )
-    assert any(
-        isinstance(call.func, ast.Attribute) and call.func.attr == "delete"
-        for call in calls(MODULE / "upload_reservation/cleanup.py")
-    )
+    assert "app.modules.media_storage.upload_sessions.service" in dependencies(MODULE / "writer.py")
 
 
 def test_repository_is_a_transaction_participant():
@@ -83,7 +73,7 @@ def test_finalization_orchestrates_verification_writer_and_outer_commit():
         if isinstance(call.func, ast.Attribute)
     }
     assert {
-        "verify",
+        "prepare_adoption",
         "adopt",
         "commit",
         "recover_known_failure",
@@ -136,7 +126,7 @@ def test_semantic_commit_exception_boundary_reconciles_independently():
         isinstance(node, ast.With)
         and any(
             isinstance(item.context_expr, ast.Call)
-            and ast.unparse(item.context_expr.func) == "SessionLocal"
+            and ast.unparse(item.context_expr.func) == "self.sessions"
             for item in node.items
         )
         for node in ast.walk(fresh)

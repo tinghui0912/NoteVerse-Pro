@@ -14,6 +14,8 @@ class StoredObjectRetirementStatus(StrEnum):
 
 class ObjectWriteIntentStatus(StrEnum):
     PREPARED = "PREPARED"
+    WRITING = "WRITING"
+    WRITE_UNKNOWN = "WRITE_UNKNOWN"
     WRITTEN = "WRITTEN"
     ADOPTED = "ADOPTED"
     CLEANUP_PENDING = "CLEANUP_PENDING"

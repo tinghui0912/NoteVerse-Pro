@@ -99,11 +99,14 @@ def retire_if_unreferenced(db: Session, object_id: int) -> StoredObjectRetiremen
             byte_size=facts.byte_size,
             sha256=facts.sha256,
             content_type=facts.content_type,
+            provider_etag=facts.provider_etag,
+            transport_checksum_algorithm=facts.transport_checksum_algorithm,
+            transport_checksum=facts.transport_checksum,
         )
         db.add(operation)
         db.flush()
     elif operation.status == StoredObjectRetirementStatus.CANCELLED:
-        if snapshot(operation) != facts:
+        if not snapshot(operation).agrees_with(facts):
             raise ValueError("Retirement snapshot disagrees with StoredObject")
         delivery_lifecycle().rearm(operation, now=utc_now())
         clear_failure_facts(operation)
@@ -118,7 +121,13 @@ def retire_after_release(db: Session, *object_ids: int) -> list[str]:
 
 def snapshot(operation: StoredObjectRetirement) -> StoredObjectFacts:
     return StoredObjectFacts(
-        operation.object_key, operation.byte_size, operation.sha256, operation.content_type
+        operation.object_key,
+        operation.byte_size,
+        operation.sha256,
+        operation.content_type,
+        operation.provider_etag,
+        operation.transport_checksum_algorithm,
+        operation.transport_checksum,
     )
 
 

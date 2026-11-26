@@ -1,3 +1,4 @@
+from tests.support.uploads import settled_upload_session
 from app.storage import object_storage as _storage_provider
 
 from app.composition import storage_resources as _resource_wiring
@@ -159,7 +160,12 @@ def test_import_review_score_and_library_share_score_genres(
     )
     session.add(original)
     session.flush()
-    upload = Upload(stored_object_id=original.id, uploader_user_id=1, original_filename="page.png")
+    upload = Upload(
+        upload_session=settled_upload_session(user_id=1),
+        stored_object_id=original.id,
+        uploader_user_id=1,
+        original_filename="page.png",
+    )
     session.add(upload)
     storage_usage_service.record_allocation(
         session,

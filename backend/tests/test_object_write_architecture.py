@@ -9,11 +9,6 @@ MODULES = ROOT / "app/modules"
 
 
 def test_business_resource_mutations_have_explicit_physical_authorities():
-    take_owners = {
-        "performance_takes/final_media.py": {"copy"},
-        "performance_takes/writer.py": {"object_to_row"},
-        "performance_takes/upload_reservation/cleanup.py": {"delete"},
-    }
     for path in MODULES.rglob("*.py"):
         relative = path.relative_to(MODULES).as_posix()
         physical = relative.startswith("media_storage/")
@@ -43,12 +38,12 @@ def test_business_resource_mutations_have_explicit_physical_authorities():
                     or "storage" in receiver
                 )
                 if mutation:
-                    assert physical or name in take_owners.get(relative, set()), (
+                    assert physical, (
                         relative,
                         node.lineno,
                         name,
                     )
-            if name in {"put_object", "copy_object", "delete_object"}:
+            if name in {"put_object", "copy_object", "delete_object"} and not physical:
                 raise AssertionError((relative, node.lineno, "Provider SDK belongs to app/storage"))
 
 
@@ -90,6 +85,11 @@ def test_persisted_resource_enums_are_owned_by_pure_domain_modules():
         "StoragePlanCode": "app.modules.storage_governance.quota.states",
         "StorageQuotaHoldStatus": "app.modules.storage_governance.quota.states",
         "ObjectWriteIntentStatus": "app.modules.media_storage.domain",
+        "UploadPurpose": "app.modules.media_storage.upload_sessions.domain",
+        "UploadMode": "app.modules.media_storage.upload_sessions.domain",
+        "UploadStatus": "app.modules.media_storage.upload_sessions.domain",
+        "TakeMediaStatus": "app.modules.performance_takes.processing_states",
+        "TakeProcessingStatus": "app.modules.performance_takes.processing_states",
         "StoredObjectRetirementStatus": "app.modules.media_storage.domain",
         "UploadReservationStatus": "app.modules.performance_takes.upload_reservation.states",
         "PracticeBundleStatus": "app.modules.practice.bundle.states",
@@ -129,3 +129,39 @@ def test_persisted_resource_enums_are_owned_by_pure_domain_modules():
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
             if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("app.db.models"):
                 assert not ({name.name for name in node.names} & owned.keys()), path
+
+
+def test_transport_ownership_and_delivery_contracts():
+    from app.db.models import (
+        UploadSession,
+        Upload,
+        UploadCreationRequest,
+        PerformanceTakeUploadReservation,
+    )
+    from app.main import app
+    from sqlalchemy import UniqueConstraint
+
+    table = UploadSession.__table__
+    assert not {"owner_id", "owner_type"} & set(table.c.keys())
+    assert next(iter(table.c.user_id.foreign_keys)).ondelete == "RESTRICT"
+    for model in (Upload, UploadCreationRequest, PerformanceTakeUploadReservation):
+        foreign = model.__table__.c.upload_session_id
+        assert not foreign.nullable
+        assert next(iter(foreign.foreign_keys)).target_fullname == "upload_sessions.id"
+        assert any(
+            isinstance(c, UniqueConstraint)
+            and [column.name for column in c.columns] == ["upload_session_id"]
+            for c in model.__table__.constraints
+        )
+    paths = app.openapi()["paths"]
+    for path in (
+        "/api/v1/scores/{score_id}/revisions/{revision_id}/playback",
+        "/api/v1/guest-previews/{token}/playback",
+        "/api/v1/performance-takes/{take_id}/playback-url",
+    ):
+        operation = paths[path]["get"]
+        assert set(operation["responses"]["200"]["content"]) == {"application/json"}
+        assert not any(
+            parameter["name"].lower() == "range" for parameter in operation.get("parameters", [])
+        )
+    assert set(paths["/api/v1/uploads"]["post"]["requestBody"]["content"]) == {"application/json"}

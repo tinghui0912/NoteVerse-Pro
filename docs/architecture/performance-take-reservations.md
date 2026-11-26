@@ -1,222 +1,100 @@
-# Performance Take Upload Reservations
+# Performance Take reservations
 
-UploadReservation is a persisted lifecycle aggregate. Its pure owner is
-`backend/app/modules/performance_takes/upload_reservation/domain.py`.
-HTTP DTOs carry intent and recording evidence. `PerformanceTakeReservationService`
-authorizes the exact bound Bundle, calls the Practice planner, holds quota and issues
-upload capabilities. `PerformanceTakeFinalizationService` orchestrates physical verification,
-exact-lease admission and the outer semantic commit. `PerformanceTakeWriter` is the sole
-Take constructor and transaction participant. [Take lifecycle](performance-take-lifecycle.md)
-describes those owners and the browser Save command. `PerformanceTakeService` owns the durable
-Take library: reads, playback, download and deletion, using the shared immutable Manifest.
+## Domain ownership
 
-## Capture, saved recording and Composite Video
+Performance Takes own recording intent, immutable TakeManifest, client-request
+idempotency, Finalization Lease, media readiness and Take lifecycle. Media storage
+owns upload transport, exact physical generation, adoption and garbage collection.
+Quota Holds and Usage allocations belong to storage governance.
 
-Capture is browser-produced recording evidence before Save. READY recording owns
-AUDIO or VIDEO original media, a LocalMediaAsset and its RecordingTimebase. Capture
-supports the [Original Recording Media Admission](../../contracts/practice/recording-media-admission.json);
-its generated projections feed browser Recording and the backend PerformanceTake admission adapter.
-Codec parameters normalize to the
-container MIME for Save admission without transcoding or changing the accepted MIME set.
+A Manifest freezes admitted practice binding, artifact identity, title snapshot,
+capture metadata, score timebase, scope, tempo plan and recording timebase. It remains
+self-contained when Score or Practice Bundle references are released. Finalization
+does not reconstruct admission from a mutable source or provider key prefix.
 
-PerformanceTake is a durable resource retaining the exact original recording bytes.
-Signed upload, staging verification and the final recording object preserve those bytes
-and container. WebM requires its EBML header; MP4 audio/video requires the ISO BMFF
-`ftyp` signature at byte offset four. Media kind and Content-Type agree with the
-admitted container. Manifest.capture records browser evidence admitted by the server;
-recording_media projects the committed recording StoredObject's verified MIME and size.
-The saved aggregate requires those independently admitted facts to agree.
+## Admission and persistence
 
-Save retains a recording lease before async reserve/PUT/finalize and releases it in
-finally. Original download returns exact original AUDIO or VIDEO recording bytes.
-Composite Video independently renders clean score plus original recording into a local
-derivative video. It is never uploaded or persisted as the Take.
+`PerformanceTakeReservationService.reserve_upload` validates practice authorization,
+recording container policy and file limits. It serializes User lifecycle and capacity,
+then creates Manifest, Reservation, UploadSession and durable UPLOAD Hold together.
+`(user_id, client_request_id)` is unique. Replay compares the full admitted metadata
+and returns the same immutable reservation/session identity; conflicting facts fail.
 
-PerformanceTake has no product-level per-file byte-size or recording-duration ceiling.
-Capture byte size is positive, and `StorageQuotaService.create_hold` admits the exact bytes
-against the user's available StorageQuota. Insufficient capacity returns
-`storage_quota_exceeded`. RecordingTimebase duration and segments follow their structural
-and representational invariants. Manifest JSON uses deterministic canonical serialization
-without a semantic byte-size ceiling. Finalize verifies actual stored object size,
-Content-Type, container signature and full SHA-256 against the admitted recording facts.
+Reservation has a unique RESTRICT `upload_session_id`, user/manifest ownership,
+quota_hold_id, expiry, status and finalizing token/deadline. It contains no private
+staging key, provider handle or physical orphan list. UploadSession owns those facts.
+Take and Reservation share one Manifest with structural owner constraints.
 
-## Lifecycle and persistence
+| Reservation state | Legal progress |
+| --- | --- |
+| RESERVED | Finalize obtains a lease, or cancellation/expiry releases an unconsumed Hold |
+| FINALIZING | Exact current lease admits one result; a known rollback permits retry; expiry permits fenced recovery |
+| COMPLETED | Persistent Take/Manifest identity answers replay |
+| CANCELLED / EXPIRED | No new Take admission; transfer cleanup continues independently |
 
-`app/modules/performance_takes/upload_reservation/states.py` owns `UploadReservationStatus`, consumed by
-both the lifecycle domain and persistence. The ORM status field is typed with this
-enum; its VARCHAR(24) admission CHECK is projected by SQLAlchemy Enum with
-`native_enum=False`. The finalize-lease CHECK projects FINALIZING from the same
-enum. Hydration and transitions pass enum members without string coercion. The domain owns `FinalizeLease`, orphan
-candidates, invariants and transitions. Time, tokens, object keys and lease expiry are explicit
-command inputs. No domain transition accesses a database, storage, HTTP or clock.
+## Dual-mode transfer
 
-RESERVED has no finalize lease. FINALIZING has one complete token/key/expiry lease.
-COMPLETED, CANCELLED and EXPIRED have no finalize lease. Hydration rejects impossible
-combinations; database checks enforce the same status and lease tuples. The lifecycle
-aggregate knows only upload/storage lifecycle, independently of score and provenance.
+The reservation response contains `upload_session`. Its owner-authenticated APIs
+provide current transfer state, exact part capabilities, provider parts and completion.
 
-`upload_reservation/persistence.py` hydrates and applies lifecycle values. It is the
-only writer of lifecycle ORM columns and the only orphan-candidate JSON codec.
-The canonical JSON array contains `{key, remove_after}` entries with a required
-timestamp. Domain commands deduplicate keys and preserve the longest cleanup grace.
+SINGLE_PUT inputs up to 20 MiB use signed staging PUT. Completion bounds the full
+read and SHA-256. Finalize validates raw capture/container bytes, uses the write
+coordinator for a verified copy and adopts the immutable final object.
 
-Transitions cover upload-capability refresh, finalize acquisition/takeover, fenced
-recovery, expiry, cancellation, completion, and cleanup acknowledgment. Each returns
-before/after values and effects specifying quota-hold release or quota commit to a completed object. Orphan cleanup ownership is explicit
-in the resulting lifecycle value. Application services execute these effects rather
-than inferring them from prior status.
+MULTIPART inputs use 16 MiB default parts and precisely signed per-part lengths.
+Audio is limited to 500 MiB, video to 2 GiB. Only the server completes the MPU.
+Completion checks parts and exact object size/type/ETag. Finalize does not download
+large media, copy it or calculate a full digest. It adopts the final key in place.
+Provider checksum/composite metadata remains distinct from a full-object SHA-256.
 
-## Object ownership
+## Finalization transaction
 
-| Object                           | Owner                     |
-| -------------------------------- | ------------------------- |
-| staging object                   | reservation               |
-| current final candidate          | current finalize lease    |
-| abandoned or uncertain candidate | orphan cleanup list       |
-| completed media object           | `StoredObject.object_key` |
+1. Lock current User/capacity/reservation according to domain admission order.
+2. Commit the exact Finalization Lease and close the business Session.
+3. Validate or prepare the completed transfer outside database locks.
+4. Reacquire admission locks and verify the same lease/Manifest/session.
+5. Consume Session, create StoredObject and Take, consume Hold, allocate UPLOAD,
+   and complete Reservation in one transaction.
 
-Finalization verifies staging size, MIME/container and full SHA-256, copies to a
-unique token-owned candidate, and verifies candidate size and SHA-256 equality.
-An active finite lease cannot be taken over. Expired takeover assigns a new token
-and key and retains the old candidate with a thirty-minute unknown-outcome grace.
-Physical verification uses the unique lease candidate key without holding a database lock.
-Final semantic admission locks the optional linked Score, user capacity authority and
-reservation, then requires the exact live lease and unexpired Quota hold; a late
-physical result can only leave orphan evidence, never replace a current winner.
-Known media/admission failure immediately recovers the exact lease to RESERVED, or EXPIRED
-when its reservation expires. RESERVED recovery preserves the Manifest and quota hold.
-Candidate/staging deletion belongs exclusively to reservation cleanup; requests never delete them.
+Unknown COMMIT recovery reads a fresh Session and committed Take/Manifest/Hold
+lineage. It does not reuse a failed transaction, duplicate accounting or re-consume
+a Hold. Concurrent finalizers have one business winner. Stale leases cannot adopt.
 
-New durable save admission authorizes and verifies a live exact bound Bundle under Score,
-Revision, selected access fact, Binding and Bundle locks. The lock order and delete/admit ordering
-belong to [Practice Bundle](practice-bundle.md#save-and-browser-admission).
+## Media readiness
 
-`PerformanceTakeManifest` owns one immutable admitted saved-performance snapshot: public Take
-UUID, user identity, detached Bundle/Score/Revision/artifact provenance strings, display title at admission,
-`capture` kind/MIME/byte size admitted from the browser, resolved scope, score timebase, tempo plan and RecordingTimebase.
-`manifest.py` owns the frozen `TakeManifest` value and its versioned canonical document:
-`{"schemaVersion":1,"manifest":...}`. It owns encoding, decoding and SHA-256 of the exact
-canonical UTF-8 document bytes. The row stores `id`, `user_id`, `take_uuid`, `manifest_json`,
-`manifest_sha256` and `created_at`. The digest is a non-unique integrity fingerprint,
-independent of StoredObject's physical-byte SHA. `manifest_persistence.py` maps the value
-and row, requiring exact canonical representation and digest agreement. Invalid documents
-fail closed. API responses project the semantic snapshot without persistence fields.
+Take media states are UPLOADED, PROCESSING, READY and FAILED. Small verified inputs
+become READY directly. Multipart adoption creates TakeProcessingOutbox atomically
+and returns UPLOADED. The domain worker claims durable delivery, closes its transaction,
+streams the full immutable recording through ObjectIntegrityVerifier, validates the
+container, then fills missing StoredObject SHA-256 and marks READY in a fresh fenced
+transaction. Retryable availability failures retain bounded retries; invalid content
+fails closed. Signed playback is available only for READY recordings.
 
-Reservation and Take reference the exact same Manifest row. Reservation owns idempotency,
-quota hold, staging and finalize/cleanup lifecycle. Take joins one Manifest and one StoredObject
-and owns the live navigation pointer and library membership. Manifest has no storage locator, upload
-state, navigation pointer or Bundle/Revision FK. Only revision bindings retain PracticeBundle.
+Celery Beat scans durable processing and transfer work. A lost initial dispatch does
+not lose responsibility. Worker execution and provider verification use independent
+sessions; no long network stream holds a PostgreSQL transaction.
 
-Reserve commits Manifest, Reservation and quota hold atomically. Concurrent equal client requests
-retain one of each. Both Reservation and Take responses expose the same nested `manifest`
-projection; their public `take_id` comes from Manifest.take_uuid. The composite Reservation
-Manifest/owner FK enforces agreement with its idempotency user. Take.manifest_id is unique.
-Take.owner_user_id directly scopes its library timeline and is bound to Manifest.user_id by
-its composite (manifest_id, owner_user_id) FK. Owner chronology and owner-plus-linked-Score
-chronology each have a matching composite index; Manifest loading does not establish list ownership.
+## Delivery and erasure
 
-Finalization holds an immutable TakeManifest value across slow storage IO and creates a Take
-with its manifest_id, recording_object_id and library facts. StoredObject creation, Take creation,
-reservation completion and quota commit share one transaction. Finalize performs no Bundle read, authorization or replanning.
-It resolves an optional current Score navigation link by the Manifest score UUID; a missing or
-deleting Score produces a null pointer. Read-time Score access controls navigation.
+`GET /performance-takes/{take_id}/playback-url` authorizes the active owner and returns
+`take_id`, `playback_url`, `download_url` and `expires_in`. Audio/video Range transport
+belongs to the provider/CDN. The application exposes no Take byte-proxy endpoint.
 
-Take deletion removes semantic Take ownership and releases its logical quota in one transaction. It queues recording StoredObject retirement only when no semantic owner remains. Manifest and Reservation remain as idempotency lineage. Cancellation and expiry preserve the same Manifest without introducing a separate Manifest cleanup lifecycle.
+Deleting a Take releases UPLOAD and semantic recording reference transactionally,
+then registers retirement when unreferenced. Shared objects survive remaining owners.
+Manifest/reservation history remains until its owning lifecycle permits erasure.
 
-## Replay, cancellation and recovery
+Account erasure uses TAKES for semantic release, TRANSFERS for upload cleanup ACK,
+and FINALIZE for Manifest/Reservation/Session history. A pending physical transfer
+cannot disappear through User CASCADE. CONSUMED multipart sessions transfer physical
+ownership permanently to StoredObject; transfer GC never deletes that final object.
+Unknown IO remains explicit and can block final identity erasure rather than discard
+cleanup responsibility.
 
-Equal normalized request intent/evidence replays the same reservation. RESERVED
-replay compares the Manifest's typed `admitted_upload_metadata` projection with request
-metadata, without Bundle reauthorization or planning. RESERVED
-can refresh the upload capability; FINALIZING returns state without a new upload;
-COMPLETED returns the same Take while it remains in the library; an intentionally deleted
-completed Take returns unavailable and is never recreated. Changed metadata conflicts. CANCELLED/EXPIRED
-cannot be reopened with the same client request ID.
+## Verification
 
-Cancellation accepts RESERVED and is idempotent for CANCELLED. Other states return
-an error rather than reporting successful cancellation.
-
-Known failures before the semantic COMMIT invocation may recover through the healthy
-request session after successful rollback, with immediate candidate-cleanup eligibility.
-Every semantic COMMIT invocation that does not return normally is an unknown outcome.
-Failure to receive normal acknowledgement, rather than `connection_invalidated` or
-exception class, selects fresh-session recovery.
-
-`PerformanceTakeFinalizationRecovery.recover_unknown_commit()` opens an independent
-session and reads current persisted reservation/Take lineage. It never trusts request
-session identity-map state, rollback or invalidation as semantic evidence. An atomically
-completed Take wins; otherwise only the matching lease may recover to RESERVED with a
-thirty-minute unknown-outcome candidate grace, or EXPIRED with quota release. A new
-lease and its quota ownership remain untouched. COMPLETED deletion lineage never
-recreates a Take. Unexpected active-reservation/Take combinations are invariant violations.
-A cancellation raised by COMMIT propagates after synchronous fresh-lineage reconciliation;
-other unacknowledged COMMIT failures return a retryable infrastructure error, followed
-by idempotent replay on the same reservation.
-
-`UploadReservationCleanupService` performs bounded expiry/recovery scans and
-storage cleanup. It uses the same domain commands and explicit effects as
-reservation commands and finalization. Recovery commits before slow storage IO. Staging cleanup waits
-until all issued upload capabilities have expired. Orphan deletion checks committed StoredObject
-identity and grace; acknowledgment rehydrates current state so extended grace
-cannot be erased by a stale result. Completed reservation cleanup also supports
-an intentionally deleted Take; it does not recreate that Take.
-
-Background cleanup consumes the same reservation lifecycle rules; it does not
-repair or invent reservation state. Committed StoredObjects use the independent
-repo-wide durable retirement boundary.
-
-The save request and planning agreement are defined by the
-[Practice product contract](practice-product-contract.md#performancetake-upload-reservation).
-
-## Durable Practice score timebase
-
-The Manifest persists `ticks_per_quarter BIGINT NOT NULL`, exact resolved scope ticks and
-ordered tempo positions. Both response paths read `manifest.score_timebase`; the separate
-`manifest.recording_timebase` maps integer performance microseconds to integer media microseconds.
-Its `nominalMediaDurationUs` is the sole nominal recording duration authority.
-
-Admission derives scope, tempo and score grid from the exact bound Bundle. Replay and finalize
-consume that same immutable Manifest after Score/Revision deletion or Bundle GC. Manifest alone
-owns the positive JSON-safe grid and scope-coordinate database constraints.
-
-Browser Save uses one manifest-level agreement function for Reservation and Take. It compares
-the server grid, binding, scope and tempo with executed Plan truth. A RESERVED mismatch follows
-cancellation policy before upload. Saved score-based export reauthorizes the revision Bundle
-and requires exact Manifest Bundle/artifact identity, score timebase and scope agreement.
-
-## Durable server bytes
-
-`modules/media_storage/facts.py` owns immutable StoredObjectFacts; `modules/media_storage/persistence.py` is its
-single hydration boundary. A StoredObject records object key, exact byte size,
-full server-computed SHA-256 and canonical content type. Locator uniqueness is object key within the deployment namespace. Hashes are observations; domain-owned reuse policies do not imply global deduplication. StoredObject has no user, Capture kind,
-Practice identity, authorization or lifecycle state.
-
-Manifest.capture describes the exact browser Capture admitted for Save. Take aggregate admission
-requires its MIME and byte size to match the recording StoredObject. The StoredObject is created only after a
-complete candidate read proves its hash equals the container-validated staging bytes. Storage
-metadata supplies no authoritative digest. Missing adapter content type uses admitted canonical
-Capture MIME after byte/container verification. Raw bytes are preserved without transcoding.
-
-Playback/download and Take.recording_media consume recording StoredObject MIME/size. Saved OPFS materialization uses
-that recording-media projection; reservation agreement uses Manifest.capture. Finalize responses also
-require recording/Capture consistency. Object key/hash stay private.
-
-StoredObjectRetirement snapshots physical facts as operation evidence, not current physical authority. The worker locks StoredObject and the operation, validates the claim and all semantic references, then flushes the FK-protected row deletion before physical IO. Shared objects remain for their other owners. Missing physical bytes are idempotent; missing physical authority fails closed. StorageUsage is an accounting ledger, never a playback locator authority. Manifest/Reservation lineage survives semantic Take deletion and physical retirement.
-
-## Semantic deletion and physical retirement
-
-Successful DELETE returns bodyless HTTP 204. The transaction removes the PerformanceTake row and
-releases logical quota before the response. Detail, playback-url and media return 404,
-and lists omit the Take. Manifest and Reservation retain their idempotency lineage.
-StoredObjectRetirement owns asynchronous physical cleanup; its pending state and
-operation identity are not Take API state. Physical bytes may remain until retirement
-converges. My Performances removes the deleted resource from React Query caches,
-invalidates list and storage-usage queries and closes confirmation without polling.
-
-## Capacity lineage
-
-`PerformanceTakeUploadReservation.quota_hold_id` references a distinct durable
-[Storage Quota hold](storage-quota.md). Reservation expiry, leases and candidate cleanup
-remain business state; hold consumption and UPLOAD allocation commit with Take adoption.
-Cancellation and expiration release capacity without rewriting consumed terminal facts.
-Unknown-COMMIT recovery checks persisted Manifest/business and consumed-hold lineage.
+The PostgreSQL suites validate quota/usage atomicity, finalize rollback stages,
+concurrent finalization, independent unknown-COMMIT recovery, completed manifests
+surviving source retention, large-media no-copy/no-read adoption and GC safety.
+[Media storage](object-storage.md) describes physical fences and provider boundaries;
+[the ADR](../adr/0009-media-storage-refoundation.md) defines shared configuration.

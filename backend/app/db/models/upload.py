@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .stored_object import StoredObject
+from .upload_session import UploadSession
 
 from app.shared.time import utc_now
 
@@ -39,6 +40,18 @@ class Upload(SQLModel, table=True):  # type: ignore[call-arg]
     upload_uuid: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
         sa_column=Column(String(36), nullable=False),
+    )
+    upload_session_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("upload_sessions.id", ondelete="RESTRICT"),
+            nullable=False,
+            unique=True,
+        )
+    )
+
+    upload_session: UploadSession = Relationship(
+        sa_relationship=relationship(UploadSession, lazy="selectin")
     )
     stored_object_id: int = Field(
         sa_column=Column(

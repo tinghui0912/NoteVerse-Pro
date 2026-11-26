@@ -1,10 +1,10 @@
 from fastapi.responses import Response
 from app.api.response_contracts import binary_responses
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_command_db, get_current_user, get_db
-from app.api.storage_streaming import stream_storage_object
+from app.modules.media_storage.delivery import MediaAccessRead
 from app.api.media_delivery import deliver_media_object
 from app.modules.media_storage.delivery import DeliveryMode
 from app.db.model_utils import require_persisted_id
@@ -117,22 +117,17 @@ def view_guest_preview_page(
 
 @preview_router.get(
     "/{token}/playback",
-    response_class=Response,
-    responses=binary_responses("audio/*", byte_ranges=True),
-    operation_id="guestPreviewPlaybackStream",
+    response_model=MediaAccessRead,
+    operation_id="guestPreviewPlaybackAccessGet",
 )
-def listen_guest_preview(
+def get_guest_preview_playback(
     token: str,
-    request: Request,
+    response: Response,
     db: Session = Depends(get_db, scope="function"),
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
     delivery = service.audio(db, token)
-    response = stream_storage_object(
-        storage=service.storage,
-        target=delivery,
-        attachment=False,
-        request=request,
-        enable_range=True,
-    )
-    return response
+    db.commit()
+    db.close()
+    response.headers["Cache-Control"] = "private, no-store"
+    return service.delivery.access(delivery)

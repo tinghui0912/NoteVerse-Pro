@@ -1,5 +1,7 @@
 """Stable Upload command identity closes duplicate and uncertain-COMMIT allocations."""
 
+from tests.support.uploads import complete_image_upload
+
 from app.composition import storage_resources as _resource_wiring
 
 from concurrent.futures import ThreadPoolExecutor
@@ -9,7 +11,7 @@ import pytest
 from fastapi import UploadFile
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from app.core.exceptions import ConflictException, FileException, ResourceNotFoundException
+from app.core.exceptions import ConflictException, ResourceNotFoundException
 from app.db.models import User, Upload, UploadCreationRequest, StorageQuotaHold, StorageUsageAccount
 from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
 from app.modules.uploads.service import UploadService
@@ -29,11 +31,12 @@ def uploads(postgres_engine):
 
 
 def upload(db, storage, key="stable", name="image.png"):
-    return UploadService(
-        quota=_resource_wiring.storage_quota_service,
-        usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
-    ).create_upload(
+    return complete_image_upload(
+        UploadService(
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            uploads=_resource_wiring.build_upload_session_service(storage),
+        ),
         db,
         db.get(User, 1),
         UploadFile(filename=name, file=BytesIO(image_bytes())),
@@ -54,20 +57,37 @@ def test_duplicate_and_conflicting_commands_preserve_one_allocation(uploads):
         assert db.get(StorageUsageAccount, 1).used_bytes == len(image_bytes())
 
 
-def test_concurrent_same_command_adopts_once(uploads):
+def test_concurrent_same_command_admits_one_transfer(uploads):
+    from app.modules.media_storage.upload_sessions.schemas import UploadCreateRequest
+
     engine, storage = uploads
     barrier = Barrier(2)
 
     def run():
+        service = UploadService(
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            uploads=_resource_wiring.build_upload_session_service(storage),
+        )
         with Session(engine) as db:
             barrier.wait()
-            return upload(db, storage).upload_id
+            return service.create_request(
+                db,
+                1,
+                UploadCreateRequest(
+                    client_request_id="same",
+                    filename="image.png",
+                    byte_size=len(image_bytes()),
+                    content_type="image/png",
+                ),
+            ).upload_session.session_id
 
     with ThreadPoolExecutor(2) as pool:
         assert len(set(pool.map(lambda _: run(), range(2)))) == 1
     with Session(engine) as db:
-        assert db.scalar(select(func.count()).select_from(Upload)) == 1
-        assert db.get(StorageUsageAccount, 1).used_bytes == len(image_bytes())
+        assert db.scalar(select(func.count()).select_from(UploadCreationRequest)) == 1
+        assert db.scalar(select(func.count()).select_from(StorageQuotaHold)) == 1
+        assert db.get(StorageUsageAccount, 1).used_bytes == 0
 
 
 @pytest.mark.parametrize("committed", [False, True])
@@ -93,14 +113,14 @@ def test_unknown_commit_uses_persisted_completion_not_acknowledgement(
         if committed:
             assert upload(db, storage).upload_id
         else:
-            with pytest.raises(FileException):
+            with pytest.raises(RuntimeError, match="lost COMMIT"):
                 upload(db, storage)
         assert failed
     with Session(engine) as db:
         assert db.scalar(select(func.count()).select_from(Upload)) == int(committed)
         assert db.get(StorageUsageAccount, 1).used_bytes == (len(image_bytes()) if committed else 0)
         assert db.scalar(select(StorageQuotaHold.status)) == (
-            StorageQuotaHoldStatus.CONSUMED if committed else StorageQuotaHoldStatus.RELEASED
+            StorageQuotaHoldStatus.CONSUMED if committed else StorageQuotaHoldStatus.HELD
         )
         result = upload(db, storage)
         assert result.upload_id
@@ -115,7 +135,7 @@ def test_replay_after_semantic_delete_never_recreates_resource(uploads):
         UploadService(
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            uploads=_resource_wiring.build_upload_session_service(storage),
         ).delete_upload(db, db.get(User, 1), first.upload_id)
         db.commit()
         with pytest.raises(ResourceNotFoundException):

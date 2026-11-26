@@ -1,3 +1,5 @@
+from tests.support.uploads import complete_image_upload
+from tests.support.uploads import settled_upload_session
 from app.composition import storage_resources as _resource_wiring
 
 from uuid import uuid4
@@ -34,7 +36,7 @@ from tests.test_score_revision_services import (
 )
 
 
-def test_upload_dedup_is_owned_by_upload_references(score_service_session):
+def test_upload_commands_preserve_independent_objects_and_other_domains(score_service_session):
     db, storage = score_service_session
     from app.db.models import User, ScoreRenderAsset
     from app.modules.score_assets.domain import RenderAssetKind
@@ -65,21 +67,24 @@ def test_upload_dedup_is_owned_by_upload_references(score_service_session):
         )
     )
     db.commit()
+    unrelated_id, unrelated_digest = unrelated.id, unrelated.sha256
     user = db.get(User, 1)
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        uploads=_resource_wiring.build_upload_session_service(storage),
     )
     put = Mock(wraps=storage.put_bytes)
     storage.put_bytes = put
-    first = service.create_upload(
+    first = complete_image_upload(
+        service,
         db,
         user,
         UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
         client_request_id=uuid4().hex,
     )
-    second = service.create_upload(
+    second = complete_image_upload(
+        service,
         db,
         user,
         UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
@@ -87,24 +92,24 @@ def test_upload_dedup_is_owned_by_upload_references(score_service_session):
     )
     uploads = list(db.scalars(select(Upload).order_by(Upload.id)))
     assert [upload.original_filename for upload in uploads] == ["first.png", "second.png"]
-    assert uploads[0].stored_object_id == uploads[1].stored_object_id != unrelated.id
-    assert put.call_count == 1
+    assert len({uploads[0].stored_object_id, uploads[1].stored_object_id, unrelated_id}) == 3
+    assert put.call_count == 4
     assert (
-        len(db.scalars(select(StoredObject).where(StoredObject.sha256 == unrelated.sha256)).all())
-        == 2
+        len(db.scalars(select(StoredObject).where(StoredObject.sha256 == unrelated_digest)).all())
+        == 3
     )
     physical_key = uploads[0].stored_object.object_key
-    service.delete_upload(db, user, first.upload_id)
+    service.delete_upload(db, db.get(User, 1), first.upload_id)
     db.commit()
     assert storage.exists(physical_key)
-    service.delete_upload(db, user, second.upload_id)
+    service.delete_upload(db, db.get(User, 1), second.upload_id)
     db.commit()
     assert storage.exists(physical_key)
-    assert db.scalar(select(StoredObjectRetirement)).status == "PENDING"
-    assert drain_retirements(db, storage)[0]["status"] == "completed"
+    assert all(row.status == "PENDING" for row in db.scalars(select(StoredObjectRetirement)))
+    assert all(result["status"] == "completed" for result in drain_retirements(db, storage))
     assert not storage.exists(physical_key)
     assert storage.read_bytes(key) == image_bytes()
-    assert db.get(StoredObject, unrelated.id) is not None
+    assert db.get(StoredObject, unrelated_id) is not None
 
 
 def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_service_session):
@@ -326,9 +331,10 @@ def test_upload_release_succeeds_while_score_source_retains_exact_object(
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        uploads=_resource_wiring.build_upload_session_service(storage),
     )
-    response = service.create_upload(
+    response = complete_image_upload(
+        service,
         db,
         user,
         UploadFile(filename="score.png", file=io.BytesIO(image_bytes())),
@@ -355,7 +361,7 @@ def test_upload_release_succeeds_while_score_source_retains_exact_object(
     )
     db.add(source)
     db.commit()
-    service.delete_upload(db, user, response.upload_id)
+    service.delete_upload(db, db.get(User, 1), response.upload_id)
     db.commit()
     assert db.scalar(select(Upload)) is None
     assert db.get(StoredObject, identity) is not None and storage.exists(key)
@@ -519,6 +525,7 @@ def test_orphan_scan_retirement_failure_rolls_back_only_that_owner(
         storage.put_bytes(key=key, content=b"png", content_type="image/png")
         obj = object_from_bytes(object_key=key, content=b"png", content_type="image/png")
         upload = Upload(
+            upload_session=settled_upload_session(user_id=1),
             stored_object=obj,
             original_filename="orphan.png",
             uploader_user_id=1,

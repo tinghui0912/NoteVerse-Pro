@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tests.support.uploads import complete_image_upload
 
 from app.storage import object_storage as _storage_provider
 
@@ -428,7 +429,7 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
     db.commit.assert_not_called()
 
 
-def test_upload_reuses_committed_exact_object_without_rewriting(score_service_session):
+def test_upload_commands_have_independent_physical_objects(score_service_session):
     from fastapi import UploadFile
     from sqlalchemy import select
     from app.db.models import Upload
@@ -437,24 +438,26 @@ def test_upload_reuses_committed_exact_object_without_rewriting(score_service_se
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        uploads=_resource_wiring.build_upload_session_service(storage),
     )
     user = session.get(User, 1)
-    service.create_upload(
+    complete_image_upload(
+        service,
         session,
         user,
         UploadFile(filename="first.png", file=io.BytesIO(image_bytes())),
         client_request_id=uuid4().hex,
     )
     storage.put_bytes = Mock(wraps=storage.put_bytes)
-    second = service.create_upload(
+    second = complete_image_upload(
+        service,
         session,
         user,
         UploadFile(filename="second.png", file=io.BytesIO(image_bytes())),
         client_request_id=uuid4().hex,
     )
-    assert second.byte_size == len(image_bytes()) and storage.put_bytes.call_count == 0
-    assert len({row.stored_object_id for row in session.scalars(select(Upload))}) == 1
+    assert second.byte_size == len(image_bytes()) and storage.put_bytes.call_count == 2
+    assert len({row.stored_object_id for row in session.scalars(select(Upload))}) == 2
 
 
 def test_delete_upload_rejects_non_owner() -> None:
@@ -468,7 +471,7 @@ def test_delete_upload_rejects_non_owner() -> None:
         repository=repository,
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+        uploads=_resource_wiring.build_upload_session_service(_storage_provider),
     )
     db = Mock()
     current_user = SimpleNamespace(id=1)
@@ -493,7 +496,7 @@ def test_delete_upload_removes_owned_upload_and_reference() -> None:
         repository=repository,
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+        uploads=_resource_wiring.build_upload_session_service(_storage_provider),
     )
     db = Mock()
     db.get.return_value = SimpleNamespace(
@@ -515,7 +518,7 @@ def test_delete_upload_removes_owned_upload_and_reference() -> None:
             repository=repository,
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            uploads=_resource_wiring.build_upload_session_service(storage),
         )
         with (
             patch.object(service.usage, "record_release") as release_usage,

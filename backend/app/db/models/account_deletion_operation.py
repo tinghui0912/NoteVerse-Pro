@@ -44,6 +44,7 @@ class AccountDeletionPhase(StrEnum):
     IMPORTS = "IMPORTS"
     TAKES = "TAKES"
     UPLOADS = "UPLOADS"
+    TRANSFERS = "TRANSFERS"
     FINALIZE = "FINALIZE"
 
 

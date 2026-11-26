@@ -79,3 +79,26 @@ def build_media_delivery_service(storage: ObjectStorage) -> MediaDeliveryService
             settings.MEDIA_DELIVERY_MAX_STREAM_MEDIA_BYTES,
         ),
     )
+
+
+def build_upload_session_service(storage: ObjectStorage):
+    from app.modules.media_storage.upload_sessions.service import UploadSessionService
+    from app.modules.media_storage.upload_sessions.domain import UploadPolicy
+
+    return UploadSessionService(
+        storage,
+        write_sessions,
+        build_object_write_coordinator(storage),
+        UploadPolicy(
+            settings.SCORE_IMPORT_MAX_BYTES,
+            settings.TAKE_AUDIO_MAX_BYTES,
+            settings.TAKE_VIDEO_MAX_BYTES,
+            settings.UPLOAD_SINGLE_PUT_MAX_BYTES,
+            settings.UPLOAD_PART_BYTES,
+            settings.UPLOAD_URL_TTL_SECONDS,
+            settings.UPLOAD_SESSION_TTL_SECONDS,
+            settings.UPLOAD_CLIENT_CONCURRENCY,
+            settings.UPLOAD_MAX_ACTIVE_SESSIONS,
+            settings.UPLOAD_TEMP_BYTE_BUDGET,
+        ),
+    )

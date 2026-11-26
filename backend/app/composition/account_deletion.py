@@ -40,6 +40,10 @@ from app.composition.storage_resources import storage_quota_service
 from app.composition.storage_resources import storage_usage_service
 from app.modules.storage_governance.inventory.contracts import StorageInventoryReader
 from app.shared.time import utc_now
+from app.modules.media_storage.upload_sessions.account_cleanup import (
+    close_account_transfers,
+    erase_account_transfers,
+)
 
 
 class AccountDeletionExecutor:
@@ -76,8 +80,12 @@ class AccountDeletionExecutor:
             if not cleanup_account_upload(
                 db, user_id, usage=storage_usage_service, uploads=self.uploads
             ):
-                operation.phase = Phase.FINALIZE
+                operation.phase = Phase.TRANSFERS
             result = "progress"
+        elif operation.phase == Phase.TRANSFERS:
+            result = close_account_transfers(db, user_id)
+            if result == "empty":
+                operation.phase = Phase.FINALIZE
         else:
             result = self._finalize(db, user_id)
             if result == "restart":
@@ -146,6 +154,7 @@ class AccountDeletionExecutor:
 
         if (
             erase_account_upload_history(db, user_id, limit=limit)
+            or erase_account_transfers(db, user_id, limit=limit)
             or LibraryService().erase_user_state(db, user_id, limit=limit)
             or MembershipService().erase_user_memberships(db, user_id, limit=limit)
             or NotificationService().erase_recipient_history(db, user_id, limit=limit)

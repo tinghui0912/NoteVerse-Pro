@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException
-from app.db.models import PerformanceTake, PerformanceTakeManifest
+from app.db.models import PerformanceTake, PerformanceTakeManifest, PerformanceTakeUploadReservation
 from app.main import app
 from app.api.resource_dependencies import (
     get_performance_take_service,
@@ -25,11 +25,11 @@ from app.modules.storage_governance.usage.service import StorageUsageService
 from app.api.resource_dependencies import get_storage_usage_service
 from app.storage.factory import get_object_storage
 from app.storage.base import ObjectMetadata
-from tests.test_performance_takes import (
+from tests.support.take_fixtures import (
     PerformanceTakeTestClient,
     _performance_take_service,
     _bundle_id,
-    _staging_key,
+    _session_object_key,
     test_env as test_env,
 )
 
@@ -115,9 +115,18 @@ def test_recording_and_delivery_preserve_exact_raw_capture(recording_client, des
     reserved = reserve(client, kind, mime + ";codecs=browser-selected", len(content))
     assert reserved.status_code == 200, reserved.text
     data = reserved.json()
-    key = _staging_key(session, data["reservation_id"])
-    assert key.endswith("." + extension)
+    key = _session_object_key(session, data["reservation_id"])
     storage.put_bytes(key=key, content=content, content_type=mime)
+    session.commit()
+    session.close()
+    row = session.scalar(
+        select(PerformanceTakeUploadReservation).where(
+            PerformanceTakeUploadReservation.reservation_uuid == data["reservation_id"]
+        )
+    )
+    uuid = row.upload_session.session_uuid
+    session.commit()
+    service.uploads.complete(uuid, 1)
     finalized = client.post(
         f"/api/v1/performance-takes/upload-reservations/{data['reservation_id']}/finalize"
     )
@@ -144,11 +153,6 @@ def test_recording_and_delivery_preserve_exact_raw_capture(recording_client, des
     assert playback.status_code == 200, playback.text
     assert set(playback.json()) == {"take_id", "playback_url", "download_url", "expires_in"}
     assert playback.json()["download_url"]
-    media = client.get(f"/api/v1/performance-takes/{take['take_id']}/media")
-    assert media.status_code == 200, media.text
-    assert media.headers["content-type"] == mime
-    assert f".{extension}" in media.headers["content-disposition"]
-    assert media.content == content
     replay = client.post(
         f"/api/v1/performance-takes/upload-reservations/{data['reservation_id']}/finalize"
     )
@@ -172,7 +176,9 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
     client, session, storage, service = recording_client
     data = reserve(client, "VIDEO", mime, len(content)).json()
     storage.put_bytes(
-        key=_staging_key(session, data["reservation_id"]), content=content, content_type=stored_mime
+        key=_session_object_key(session, data["reservation_id"]),
+        content=content,
+        content_type=stored_mime,
     )
     # The storage double supplies the metadata that an object-store HEAD returns.
     with patch.object(
@@ -181,8 +187,14 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
         return_value=ObjectMetadata(
             size_bytes=len(content),
             content_type=stored_mime,
+            etag="test-etag",
         ),
     ):
+        if stored_mime != mime:
+            with pytest.raises(ValueError):
+                service.uploads.complete(data["upload_session"]["session_id"], 1)
+            return
+        service.uploads.complete(data["upload_session"]["session_id"], 1)
         if boundary == "HTTP":
             response = client.post(
                 f"/api/v1/performance-takes/upload-reservations/{data['reservation_id']}/finalize"
@@ -197,15 +209,17 @@ def test_video_finalize_rejects_wrong_container_or_storage_content_type(
 
 
 def test_unsupported_committed_recording_fails_closed_before_signed_delivery(recording_client):
-    client, session, storage, _ = recording_client
+    client, session, storage, service = recording_client
     descriptor = ORIGINAL_RECORDING_CONTAINERS[0]
     content = SIGNATURE_HEADERS[descriptor.signature] + b"raw-capture"
     accepted = reserve(client, descriptor.kind, descriptor.mime_type, len(content)).json()
     storage.put_bytes(
-        key=_staging_key(session, accepted["reservation_id"]),
+        key=_session_object_key(session, accepted["reservation_id"]),
         content=content,
         content_type=descriptor.mime_type,
     )
+    session.commit()
+    service.uploads.complete(accepted["upload_session"]["session_id"], 1)
     finalized = client.post(
         f"/api/v1/performance-takes/upload-reservations/{accepted['reservation_id']}/finalize"
     )
@@ -226,6 +240,6 @@ def test_unsupported_committed_recording_fails_closed_before_signed_delivery(rec
         "download_url",
         side_effect=AssertionError("Unsupported state must not issue a locator"),
     ):
-        for suffix in ["", "/playback-url", "/media"]:
+        for suffix in ["", "/playback-url"]:
             response = client.get(f"/api/v1/performance-takes/{accepted['take_id']}{suffix}")
             assert response.status_code == 422, response.text

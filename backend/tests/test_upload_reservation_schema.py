@@ -6,6 +6,7 @@ from alembic import command
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from tests.support.quota import quota_hold_fact
+from tests.support.uploads import settled_upload_session
 from app.db.models import User
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
@@ -51,13 +52,16 @@ def test_fresh_schema_enforces_current_lifecycle_tuples(monkeypatch, status, lea
                 manifests.insert().values(**manifest_values(user_id)).returning(manifests.c.id)
             ).scalar_one()
         with Session(engine) as db:
+            upload = settled_upload_session(user_id=user_id)
+            db.add(upload)
+            db.flush()
+            upload_id = upload.id
             hold_id = quota_hold_fact(db, user_id)
             db.commit()
-        values = {**reservation_values(user_id, manifest_id, hold_id), "status": status}
+        values = {**reservation_values(user_id, manifest_id, hold_id, upload_id), "status": status}
         if lease:
             values.update(
                 finalizing_token="token",
-                finalizing_object_key="candidate",
                 finalizing_expires_at=utc_now(),
             )
         if valid:

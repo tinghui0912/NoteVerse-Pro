@@ -16,13 +16,13 @@ from app.core.exceptions import (
 from app.core.logger import logger
 from app.modules.storage_governance.usage.service import StorageUsageService
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import ObjectStorage
 from app.shared.time import utc_now
-from .final_media import PerformanceTakeFinalMedia
+from app.modules.media_storage.upload_sessions.service import UploadSessionService
+from app.modules.media_storage.upload_sessions.domain import UploadPurpose, UploadMode
+from .recording_media_admission import verify_recording_container_signature
 from .writer import PerformanceTakeWriter
 from .repository import PerformanceTakeRepository
 from .manifest_persistence import manifest_from_row
-from .object_keys import performance_take_recording_object_key
 from .schemas import PerformanceTakeRead
 from .service import PerformanceTakeService
 from .upload_reservation.domain import (
@@ -46,15 +46,17 @@ class PerformanceTakeFinalizationService:
         *,
         quota: StorageQuotaService,
         repository: PerformanceTakeRepository | None = None,
-        storage: ObjectStorage,
+        uploads: UploadSessionService,
         delivery: MediaDeliveryService,
         storage_usage_service: StorageUsageService,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
         usage = storage_usage_service
-        self.media = PerformanceTakeFinalMedia(storage)
-        self.writer = PerformanceTakeWriter(self.repository, usage, quota=quota)
-        self.recovery = PerformanceTakeFinalizationRecovery(self.repository, usage, quota=quota)
+        self.uploads = uploads
+        self.writer = PerformanceTakeWriter(self.repository, usage, quota=quota, uploads=uploads)
+        self.recovery = PerformanceTakeFinalizationRecovery(
+            self.repository, quota=quota, sessions=uploads.sessions
+        )
         self.takes = PerformanceTakeService(
             repository=self.repository, delivery=delivery, usage=usage
         )
@@ -79,13 +81,7 @@ class PerformanceTakeFinalizationService:
         token = str(uuid4())
         lease = FinalizeLease(
             token,
-            performance_take_recording_object_key(
-                user_id=user_id,
-                take_uuid=manifest.take_uuid,
-                finalize_token=token,
-                media_kind=manifest.snapshot.capture.kind,
-                mime_type=manifest.snapshot.capture.mime_type,
-            ),
+            row.upload_session.final_object_key,
             now + timedelta(seconds=TAKE_FINALIZING_LEASE_SECONDS),
         )
         try:
@@ -109,10 +105,23 @@ class PerformanceTakeFinalizationService:
         apply_reservation_transition(
             self.writer.storage_usage_service, self.writer.quota, db, row, transition, now=now
         )
-        staging_key = row.staging_object_key
+        session_uuid, mode = row.upload_session.session_uuid, row.upload_session.mode
         db.commit()
+        db.close()
         try:
-            candidate = self.media.verify(manifest, lease, staging_key)
+            if mode == UploadMode.SINGLE_PUT:
+                content = self.uploads.verified_bytes(
+                    session_uuid, user_id, UploadPurpose.PERFORMANCE_TAKE
+                )
+                if not verify_recording_container_signature(
+                    manifest.snapshot.capture.kind,
+                    manifest.snapshot.capture.mime_type,
+                    content[:64],
+                ):
+                    raise ValidationException(
+                        CustomerErrorCode.VALIDATION_ERROR, field="media_mime_type"
+                    )
+            self.uploads.prepare_adoption(session_uuid, user_id, UploadPurpose.PERFORMANCE_TAKE)
             # Long physical IO may outlive a connection; retry only the DB lock, never media.
             try:
                 self.writer.lock_allocation_parent(db, manifest)
@@ -144,7 +153,7 @@ class PerformanceTakeFinalizationService:
                 user_id=user_id,
                 reservation_id=reservation_id,
                 manifest=manifest,
-                candidate=candidate,
+                lease=lease,
             )
         except BaseException as error:
             # No semantic COMMIT has been invoked: rollback establishes a known non-commit.

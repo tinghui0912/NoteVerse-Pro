@@ -20,6 +20,10 @@ def build_beat_schedule(settings: Settings) -> BeatSchedule:
     """
 
     return {
+        "take-media-processing-maintenance": {
+            "task": "app.worker.tasks.run_take_processing_maintenance",
+            "schedule": 60.0,
+        },
         "account-deletion-maintenance": {
             "task": "app.worker.tasks.run_account_deletion_maintenance",
             "schedule": float(settings.ACCOUNT_DELETION_INTERVAL_SECONDS),

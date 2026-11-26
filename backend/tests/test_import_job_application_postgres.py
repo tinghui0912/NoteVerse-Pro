@@ -1,5 +1,7 @@
 """Real Session Import HTTP admission, bulk projection and idempotency."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.storage import object_storage as _storage_provider
 
 from app.composition import storage_resources as _resource_wiring
@@ -96,6 +98,7 @@ def application_db(postgres_url, monkeypatch):
             db.add_all(
                 [
                     Upload(
+                        upload_session=settled_upload_session(user_id=1),
                         id=1,
                         upload_uuid="upload-a",
                         stored_object_id=1,
@@ -103,6 +106,7 @@ def application_db(postgres_url, monkeypatch):
                         uploader_user_id=1,
                     ),
                     Upload(
+                        upload_session=settled_upload_session(user_id=1),
                         id=2,
                         upload_uuid="upload-b",
                         stored_object_id=1,
@@ -110,6 +114,7 @@ def application_db(postgres_url, monkeypatch):
                         uploader_user_id=1,
                     ),
                     Upload(
+                        upload_session=settled_upload_session(user_id=2),
                         id=3,
                         upload_uuid="upload-other",
                         stored_object_id=1,

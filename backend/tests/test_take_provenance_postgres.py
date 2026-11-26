@@ -1,5 +1,7 @@
 """Durable save admission ordering and source-independent media on PostgreSQL."""
 
+from tests.support.take_lifecycle import initialize_reservation
+
 from app.composition import media_resources as _media_wiring
 
 from concurrent.futures import ThreadPoolExecutor
@@ -27,7 +29,6 @@ from app.modules.performance_takes.manifest_persistence import manifest_from_row
 from tests.support.take_lifecycle import TakeLifecycleServices
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
 from app.modules.performance_takes.upload_reservation.persistence import (
-    initialize_lifecycle,
     lifecycle_from_row,
 )
 from app.modules.practice.bundle.retention import practice_bundle_retention
@@ -151,7 +152,11 @@ def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bund
         assert Fraction(
             snapshot.snapshot.tempo_plan.model_dump(mode="json")["segments"][-1]["startTick"], 60
         ) == Fraction(113, 60)
-        storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
+        storage.put_bytes(
+            key=row.upload_session.object_key, content=MEDIA, content_type="audio/webm"
+        )
+        db.commit()
+        service.uploads.complete(row.upload_session.session_uuid, 1)
         score = db.scalar(select(Score))
         score.display_title = "Title after admission"
         db.commit()
@@ -223,13 +228,8 @@ def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bund
             listed = service.takes.list_takes(db, 1)
             assert listed.items == [take]
             assert service.takes.get_take(db, 1, take.take_id) == take
-            delivery = service.takes.get_media_delivery(db, 1, take.take_id)
-            key, filename, mime = delivery.storage_key, delivery.filename, delivery.media_type
-            assert (
-                storage.read_bytes(key) == MEDIA
-                and filename.endswith("webm")
-                and mime == "audio/webm"
-            )
+            access = service.takes.get_playback_url(db, 1, take.take_id)
+            assert access.playback_url and access.download_url
             stored = db.scalar(select(PerformanceTake))
             assert stored.manifest_id == manifest_id
             assert manifest_from_row(stored.manifest) == snapshot
@@ -243,11 +243,16 @@ def test_revision_only_retention_with_existing_reservation_or_take(postgres_bund
         accepted = service.reserve_upload(db, 1, request)
         row = service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
         if status == "COMPLETED":
-            storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
+            storage.put_bytes(
+                key=row.upload_session.object_key, content=MEDIA, content_type="audio/webm"
+            )
+            db.commit()
+            service.uploads.complete(row.upload_session.session_uuid, 1)
             service.finalize_take(db, 1, accepted.reservation_id)
+            row = service.repository.get_reservation_by_uuid(db, 1, accepted.reservation_id)
         elif status == "FINALIZING":
             now = utc_now()
-            initialize_lifecycle(
+            initialize_reservation(
                 row,
                 lifecycle_from_row(row)
                 .begin_finalize(
@@ -271,6 +276,7 @@ def test_revision_only_retention_with_existing_reservation_or_take(postgres_bund
             manifest_from_row(row.manifest).snapshot.practice_binding.bundle_id
             == request.practice_binding.bundle_id
         )
+        db.refresh(row)
         assert row.status == status
         if status == "COMPLETED":
             take = db.scalar(select(PerformanceTake))
@@ -297,7 +303,7 @@ def test_revision_only_retention_with_existing_reservation_or_take(postgres_bund
                 retained.manifest.practice_binding.bundle_id == request.practice_binding.bundle_id
             )
             assert (service.takes.list_takes(db, 1)).items == [retained]
-            key = service.takes.get_media_delivery(db, 1, take.manifest.take_uuid).storage_key
+            key = take.recording_object.object_key
             assert storage.read_bytes(key) == MEDIA
 
 

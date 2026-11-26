@@ -1,5 +1,6 @@
 """Feature failures leave committed intent evidence, not best-effort orphan cleanup."""
 
+from app.storage.base import ObjectStorageOperationFailedError
 from app.composition import storage_resources as _resource_wiring
 from app.composition import media_resources as _media_wiring
 
@@ -129,7 +130,7 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
 
     def put_page(**kwargs):
         if kwargs["content"] == b"<svg>3</svg>":
-            raise OSError("third page write failed")
+            raise ObjectStorageOperationFailedError("third page write failed")
         return put(**kwargs)
 
     monkeypatch.setattr(storage, "put_bytes", put_page)
@@ -137,7 +138,7 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
     revision.content_hash = hashlib.sha256(MUSICXML_1).hexdigest()
     db.commit()
     payload = revision_attempt(db, "render", score, revision)
-    with pytest.raises(OSError, match="third page"):
+    with pytest.raises(ObjectStorageOperationFailedError, match="third page"):
         ScoreRevisionRenderService(
             usage=_resource_wiring.storage_usage_service,
             writes=_resource_wiring.build_object_write_coordinator(storage),

@@ -1,4 +1,4 @@
-"""Account erasure preserves Take capability/candidate cleanup lineage until acknowledged."""
+"""Account erasure releases Take semantics while upload sessions retain physical responsibility."""
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ from app.modules.performance_takes.upload_reservation.states import (
     UploadReservationStatus as Status,
 )
 from app.shared.time import utc_now
+from app.modules.media_storage.upload_sessions.service import UploadSessionService
 
 
 def cleanup_account_take(
@@ -39,6 +40,7 @@ def cleanup_account_take(
         transition = lifecycle_from_row(row).cancel_for_account(now=utc_now())
         apply_transition(row, transition, now=utc_now())
         quota.release_hold(db, row.quota_hold_id)
+        UploadSessionService.cancel(db, row.upload_session_id)
         return "progress"
     take = db.scalar(
         select(PerformanceTake)
@@ -58,9 +60,7 @@ def account_take_cleanup_pending(db: Session, user_id: int) -> bool:
             select(Reservation.id)
             .where(
                 Reservation.user_id == user_id,
-                (Reservation.status.in_([Status.RESERVED, Status.FINALIZING]))
-                | (Reservation.staging_cleanup_completed_at.is_(None))
-                | (Reservation.orphan_final_object_keys != "[]"),
+                Reservation.status.in_([Status.RESERVED, Status.FINALIZING]),
             )
             .limit(1)
         )
@@ -69,7 +69,7 @@ def account_take_cleanup_pending(db: Session, user_id: int) -> bool:
 
 
 def erase_account_take_history(db: Session, user_id: int, *, limit: int) -> bool:
-    """Called only after all temporary cleanup ACKs and final recordings are gone."""
+    """Called after semantic cleanup; transfer settlement precedes final history erasure."""
     if (
         account_take_cleanup_pending(db, user_id)
         or db.scalar(

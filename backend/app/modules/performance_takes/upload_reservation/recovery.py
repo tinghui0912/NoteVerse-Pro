@@ -1,27 +1,23 @@
-"""Recovery consumes persisted lineage without repeating admission or physical promotion."""
+"""Unknown commits resolve through committed Take and reservation facts, without provider IO."""
 
 from sqlalchemy.orm import Session
+from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
 from sqlalchemy.exc import DBAPIError, InterfaceError
-from app.db.session import SessionLocal
+from app.modules.media_storage.write_coordinator import SessionFactory
 from app.modules.performance_takes.repository import PerformanceTakeRepository
-from app.modules.storage_governance.usage.service import StorageUsageService
 from app.modules.storage_governance.quota.service import StorageQuotaService
 from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
-from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
-from app.modules.performance_takes.manifest_persistence import manifest_from_row
-from app.modules.storage_governance.usage.domain import StorageUsageCategory
-from app.shared.time import utc_now
+from .states import UploadReservationStatus as Status
+from .persistence import lifecycle_from_row, apply_transition
 from .domain import FinalizeLease
-from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
-from .persistence import lifecycle_from_row
-from .effects import apply_reservation_transition
+from app.shared.time import utc_now
 
 
 def is_transient_db_disconnect(error: BaseException) -> bool:
-    if isinstance(error, DBAPIError) and error.connection_invalidated:
-        return True
-    return isinstance(error, InterfaceError) and (
-        "connection is closed" in str(error).lower() or "connection closed" in str(error).lower()
+    return (
+        isinstance(error, DBAPIError)
+        and error.connection_invalidated
+        or isinstance(error, InterfaceError)
     )
 
 
@@ -29,99 +25,38 @@ class PerformanceTakeFinalizationRecovery:
     def __init__(
         self,
         repository: PerformanceTakeRepository,
-        storage_usage_service: StorageUsageService,
         *,
         quota: StorageQuotaService,
+        sessions: SessionFactory,
     ) -> None:
-        self.repository = repository
-        self.storage_usage_service = storage_usage_service
-        self.quota = quota
+        self.repository, self.quota, self.sessions = repository, quota, sessions
 
     def validate_completed_hold(self, db: Session, row: PerformanceTakeUploadReservation) -> None:
-        manifest = manifest_from_row(row.manifest)
         hold = self.quota.lock_hold(db, row.quota_hold_id)
-        if (
-            hold.status != StorageQuotaHoldStatus.CONSUMED
-            or hold.user_id != row.user_id
-            or hold.category != StorageUsageCategory.UPLOAD
-            or hold.bytes_held != manifest.snapshot.capture.byte_size
-        ):
-            raise ValueError("Completed Take requires its consumed quota lineage")
+        if hold.status != StorageQuotaHoldStatus.CONSUMED:
+            raise ValueError("Completed Take requires a consumed hold")
 
-    def recover(
-        self,
-        db: Session,
-        *,
-        user_id: int,
-        take_uuid: str,
-        lease: FinalizeLease,
-        unknown_outcome: bool,
+    def recover_known_failure(
+        self, db: Session, *, user_id: int, take_uuid: str, lease: FinalizeLease
     ) -> None:
         self.quota.lock_user(db, user_id)
         row = self.repository.get_reservation_by_take_uuid(db, user_id, take_uuid, lock=True)
         if row is None:
             return
-        state = lifecycle_from_row(row)
-        take = self.repository.get_by_reservation(db, user_id, row.id)
-        # COMPLETED without a Take is valid deletion lineage and cannot resurrect it.
-        state.assert_take_presence(take is not None, allow_deleted_take=True)
-        now = utc_now()
-        if state.status is UploadReservationStatus.COMPLETED:
+        if self.repository.get_by_reservation(db, user_id, row.id) is not None:
             self.validate_completed_hold(db, row)
-        if take is not None:
-            if take.recording_object.object_key != lease.object_key:
-                # Refresh orphan evidence after late IO, even if an earlier cleanup saw absence.
-                apply_reservation_transition(
-                    self.storage_usage_service,
-                    self.quota,
-                    db,
-                    row,
-                    state.remember_uncertain_candidate(key=lease.object_key, now=now),
-                    now=now,
-                )
             return
-        if state.status is UploadReservationStatus.COMPLETED:
-            return
+        state = lifecycle_from_row(row)
         if (
-            state.lease is not None
+            state.status == Status.FINALIZING
+            and state.lease is not None
             and state.lease.token == lease.token
-            and state.lease.object_key == lease.object_key
         ):
-            transition = (
-                state.expire(
-                    now=now,
-                    unknown_outcome=unknown_outcome,
-                    token=lease.token,
-                    object_key=lease.object_key,
-                )
-                if state.expires_at <= now
-                else state.recover_finalize(
-                    token=lease.token,
-                    object_key=lease.object_key,
-                    now=now,
-                    unknown_outcome=unknown_outcome,
-                )
+            apply_transition(
+                row, state.recover_finalize(token=lease.token, now=utc_now()), now=utc_now()
             )
-        else:
-            # A candidate still held by a different lease cannot be declared abandoned.
-            if state.lease is not None and state.lease.object_key == lease.object_key:
-                return
-            # A late physical result may leave evidence, but never changes the winner's lease.
-            transition = state.remember_uncertain_candidate(key=lease.object_key, now=now)
-        apply_reservation_transition(
-            self.storage_usage_service, self.quota, db, row, transition, now=now
-        )
-
-    def recover_known_failure(
-        self, db: Session, *, user_id: int, take_uuid: str, lease: FinalizeLease
-    ) -> None:
-        """Participate only after a known pre-commit rollback, with immediate orphan eligibility."""
-        self.recover(db, user_id=user_id, take_uuid=take_uuid, lease=lease, unknown_outcome=False)
 
     def recover_unknown_commit(self, *, user_id: int, take_uuid: str, lease: FinalizeLease) -> None:
-        """Resolve every unacknowledged semantic COMMIT from independent persisted lineage."""
-        with SessionLocal() as db:
-            self.recover(
-                db, user_id=user_id, take_uuid=take_uuid, lease=lease, unknown_outcome=True
-            )
+        with self.sessions() as db:
+            self.recover_known_failure(db, user_id=user_id, take_uuid=take_uuid, lease=lease)
             db.commit()

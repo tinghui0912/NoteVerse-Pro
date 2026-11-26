@@ -83,3 +83,10 @@ def get_model_asset_service() -> resources.ModelAssetService:
 
 def get_storage_usage_reader() -> Callable[[Session, int], StorageUsageRead]:
     return read_storage_usage
+
+
+def get_upload_session_service():
+    from app.composition.storage_resources import build_upload_session_service
+    from app.storage import object_storage
+
+    return build_upload_session_service(object_storage)

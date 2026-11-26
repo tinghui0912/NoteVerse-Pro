@@ -27,6 +27,7 @@ OPERATIONS = {
     "download": lambda s: s.download_url("k"),
     "create": lambda s: s.create_multipart_upload("k", content_type="audio/webm"),
     "part_url": lambda s: s.generate_part_upload_url("k", "u", 1, content_length=1),
+    "discovery": lambda s: s.list_multipart_uploads("k"),
     "parts": lambda s: s.list_uploaded_parts("k", "u"),
     "complete": lambda s: s.complete_multipart_upload("k", "u", (UploadedPart(1, "e", 1),)),
     "abort": lambda s: s.abort_multipart_upload("k", "u"),
@@ -63,6 +64,7 @@ def test_every_wire_operation_sanitizes_provider_errors(operation, status, code,
         "generate_presigned_url",
         "create_multipart_upload",
         "list_parts",
+        "list_multipart_uploads",
         "complete_multipart_upload",
         "abort_multipart_upload",
     ):
@@ -86,6 +88,7 @@ def test_network_failure_retains_uncertain_outcome_for_each_operation(operation)
         "generate_presigned_url",
         "create_multipart_upload",
         "list_parts",
+        "list_multipart_uploads",
         "complete_multipart_upload",
         "abort_multipart_upload",
     ):
@@ -243,3 +246,23 @@ def test_lazy_stream_error_is_normalized_and_body_closed(failure):
     with pytest.raises(ObjectStorageUnavailableError):
         next(iterator)
     body.close.assert_called_once()
+
+
+def test_multipart_discovery_paginates_and_matches_exact_key():
+    storage = S3CompatibleObjectStorage()
+    storage._client = Mock()
+    storage.client.list_multipart_uploads.side_effect = [
+        {
+            "Uploads": [
+                {"Key": "exact", "UploadId": "one"},
+                {"Key": "exact/other", "UploadId": "foreign"},
+            ],
+            "IsTruncated": True,
+            "NextKeyMarker": "exact",
+            "NextUploadIdMarker": "one",
+        },
+        {"Uploads": [{"Key": "exact", "UploadId": "two"}], "IsTruncated": False},
+    ]
+    assert storage.list_multipart_uploads("exact") == ("one", "two")
+    assert storage.client.list_multipart_uploads.call_args.kwargs["UploadIdMarker"] == "one"
+    assert storage.client.list_multipart_uploads.call_args.kwargs["Prefix"] == "exact"

@@ -74,7 +74,7 @@ docker compose -f docker-compose.backend-dev.yml run --rm api migrate
 docker compose -f docker-compose.backend-dev.yml up api worker beat
 ```
 
-The database uses one standalone [current-schema baseline](alembic/versions/0001_current_schema.py).
+The database uses one standalone [current-schema baseline](alembic/versions/0001_initial_schema.py).
 Run `alembic upgrade head` against an empty application schema. Pre-release environments
 with a revision outside this baseline require recreation. The baseline installs the
 current FREE quota policy; it does not install users or history.

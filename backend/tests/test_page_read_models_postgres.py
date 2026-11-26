@@ -51,7 +51,7 @@ from app.shared.time import utc_now
 from app.shared.feed_cursor import encode_cursor
 from app.api.deps import get_current_user, get_db
 from app.main import app
-from tests.test_performance_takes import _manifest_row, VALID_WEBM_BYTES
+from tests.support.take_fixtures import _manifest_row, VALID_WEBM_BYTES
 
 
 @pytest.fixture

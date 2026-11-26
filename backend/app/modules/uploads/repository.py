@@ -15,11 +15,13 @@ class UploadRepository:
         db: Session,
         *,
         stored_object_id: int,
+        upload_session_id: int,
         original_filename: str,
         uploader_user_id: int,
     ) -> Upload:
         upload = Upload(
             stored_object_id=stored_object_id,
+            upload_session_id=upload_session_id,
             original_filename=original_filename,
             uploader_user_id=uploader_user_id,
         )

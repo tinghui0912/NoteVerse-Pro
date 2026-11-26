@@ -1,5 +1,7 @@
 """Real PostgreSQL ownership constraints and concurrent Import lease authority."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -165,6 +167,7 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             setup.add_all([job, physical])
             setup.flush()
             upload = Upload(
+                upload_session=settled_upload_session(user_id=1),
                 upload_uuid="input",
                 stored_object_id=physical.id,
                 uploader_user_id=1,

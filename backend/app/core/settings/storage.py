@@ -23,6 +23,21 @@ class StorageSettings(BaseModel):
     AVATAR_MAX_DIMENSION: int = Field(default=8192, gt=0)
     MEDIA_DELIVERY_CACHE_SECONDS: int = Field(default=900, gt=0)
     MEDIA_DELIVERY_MAX_STREAM_MEDIA_BYTES: int = Field(default=20 * 1024 * 1024, gt=0)
+    SCORE_IMPORT_MAX_BYTES: int = Field(default=20 * 1024 * 1024, gt=0, le=20 * 1024 * 1024)
+    TAKE_AUDIO_MAX_BYTES: int = Field(default=500 * 1024 * 1024, gt=0, le=500 * 1024 * 1024)
+    TAKE_VIDEO_MAX_BYTES: int = Field(
+        default=2 * 1024 * 1024 * 1024, gt=0, le=2 * 1024 * 1024 * 1024
+    )
+    UPLOAD_SINGLE_PUT_MAX_BYTES: int = Field(default=20 * 1024 * 1024, gt=0, le=20 * 1024 * 1024)
+    UPLOAD_PART_BYTES: int = Field(default=16 * 1024 * 1024, ge=5 * 1024 * 1024)
+    UPLOAD_URL_TTL_SECONDS: int = Field(default=900, gt=0)
+    UPLOAD_SESSION_TTL_SECONDS: int = Field(default=86400, gt=0)
+    UPLOAD_CLIENT_CONCURRENCY: int = Field(default=3, gt=0)
+    UPLOAD_MAX_ACTIVE_SESSIONS: int = Field(default=5, gt=0)
+    UPLOAD_TEMP_BYTE_BUDGET: int = Field(default=4 * 1024 * 1024 * 1024, gt=0)
+    TAKE_PROCESSING_MAX_ATTEMPTS: int = Field(default=5, gt=0)
+    TAKE_PROCESSING_RETRY_SECONDS: int = Field(default=60, gt=0)
+    TAKE_PROCESSING_LEASE_SECONDS: int = Field(default=3600, gt=0)
     WORK_ROOT: str = "data/work"
 
     @field_validator("WORK_ROOT")

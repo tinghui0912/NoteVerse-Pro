@@ -1,11 +1,12 @@
 """Fresh PostgreSQL persistence for independent media provenance."""
 
 from tests.support.quota import quota_hold_fact
+from tests.support.uploads import settled_upload_session
 
 from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 
 import hashlib
-from tests.test_performance_takes import VALID_WEBM_BYTES
+from tests.support.take_fixtures import VALID_WEBM_BYTES
 from datetime import timedelta
 import pytest
 import sqlalchemy as sa
@@ -31,13 +32,13 @@ def manifest_values(user_id):
     return row.model_dump(exclude={"id"})
 
 
-def reservation_values(user_id, manifest_id, quota_hold_id):
+def reservation_values(user_id, manifest_id, quota_hold_id, upload_session_id):
     return PerformanceTakeUploadReservation(
         user_id=user_id,
         manifest_id=manifest_id,
         reservation_uuid="reservation",
         client_request_id="request",
-        staging_object_key="staging",
+        upload_session_id=upload_session_id,
         quota_hold_id=quota_hold_id,
         expires_at=utc_now() + timedelta(hours=1),
         status=UploadReservationStatus.RESERVED,
@@ -61,7 +62,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                 manifest_id=manifest.id,
                 reservation_uuid="reservation",
                 client_request_id="request",
-                staging_object_key="staging",
+                upload_session=settled_upload_session(user_id=user.id),
                 quota_hold_id=quota_hold_fact(db, user.id),
                 expires_at=utc_now() + timedelta(hours=1),
                 status=UploadReservationStatus.RESERVED,
@@ -141,7 +142,7 @@ def test_fresh_manifest_shared_by_reservation_and_take(monkeypatch):
                     manifest_id=manifest.id,
                     reservation_uuid="other",
                     client_request_id="request",
-                    staging_object_key="other-staging",
+                    upload_session=settled_upload_session(user_id=other.id),
                     quota_hold_id=quota_hold_fact(db, other.id),
                     expires_at=utc_now() + timedelta(hours=1),
                     status=UploadReservationStatus.RESERVED,

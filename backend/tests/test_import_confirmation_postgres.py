@@ -1,5 +1,7 @@
 """Import confirmation commits provenance, revision admission, notification enrichment and release together."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 
 from app.storage import object_storage as _storage_provider
@@ -129,7 +131,10 @@ def confirmation(monkeypatch, request):
             db.add(obj)
             db.flush()
             upload = Upload(
-                uploader_user_id=1, stored_object_id=obj.id, original_filename="page.png"
+                upload_session=settled_upload_session(user_id=1),
+                uploader_user_id=1,
+                stored_object_id=obj.id,
+                original_filename="page.png",
             )
             db.add(upload)
             db.flush()

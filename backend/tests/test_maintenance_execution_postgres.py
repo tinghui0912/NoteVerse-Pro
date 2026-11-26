@@ -1,5 +1,7 @@
 """Cleanup execution owns batch and lock-unit transactions on real PostgreSQL."""
 
+from tests.support.uploads import settled_upload_session
+
 from datetime import timedelta
 
 import pytest
@@ -71,6 +73,7 @@ def seed_batch(engine, storage, kind):
                 storage.put_bytes(key=key, content=b"png", content_type="image/png")
                 obj = object_from_bytes(object_key=key, content=b"png", content_type="image/png")
                 row = Upload(
+                    upload_session=settled_upload_session(user_id=1),
                     stored_object=obj,
                     original_filename="upload.png",
                     uploader_user_id=1,

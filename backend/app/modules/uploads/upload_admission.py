@@ -4,12 +4,9 @@ from dataclasses import dataclass
 from io import BytesIO
 from pathlib import PurePath
 import warnings
-from fastapi import UploadFile
 from PIL import Image, ImageSequence, UnidentifiedImageError
 from app.core.exceptions import ValidationException
 from app.shared.error_codes import CustomerErrorCode
-
-MAX_SCORE_IMPORT_UPLOAD_BYTES = 20 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -28,17 +25,6 @@ SCORE_IMPORT_IMAGES = (
     ScoreImportImage("WEBP", "image/webp", ".webp", frozenset({".webp"})),
     ScoreImportImage("TIFF", "image/tiff", ".tiff", frozenset({".tif", ".tiff"})),
 )
-
-
-def read_score_import_upload(file: UploadFile) -> bytes:
-    content = file.file.read(MAX_SCORE_IMPORT_UPLOAD_BYTES + 1)
-    if not content or len(content) > MAX_SCORE_IMPORT_UPLOAD_BYTES:
-        raise ValidationException(
-            code=CustomerErrorCode.VALIDATION_ERROR,
-            field="file",
-            details={"max_bytes": MAX_SCORE_IMPORT_UPLOAD_BYTES},
-        )
-    return content
 
 
 def admit_score_import_image(content: bytes, filename: str) -> ScoreImportImage:

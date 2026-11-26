@@ -46,6 +46,8 @@ def _matching_object(db: Session, facts: StoredObjectFacts) -> StoredObject | No
 
 
 def reserve_intent(db: Session, facts: StoredObjectFacts) -> ObjectWriteIntent:
+    if facts.sha256 is None:
+        raise ValueError("Server writes require a full digest")
     now = utc_now()
     row = db.scalar(
         select(ObjectWriteIntent)

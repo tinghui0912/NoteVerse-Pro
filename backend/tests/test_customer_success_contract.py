@@ -38,6 +38,7 @@ BODYLESS_COMMANDS = {
     "accountSessionRevoke",
     "accountOtherSessionsRevoke",
     "uploadDelete",
+    "uploadRequestCancel",
     "importJobDelete",
     "libraryFolderDelete",
     "scoreMembershipLeave",
@@ -51,9 +52,9 @@ BODYLESS_COMMANDS = {
 def test_upload_operations_describe_resource_facts_and_import_admission():
     spec = create_app().openapi()
     creation = spec["paths"]["/api/v1/uploads"]["post"]
-    assert creation["operationId"] == "uploadsCreate"
+    assert creation["operationId"] == "uploadRequestsCreate"
     assert creation["responses"]["200"]["content"]["application/json"]["schema"] == {
-        "$ref": "#/components/schemas/UploadRead"
+        "$ref": "#/components/schemas/UploadAdmissionRead"
     }
     deletion = spec["paths"]["/api/v1/uploads/{upload_id}"]["delete"]
     assert deletion["operationId"] == "uploadDelete"

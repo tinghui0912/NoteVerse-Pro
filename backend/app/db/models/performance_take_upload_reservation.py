@@ -15,12 +15,12 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    Text,
     UniqueConstraint,
 )
 from sqlmodel import Field, Relationship, SQLModel
 from sqlalchemy.orm import relationship
 from .performance_take_manifest import PerformanceTakeManifest
+from .upload_session import UploadSession
 
 from app.shared.time import utc_now
 from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
@@ -39,7 +39,7 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
             name="fk_take_reservation_manifest_owner",
         ),
         CheckConstraint(
-            f"(status = '{UploadReservationStatus.FINALIZING.value}' AND finalizing_token IS NOT NULL AND finalizing_object_key IS NOT NULL AND finalizing_expires_at IS NOT NULL) OR (status != '{UploadReservationStatus.FINALIZING.value}' AND finalizing_token IS NULL AND finalizing_object_key IS NULL AND finalizing_expires_at IS NULL)",
+            f"(status = '{UploadReservationStatus.FINALIZING.value}' AND finalizing_token IS NOT NULL AND finalizing_expires_at IS NOT NULL) OR (status != '{UploadReservationStatus.FINALIZING.value}' AND finalizing_token IS NULL AND finalizing_expires_at IS NULL)",
             name="ck_take_reservation_finalize_lease",
         ),
         UniqueConstraint(
@@ -58,6 +58,17 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
         default_factory=lambda: str(uuid4()),
         sa_column=Column(String(36), unique=True, index=True, nullable=False),
     )
+    upload_session_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("upload_sessions.id", ondelete="RESTRICT"),
+            nullable=False,
+            unique=True,
+        )
+    )
+    upload_session: UploadSession = Relationship(
+        sa_relationship=relationship(UploadSession, lazy="selectin")
+    )
     user_id: int = Field(
         sa_column=Column(
             bigint_pk_type,
@@ -72,8 +83,6 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
     )
     client_request_id: str = Field(sa_column=Column(String(128), index=True, nullable=False))
 
-    staging_object_key: str = Field(sa_column=Column(String(768), nullable=False))
-
     quota_hold_id: int = Field(
         sa_column=Column(
             BigInteger,
@@ -84,27 +93,6 @@ class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[ca
         )
     )
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
-    last_put_url_expires_at: Optional[datetime] = Field(
-        default=None,
-        sa_column=Column(DateTime(timezone=True), nullable=True),
-    )
-    staging_cleanup_after: Optional[datetime] = Field(
-        default=None,
-        sa_column=Column(DateTime(timezone=True), nullable=True),
-    )
-    staging_cleanup_completed_at: Optional[datetime] = Field(
-        default=None,
-        sa_column=Column(DateTime(timezone=True), nullable=True),
-    )
-
-    finalizing_object_key: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(768), nullable=True),
-    )
-    orphan_final_object_keys: str = Field(
-        default="[]",
-        sa_column=Column(Text, nullable=False, default="[]"),
-    )
     finalizing_token: Optional[str] = Field(
         default=None,
         sa_column=Column(String(36), nullable=True),

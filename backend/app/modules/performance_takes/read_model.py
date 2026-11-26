@@ -14,6 +14,7 @@ def take_read(take: PerformanceTake, linked_score_id: str | None) -> Performance
 
     return PerformanceTakeRead(
         take_id=manifest.take_uuid,
+        media_status=take.media_status,
         manifest=manifest.snapshot,
         recording_media={"mime_type": recording.content_type, "byte_size": recording.byte_size},
         linked_score_id=linked_score_id,

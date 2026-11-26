@@ -59,7 +59,7 @@ class PracticeBundleWriter:
             # A durable null-FK lease must exist before physical IO, so a crash
             # leaves semantic recovery and independent ObjectWriteIntent evidence.
             db.commit()
-            receipts = self._prewrite_representations(db, candidate, creation_id)
+            receipts = self._prewrite_representations(candidate)
             # Creation admission commits before IO. Reestablish live authorization
             # before inspecting bindings or adopting any physical representation.
             reauthorize_mutation()
@@ -97,9 +97,7 @@ class PracticeBundleWriter:
                 raise
             return row
 
-    def _prewrite_representations(
-        self, db: Session, candidate: PracticeBundle, creation_id: int
-    ) -> list[ObjectWriteReceipt]:
+    def _prewrite_representations(self, candidate: PracticeBundle) -> list[ObjectWriteReceipt]:
         representations = (
             (practice_bundle_musicxml_object_key(candidate.bundle_id), candidate.prepared_musicxml),
             (
@@ -119,9 +117,6 @@ class PracticeBundleWriter:
                     raise ValueError("Practice bundle storage read-back mismatch")
             return list(receipts)
         except Exception as error:
-            db.rollback()
-            self.retention.discard_creation(db, creation_id)
-            db.commit()
             raise ValidationException(
                 CustomerErrorCode.STORAGE_BACKEND_UNAVAILABLE,
                 field="practice_bundle",

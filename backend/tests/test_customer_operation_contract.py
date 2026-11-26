@@ -23,8 +23,6 @@ from app.modules.auth.dependencies import get_password_reset_service
 from app.api.resource_dependencies import get_avatar_service
 from app.api.resource_dependencies import get_guest_preview_service
 from app.api.resource_dependencies import get_import_job_service
-from app.api.resource_dependencies import get_performance_take_service
-from app.api.resource_dependencies import get_playback_delivery_service
 from app.api.resource_dependencies import get_score_asset_service
 from app.api.resource_dependencies import get_score_service
 from tests.support.object_storage import InMemoryObjectStorage
@@ -123,14 +121,6 @@ def test_process_json_success_matches_named_schemas(client, monkeypatch):
             False,
         ),
         (
-            "/guest-previews/token/playback",
-            "guestPreviewPlaybackStream",
-            get_guest_preview_service,
-            "audio",
-            "audio/wav",
-            True,
-        ),
-        (
             "/import-jobs/job/artifacts/artifact/download",
             "importJobArtifactDownload",
             get_import_job_service,
@@ -145,22 +135,6 @@ def test_process_json_success_matches_named_schemas(client, monkeypatch):
             "artifact_delivery",
             "application/pdf",
             False,
-        ),
-        (
-            "/performance-takes/take/media",
-            "performanceTakeMediaStream",
-            get_performance_take_service,
-            "get_media_delivery",
-            "audio/ogg",
-            True,
-        ),
-        (
-            "/performance-takes/take/media",
-            "performanceTakeMediaStream",
-            get_performance_take_service,
-            "get_media_delivery",
-            "video/mp4",
-            True,
         ),
         (
             "/render-assets/page/download",
@@ -193,14 +167,6 @@ def test_process_json_success_matches_named_schemas(client, monkeypatch):
             "input_asset_delivery",
             "image/jpeg",
             False,
-        ),
-        (
-            "/scores/score/revisions/revision/playback",
-            "scoreRevisionPlaybackStream",
-            get_playback_delivery_service,
-            "score_revision_delivery",
-            "audio/mpeg",
-            True,
         ),
     ],
 )

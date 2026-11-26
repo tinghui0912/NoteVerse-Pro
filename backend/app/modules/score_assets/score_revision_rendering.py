@@ -99,15 +99,18 @@ class ScoreRevisionRenderService:
                 "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
 
+        canonical_source = StoredObjectReadTarget.from_object(source.stored_object)
+        score_id = require_persisted_id(score.id, entity="score")
+        db.commit()
         try:
             pages = self._render_records(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
-                canonical_source=StoredObjectReadTarget.from_object(source.stored_object),
+                canonical_source=canonical_source,
                 profile=profile,
             )
-            score = lock_presentation_score(db, score.id)
+            score = lock_presentation_score(db, score_id)
             revision_render_delivery.require_revision_attempt(
                 db,
                 outbox_uuid=outbox_uuid,

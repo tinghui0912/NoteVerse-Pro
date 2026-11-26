@@ -99,6 +99,7 @@ class S3CompatibleObjectStorage:
             aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
             config=Config(
                 signature_version="s3v4",
+                retries={"mode": "standard", "total_max_attempts": 1},
                 request_checksum_calculation="when_required",
                 response_checksum_validation="when_required",
                 s3={
@@ -214,6 +215,32 @@ class S3CompatibleObjectStorage:
             {"UploadId": upload_id, "PartNumber": part_number},
             {},
         )
+
+    def list_multipart_uploads(self, key: str) -> tuple[str, ...]:
+        key = self._normalize_key(key)
+        handles: list[str] = []
+        marker: dict[str, str] = {}
+        with provider_operation():
+            while True:
+                response = self.client.list_multipart_uploads(
+                    Bucket=self.bucket, Prefix=key, **marker
+                )
+                handles.extend(
+                    item["UploadId"]
+                    for item in response.get("Uploads", [])
+                    if item.get("Key") == key
+                )
+                if not response.get("IsTruncated"):
+                    return tuple(handles)
+                following = {
+                    "KeyMarker": response["NextKeyMarker"],
+                    "UploadIdMarker": response["NextUploadIdMarker"],
+                }
+                if following == marker:
+                    raise ObjectStorageOperationFailedError(
+                        "Invalid multipart discovery pagination"
+                    )
+                marker = following
 
     def list_uploaded_parts(self, key: str, upload_id: str) -> tuple[UploadedPart, ...]:
         key = self._normalize_key(key)

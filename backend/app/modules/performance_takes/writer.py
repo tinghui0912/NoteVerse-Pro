@@ -7,16 +7,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.models.score import Score
 from app.db.models.performance_take import PerformanceTake
-from app.modules.media_storage.persistence import object_to_row
+from app.modules.media_storage.upload_sessions.service import UploadSessionService
+from app.modules.media_storage.upload_sessions.domain import UploadPurpose, UploadMode
+from app.db.models.take_processing_outbox import TakeProcessingOutbox
+from .processing_states import TakeMediaStatus
 from app.modules.storage_governance.usage.service import StorageUsageService
 from app.modules.storage_governance.quota.service import StorageQuotaService
 from app.shared.time import utc_now
 from app.core.exceptions import ValidationException
 from app.shared.error_codes import CustomerErrorCode
-from .final_media import VerifiedPerformanceTakeCandidate
 from .manifest import TakeManifest
 from .manifest_persistence import manifest_from_row
 from .repository import PerformanceTakeRepository
+from .upload_reservation.domain import FinalizeLease
 from .upload_reservation.persistence import lifecycle_from_row
 from .upload_reservation.effects import apply_reservation_transition
 
@@ -28,10 +31,12 @@ class PerformanceTakeWriter:
         storage_usage_service: StorageUsageService,
         *,
         quota: StorageQuotaService,
+        uploads: UploadSessionService,
     ) -> None:
         self.repository = repository
         self.storage_usage_service = storage_usage_service
         self.quota = quota
+        self.uploads = uploads
 
     def adopt(
         self,
@@ -40,7 +45,7 @@ class PerformanceTakeWriter:
         user_id: int,
         reservation_id: str,
         manifest: TakeManifest,
-        candidate: VerifiedPerformanceTakeCandidate,
+        lease: FinalizeLease,
     ) -> PerformanceTake:
         current_score = self.lock_allocation_parent(db, manifest)
         lock_active_resource_user(db, user_id)
@@ -53,28 +58,38 @@ class PerformanceTakeWriter:
             raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="reservation_id")
         state = lifecycle_from_row(reservation)
         current_lease = state.require_current_lease(
-            token=candidate.lease.token, object_key=candidate.lease.object_key, now=utc_now()
+            token=lease.token, object_key=lease.object_key, now=utc_now()
         )
-        if current_lease != candidate.lease:
+        if current_lease != lease:
             raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="candidate")
         if manifest_from_row(reservation.manifest) != manifest:
             raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="manifest")
-        candidate.validate(manifest)
-        transition = state.complete(
-            token=candidate.lease.token, object_key=candidate.lease.object_key, now=utc_now()
+        if (
+            reservation.upload_session.expected_byte_size,
+            reservation.upload_session.expected_content_type,
+        ) != (manifest.snapshot.capture.byte_size, manifest.snapshot.capture.mime_type):
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="manifest")
+        transition = state.complete(token=lease.token, object_key=lease.object_key, now=utc_now())
+        blob = self.uploads.consume(
+            db,
+            uuid=reservation.upload_session.session_uuid,
+            user_id=user_id,
+            purpose=UploadPurpose.PERFORMANCE_TAKE,
         )
-        blob = object_to_row(candidate.object_facts)
-        db.add(blob)
-        db.flush()
         take = PerformanceTake(
             owner_user_id=reservation.user_id,
             recording_object_id=blob.id,
             recording_object=blob,
             manifest_id=reservation.manifest_id,
             manifest=reservation.manifest,
+            media_status=TakeMediaStatus.READY
+            if reservation.upload_session.mode == UploadMode.SINGLE_PUT
+            else TakeMediaStatus.UPLOADED,
             linked_score_id=current_score.id if current_score is not None else None,
         )
         self.repository.create_take(db, take)
+        if take.media_status == TakeMediaStatus.UPLOADED:
+            db.add(TakeProcessingOutbox(take_id=take.id))
         apply_reservation_transition(
             self.storage_usage_service, self.quota, db, reservation, transition, now=utc_now()
         )

@@ -135,12 +135,16 @@ def test_physical_schema_and_dependency_ownership():
         "object_key",
         "byte_size",
         "sha256",
+        "provider_etag",
+        "transport_checksum_algorithm",
+        "transport_checksum",
         "content_type",
         "created_at",
     }
     assert set(take.columns.keys()) == {
         "id",
         "manifest_id",
+        "media_status",
         "owner_user_id",
         "recording_object_id",
         "linked_score_id",

@@ -1,223 +1,228 @@
-from app.modules.storage_governance.quota.service import StorageQuotaService
-from app.modules.storage_governance.usage.service import StorageUsageService
-from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+"""Score-import commands atomically compose upload sessions, capacity and semantic usage."""
 
-from datetime import timedelta
-from app.shared.time import utc_now
+from hashlib import sha256
 import json
-import hashlib
-import re
-
-from fastapi import UploadFile
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.engine import Connection
-from app.core.logger import logger
-from app.modules.account.resource_admission import lock_active_resource_user
-from app.db.models import UploadCreationRequest, Upload
-from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
-from app.modules.storage_governance.quota.contracts import StorageQuotaHoldReceipt
-
+from pathlib import PurePath
+from uuid import uuid4
+from sqlalchemy.orm import Session
+from app.db.models import UploadCreationRequest, Upload, User, StoredObject
+from app.db.model_utils import require_persisted_id
 from app.core.exceptions import (
     ConflictException,
-    FileException,
     ResourceNotFoundException,
     UnauthorizedException,
     ValidationException,
 )
-from app.db.model_utils import require_persisted_id
-from app.db.models import StoredObject, User
-from app.modules.storage_governance.usage.domain import StorageUsageCategory
-from app.modules.uploads.repository import UploadRepository
-from app.modules.media_storage.retirement import retire_after_release
-
-from app.modules.media_storage.adoption import adopt_written_object
-from app.modules.uploads.schemas import UploadRead
-
 from app.shared.error_codes import CustomerErrorCode
-from app.modules.uploads.upload_admission import read_score_import_upload, admit_score_import_image
-
-
-def blob_object_key(sha256: str, extension: str) -> str:
-    if re.fullmatch(r"[0-9a-f]{64}", sha256) is None:
-        raise ValueError("Upload identity requires a full lowercase SHA-256")
-    if re.fullmatch(r"\.[a-z0-9]+", extension) is None:
-        raise ValueError("Upload extension must be an admitted file extension")
-    return f"blobs/{sha256[:2]}/{sha256}{extension}"
+from app.shared.time import utc_now
+from app.modules.storage_governance.quota.service import StorageQuotaService
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.media_storage.upload_sessions.service import UploadSessionService, lock_upload_user
+from app.modules.media_storage.upload_sessions.domain import UploadPurpose
+from app.modules.media_storage.upload_sessions.schemas import UploadCreateRequest
+from app.modules.media_storage.retirement import retire_after_release
+from .repository import UploadRepository
+from .schemas import UploadRead, UploadAdmissionRead
+from .upload_admission import admit_score_import_image, SCORE_IMPORT_IMAGES
 
 
 class UploadService:
-    """Own uploaded processing inputs; score source and derived delivery live elsewhere."""
-
     def __init__(
         self,
-        repository: UploadRepository | None = None,
         *,
         quota: StorageQuotaService,
         usage: StorageUsageService,
-        writes: ObjectWriteCoordinator,
+        uploads: UploadSessionService,
+        repository: UploadRepository | None = None,
     ) -> None:
-        self.quota = quota
-        self.usage = usage
-        self.writes = writes
+        self.quota, self.usage, self.uploads = quota, usage, uploads
         self.repository = repository or UploadRepository()
-        self.storage = writes.storage
 
-    def create_upload(
-        self, db: Session, current_user: User, file: UploadFile, *, client_request_id: str
-    ) -> UploadRead:
-        if not file.filename:
-            raise ValidationException(code=CustomerErrorCode.NO_FILE_SELECTED, field="file")
+    def create_request(
+        self, db: Session, user_id: int, request: UploadCreateRequest
+    ) -> UploadAdmissionRead:
+        descriptor = next(
+            (
+                item
+                for item in SCORE_IMPORT_IMAGES
+                if request.content_type == item.mime_type
+                and PurePath(request.filename).suffix.lower() in item.aliases
+            ),
+            None,
+        )
         if (
-            not client_request_id
-            or client_request_id != client_request_id.strip()
-            or len(client_request_id) > 128
+            descriptor is None
+            or any(character in request.filename for character in ("/", "\\"))
+            or any(ord(character) < 32 for character in request.filename)
         ):
-            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="client_request_id")
-        content = read_score_import_upload(file)
-        media = admit_score_import_image(content, file.filename)
-        digest = hashlib.sha256(content).hexdigest()
-        fingerprint = hashlib.sha256(
+            raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="filename")
+        self.uploads.policy.mode_for(
+            UploadPurpose.SCORE_IMPORT, request.byte_size, request.content_type
+        )
+        fingerprint = sha256(
             json.dumps(
-                [file.filename, digest, media.mime_type], ensure_ascii=False, separators=(",", ":")
+                [request.filename, request.byte_size, request.content_type], separators=(",", ":")
             ).encode()
         ).hexdigest()
-        user_id = require_persisted_id(current_user.id, entity="user")
-        bind = db.get_bind()
-        fresh_session = sessionmaker(
-            bind=bind.engine if isinstance(bind, Connection) else bind, expire_on_commit=False
-        )
-        lock_active_resource_user(db, user_id)
+        lock_upload_user(db, user_id)
         self.quota.lock_user(db, user_id)
-        request = self.repository.creation_request(db, user_id, client_request_id, lock=True)
-        if request is not None and request.request_fingerprint != fingerprint:
-            raise ConflictException(
-                CustomerErrorCode.VALIDATION_ERROR, {"reason": "upload_request_conflict"}
-            )
-        existing_result = None
-        reservation: StorageQuotaHoldReceipt | None = None
-        if request is not None and request.completed_at is not None:
-            existing_result = self._creation_result(db, request)
-        else:
-            if request is not None:
-                reservation = self.quota.lock_hold(db, request.quota_hold_id)
-                if reservation.status == StorageQuotaHoldStatus.CONSUMED:
-                    raise RuntimeError("Consumed Upload hold has no completed semantic owner")
-                if (
-                    reservation.status == StorageQuotaHoldStatus.HELD
-                    and reservation.expires_at <= utc_now()
-                ):
-                    self.quota.release_hold(db, reservation.hold_id)
-                    reservation = None
-                elif reservation.status != StorageQuotaHoldStatus.HELD:
-                    reservation = None
-            if reservation is None:
-                generation = 1 if request is None else request.generation + 1
-                reservation = self.quota.create_hold(
-                    db,
-                    user_id=user_id,
-                    category=StorageUsageCategory.UPLOAD,
-                    bytes_count=len(content),
-                    command_key=f"upload:{client_request_id}:{generation}",
-                    expires_at=utc_now() + timedelta(minutes=15),
-                )
-                if request is None:
-                    request = UploadCreationRequest(
-                        user_id=user_id,
-                        client_request_id=client_request_id,
-                        request_fingerprint=fingerprint,
-                        generation=generation,
-                        quota_hold_id=reservation.hold_id,
-                    )
-                    db.add(request)
-                else:
-                    request.generation = generation
-                    request.quota_hold_id = reservation.hold_id
-                    request.updated_at = utc_now()
-            db.flush()
-        attempt_hold_id = reservation.hold_id if reservation else None
-        try:
-            db.commit()  # Upload intent + capacity generation are durable before physical IO.
-            if existing_result is not None:
-                return existing_result
-            assert reservation is not None
-            key = blob_object_key(digest, media.extension)
-            written = self.writes.write_bytes(
-                key=key, content=content, content_type=media.mime_type
-            )
-            lock_active_resource_user(db, user_id)
-            self.quota.lock_user(db, user_id)
-            request = self.repository.creation_request(db, user_id, client_request_id, lock=True)
-            if request is None:
-                raise ResourceNotFoundException("upload_request", client_request_id)
-            if request.completed_at is not None:
-                result = self._creation_result(db, request)
-                db.commit()
-                return result
-            if request.quota_hold_id != attempt_hold_id:
+        row = self.repository.creation_request(db, user_id, request.client_request_id, lock=True)
+        if row is not None:
+            if row.request_fingerprint != fingerprint:
                 raise ConflictException(
-                    CustomerErrorCode.VALIDATION_ERROR, {"reason": "upload_generation_lost"}
+                    CustomerErrorCode.VALIDATION_ERROR, {"reason": "upload_request_conflict"}
                 )
-            held = self.quota.lock_hold(db, request.quota_hold_id)
-            if (held.user_id, held.category, held.bytes_held) != (
-                user_id,
-                StorageUsageCategory.UPLOAD,
-                len(content),
-            ):
-                raise RuntimeError("Upload quota lineage disagrees with admitted content")
-            if not self.quota.consume_hold(db, held.hold_id):
-                raise RuntimeError("New Upload requires unconsumed capacity")
-            blob = adopt_written_object(db, written)
-            upload = self.repository.create_upload(
+            upload = self._creation_result(db, row) if row.completed_at is not None else None
+            from app.db.models.upload_session import UploadSession
+
+            session = db.get(UploadSession, row.upload_session_id)
+            if session is None:
+                raise RuntimeError("Upload request lost its physical session")
+        else:
+            session = self.uploads.admit(
                 db,
-                stored_object_id=require_persisted_id(blob.id, entity="stored object"),
-                original_filename=file.filename,
-                uploader_user_id=user_id,
+                user_id=user_id,
+                purpose=UploadPurpose.SCORE_IMPORT,
+                byte_size=request.byte_size,
+                content_type=request.content_type,
+                final_key=f"uploads/{user_id}/{uuid4()}/input{descriptor.extension}",
             )
-            request.upload_id = require_persisted_id(upload.id, entity="upload")
-            request.completed_at = request.updated_at = utc_now()
-            self.usage.record_allocation(
+            hold = self.quota.create_hold(
                 db,
                 user_id=user_id,
                 category=StorageUsageCategory.UPLOAD,
-                bytes_count=len(content),
-                reason="upload_created",
-                object_type="upload",
-                object_id=upload.upload_uuid,
-                storage_key=blob.object_key,
+                bytes_count=request.byte_size,
+                command_key="upload:" + request.client_request_id,
+                expires_at=session.expires_at,
             )
-            result = self._creation_result(db, request)
+            row = UploadCreationRequest(
+                original_filename=request.filename,
+                user_id=user_id,
+                client_request_id=request.client_request_id,
+                request_fingerprint=fingerprint,
+                quota_hold_id=hold.hold_id,
+                upload_session_id=session.id,
+            )
+            db.add(row)
+            db.flush()
+            upload = None
+        uuid = session.session_uuid
+        db.commit()
+        db.close()
+        transfer = (
+            self.uploads.read(uuid, user_id)
+            if upload is not None
+            else self.uploads.start(uuid, user_id)
+        )
+        return UploadAdmissionRead(
+            client_request_id=request.client_request_id, upload_session=transfer, upload=upload
+        )
+
+    def cancel_request(self, db: Session, user_id: int, session_id: str) -> None:
+        from sqlalchemy import select
+        from app.db.models.upload_session import UploadSession
+
+        lock_upload_user(db, user_id)
+        self.quota.lock_user(db, user_id)
+        row = db.scalar(
+            select(UploadCreationRequest)
+            .join(UploadSession, UploadSession.id == UploadCreationRequest.upload_session_id)
+            .where(
+                UploadSession.session_uuid == session_id, UploadCreationRequest.user_id == user_id
+            )
+            .with_for_update(of=UploadCreationRequest)
+        )
+        if row is None or row.completed_at is not None:
+            raise ValueError("Upload request does not permit cancellation")
+        self.uploads.cancel(db, row.upload_session_id)
+        self.quota.release_hold(db, row.quota_hold_id)
+
+    def finalize_upload(self, db: Session, user_id: int, session_id: str) -> UploadRead:
+        from sqlalchemy import select
+        from app.db.models.upload_session import UploadSession
+
+        row = db.scalar(
+            select(UploadCreationRequest)
+            .join(UploadSession, UploadSession.id == UploadCreationRequest.upload_session_id)
+            .where(
+                UploadSession.session_uuid == session_id, UploadCreationRequest.user_id == user_id
+            )
+        )
+        if row is None:
+            raise ResourceNotFoundException("upload_request", session_id)
+        if row.completed_at is not None:
+            return self._creation_result(db, row)
+        filename = row.original_filename
+        db.commit()
+        db.close()
+        content = self.uploads.verified_bytes(session_id, user_id, UploadPurpose.SCORE_IMPORT)
+        media = admit_score_import_image(content, filename)
+        self.uploads.prepare_adoption(session_id, user_id, UploadPurpose.SCORE_IMPORT)
+        try:
+            lock_upload_user(db, user_id)
+            self.quota.lock_user(db, user_id)
+            row = db.scalar(
+                select(UploadCreationRequest)
+                .join(UploadSession, UploadSession.id == UploadCreationRequest.upload_session_id)
+                .where(
+                    UploadSession.session_uuid == session_id,
+                    UploadCreationRequest.user_id == user_id,
+                )
+                .with_for_update(of=UploadCreationRequest)
+                .execution_options(populate_existing=True)
+            )
+            if row is None:
+                raise ResourceNotFoundException("upload_request", session_id)
+            if row.completed_at is not None:
+                result = self._creation_result(db, row)
+            else:
+                transfer = db.get(UploadSession, row.upload_session_id)
+                if transfer is None or media.mime_type != transfer.expected_content_type:
+                    raise ValueError("Upload image type does not match its declaration")
+                obj = self.uploads.consume(
+                    db, uuid=session_id, user_id=user_id, purpose=UploadPurpose.SCORE_IMPORT
+                )
+                if not self.quota.consume_hold(db, row.quota_hold_id):
+                    raise ValueError("New upload requires an unconsumed hold")
+                upload = self.repository.create_upload(
+                    db,
+                    stored_object_id=obj.id,
+                    upload_session_id=row.upload_session_id,
+                    original_filename=filename,
+                    uploader_user_id=user_id,
+                )
+                self.usage.record_allocation(
+                    db,
+                    user_id=user_id,
+                    category=StorageUsageCategory.UPLOAD,
+                    bytes_count=obj.byte_size,
+                    reason="upload_created",
+                    object_type="upload",
+                    object_id=upload.upload_uuid,
+                    storage_key=obj.object_key,
+                )
+                row.upload_id, row.completed_at, row.updated_at = upload.id, utc_now(), utc_now()
+                result = self._creation_result(db, row)
             db.commit()
             return result
-        except Exception as error:
-            try:
-                db.rollback()
-            except Exception:
-                logger.bind(resource_id=hashlib.sha256(client_request_id.encode()).hexdigest()).opt(
-                    exception=True
-                ).warning("upload.request_session_rollback_failed")
-                db.invalidate()
-            # A completion acknowledgement is not evidence that COMMIT failed. Read fresh lineage.
-            with fresh_session() as recovery:
-                current = self.repository.creation_request(recovery, user_id, client_request_id)
+        except BaseException:
+            db.rollback()
+            db.close()
+            with self.uploads.sessions() as recovery:
+                current = recovery.scalar(
+                    select(UploadCreationRequest)
+                    .join(
+                        UploadSession, UploadSession.id == UploadCreationRequest.upload_session_id
+                    )
+                    .where(
+                        UploadSession.session_uuid == session_id,
+                        UploadCreationRequest.user_id == user_id,
+                    )
+                )
                 if current is not None and current.completed_at is not None:
                     return self._creation_result(recovery, current)
-                if current is not None and current.quota_hold_id == attempt_hold_id:
-                    self.quota.release_hold(recovery, current.quota_hold_id)
-                    recovery.commit()
-            if isinstance(
-                error,
-                (
-                    FileException,
-                    ConflictException,
-                    ValidationException,
-                    ResourceNotFoundException,
-                    UnauthorizedException,
-                ),
-            ):
-                raise
-            raise FileException(
-                code=CustomerErrorCode.FILE_SAVE_FAILED, filename=file.filename
-            ) from error
+            raise
 
     @staticmethod
     def _creation_result(db: Session, request: UploadCreationRequest) -> UploadRead:

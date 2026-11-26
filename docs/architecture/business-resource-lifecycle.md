@@ -16,7 +16,7 @@ entry into the concrete transaction participant; physical existence is never rea
 | `import_jobs/deletion_service.py → _release`, `maintenance_service.py → cleanup_orphan_uploads` | Job user; stopped job/customer rule; maintenance selects actual orphans | TEMP_IMPORT and standalone UPLOAD releases | Reference removal, accounting release and retirement share caller transaction; orphan item savepoints | Sorted Upload locks and fresh bulk reference checks protect shared resources; missing physical facts fail closed. |
 | `scores/lifecycle_service.py → deletion admission → ScoreDeletionExecutor.execute` | Score owner lifecycle authority; tombstone cuts active access | SOURCE, INPUT_ASSET, DERIVED_* releases; surviving independent Upload returns to uploader | Durable Score deletion; graph removal + Usage + retirement atomic in worker | ScoreInputAssetLifecycle restores surviving Upload occupancy without new admission; orphan Upload removal creates no intermediate allocation. |
 | `revisions/derived_asset_retention_service.py → cleanup_for_score` | Score policy protects current head | DERIVED_* releases, non-quota | Score-scoped worker transaction releases assets, counters and retirement | Head serialization and asset retention policy remain separate from Source history. |
-| `performance_takes/router.py → reservation_service/reservation protocol → finalization.py → PerformanceTakeWriter.adopt` | Take user; exact Bundle admission; detached immutable Manifest | Hold reserves UPLOAD; only final recording allocates UPLOAD | Manifest/reservation/Hold commit; staging/candidate IO outside business locks; exact lease final admission atomically consumes and allocates | The business state machine verifies the full content hash. Unknown COMMIT reads fresh persisted lineage; no duplicate consumption. |
+| `performance_takes/router.py → reservation_service/reservation protocol → finalization.py → PerformanceTakeWriter.adopt` | Take user; exact Bundle admission; detached immutable Manifest | Hold reserves UPLOAD; only final recording allocates UPLOAD | Manifest/reservation/Hold commit; UploadSession transport and coordinator IO outside business locks; exact lease final admission atomically consumes and allocates | Small inputs verify full SHA-256 synchronously; large inputs use durable domain media processing. Unknown COMMIT reads fresh persisted lineage; no duplicate consumption. |
 | `PerformanceTakeService.delete_take` | Take owner | Final UPLOAD release | Take removal + Usage release + retirement | Caller-owned deletion releases Usage before retirement. Manifest/reservation retain idempotency and temporary cleanup lineage. |
 | `account/router.py → AvatarService.replace_user_avatar/clear_user_avatar` | Current User; User lock owns avatar reference | No Usage / no Hold | Normalize immutable JPEG, Intent prewrite; User reference replacement and prior retirement | User lock serializes clear/replacement; active-user recheck follows prewrite. |
 | `practice/bundle/writer.py → ensure_binding`, `retention.py` | Score/Revision binding, shared derived Bundle | No Usage / no Hold | Both representations adopted before READY/binding; last binding release admits retirement | Content-addressed reuse is physical identity, not User quota. CREATING/READY and existing compiler/GC races remain business-owned. |
@@ -70,11 +70,10 @@ canonical active-parent predicate. Request admission does not enumerate the grap
 Account owns deletion admission and delivery facts; business resource owners do not
 reverse-depend on cross-domain erasure orchestration.
 
-Worker phases are SCORES, IMPORTS, TAKES, UPLOADS and FINALIZE, with one semantic unit
+Worker phases are SCORES, IMPORTS, TAKES, UPLOADS, TRANSFERS and FINALIZE, with one semantic unit
 per transaction. Score tombstone admission commits before a fresh graph-execution
 transaction acquires Operation → Score locks. Imports serialize Dispatch → Job.
-Take erasure cancels its own active reservation and preserves capability expiry and
-uncertain-candidate grace. Its staging/candidate cleanup must ACK before history removal.
+Take erasure releases semantic recordings and unconsumed Holds without waiting for physical transfer work. TRANSFERS cancels UploadSessions and waits for cleanup ACK. FINALIZE removes command, reservation, Manifest and session history after physical settlement.
 Account erasure never directly deletes physical objects.
 
 Successful units remain committed on a later failure. Exact leases fence stale delivery;
@@ -129,8 +128,9 @@ covers all nine semantic StoredObject FKs, including both shared Bundle represen
 | `email_change_requests.user_id` | account | owned | Bounded Account security erasure before identity removal | No direct counted allocation | Removed with its owned lifecycle |
 | `import_jobs.user_id` | import_jobs | owned | Domain cleanup deletes artifacts and releases TEMP_IMPORT | ImportArtifact StoredObject; TEMP_IMPORT release | Removed with its owned lifecycle |
 | `notifications.recipient_user_id` | notifications | owned | erase_recipient_history before User deletion | No direct counted allocation | Removed with its owned lifecycle |
-| `performance_take_manifests.user_id` | performance_takes | owned | erase history only after staging and candidate cleanup ACK | Recording through Take; UPLOAD release, temporary cleanup ACK | Removed with its owned lifecycle |
-| `performance_take_upload_reservations.user_id` | performance_takes | owned | cancel business reservation; release hold; retain temporary cleanup lineage until ACK | quota_hold_id; staging/candidate cleanup; no premature allocation | Removed with its owned lifecycle |
+| `upload_sessions.user_id` | media_storage | owned | TRANSFERS cancels and acknowledges exact physical cleanup; FINALIZE removes history | User RESTRICT; CONSUMED multipart belongs to StoredObject | Unknown provider IO retains responsibility |
+| `performance_take_manifests.user_id` | performance_takes | owned | erase history only after UploadSession cleanup ACK | Recording through Take; UPLOAD release, temporary cleanup ACK | Removed with its owned lifecycle |
+| `performance_take_upload_reservations.user_id` | performance_takes | owned | cancel business reservation; release hold; retain temporary cleanup lineage until ACK | quota_hold_id; UploadSession cleanup; no premature allocation | Removed with its owned lifecycle |
 | `playback_outbox.requested_by_user_id` | playback | history | SET NULL; another owner retains playback work | No direct counted allocation | Minimal absent-actor context in surviving owner history |
 | `practice_activities.user_id` | practice | owned | Bounded Practice activity erasure | No direct counted allocation | Removed with its owned lifecycle |
 | `realtime_changes.recipient_user_id` | realtime | owned | Bounded recipient replay erasure | No direct counted allocation | Removed with its owned lifecycle |
@@ -246,13 +246,7 @@ handoff already admitted before closure can be in flight and cannot be recalled;
 its credential is still invalid after closure, and cancellation prevents further
 retry. Mail remains at-least-once external delivery, not an atomic DB/provider send.
 
-Migration `0007_mail_source_lifecycle` backfills exact persisted identities from
-known domain dedupe formats, never recipient-address ownership. Unresolved active
-lineage aborts the upgrade with bounded operation IDs and leaves schema/data intact;
-the owning domain must explicitly resolve it. Terminal evidence without a surviving
-source is retained with contact/payload scrubbed. Existing closed subjects' tokens
-are invalidated, and source-invalid active mail is cancelled without dispatch. Downgrade
-refuses to discard persisted source/cancellation evidence.
+MailOutbox stores exact source identities and domain-owned cancellation fences.
 
 
 ## Account Closure and Collaboration Retention
@@ -341,12 +335,7 @@ policy. The independent Account and StoredObject deletion lifecycles do not chan
 
 ### Schema and verification
 
-`0008_collaboration_closure` adds the two closure outcomes, nullable contact/creator
-fields, SET NULL creator FKs, coherent contact/system-terminal checks and recipient,
-creator and terminal-actor indexes. It applies closure rules to still-tombstoned
-identities using their authoritative email/cutoff. Enum replacement and backfill share
-one PostgreSQL transaction; there is no unsafe ADD VALUE use before commit. Downgrade
-refuses to reconstruct anonymized contact, actors, creators or closure outcomes.
+The initial schema defines closure outcomes, nullable contact/creator attribution and terminal-fact constraints.
 
 PostgreSQL tests cover recipient/issuer and existing outcomes, expiry, same-email
 re-registration, old UUID/token rejection, new-invitation preservation, delivery lease

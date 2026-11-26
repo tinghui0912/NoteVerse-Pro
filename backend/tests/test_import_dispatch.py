@@ -1,5 +1,7 @@
 """Import delivery, domain outcomes and current-attempt mutation authority."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 from app.composition import media_resources as _media_wiring
 
@@ -73,6 +75,7 @@ def setup_delivery(score_service_session):
     db.add_all([job, physical])
     db.flush()
     upload = Upload(
+        upload_session=settled_upload_session(user_id=1),
         upload_uuid="original-upload",
         stored_object_id=physical.id,
         original_filename="original.png",

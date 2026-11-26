@@ -1,29 +1,61 @@
-from fastapi import Response, APIRouter, Depends, File, UploadFile, Form
+from fastapi import Response, APIRouter, Depends, HTTPException
 
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, get_command_db
 from app.db.models import User
 from app.api.resource_dependencies import get_upload_service
-from app.modules.uploads.schemas import UploadRead
+from app.modules.uploads.schemas import UploadRead, UploadAdmissionRead
+from app.modules.media_storage.upload_sessions.schemas import UploadCreateRequest
 from app.modules.uploads.service import UploadService
 
 
 router = APIRouter()
 
 
-@router.post("", operation_id="uploadsCreate", response_model=UploadRead)
-def create_upload(
-    file: UploadFile = File(...),
-    client_request_id: str = Form(..., min_length=1, max_length=128),
+@router.post("", operation_id="uploadRequestsCreate", response_model=UploadAdmissionRead)
+def create_upload_request(
+    payload: UploadCreateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db, scope="function"),
     upload_service: UploadService = Depends(get_upload_service),
 ):
-    result = upload_service.create_upload(
-        db, current_user, file, client_request_id=client_request_id
-    )
-    return result
+    try:
+        return upload_service.create_request(db, current_user.id, payload)
+    except ValueError as error:
+        raise HTTPException(409, "Upload admission rejected") from error
+
+
+@router.post("/{session_id}/finalize", operation_id="uploadFinalize", response_model=UploadRead)
+def finalize_upload(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db, scope="function"),
+    upload_service: UploadService = Depends(get_upload_service),
+):
+    try:
+        return upload_service.finalize_upload(db, current_user.id, session_id)
+    except ValueError as error:
+        raise HTTPException(409, "Upload verification rejected") from error
+
+
+@router.post(
+    "/{session_id}/cancel",
+    operation_id="uploadRequestCancel",
+    status_code=204,
+    response_class=Response,
+)
+def cancel_upload_request(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_command_db, scope="function"),
+    upload_service: UploadService = Depends(get_upload_service),
+):
+    try:
+        upload_service.cancel_request(db, current_user.id, session_id)
+    except ValueError as error:
+        raise HTTPException(409, "Upload cancellation rejected") from error
+    return Response(status_code=204)
 
 
 @router.delete(

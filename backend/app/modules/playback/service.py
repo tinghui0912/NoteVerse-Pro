@@ -106,6 +106,7 @@ class PlaybackGenerationService:
         )
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
+        db.commit()
         stored = self.writes.write_bytes(
             key=playback_audio_object_key(
                 score_uuid=score_uuid,
@@ -261,6 +262,7 @@ class PlaybackGenerationService:
     ) -> ScorePlaybackAsset:
         audio = self.renderer.render(source)
         asset_uuid = str(uuid.uuid4())
+        db.commit()
         stored = self.writes.write_bytes(
             key=playback_audio_object_key(
                 score_uuid=score_uuid,

@@ -9,6 +9,7 @@ from typing import Literal, Optional, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .generated.recording_timebase import RecordingTimebase
 from app.shared.api_model import ApiModel
+from app.modules.media_storage.upload_sessions.schemas import UploadSessionRead
 
 
 class StrictPerformanceTakeModel(BaseModel):
@@ -110,13 +111,6 @@ class PerformanceTakeUploadReservationRequest(PerformanceTakeUploadMetadata):
     client_request_id: str = Field(min_length=1, max_length=128)
 
 
-class PerformanceTakeUploadTarget(StrictPerformanceTakeModel):
-    url: str
-    method: str
-    headers: dict[str, str]
-    expires_in: int
-
-
 class PerformanceTakeManifestRead(StrictPerformanceTakeModel):
     practice_binding: PerformanceTakePracticeBinding
     artifact_id: str = Field(min_length=1)
@@ -135,7 +129,7 @@ class PerformanceTakeUploadReservationRead(ApiModel, StrictPerformanceTakeModel)
     take_id: str
     status: Literal["RESERVED", "FINALIZING", "COMPLETED"]
     manifest: PerformanceTakeManifestRead
-    upload_target: PerformanceTakeUploadTarget | None = None
+    upload_session: UploadSessionRead | None = None
     take: Optional["PerformanceTakeRead"] = None
 
 
@@ -147,6 +141,7 @@ class PerformanceTakeRecordingMediaRead(StrictPerformanceTakeModel):
 class PerformanceTakeRead(ApiModel, StrictPerformanceTakeModel):
     take_id: str
     manifest: PerformanceTakeManifestRead
+    media_status: Literal["UPLOADED", "PROCESSING", "READY", "FAILED"]
     recording_media: PerformanceTakeRecordingMediaRead
     linked_score_id: Optional[str] = None
     can_open_score: bool = False

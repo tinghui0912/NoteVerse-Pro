@@ -1,355 +1,220 @@
 # ADR 0009: Media storage and resource governance
 
-Status: Accepted architectural decision. Runtime implementation scope is explicit below.
+Status: Accepted architectural decision.
 
-## Purpose and implementation boundary
+## Authorities
 
-NoteVerse separates physical storage from logical resource accounting and business
-ownership. This contract defines the two cohesive infrastructure domains and their
-upload, adoption, cleanup and delivery guarantees.
-
-The executable provider boundary is [app/storage](../../backend/app/storage/base.py).
-[media_storage](../../backend/app/modules/media_storage/) owns physical object facts,
-independent write coordination, adoption, references, retirement and delivery policy.
-[storage_governance](../../backend/app/modules/storage_governance/) owns capacity,
-accounting and inventory contracts. Avatar uses bounded API input and JPEG normalization.
-UploadSession and nullable StoredObject checksum definitions below are schema contracts;
-they require explicit migrations before use. Current StoredObject requires full SHA-256.
-
-## Authorities and dependencies
+`app/storage/` is the provider port and S3-compatible transport adapter. SDK imports
+belong here; this boundary has no ORM, FastAPI or business dependency.
+`media_storage/` owns physical facts, durable writes, upload sessions, adoption,
+references, retirement, verification and delivery. `storage_governance/` owns
+quota, usage and inventory contracts. Business domains own authorization, semantic
+identity, object-key construction, readiness and retention.
 
 ```mermaid
 flowchart TD
-    Business[Business domains] --> Media[media_storage]
+    Composition --> API[HTTP dependencies and Worker wiring]
+    API --> Business[Business services]
+    Business --> Media[media_storage]
     Business --> Governance[storage_governance]
-    Composition[Application composition] --> Media
-    Composition --> Governance
-    Media --> Provider[app/storage: provider port and S3 adapter]
-    Governance --> Inventory[Explicit domain inventory reader contracts]
+    Media --> Provider[app/storage]
+    Governance --> Readers[Explicit usage and inventory reader contracts]
 ```
 
-- `app/storage/` owns provider transport, signing, metadata and wire errors. It has
-  no ORM, FastAPI or business-domain dependency. SDK imports belong here.
-- `media_storage` owns immutable physical facts, ObjectWriteCoordinator,
-  adoption, references, retirement, GC and delivery policy. UploadSession belongs to this domain.
-- `storage_governance` contains entitlement/quota, logical usage and inventory
-  contracts. Accounting and reconciliation remain independent authorities within
-  that domain. Its core does not import business ORM or modify business resources.
-- Each business domain owns authorization, semantic identity, object-key builders,
-  readiness, retention and deletion decisions.
-- Composition supplies concrete inventory providers and infrastructure dependencies.
+Composition injects concrete services and independent session factories. Business
+modules do not import composition. ORM definitions import pure domain enums.
+There is no asset catalog, polymorphic owner relationship or persisted delivery grant.
+Usage, Quota and Inventory retain distinct responsibilities within governance.
 
-There is no global FileAsset/AssetCatalog, universal ProcessingJob, polymorphic
-owner_type/owner_id relationship, persisted DeliveryGrant or ResourceManager.
-One authoritative implementation owns each responsibility.
-
-## Product limits and injected policy
-
-All sizes are integer bytes. Admission rejects a declaration above the applicable
-file limit or available user quota before issuing upload capability.
+## Injected upload policy
 
 | Policy | Default |
 | --- | ---: |
-| Avatar input limit | 5,242,880 bytes (5 MiB) |
-| Score import input limit | 20,971,520 bytes (20 MiB) |
-| Take audio input limit | 524,288,000 bytes (500 MiB) |
-| Take video input limit | 2,147,483,648 bytes (2 GiB) |
-| SINGLE_PUT maximum | 20,971,520 bytes |
-| Multipart part size | 16,777,216 bytes |
-| Upload signature TTL | 900 seconds |
-| Session hard TTL | 86,400 seconds |
-| Concurrent part requests per client | 3 |
+| Avatar input maximum | 5 MiB |
+| Score import maximum | 20 MiB |
+| Take audio maximum | 500 MiB |
+| Take video maximum | 2 GiB |
+| SINGLE_PUT maximum | 20 MiB |
+| Multipart part size | 16 MiB |
+| Signed upload URL lifetime | 900 seconds |
+| Session lifetime | 86,400 seconds |
+| Suggested client part concurrency | 3 |
 | Active sessions per user | 5 |
-| Unconsumed temporary declared byte budget per user | 4,294,967,296 bytes |
+| Unconsumed temporary declared bytes per user | 4 GiB |
 
-Settings own these defaults; services receive validated policy. Avatar currently
-uses `AVATAR_MAX_UPLOAD_BYTES`, `AVATAR_MAX_PIXELS` (16,000,000) and
-`AVATAR_MAX_DIMENSION` (8192). Upload signatures accept explicit expiry; the
-provider's default is 900 seconds. Session policy is injected at session admission.
-The temporary budget and session count are transport abuse controls, separate
-from quota holds and logical allocation. Their checks share user serialization.
+Settings validate limits; composition constructs `UploadPolicy`. User-row
+serialization protects concurrent session count and declared-byte admission.
+These abuse controls are independent of quota. Quota holds reserve positive
+billable capacity through the same semantic admission transaction.
 
-## Two input modes
+Avatar is a bounded API input. Its reader retains at most 5 MiB plus one sentinel
+byte, rejects excess immediately, validates format, dimensions and pixel count,
+and normalizes to a 200×200 JPEG. Its generated bytes use ObjectWriteCoordinator.
+Avatar has no upload session.
 
-### Bounded API input
+## Object facts and write transactions
 
-Avatar receives a single API upload. A synchronous reader requests chunks no
-larger than 64 KiB and retains at most the configured limit plus one sentinel
-byte. Excess input raises HTTP 413 without reading the remaining file.
-Filename extension and decoded format are checked. Dimensions and pixel count
-are checked before full decode; decompression-bomb warnings/errors reject input.
-Only PNG, JPEG, GIF and WebP are accepted. Output is a 200×200 RGB JPEG.
-The output key is server-generated and immutable. Avatar has no UploadSession.
+`stored_objects` owns unique immutable `object_key`, nonnegative `byte_size`,
+canonical `content_type`, optional `sha256`, optional `provider_etag` and paired
+`transport_checksum_algorithm` / `transport_checksum`. User metadata is not a
+provider-native checksum. A composite checksum is explicitly labelled composite;
+it is not interpreted as a full-object SHA-256. Digest enrichment changes an absent
+SHA-256 to the verified full digest through the media integrity boundary.
 
-### Direct provider input
+`ObjectWriteCoordinator` owns an independent SessionFactory. `write_bytes`,
+`write_batch` and `copy_object` return immutable generation-bound receipts.
 
-Score import and Performance Take use server-created UploadSessions. File size
-selects SINGLE_PUT at or below 20 MiB, MULTIPART above that threshold; resumable
-transfer can select Multipart where the business request requires it.
-The server freezes expected size, media type, protocol, deadline and part plan.
-Client input never chooses a final key, provider handle or existing session binding.
+1. A short transaction locks intent keys in canonical order, validates immutable
+   facts and records WRITING authority; it commits and closes its session.
+2. Provider writes/copy/verification execute with no coordinator session,
+   PostgreSQL transaction, checked-out connection or row lock.
+3. A fresh short transaction checks the exact generation and publishes WRITTEN.
 
-SINGLE_PUT signs exact Content-Length and Content-Type with SigV4. It writes to
-a unique staging key. Server verification precedes a durable server-only copy to
-an immutable final key, followed by adoption. The client never receives a write
-capability for that final key. A replayable staging URL cannot overwrite adopted
-bytes. Staging cleanup waits for capability expiry and uncertain IO resolution.
+A matching WRITING generation excludes competing writers and cleanup. Lost or
+uncertain physical acknowledgements retain WRITE_UNKNOWN authority; expiry does
+not authorize destructive cleanup of an unresolved operation. A delayed result can
+publish only against its exact unsettled generation. A definitive failure queues
+settled/unissued objects for cleanup. Failed batch preparation commits no partial
+intent set, and successful batches use two outer transactions.
 
-MULTIPART signs only UploadPart for exact key, UploadId, part number and length.
-CompleteMultipartUpload is server-owned. A completed handle cannot authorize
-further UploadPart calls. The direct key is the immutable final key; verified
-completion is adopted in place without CopyObject. A client never receives a
-PutObject capability for this key.
+`adopt_written_object` and batch adoption only mutate/flush the caller transaction.
+Adoption, semantic references, hold consumption and logical allocation commit
+atomically. Failure leaves unadopted bytes owned by durable intents.
+Provider completion uncertainty is not evidence that an operation had no effect.
 
-The [scientific evidence index](../architecture/asset-provider-qualification.md)
-contains bounded OSS observations. It establishes neither a cross-provider
-conditional PutObject barrier nor native full-object SHA-256 qualification.
-SINGLE_PUT therefore has one staging/copy path. Multipart has one in-place path.
-Deployment qualification must verify signature enforcement and relevant races.
+## Upload session persistence
 
-## Provider contract
+`upload_sessions` contains:
 
-`ObjectStorage` exposes put_bytes, exists, read_bytes, object_metadata, iter_bytes,
-copy, delete, download_url, generate_put_upload_url, create_multipart_upload,
-generate_part_upload_url, list_uploaded_parts, complete_multipart_upload and
-abort_multipart_upload. AsyncObjectReader schedules only streamed reads.
-Authorized materialization belongs to the admitted-object read boundary.
-
-`ObjectMetadata` separates size/content type, ETag, native checksum algorithm,
-checksum value and checksum type. User metadata is not provider validation.
-Composite checksums and multipart ETags are not full-object SHA-256.
-UploadedPart contains part number, ETag and byte size; completion accepts an
-ordered, unique manifest. Listing exhausts provider pagination.
-
-| Provider outcome | Port outcome |
+| Fields | Type / responsibility |
 | --- | --- |
-| Definitive missing object/handle (matching code and HTTP 404) | ObjectNotFoundError |
-| Timeout, connection failure, HTTP 408/429/5xx | ObjectStorageUnavailableError |
-| Rejected request, credentials/permissions, invalid completion | ObjectStorageOperationFailedError |
-| Successful delete of present or absent key | None; one DELETE request |
-| Definitive absent handle during abort | Idempotent success |
+| `id`, `session_uuid` | bigint PK; unique external UUID |
+| `user_id` | User FK, RESTRICT |
+| `purpose` | SCORE_IMPORT / PERFORMANCE_TAKE routing, not ownership polymorphism |
+| `mode` | SINGLE_PUT / MULTIPART |
+| `generation` | positive immutable session generation |
+| `object_key` | unique server locator; staging for SINGLE_PUT, final for Multipart |
+| `final_object_key` | unique final immutable locator |
+| `expected_byte_size`, `expected_content_type` | exact admitted transport facts |
+| `part_bytes` | frozen positive part plan |
+| `provider_upload_id` | protected internal MPU handle; never public response data |
+| `provider_etag`, checksum pair, `sha256` | verified completion observations |
+| `write_intent_uuid` | RESTRICT reference to prepared SINGLE_PUT copy intent |
+| `operation_token`, `operation_kind`, `operation_unknown` | exact external-operation responsibility |
+| `failure_code` | safe bounded diagnostic code |
+| `expires_at`, `capability_expires_at` | session deadline and issued capability horizon |
+| `completed_at`, `consumed_at`, `cleanup_completed_at` | distinct transfer, adoption and cleanup facts |
+| `created_at`, `updated_at` | UTC timestamps |
 
-Errors expose no provider body, credentials or signed URL. An unavailable mutation
-has an uncertain side effect; the caller retains durable recovery responsibility.
-Abort success alone does not establish that provider-internal late IO is finished.
+Indexes cover `(user_id,status)`, `(status,expires_at)` and
+`(status,cleanup_completed_at)`. Constraints enforce positive plans, valid enums,
+paired checksums, consumption timestamp and single-PUT handle exclusion.
 
-## Physical facts and transfer verification
+UploadCreationRequest and Upload each have a unique explicit session FK. Take
+Reservation has a unique explicit session FK. Admission creates these concrete
+bindings server-side; APIs do not bind an arbitrary session to a different
+business command. Consumption locks Session and validates user, purpose and
+completion facts. Exactly one successful business transaction transitions it to
+CONSUMED. Semantic owner deletion does not reopen consumption.
 
-StoredObject is the single admitted physical-object fact. Its contract has:
+## Transfer lifecycle
 
-| Field | Type and semantics |
-| --- | --- |
-| id | bigint primary key |
-| object_key | text, unique, immutable |
-| byte_size | bigint, nonnegative, immutable |
-| content_type | text, non-null, immutable |
-| sha256 | nullable 64-character full-byte digest |
-| provider_etag | nullable text, opaque transport identity |
-| transport_checksum_algorithm | nullable text |
-| transport_checksum | nullable text, paired with algorithm |
-| created_at | timestamptz, non-null |
-
-The checksum columns describe the adopted transfer. Their algorithm identifies
-composite versus full-object semantics. Full SHA-256 is synchronous for small
-files and generated bytes; a domain verification job can fill an absent digest
-once after binding its result to exact object identity. A conflicting digest is
-an integrity failure. No independent checksum table is introduced.
-The current ORM requires SHA-256; the nullable/checksum contract requires a schema
-implementation before large-file fast adoption uses it.
-
-Transfer integrity and business media readiness are separate. Verified size and
-qualified transport integrity permit durable adoption. Take processing proceeds
-through domain-owned UPLOADED → PROCESSING → READY, with full hashing, probing
-and transcoding delivered through its outbox. StoredObject existence alone does
-not authorize readiness or playback.
-
-## UploadSession schema contract
-
-All UUIDs are server-generated. Times are timestamptz. The following is a target
-schema definition, not an existing ORM inventory.
-
-| Column | Type / constraint |
-| --- | --- |
-| id | bigint primary key |
-| session_uuid | uuid, non-null, unique |
-| user_id | bigint, non-null FK users.id ON DELETE RESTRICT |
-| upload_creation_request_id | bigint, nullable explicit FK ON DELETE RESTRICT |
-| take_reservation_id | bigint, nullable explicit FK ON DELETE RESTRICT |
-| command_generation | bigint, non-null, positive |
-| protocol | text enum SINGLE_PUT / MULTIPART, non-null |
-| status | text enum, non-null; transitions below |
-| generation | bigint, non-null, positive |
-| final_object_key | text, non-null, unique, immutable |
-| staging_object_key | text, nullable, unique, SINGLE_PUT only |
-| declared_byte_size | bigint, non-null, positive |
-| content_type | text, non-null |
-| part_size | bigint, nullable, positive, MULTIPART only |
-| part_count | integer, nullable, 1–10000, MULTIPART only |
-| provider_upload_id | protected text, nullable MPU handle |
-| provider_etag | nullable text |
-| transport_checksum_algorithm | nullable text |
-| transport_checksum | nullable text |
-| verified_byte_size | nullable bigint, equals declaration before adoption |
-| sha256 | nullable full-object digest |
-| adopted_stored_object_id | nullable FK stored_objects.id ON DELETE RESTRICT |
-| expires_at | timestamptz, non-null, immutable hard deadline |
-| last_capability_expires_at | nullable timestamptz, monotonically increasing |
-| resources_closed_at | nullable timestamptz |
-| consumed_at | nullable timestamptz |
-| cancelled_at | nullable timestamptz |
-| created_at / updated_at | timestamptz, non-null |
-
-Exactly one concrete domain FK is non-null. Composite owner FKs verify that the
-session and its command belong to the same user. Partial unique constraints on
-each concrete command FK plus command_generation prevent duplicate bindings.
-Session identity, owner, domain binding, generation and keys cannot be retargeted.
-Domain command lineage prevents re-admitting a completed generation while that
-command exists. Retention after command erasure is an explicit policy boundary.
-
-Indexes cover user_id/status, status/expires_at and each domain FK. CHECKs enforce
-protocol-specific staging/part fields, paired checksum fields, positive sizes and
-CONSUMED ownership facts. Consuming the session and admitting StoredObject plus
-the business reference, allocation and hold consumption share one transaction.
-
-`upload_session_parts` has FK session_id ON DELETE RESTRICT, unique session/part
-number, planned exact length, observed length and opaque ETag. Part count and
-length are checked against the immutable plan before completion.
-
-`upload_session_operations` owns recoverable physical execution. It has immutable
-operation UUID, session UUID/generation snapshot, kind, exact resource locators,
-claim epoch/token, bounded structured failure, lease and settlement result.
-Independent physical-resource rows represent multiple discovered handles/objects.
-Protected UploadIds and version IDs retain actionable cleanup identity; safe
-fingerprints support diagnostics. No signed URLs or credentials are persisted.
-Execution evidence survives session deletion through snapshots and nullable FKs.
-
-## Session transitions and uncertain IO
-
-| From | Event / prerequisite | To / durable responsibility |
+| State | Command or observation | Result |
 | --- | --- | --- |
-| none | Authorized admission, quota hold, abuse limits, unique command | PREPARED |
-| PREPARED | SINGLE_PUT target issued | UPLOADING |
-| PREPARED | MPU initiate intent committed | INITIATING |
-| INITIATING | Exact returned handle persisted | UPLOADING |
-| INITIATING | Network/commit outcome uncertain | INITIATE_UNKNOWN |
-| INITIATE_UNKNOWN | Exact-key discovery and independent IO settlement | UPLOADING or CLEANUP_PENDING |
-| UPLOADING | Client completion request, manifest/length verified | COMPLETING |
-| COMPLETING | Provider completion proven | VERIFYING |
-| COMPLETING | Network/commit outcome uncertain | COMPLETE_UNKNOWN |
-| COMPLETE_UNKNOWN | Reconcile exact handle and object; no blind re-initiate | VERIFYING or CLEANUP_PENDING |
-| VERIFYING | Size/qualified transport evidence; SINGLE_PUT copy settled | VERIFIED |
-| VERIFIED | Atomic business adoption + allocation + hold consumption | CONSUMED |
-| Active, unconsumed | Cancellation, expiry or failed verification | CLEANUP_PENDING |
-| CLEANUP_PENDING | Cleanup execution lease | CLEANUP_PROCESSING |
-| CLEANUP_PROCESSING | Transient failure | CLEANUP_FAILED, bounded retry |
-| CLEANUP_FAILED | Retry admitted by domain delivery | CLEANUP_PROCESSING |
-| CLEANUP_PROCESSING | All resources settled, capabilities expired | CLEANED |
+| CREATING | SINGLE_PUT admission | UPLOADING |
+| CREATING | Commit CREATE responsibility, initiate MPU, persist exact handle | UPLOADING |
+| CREATING | Initiate outcome uncertain | Remains CREATING with unknown operation |
+| UPLOADING | Complete request commits exact attempt | COMPLETING |
+| COMPLETING | Exact parts, provider completion, metadata verified | COMPLETED |
+| COMPLETING | Complete outcome uncertain | Remains COMPLETING with unknown operation |
+| COMPLETED | Domain adoption + reference + accounting | CONSUMED |
+| Active | Cancellation / expiration / definitive verification rejection | CANCELLED / EXPIRED / FAILED |
+| Terminal or consumed single PUT | Capabilities expired, operations settled, physical cleanup verified | Cleanup timestamp |
+| CONSUMED Multipart | Physical authority belongs to StoredObject | GC acknowledgement without provider deletion |
 
-CONSUMED transfers physical ownership to StoredObject. Session GC cannot delete
-the adopted final key. Unconsumed staging, MPU handles and candidates remain GC
-responsibility. Unknown initiate may own multiple discovered handles. Discovery
-NOT_FOUND alone cannot resolve an uncertain initiate or prove permanent absence.
-Cleanup needs closed registration, exact per-resource settlement, resolved unknown
-operations and an expired capability horizon. Zero resources need explicit trusted
-discovery evidence. Evidence is retained according to operational retention policy.
+SINGLE_PUT signs exact Content-Length and Content-Type for staging. Completion
+checks metadata and full bytes within the bounded small-file budget. The domain
+performs image/container admission. Coordinator copy verifies source and final
+bytes before adoption. Replaying a staging capability cannot overwrite the final
+object. GC removes staging only; ObjectWriteIntent owns unadopted copy targets.
 
-## Coordinated server writes and adoption
+Multipart signs only exact planned UploadPart requests bound to UploadId. The
+service discovers parts, checks contiguous numbers and exact lengths, completes
+MPU, and checks final size, content type and provider evidence. It never issues a
+PutObject URL for the final key. Completion invalidates the upload handle.
+Adoption registers the completed object in place with optional SHA-256, with no
+copy and no full-file API read. CONSUMED Multipart is never a GC deletion target.
 
-ObjectWriteCoordinator owns an independent SessionFactory. It never commits or
-rolls back a caller's business session. `write` and `write_batch` persist exact
-write intentions before provider IO; batch preparation and result persistence
-avoid one database round trip per rendered page. Provider IO acquires no business parent lock. Exact write-intent locks cover
-synchronous IO and WRITTEN persistence to fence cleanup and competing generations. Generation-fenced receipts bind exact key, bytes, size and content type.
-The business transaction adopts receipts and semantic references atomically.
-Failed adoption leaves durable cleanup ownership. A stale generation cannot
-revive cleaned authority. An intent-driven copy retains source and target identity
-and its uncertain outcome until reconciliation; cleanup cannot delete an adopted
-target. These guarantees coexist with the domain-owned Take finalization protocol.
+## Recovery and cleanup
 
-## References, retirement and account erasure
+Periodic retirement maintenance also expires business reservations and runs
+bounded session recovery/GC. The database owns responsibility; broker delivery
+is not the sole recovery mechanism.
 
-The explicit cross-domain StoredObject reference registry is authoritative.
-Business release and logical release share the retirement-admission transaction.
-Retirement checks every reference, snapshots immutable facts and preserves durable
-history. A committed deletion fence rejects new references irreversibly. The worker
-rechecks references and facts before IO; RESTRICT FKs protect row deletion.
-Physical failure is retryable; missing physical bytes are idempotent cleanup.
-Unknown commit outcomes never restore reusable authority.
+Unknown CREATE uses exact-key paginated MPU discovery. A discovered handle is
+persisted against the original operation token; missing or ambiguous discovery
+retains unknown responsibility. Unknown COMPLETE reconciles final object facts
+without blind re-initiation or duplicate completion. An absent inventory observation
+alone never settles an unknown side effect.
 
-Lock ordering distinguishes business parents, user lifecycle admission, entitlement,
-usage account, hold, write intent, StoredObject, retirement and category counters.
-Reentrant account locks serialize same-user accounting; cross-user shared objects
-never acquire the other user's account. Concrete integrations need PostgreSQL
-proof for every ordering, including cancellation and expiry. Resource registration
-and closure lock the same session with conflicting locks before operation/resource
-locks. Monotonic claim epochs fence publication; exclusive worker assignment does
-not itself prove external lease authorization or that late provider IO is finished.
+Cleanup commits a terminal session claim before external abort/delete. Results
+publish only against the current token. It verifies exact-key MPU inventory and
+object absence. Failures retain the locator and pending responsibility. Signed
+capability expiration bounds new requests; it does not prove that all previously
+started provider IO has ended. Permanent provider-side settlement, version cleanup,
+IAM, lifecycle policies and backups require deployment qualification. Unknown IO
+without sufficient provider evidence remains fail-closed and operationally visible.
 
-Account closure tombstones and invalidates credentials immediately. Semantic
-cleanup releases Take input/holds and formal Upload resources without awaiting a
-later physical-transfer stage. Transfer cleanup resolves sessions, handles,
-unadopted candidates and pending capabilities before deleting bindings/parts.
-Final identity erasure follows history cleanup and zero usage/quota/inventory
-invariants. User RESTRICT prevents cascading away physical cleanup evidence.
-Avatar has no pending transfer request; its formal reference uses retirement.
+Account closure immediately removes identity access. Its erasure phases are
+SCORES → IMPORTS → TAKES → UPLOADS → TRANSFERS → FINALIZE. TAKES releases semantic
+recordings/reservations and holds. TRANSFERS cancels sessions and waits for physical
+settlement. FINALIZE erases request/reservation/manifest history, then settled
+sessions, checks zero Inventory/Usage/Quota and finally deletes User. Session
+RESTRICT prevents deletion of unresolved physical responsibility. Formal object
+retirement remains independent of account erasure completion.
 
-## Delivery and verification
+## Take readiness
 
-Large media delivery uses CDN or short-lived signed URLs and immutable caching.
-Authorization precedes URL issuance. Large audio/video Range traffic terminates
-at provider/CDN, not Python/FastAPI. Signed delivery is capability, not ownership.
-Provider version retention, backups, IAM, encryption and legal retention have
-explicit deployment policies; this contract invents no retention period.
+TakeManifest, client_request_id, capacity hold, finalize lease and unknown-COMMIT
+reconciliation belong to Performance Takes. Finalization admits a matching completed
+Session and atomically commits Take, reference, hold consumption, usage and CONSUMED.
+Known failure rolls back only semantic adoption. Unknown semantic COMMIT resolves
+through a fresh database session and persisted reservation/Take facts.
 
-Tests verify exact SigV4 headers, normalized wire/stream errors, paginated parts,
-invalid completion, single-request deletion, handle invalidation, abort and bounded
-Avatar decoding. Provider doubles validate adapter behavior only. Real-provider
-tests use an isolated authorized namespace, and report untested capabilities.
-PostgreSQL tests establish atomic adoption/accounting, hold concurrency, reference
-versus retirement, irreversible fencing, retries and unknown-commit recovery.
+Small-file validation completes synchronously. Multipart Take admission is fast and
+sets media state UPLOADED. The same transaction creates TakeProcessingOutbox.
+Durable delivery claims PROCESSING, verifies full bytes and container in a worker,
+enriches SHA-256 and commits READY. Transient faults retry with bounded attempts;
+integrity faults remain FAILED. Playback capabilities require READY media.
+Worker verification and provider IO execute outside database transactions.
 
-## Executable delivery contracts
+## Delivery API
 
-MediaDeliveryService owns signed URL issuance and DeliveryPolicy. The configured defaults
-are 900 seconds for signatures/cache and 20 MiB for controlled audio/video streaming.
-Large media selects signed delivery; Controlled Backend Streaming rejects oversized media.
-Avatar resolves with a bodyless signed redirect and immutable cache headers. Take playback
-URL responses and model-manifest URLs use the same signed capability policy.
+MediaDeliveryService owns short-lived signed capabilities and immutable caching.
+Business authorization precedes signing; raw locator fields are not response DTOs.
+Large-media Range traffic terminates at object storage/CDN.
 
-Binary response contracts remain explicit at these HTTP adapters:
+| Endpoint | Contract |
+| --- | --- |
+| `GET /me/avatars/{filename}` | 307 signed redirect |
+| `GET /performance-takes/{take_id}/playback-url` | Take ID, playback_url, download_url, expires_in |
+| `GET /scores/{score_id}/revisions/{revision_id}/playback` | playback_url, download_url, expires_in |
+| `GET /guest-previews/{token}/playback` | playback_url, download_url, expires_in |
+| Model manifest access | Signed URL JSON |
+| Source, render, input and import artifact download/view | Authorized controlled small response |
 
-| Endpoint | Current response | Delivery authority |
-| --- | --- | --- |
-| `/me/avatars/{filename}` | 307 signed redirect | MediaDeliveryService |
-| `/performance-takes/{take_id}/playback-url` | Signed URL JSON | MediaDeliveryService |
-| `/model-assets/practice-acoustic/access` | Signed URL JSON | MediaDeliveryService |
-| `/revision-sources/{source_id}/access-url`, `/render-assets/{render_asset_id}/access-url` | Authorized application download URL JSON | Business authorization; target uses MediaDeliveryService |
-| `/revision-sources/{source_id}/download` | Controlled binary | MediaDeliveryService |
-| `/render-assets/{render_asset_id}/download`, `/view` | Controlled binary | MediaDeliveryService |
-| `/scores/{score_id}/input-assets/{asset_id}/download` | Controlled binary | MediaDeliveryService |
-| `/import-jobs/{job_id}/artifacts/{artifact_id}/download` | Controlled binary | MediaDeliveryService |
-| `/guest-previews/{token}/render-assets/{asset_id}/view` | Controlled binary | MediaDeliveryService |
-| `/scores/{score_id}/revisions/{revision_id}/playback` | Binary Range stream | Explicit HTTP contract; frontend-linked signed delivery is not active |
-| `/performance-takes/{take_id}/media` | Binary Range stream | Explicit HTTP contract; frontend-linked signed delivery is not active |
-| `/guest-previews/{token}/playback` | Binary Range stream | Explicit HTTP contract; frontend-linked signed delivery is not active |
+Upload creation is JSON, followed by direct transport and explicit completion:
+`POST /uploads`, `GET /upload-sessions/{id}`, part URL/list endpoints,
+`POST /upload-sessions/{id}/complete`, `POST /uploads/{id}/finalize` and cancel.
+Take reserve returns its nested session contract; completion precedes reservation
+finalize. OpenAPI snapshots are the public backend contract.
 
-Upload HTTP responses carry semantic Upload IDs and facts, without a separate object
-download endpoint. Import input downloads reuse the artifact endpoint after authorization.
+## Initialization and verification
 
-These three Range contracts do proxy media through the application. They are a documented
-implementation gap against the large-media offload policy and require one coordinated
-API/client contract change. They do not claim signed offload is active. Render archives
-stream generated ZIP bytes from domain-authorized inputs, not a formal object transfer.
-
-ObjectWriteCoordinator accepts only its independent SessionFactory and ObjectStorage.
-`write_bytes` and `write_batch` persist all PREPARED rows in one transaction, then acquire
-all exact Intent locks in key order, perform IO and persist WRITTEN in a second transaction.
-A failed batch queues matching unadopted generations for cleanup; transaction uncertainty
-retains PREPARED/WRITTEN evidence and expiry recovery. `copy_object` verifies source and
-copied target bytes before WRITTEN. Adoption and batch adoption never commit or rollback.
-Batch adoption locks every Intent in key order before locking any StoredObject.
-
-Composition constructs infrastructure and business participants. API dependency functions
-and Worker execution import composition; business modules do not. ORM definitions import
-pure domain state modules without importing application services. Enum values, SQL types,
-constraints and table structures remain unchanged by namespace placement.
+`0001_initial_schema.py` is the sole initial migration. It creates the complete
+schema and finite FREE / PLUS / PRO plan policies. Empty PostgreSQL upgrade,
+downgrade, re-upgrade, native enums, checks, indexes and FK parity are tested.
+Tests use real independent PostgreSQL transactions for admission, consumption,
+reference/retirement fences, unknown commit, cleanup and account erasure.
+Provider doubles establish adapter/application behavior; they do not qualify
+external provider permanent-IO settlement or deployment retention policies.

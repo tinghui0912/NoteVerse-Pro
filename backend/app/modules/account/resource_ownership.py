@@ -19,6 +19,13 @@ class AccountResourcePolicy:
 
 ACCOUNT_RESOURCE_POLICIES = (
     AccountResourcePolicy(
+        "upload_sessions",
+        "user_id",
+        "media_storage",
+        "owned",
+        "RESTRICT retains physical responsibility through transfer settlement and bounded history erasure",
+    ),
+    AccountResourcePolicy(
         "account_deletion_operations",
         "user_id",
         "account",

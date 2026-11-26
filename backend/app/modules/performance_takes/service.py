@@ -9,6 +9,7 @@ from app.modules.media_storage.reads import StoredObjectDelivery
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import (
+    ValidationException,
     ResourceNotFoundException,
     UnauthorizedException,
 )
@@ -124,12 +125,20 @@ class PerformanceTakeService:
                 "performance_take", take_id, CustomerErrorCode.RESOURCE_NOT_FOUND
             )
 
+        if take.media_status != "READY":
+            raise ValidationException(
+                CustomerErrorCode.VALIDATION_ERROR,
+                field="media_status",
+                details={"reason": "media_not_ready"},
+            )
         facts = performance_take_facts_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
         ext = recording_extension(manifest.snapshot.capture.kind, recording.content_type)
         target = StoredObjectDelivery.for_object(
             take.recording_object, f"performance-{manifest.take_uuid}.{ext}"
         )
+        db.commit()
+        db.close()
         playback_url = self.delivery.signed_url(target)
         download_url = self.delivery.signed_url(target, attachment=True)
 
@@ -138,25 +147,6 @@ class PerformanceTakeService:
             playback_url=playback_url,
             download_url=download_url,
             expires_in=self.delivery.policy.signed_url_ttl_seconds,
-        )
-
-    def get_media_delivery(
-        self,
-        db: Session,
-        user_id: int,
-        take_id: str,
-    ) -> StoredObjectDelivery:
-        """Return an authorized, server-streamed media target without exposing its object key."""
-        take = self.repository.get_by_uuid(db, user_id, take_id)
-        if take is None:
-            raise ResourceNotFoundException(
-                "performance_take", take_id, CustomerErrorCode.RESOURCE_NOT_FOUND
-            )
-        facts = performance_take_facts_from_row(take)
-        manifest, recording = facts.manifest, facts.recording_object
-        extension = recording_extension(manifest.snapshot.capture.kind, recording.content_type)
-        return StoredObjectDelivery.for_object(
-            take.recording_object, f"performance-{manifest.take_uuid}.{extension}"
         )
 
     def delete_take(

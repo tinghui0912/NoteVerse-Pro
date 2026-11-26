@@ -1,5 +1,7 @@
 """Unadopted bytes retain durable ownership across write and adoption crash windows."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 from tests.support.media_writes import persist_prepared_bytes
 
@@ -55,7 +57,7 @@ def test_prepare_is_committed_before_put_and_returned_facts_are_verified(
     def writing(**kwargs):
         with Session(engine) as observer:
             row = observer.scalar(select(ObjectWriteIntent))
-            assert row.status is ObjectWriteIntentStatus.PREPARED and row.write_token
+            assert row.status is ObjectWriteIntentStatus.WRITING and row.write_token
             assert observer.scalar(select(StoredObject)) is None
         return put(**kwargs)
 
@@ -67,7 +69,14 @@ def test_prepare_is_committed_before_put_and_returned_facts_are_verified(
         assert lock_intent(db, receipt.intent_uuid).status is ObjectWriteIntentStatus.WRITTEN
         assert db.scalar(select(StoredObject)) is None
         obj = adopt_written_object(db, receipt)
-        db.add(Upload(stored_object_id=obj.id, original_filename="upload.bin", uploader_user_id=1))
+        db.add(
+            Upload(
+                upload_session=settled_upload_session(user_id=1),
+                stored_object_id=obj.id,
+                original_filename="upload.bin",
+                uploader_user_id=1,
+            )
+        )
         identity = obj.id
         db.commit()
     with transaction() as db:
@@ -91,7 +100,12 @@ def test_crash_windows_are_cleanup_owned(retirement_db, monkeypatch, phase):
             if phase == "adoption_rollback":
                 obj = adopt_written_object(db, receipt)
                 db.add(
-                    Upload(stored_object_id=obj.id, original_filename="file", uploader_user_id=1)
+                    Upload(
+                        upload_session=settled_upload_session(user_id=1),
+                        stored_object_id=obj.id,
+                        original_filename="file",
+                        uploader_user_id=1,
+                    )
                 )
                 db.flush()
                 db.rollback()
@@ -322,7 +336,14 @@ def test_retired_existing_authority_cannot_be_recreated_by_an_unwritten_receipt(
         )
         assert fresh.write_token != receipt.write_token
         obj = adopt_written_object(db, fresh)
-        db.add(Upload(stored_object_id=obj.id, original_filename="fresh", uploader_user_id=1))
+        db.add(
+            Upload(
+                upload_session=settled_upload_session(user_id=1),
+                stored_object_id=obj.id,
+                original_filename="fresh",
+                uploader_user_id=1,
+            )
+        )
         db.commit()
         assert storage.read_bytes(fresh.object_key) == b"bytes"
 

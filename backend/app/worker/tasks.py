@@ -10,6 +10,10 @@ from app.worker.execution.revision_metadata import (
 )
 from app.worker.execution.score_deletion import execute_score_deletion_task
 from app.task_queue.protocols import CeleryTaskLike
+from app.worker.execution.take_processing import (
+    execute_take_processing,
+    execute_take_processing_maintenance,
+)
 from app.task_queue.config import celery_app
 from app.worker.execution.object_write_cleanup import execute_object_write_cleanup_task
 from app.worker.execution.maintenance_dispatch import execute_object_write_cleanup_maintenance
@@ -193,3 +197,15 @@ def account_deletion_task(self: CeleryTaskLike, operation_uuid: str) -> dict[str
 @celery_app.task(name="app.worker.tasks.run_account_deletion_maintenance")
 def run_account_deletion_maintenance() -> dict[str, int]:
     return execute_account_deletion_maintenance()
+
+
+@celery_app.task(
+    name="app.worker.tasks.take_media_processing_task", acks_late=True, reject_on_worker_lost=True
+)
+def take_media_processing_task(operation_uuid: str) -> dict[str, str]:
+    return execute_take_processing(operation_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_take_processing_maintenance")
+def run_take_processing_maintenance() -> dict[str, int]:
+    return execute_take_processing_maintenance()

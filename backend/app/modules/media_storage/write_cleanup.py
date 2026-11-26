@@ -57,7 +57,11 @@ class ObjectWriteCleanupDelivery:
                     or_(
                         (
                             ObjectWriteIntent.status.in_(
-                                [ObjectWriteIntentStatus.PREPARED, ObjectWriteIntentStatus.WRITTEN]
+                                [
+                                    ObjectWriteIntentStatus.PREPARED,
+                                    ObjectWriteIntentStatus.WRITTEN,
+                                    ObjectWriteIntentStatus.WRITING,
+                                ]
                             )
                         )
                         & (ObjectWriteIntent.write_expires_at <= now),
@@ -75,7 +79,10 @@ class ObjectWriteCleanupDelivery:
         )
         lifecycle = cleanup_lifecycle()
         for row in rows:
-            if row.status in (ObjectWriteIntentStatus.PREPARED, ObjectWriteIntentStatus.WRITTEN):
+            if row.status == ObjectWriteIntentStatus.WRITING:
+                row.status = ObjectWriteIntentStatus.WRITE_UNKNOWN
+                row.updated_at = now
+            elif row.status in (ObjectWriteIntentStatus.PREPARED, ObjectWriteIntentStatus.WRITTEN):
                 lifecycle.reset(
                     row,
                     status=ObjectWriteIntentStatus.CLEANUP_PENDING,

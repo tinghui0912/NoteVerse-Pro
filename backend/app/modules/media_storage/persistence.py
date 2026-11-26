@@ -5,7 +5,15 @@ from .facts import StoredObjectFacts
 
 
 def object_from_row(row: StoredObject) -> StoredObjectFacts:
-    return StoredObjectFacts(row.object_key, row.byte_size, row.sha256, row.content_type)
+    return StoredObjectFacts(
+        row.object_key,
+        row.byte_size,
+        row.sha256,
+        row.content_type,
+        row.provider_etag,
+        row.transport_checksum_algorithm,
+        row.transport_checksum,
+    )
 
 
 def object_to_row(value: StoredObjectFacts) -> StoredObject:
@@ -14,6 +22,9 @@ def object_to_row(value: StoredObjectFacts) -> StoredObject:
         byte_size=value.byte_size,
         sha256=value.sha256,
         content_type=value.content_type,
+        provider_etag=value.provider_etag,
+        transport_checksum_algorithm=value.transport_checksum_algorithm,
+        transport_checksum=value.transport_checksum,
     )
 
 

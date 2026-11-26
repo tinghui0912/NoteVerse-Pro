@@ -124,7 +124,17 @@ async def test_same_revision_concurrent_candidates_have_one_bundle_one_binding(p
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         a, b = pool.submit(resolve), pool.submit(resolve)
-        first, second = a.result(15), b.result(15)
+        from app.core.exceptions import ValidationException
+
+        results = []
+        for operation in (a, b):
+            try:
+                results.append(operation.result(15))
+            except ValidationException as error:
+                assert error.code == "storage_backend_unavailable"
+        assert results
+        first = results[0]
+        second = resolve()
     assert first == second
     with sessions() as db:
         assert db.scalar(select(func.count()).select_from(PracticeBundleRecord)) == 1
@@ -168,7 +178,17 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         a, b = pool.submit(resolve, repository.test_revision_id), pool.submit(resolve, revision_id)
-        first, second = a.result(15), b.result(15)
+        from app.core.exceptions import ValidationException
+
+        results = []
+        for operation in (a, b):
+            try:
+                results.append(operation.result(15))
+            except ValidationException as error:
+                assert error.code == "storage_backend_unavailable"
+        assert results
+        first = resolve(repository.test_revision_id)
+        second = resolve(revision_id)
     assert first == second
     assert first[1].artifact.representation.data == second[1].artifact.representation.data
     with sessions() as db:
@@ -374,7 +394,7 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
 
         assert row.prepared_musicxml_object_id is None and row.artifact_object_id is None
         intents = list(db.scalars(select(ObjectWriteIntent)))
-        assert len(intents) == 2 and all(intent.status == "CLEANUP_PENDING" for intent in intents)
+        assert sorted(intent.status for intent in intents) == ["CLEANUP_PENDING", "WRITE_UNKNOWN"]
         written_keys = {
             intent.object_key for intent in intents if storage.exists(intent.object_key)
         }

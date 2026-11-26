@@ -271,6 +271,8 @@ def check_celery_tasks(_: bool = False) -> CheckResult:
             "app.worker.tasks.run_mail_outbox_cleanup",
             "app.worker.tasks.run_realtime_maintenance",
             "app.worker.tasks.run_storage_quota_expiry",
+            "app.worker.tasks.take_media_processing_task",
+            "app.worker.tasks.run_take_processing_maintenance",
             "app.worker.tasks.account_deletion_task",
             "app.worker.tasks.run_account_deletion_maintenance",
             "app.worker.tasks.run_derived_asset_cleanup",

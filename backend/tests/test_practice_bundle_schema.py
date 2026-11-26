@@ -35,6 +35,7 @@ def test_fresh_foundation_schema_matches_models_and_revision_ownership(monkeypat
                 "users",
                 "performance_take_manifests",
                 "storage_quota_holds",
+                "upload_sessions",
             },
         }.items():
             assert {fk["referred_table"] for fk in inspector.get_foreign_keys(name)} == targets

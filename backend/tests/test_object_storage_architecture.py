@@ -60,6 +60,9 @@ def test_one_object_namespace_and_required_direct_upload():
         "object_key",
         "byte_size",
         "sha256",
+        "provider_etag",
+        "transport_checksum_algorithm",
+        "transport_checksum",
         "content_type",
         "created_at",
     }
@@ -89,6 +92,7 @@ def test_capability_surface_and_write_observation():
         "create_multipart_upload",
         "generate_part_upload_url",
         "list_uploaded_parts",
+        "list_multipart_uploads",
         "complete_multipart_upload",
         "abort_multipart_upload",
         "iter_bytes",

@@ -1,5 +1,7 @@
 """Import semantic release succeeds independently of another physical owner."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -309,7 +311,10 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     db.add_all([artifact_object, upload_object])
     db.flush()
     upload = Upload(
-        uploader_user_id=1, stored_object_id=upload_object.id, original_filename="original.jpg"
+        upload_session=settled_upload_session(user_id=1),
+        uploader_user_id=1,
+        stored_object_id=upload_object.id,
+        original_filename="original.jpg",
     )
     db.add(upload)
     db.flush()

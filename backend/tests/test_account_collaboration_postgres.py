@@ -1,5 +1,7 @@
 """Closed identity, retained owner history and fresh invitations on PostgreSQL."""
 
+from tests.support.uploads import settled_upload_session
+
 from app.composition import storage_resources as _resource_wiring
 
 from datetime import timedelta
@@ -582,6 +584,7 @@ def test_owned_score_uses_domain_deletion_without_releasing_shared_object_twice(
         )
         db.add(
             Upload(
+                upload_session=settled_upload_session(user_id=2),
                 upload_uuid="bob-shared-upload",
                 uploader_user_id=2,
                 original_filename="upload.xml",

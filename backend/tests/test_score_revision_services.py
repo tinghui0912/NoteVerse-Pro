@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tests.support.uploads import settled_upload_session
 
 from app.storage import object_storage as _storage_provider
 
@@ -505,6 +506,7 @@ def test_review_detail_reads_review_ready_artifacts(
                 content_type="image/png",
             ),
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 id=130,
                 stored_object_id=131,
                 original_filename="page-1.png",
@@ -553,6 +555,7 @@ def test_import_job_detail_hides_original_upload_storage_details(score_service_s
         )
     )
     upload = Upload(
+        upload_session=settled_upload_session(user_id=1),
         upload_uuid="private-upload",
         uploader_user_id=1,
         original_filename="page.png",
@@ -1626,6 +1629,7 @@ def test_import_dispatch_claim_resolves_persisted_execution_inputs(
         requested_options=encode_requested_options({"display_title": "Queued score"}),
     )
     upload = Upload(
+        upload_session=settled_upload_session(user_id=1),
         id=502,
         upload_uuid="queued-upload",
         stored_object_id=602,

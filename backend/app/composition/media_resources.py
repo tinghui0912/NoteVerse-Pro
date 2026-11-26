@@ -42,7 +42,7 @@ def build_avatar_service(storage: ObjectStorage = object_storage) -> AvatarServi
 
 def build_upload_service(storage: ObjectStorage = object_storage) -> UploadService:
     return UploadService(
-        writes=resources.build_object_write_coordinator(storage),
+        uploads=resources.build_upload_session_service(storage),
         usage=resources.storage_usage_service,
         quota=resources.storage_quota_service,
     )
@@ -142,7 +142,7 @@ def build_take_reservation_service(
     storage: ObjectStorage = object_storage,
 ) -> PerformanceTakeReservationService:
     return PerformanceTakeReservationService(
-        storage=storage,
+        uploads=resources.build_upload_session_service(storage),
         delivery=resources.build_media_delivery_service(storage),
         storage_usage_service=resources.storage_usage_service,
         quota=resources.storage_quota_service,
@@ -154,7 +154,7 @@ def build_take_finalization_service(
     storage: ObjectStorage = object_storage,
 ) -> PerformanceTakeFinalizationService:
     return PerformanceTakeFinalizationService(
-        storage=storage,
+        uploads=resources.build_upload_session_service(storage),
         delivery=resources.build_media_delivery_service(storage),
         storage_usage_service=resources.storage_usage_service,
         quota=resources.storage_quota_service,
@@ -201,4 +201,34 @@ def build_import_artifact_recorder(
         resources.build_object_write_coordinator(storage),
         resources.write_sessions,
         ImportExecutionRecorder(usage=resources.storage_usage_service),
+    )
+
+
+def build_take_processing_service(storage: ObjectStorage = object_storage):
+    from app.modules.performance_takes.processing import TakeMediaProcessing
+    from app.modules.media_storage.verification import ObjectIntegrityVerifier
+    from app.modules.durable_work.delivery import DeliveryLifecyclePolicy
+    from app.core.config import settings
+
+    return TakeMediaProcessing(
+        resources.write_sessions,
+        ObjectIntegrityVerifier(storage),
+        DeliveryLifecyclePolicy(
+            settings.TAKE_PROCESSING_MAX_ATTEMPTS,
+            settings.TAKE_PROCESSING_RETRY_SECONDS,
+            300,
+            settings.TAKE_PROCESSING_LEASE_SECONDS,
+        ),
+    )
+
+
+def build_take_reservation_cleanup_service(storage: ObjectStorage = object_storage):
+    from app.modules.performance_takes.upload_reservation.cleanup import (
+        UploadReservationCleanupService,
+    )
+
+    return UploadReservationCleanupService(
+        resources.build_upload_session_service(storage),
+        resources.storage_quota_service,
+        resources.storage_usage_service,
     )

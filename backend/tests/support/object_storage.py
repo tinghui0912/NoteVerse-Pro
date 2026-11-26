@@ -128,6 +128,11 @@ class InMemoryObjectStorage:
             raise ValueError("Invalid part number")
         return self._target(key, None, content_length, expires_in, upload_id, part_number)
 
+    def list_multipart_uploads(self, key: str) -> tuple[str, ...]:
+        return tuple(
+            identity for identity, upload in self.uploads.items() if upload.key == self._key(key)
+        )
+
     def list_uploaded_parts(self, key: str, upload_id: str) -> tuple[UploadedPart, ...]:
         upload = self._multipart(key, upload_id)
         return tuple(

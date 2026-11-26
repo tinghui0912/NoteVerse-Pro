@@ -124,7 +124,10 @@ class AvatarService:
         key, content = self.process_avatar(
             file_bytes=file_bytes, filename=filename, user_id=user_id
         )
+        db.commit()
+        db.close()
         written = self.writes.write_bytes(key=key, content=content, content_type="image/jpeg")
+        db.add(user)
         user = (
             db.execute(
                 select(User)

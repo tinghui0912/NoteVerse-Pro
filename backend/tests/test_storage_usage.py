@@ -1,4 +1,6 @@
 from __future__ import annotations
+from tests.support.uploads import complete_image_upload
+from tests.support.uploads import settled_upload_session
 
 from app.composition import storage_resources as _resource_wiring
 from app.composition import media_resources as _media_wiring
@@ -364,7 +366,7 @@ def test_upload_quota_exceeded_does_not_store_file(
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        uploads=_resource_wiring.build_upload_session_service(storage),
     )
     db = session
     user = session.get(User, 1)
@@ -380,7 +382,7 @@ def test_upload_quota_exceeded_does_not_store_file(
         },
     )()
     with pytest.raises(ValidationException) as exc_info:
-        service.create_upload(db, user, upload, client_request_id=uuid4().hex)  # type: ignore[arg-type]
+        complete_image_upload(service, db, user, upload, client_request_id=uuid4().hex)  # type: ignore[arg-type]
 
     assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
@@ -409,13 +411,17 @@ def test_upload_api_returns_storage_quota_error_without_storing_file(
     app.dependency_overrides[get_upload_service] = lambda: UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        uploads=_resource_wiring.build_upload_session_service(storage),
     )
     try:
         response = client.post(
             "/api/v1/uploads",
-            data={"client_request_id": uuid4().hex},
-            files={"file": ("too-large.png", image_bytes(), "image/png")},
+            json={
+                "client_request_id": uuid4().hex,
+                "filename": "too-large.png",
+                "byte_size": len(image_bytes()),
+                "content_type": "image/png",
+            },
         )
     finally:
         app.dependency_overrides.pop(get_upload_service, None)
@@ -451,13 +457,17 @@ def test_upload_api_hides_storage_key(
     app.dependency_overrides[get_upload_service] = lambda: UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        uploads=_resource_wiring.build_upload_session_service(storage),
     )
     try:
         response = client.post(
             "/api/v1/uploads",
-            data={"client_request_id": uuid4().hex},
-            files={"file": ("score.png", image_bytes(), "image/png")},
+            json={
+                "client_request_id": uuid4().hex,
+                "filename": "score.png",
+                "byte_size": len(image_bytes()),
+                "content_type": "image/png",
+            },
         )
     finally:
         app.dependency_overrides.pop(get_upload_service, None)
@@ -466,10 +476,10 @@ def test_upload_api_hides_storage_key(
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload) == {"upload_id", "original_filename", "byte_size"}
-    assert payload["upload_id"]
-    assert payload["original_filename"] == "score.png"
-    assert payload["byte_size"] == len(image_bytes())
+    assert set(payload) == {"client_request_id", "upload_session", "upload"}
+    assert payload["upload"] is None
+    assert payload["upload_session"]["expected_byte_size"] == len(image_bytes())
+    assert "object_key" not in payload["upload_session"]
     assert "storage_key" not in payload
 
 
@@ -643,6 +653,7 @@ def test_score_delete_keeps_confirmed_history_after_import_binary_release(
                 content_type="image/png",
             ),
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 id=1202,
                 stored_object_id=1302,
                 original_filename="origin.png",
@@ -779,6 +790,7 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
                 content_type="image/png",
             ),
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 id=1002,
                 stored_object_id=1303,
                 original_filename="upload.png",
@@ -891,6 +903,7 @@ def test_import_job_delete_keeps_shared_upload_usage_and_storage(
                 content_type="image/png",
             ),
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 id=1103,
                 stored_object_id=1304,
                 original_filename="shared.png",
@@ -938,103 +951,80 @@ def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     assert account.used_bytes == upload.size_bytes
 
 
-@pytest.mark.parametrize("preexisting_object", [False, True])
-def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
-    storage_usage_session, monkeypatch, preexisting_object
-):
-    import io
-    import hashlib
-    from unittest.mock import Mock
-    from starlette.datastructures import UploadFile, Headers
-    from app.modules.uploads.service import blob_object_key
-
-    session, storage = storage_usage_session
-    _set_quota(session, 1024)
-    content = image_bytes()
-    key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
-    if preexisting_object:
-        storage.put_bytes(key=key, content=content, content_type="image/png")
-    put = Mock(wraps=storage.put_bytes)
-    monkeypatch.setattr(storage, "put_bytes", put)
-    service, db, user = (
-        UploadService(
-            quota=_resource_wiring.storage_quota_service,
-            usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
-        ),
-        session,
-        session.get(User, 1),
-    )
-
-    def upload(name):
-        return UploadFile(
-            io.BytesIO(content), filename=name, headers=Headers({"content-type": "image/png"})
-        )
-
-    first = service.create_upload(db, user, upload("first.png"), client_request_id=uuid4().hex)
-    second = service.create_upload(db, user, upload("second.png"), client_request_id=uuid4().hex)
-    blobs = session.scalars(select(StoredObject)).all()
-    assert len(blobs) == 1 and blobs[0].object_key == key
-    uploads = session.scalars(select(Upload)).all()
-    assert len(uploads) == 2 and all(row.stored_object_id == blobs[0].id for row in uploads)
-    assert put.call_count == 1
-    if not preexisting_object:
-        put.assert_called_once_with(key=key, content=content, content_type="image/png")
-    service.delete_upload(db, user, first.upload_id)
-    db.commit()
-    assert storage.exists(key)
-    service.delete_upload(db, user, second.upload_id)
-    db.commit()
-    assert storage.exists(key)
+def test_independent_upload_commands_release_only_their_own_objects(storage_usage_session):
+    from fastapi import UploadFile
+    from io import BytesIO
     from tests.support.retirement import drain_retirements
 
-    assert drain_retirements(session, storage)[0]["status"] == "completed"
-    assert not storage.exists(key)
-    assert not session.scalars(select(StoredObject)).all()
-    account = session.get(StorageUsageAccount, 1)
-    assert account.used_bytes == storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
-
-
-@pytest.mark.parametrize("preexisting_object", [False, True])
-def test_uploads_failed_upload_retires_only_newly_written_bytes(
-    storage_usage_session, monkeypatch, preexisting_object
-):
-    import io
-    import hashlib
-    from unittest.mock import Mock
-    from starlette.datastructures import UploadFile, Headers
-    from app.core.exceptions import FileException
-    from app.modules.uploads.service import blob_object_key
-
-    session, storage = storage_usage_session
-    _set_quota(session, 1024)
-    content = image_bytes()
-    key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
-    if preexisting_object:
-        storage.put_bytes(key=key, content=content, content_type="image/png")
+    db, storage = storage_usage_session
+    _set_quota(db, 1024)
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        uploads=_resource_wiring.build_upload_session_service(storage),
     )
-    monkeypatch.setattr(
-        service.repository,
-        "create_upload",
-        Mock(side_effect=RuntimeError("database write failed")),
-    )
-    upload = UploadFile(
-        io.BytesIO(content), filename="image.png", headers=Headers({"content-type": "image/png"})
-    )
-    with pytest.raises(FileException):
-        service.create_upload(session, session.get(User, 1), upload, client_request_id=uuid4().hex)
-    assert storage.exists(key)
-    from app.db.models import ObjectWriteIntent
+
+    def upload(name):
+        return complete_image_upload(
+            service,
+            db,
+            db.get(User, 1),
+            UploadFile(filename=name, file=BytesIO(image_bytes())),
+            client_request_id=uuid4().hex,
+        )
+
+    first, second = upload("first.png"), upload("second.png")
+    rows = list(db.scalars(select(Upload)))
+    assert len({row.stored_object_id for row in rows}) == 2
+    keys = {row.upload_uuid: row.stored_object.object_key for row in rows}
+    assert db.get(StorageUsageAccount, 1).used_bytes == 2 * len(image_bytes())
+    service.delete_upload(db, db.get(User, 1), first.upload_id)
+    db.commit()
+    assert drain_retirements(db, storage)[0]["status"] == "completed"
+    assert not storage.exists(keys[first.upload_id]) and storage.exists(keys[second.upload_id])
+    assert db.get(StorageUsageAccount, 1).used_bytes == len(image_bytes())
+    service.delete_upload(db, db.get(User, 1), second.upload_id)
+    db.commit()
+    assert drain_retirements(db, storage)[0]["status"] == "completed"
+    assert db.get(StorageUsageAccount, 1).used_bytes == 0
+
+
+def test_failed_semantic_adoption_retains_hold_until_cancellation(
+    storage_usage_session, monkeypatch
+):
+    from fastapi import UploadFile
+    from io import BytesIO
+    from app.db.models import ObjectWriteIntent, UploadCreationRequest, UploadSession
     from tests.support.write_cleanup import drain_write_cleanup
 
-    row = session.scalar(select(ObjectWriteIntent))
-    assert row.status == "WRITTEN" and session.scalar(select(StoredObject)) is None
-    assert drain_write_cleanup(session, storage)[0]["status"] == "cleaned"
-    assert not storage.exists(key)
-    assert not session.scalars(select(StoredObject)).all()
-    account = session.get(StorageUsageAccount, 1)
-    assert account.used_bytes == storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
+    db, storage = storage_usage_session
+    _set_quota(db, 1024)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        uploads=_resource_wiring.build_upload_session_service(storage),
+    )
+
+    def reject(*args, **kwargs):
+        raise RuntimeError("database write failed")
+
+    monkeypatch.setattr(service.repository, "create_upload", reject)
+    with pytest.raises(RuntimeError, match="database write failed"):
+        complete_image_upload(
+            service,
+            db,
+            db.get(User, 1),
+            UploadFile(filename="input.png", file=BytesIO(image_bytes())),
+            client_request_id="failed",
+        )
+    assert db.scalar(select(Upload)) is None and db.scalar(select(StoredObject)) is None
+    intent = db.scalar(select(ObjectWriteIntent))
+    key = intent.object_key
+    assert intent.status == "WRITTEN" and storage.exists(key)
+    assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == len(image_bytes())
+    request = db.scalar(select(UploadCreationRequest))
+    service.cancel_request(db, 1, db.get(UploadSession, request.upload_session_id).session_uuid)
+    db.commit()
+    assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
+    assert drain_write_cleanup(db, storage)[0]["status"] == "cleaned"
+    assert not storage.exists(key) and db.get(StorageUsageAccount, 1).used_bytes == 0

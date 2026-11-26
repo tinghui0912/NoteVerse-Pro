@@ -1,5 +1,7 @@
 """Domain-owned SQL aggregates preserve semantic resource ownership on PostgreSQL."""
 
+from tests.support.uploads import settled_upload_session
+
 from sqlalchemy import select, event
 from sqlalchemy.orm import Session
 
@@ -62,6 +64,7 @@ def test_physical_object_reuse_preserves_semantic_and_cross_category_multiplicit
         for index in range(2):
             db.add(
                 Upload(
+                    upload_session=settled_upload_session(user_id=1),
                     upload_uuid=f"shared-object-{index}",
                     uploader_user_id=1,
                     stored_object_id=source.stored_object_id,
@@ -72,6 +75,7 @@ def test_physical_object_reuse_preserves_semantic_and_cross_category_multiplicit
         take = db.scalar(select(PerformanceTake))
         db.add(
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 upload_uuid="recording-reference",
                 uploader_user_id=1,
                 stored_object_id=take.recording_object_id,

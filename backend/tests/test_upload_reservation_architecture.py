@@ -25,6 +25,7 @@ def test_lifecycle_domain_and_persistence_consume_domain_owned_status_vocabulary
         "datetime",
         "app.modules.performance_takes.upload_reservation.states",
         "typing",
+        "states",
     }
     assert (
         UploadReservationStatus.__module__
@@ -36,16 +37,7 @@ def test_lifecycle_domain_and_persistence_consume_domain_owned_status_vocabulary
 
 
 def test_lifecycle_writes_belong_to_persistence_adapter():
-    fields = {
-        "status",
-        "finalizing_token",
-        "finalizing_object_key",
-        "finalizing_expires_at",
-        "orphan_final_object_keys",
-        "last_put_url_expires_at",
-        "staging_cleanup_after",
-        "staging_cleanup_completed_at",
-    }
+    fields = {"status", "finalizing_token", "finalizing_expires_at"}
     for name in [
         "upload_reservation/reservation_service.py",
         "upload_reservation/cleanup.py",
@@ -61,8 +53,11 @@ def test_lifecycle_writes_belong_to_persistence_adapter():
                 )
     for name in ["reservation_service.py", "cleanup.py"]:
         dependencies = imports(MODULE / "upload_reservation" / name)
-        assert "app.modules.performance_takes.upload_reservation.persistence" in dependencies
-        assert "app.modules.performance_takes.upload_reservation.states" in dependencies
+        assert dependencies & {
+            "app.modules.performance_takes.upload_reservation.persistence",
+            "persistence",
+        }
+        assert dependencies & {"app.modules.performance_takes.upload_reservation.states", "states"}
 
 
 def test_archive_admission_and_physical_retirement_have_distinct_owners():
@@ -88,23 +83,27 @@ def test_archive_admission_and_physical_retirement_have_distinct_owners():
 def test_object_ownership_is_explicit_in_persistence_shape():
     from app.db.models.performance_take import PerformanceTake
 
+    from app.db.models import UploadSession
+
     columns = set(PerformanceTakeUploadReservation.__table__.columns.keys())
-    assert {"staging_object_key", "finalizing_object_key", "orphan_final_object_keys"} <= columns
-    assert "final_object_key" not in columns and "final_cleanup_completed_at" not in columns
+    assert {
+        "upload_session_id",
+        "manifest_id",
+        "quota_hold_id",
+        "finalizing_token",
+        "finalizing_expires_at",
+    } <= columns
+    assert any(
+        fk.target_fullname == "upload_sessions.id" and fk.ondelete == "RESTRICT"
+        for fk in PerformanceTakeUploadReservation.__table__.foreign_keys
+    )
     assert "recording_object_id" in PerformanceTake.__table__.columns
-    assert "media_object_key" not in columns
+    assert {"object_key", "provider_upload_id", "cleanup_completed_at"} <= set(
+        UploadSession.__table__.columns.keys()
+    )
 
 
-def test_one_orphan_codec_and_router_only_dispatches_commands():
-    definitions = [
-        (path, node.name)
-        for path in MODULE.rglob("*.py")
-        for node in ast.walk(ast.parse(path.read_text()))
-        if isinstance(node, ast.FunctionDef)
-        and node.name in {"decode_orphan_candidates", "encode_orphan_candidates"}
-    ]
-    assert len(definitions) == 2
-    assert all(path == MODULE / "upload_reservation/persistence.py" for path, _ in definitions)
+def test_router_dispatches_domain_commands():
     assert not any("upload_reservation.domain" in name for name in imports(MODULE / "router.py"))
 
 
@@ -135,4 +134,5 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
         "datetime",
         "app.modules.performance_takes.upload_reservation.states",
         "typing",
+        "states",
     }

@@ -192,27 +192,6 @@
         "title": "Body_authLogin",
         "type": "object"
       },
-      "Body_uploadsCreate": {
-        "properties": {
-          "client_request_id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Client Request Id",
-            "type": "string"
-          },
-          "file": {
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
-            "type": "string"
-          }
-        },
-        "required": [
-          "file",
-          "client_request_id"
-        ],
-        "title": "Body_uploadsCreate",
-        "type": "object"
-      },
       "ChangePasswordRequest": {
         "properties": {
           "current_password": {
@@ -1842,6 +1821,29 @@
         "title": "LivenessRead",
         "type": "object"
       },
+      "MediaAccessRead": {
+        "properties": {
+          "download_url": {
+            "title": "Download Url",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "playback_url": {
+            "title": "Playback Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "playback_url",
+          "download_url",
+          "expires_in"
+        ],
+        "title": "MediaAccessRead",
+        "type": "object"
+      },
       "MemberListRead": {
         "properties": {
           "items": {
@@ -2681,6 +2683,16 @@
           "manifest": {
             "$ref": "#/components/schemas/PerformanceTakeManifestRead"
           },
+          "media_status": {
+            "enum": [
+              "UPLOADED",
+              "PROCESSING",
+              "READY",
+              "FAILED"
+            ],
+            "title": "Media Status",
+            "type": "string"
+          },
           "recording_media": {
             "$ref": "#/components/schemas/PerformanceTakeRecordingMediaRead"
           },
@@ -2692,6 +2704,7 @@
         "required": [
           "take_id",
           "manifest",
+          "media_status",
           "recording_media",
           "created_at"
         ],
@@ -2905,10 +2918,10 @@
             "title": "Take Id",
             "type": "string"
           },
-          "upload_target": {
+          "upload_session": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PerformanceTakeUploadTarget"
+                "$ref": "#/components/schemas/UploadSessionRead"
               },
               {
                 "type": "null"
@@ -2989,38 +3002,6 @@
           "client_request_id"
         ],
         "title": "PerformanceTakeUploadReservationRequest",
-        "type": "object"
-      },
-      "PerformanceTakeUploadTarget": {
-        "additionalProperties": false,
-        "properties": {
-          "expires_in": {
-            "title": "Expires In",
-            "type": "integer"
-          },
-          "headers": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Headers",
-            "type": "object"
-          },
-          "method": {
-            "title": "Method",
-            "type": "string"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "url",
-          "method",
-          "headers",
-          "expires_in"
-        ],
-        "title": "PerformanceTakeUploadTarget",
         "type": "object"
       },
       "PerformanceTempoEventRead": {
@@ -5438,6 +5419,101 @@
         "title": "UpdateProfileRequest",
         "type": "object"
       },
+      "UploadAdmissionRead": {
+        "properties": {
+          "client_request_id": {
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "upload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "upload_session": {
+            "$ref": "#/components/schemas/UploadSessionRead"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "upload_session"
+        ],
+        "title": "UploadAdmissionRead",
+        "type": "object"
+      },
+      "UploadCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "byte_size": {
+            "exclusiveMinimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "client_request_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^\\S(?:.*\\S)?$",
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "content_type": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Content Type",
+            "type": "string"
+          },
+          "filename": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id",
+          "filename",
+          "byte_size",
+          "content_type"
+        ],
+        "title": "UploadCreateRequest",
+        "type": "object"
+      },
+      "UploadMode": {
+        "enum": [
+          "SINGLE_PUT",
+          "MULTIPART"
+        ],
+        "title": "UploadMode",
+        "type": "string"
+      },
+      "UploadPartRead": {
+        "properties": {
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "etag": {
+            "title": "Etag",
+            "type": "string"
+          },
+          "part_number": {
+            "title": "Part Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_number",
+          "etag",
+          "byte_size"
+        ],
+        "title": "UploadPartRead",
+        "type": "object"
+      },
       "UploadRead": {
         "properties": {
           "byte_size": {
@@ -5459,6 +5535,113 @@
           "byte_size"
         ],
         "title": "UploadRead",
+        "type": "object"
+      },
+      "UploadSessionRead": {
+        "properties": {
+          "expected_byte_size": {
+            "title": "Expected Byte Size",
+            "type": "integer"
+          },
+          "expected_content_type": {
+            "title": "Expected Content Type",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/UploadMode"
+          },
+          "part_count": {
+            "title": "Part Count",
+            "type": "integer"
+          },
+          "part_size": {
+            "title": "Part Size",
+            "type": "integer"
+          },
+          "recommended_concurrency": {
+            "title": "Recommended Concurrency",
+            "type": "integer"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UploadStatus"
+          },
+          "upload_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadTargetRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "session_id",
+          "mode",
+          "status",
+          "expected_byte_size",
+          "expected_content_type",
+          "expires_at",
+          "part_size",
+          "part_count",
+          "recommended_concurrency"
+        ],
+        "title": "UploadSessionRead",
+        "type": "object"
+      },
+      "UploadStatus": {
+        "enum": [
+          "CREATING",
+          "UPLOADING",
+          "COMPLETING",
+          "COMPLETED",
+          "CONSUMED",
+          "CANCELLED",
+          "EXPIRED",
+          "FAILED"
+        ],
+        "title": "UploadStatus",
+        "type": "string"
+      },
+      "UploadTargetRead": {
+        "properties": {
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Headers",
+            "type": "object"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "method",
+          "headers",
+          "expires_in"
+        ],
+        "title": "UploadTargetRead",
         "type": "object"
       },
       "User": {
@@ -6046,7 +6229,7 @@
     },
     "/api/v1/guest-previews/{token}/playback": {
       "get": {
-        "operationId": "guestPreviewPlaybackStream",
+        "operationId": "guestPreviewPlaybackAccessGet",
         "parameters": [
           {
             "in": "path",
@@ -6061,58 +6244,13 @@
         "responses": {
           "200": {
             "content": {
-              "audio/*": {
+              "application/json": {
                 "schema": {
-                  "format": "binary",
-                  "type": "string"
+                  "$ref": "#/components/schemas/MediaAccessRead"
                 }
               }
             },
-            "description": "Stored bytes; Content-Type identifies the selected resource format."
-          },
-          "206": {
-            "content": {
-              "audio/*": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Requested byte range of the stored media.",
-            "headers": {
-              "Accept-Ranges": {
-                "schema": {
-                  "enum": [
-                    "bytes"
-                  ],
-                  "type": "string"
-                }
-              },
-              "Content-Range": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "416": {
-            "description": "Unsatisfiable byte range; no response body.",
-            "headers": {
-              "Accept-Ranges": {
-                "schema": {
-                  "enum": [
-                    "bytes"
-                  ],
-                  "type": "string"
-                }
-              },
-              "Content-Range": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
+            "description": "Successful Response"
           },
           "422": {
             "content": {
@@ -6135,7 +6273,7 @@
             "description": "Application failure."
           }
         },
-        "summary": "Listen Guest Preview",
+        "summary": "Get Guest Preview Playback",
         "tags": [
           "Guest Previews"
         ]
@@ -9463,131 +9601,6 @@
         ]
       }
     },
-    "/api/v1/performance-takes/{take_id}/media": {
-      "get": {
-        "operationId": "performanceTakeMediaStream",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "take_id",
-            "required": true,
-            "schema": {
-              "title": "Take Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "audio/*": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              },
-              "video/*": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Stored bytes; Content-Type identifies the selected resource format."
-          },
-          "206": {
-            "content": {
-              "audio/*": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              },
-              "video/*": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Requested byte range of the stored media.",
-            "headers": {
-              "Accept-Ranges": {
-                "schema": {
-                  "enum": [
-                    "bytes"
-                  ],
-                  "type": "string"
-                }
-              },
-              "Content-Range": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "416": {
-            "description": "Unsatisfiable byte range; no response body.",
-            "headers": {
-              "Accept-Ranges": {
-                "schema": {
-                  "enum": [
-                    "bytes"
-                  ],
-                  "type": "string"
-                }
-              },
-              "Content-Range": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Request or application validation failure."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Application failure."
-          }
-        },
-        "summary": "Stream Take Media",
-        "tags": [
-          "Performance Takes"
-        ]
-      }
-    },
     "/api/v1/performance-takes/{take_id}/playback-url": {
       "get": {
         "operationId": "performanceTakePlaybackUrlGet",
@@ -11939,7 +11952,7 @@
     },
     "/api/v1/scores/{score_id}/revisions/{revision_id}/playback": {
       "get": {
-        "operationId": "scoreRevisionPlaybackStream",
+        "operationId": "scoreRevisionPlaybackAccessGet",
         "parameters": [
           {
             "in": "path",
@@ -11979,58 +11992,13 @@
         "responses": {
           "200": {
             "content": {
-              "audio/*": {
+              "application/json": {
                 "schema": {
-                  "format": "binary",
-                  "type": "string"
+                  "$ref": "#/components/schemas/MediaAccessRead"
                 }
               }
             },
-            "description": "Stored bytes; Content-Type identifies the selected resource format."
-          },
-          "206": {
-            "content": {
-              "audio/*": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Requested byte range of the stored media.",
-            "headers": {
-              "Accept-Ranges": {
-                "schema": {
-                  "enum": [
-                    "bytes"
-                  ],
-                  "type": "string"
-                }
-              },
-              "Content-Range": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "416": {
-            "description": "Unsatisfiable byte range; no response body.",
-            "headers": {
-              "Accept-Ranges": {
-                "schema": {
-                  "enum": [
-                    "bytes"
-                  ],
-                  "type": "string"
-                }
-              },
-              "Content-Range": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
+            "description": "Successful Response"
           },
           "422": {
             "content": {
@@ -12053,7 +12021,7 @@
             "description": "Application failure."
           }
         },
-        "summary": "Stream Score Revision Playback",
+        "summary": "Get Score Revision Playback",
         "tags": [
           "Playback"
         ]
@@ -12146,9 +12114,294 @@
         ]
       }
     },
+    "/api/v1/upload-sessions/{session_id}": {
+      "get": {
+        "operationId": "uploadSessionsGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadSessionRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Read Upload Session",
+        "tags": [
+          "upload-sessions"
+        ]
+      }
+    },
+    "/api/v1/upload-sessions/{session_id}/complete": {
+      "post": {
+        "operationId": "uploadSessionComplete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadSessionRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Complete Upload Session",
+        "tags": [
+          "upload-sessions"
+        ]
+      }
+    },
+    "/api/v1/upload-sessions/{session_id}/parts": {
+      "get": {
+        "operationId": "uploadSessionPartsList",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UploadPartRead"
+                  },
+                  "title": "Response Uploadsessionpartslist",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Uploaded Parts",
+        "tags": [
+          "upload-sessions"
+        ]
+      }
+    },
+    "/api/v1/upload-sessions/{session_id}/parts/{part_number}/upload-url": {
+      "post": {
+        "operationId": "uploadSessionPartUploadUrlCreate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "part_number",
+            "required": true,
+            "schema": {
+              "title": "Part Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadTargetRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Part Upload Url",
+        "tags": [
+          "upload-sessions"
+        ]
+      }
+    },
     "/api/v1/uploads": {
       "post": {
-        "operationId": "uploadsCreate",
+        "operationId": "uploadRequestsCreate",
         "parameters": [
           {
             "in": "cookie",
@@ -12169,14 +12422,143 @@
         ],
         "requestBody": {
           "content": {
-            "multipart/form-data": {
+            "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_uploadsCreate"
+                "$ref": "#/components/schemas/UploadCreateRequest"
               }
             }
           },
           "required": true
         },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadAdmissionRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Create Upload Request",
+        "tags": [
+          "Uploads"
+        ]
+      }
+    },
+    "/api/v1/uploads/{session_id}/cancel": {
+      "post": {
+        "operationId": "uploadRequestCancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request or application validation failure."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Application failure."
+          }
+        },
+        "summary": "Cancel Upload Request",
+        "tags": [
+          "Uploads"
+        ]
+      }
+    },
+    "/api/v1/uploads/{session_id}/finalize": {
+      "post": {
+        "operationId": "uploadFinalize",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "noteverse_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noteverse Session"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -12209,7 +12591,7 @@
             "description": "Application failure."
           }
         },
-        "summary": "Create Upload",
+        "summary": "Finalize Upload",
         "tags": [
           "Uploads"
         ]

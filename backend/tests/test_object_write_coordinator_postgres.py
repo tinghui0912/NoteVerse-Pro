@@ -1,5 +1,7 @@
 """Independent durable writes, bounded batch transactions and atomic adoption."""
 
+from tests.support.uploads import settled_upload_session
+
 from concurrent.futures import ThreadPoolExecutor
 from hashlib import sha256
 from threading import Event
@@ -17,6 +19,7 @@ from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 from app.modules.media_storage.adoption import adopt_written_object, adopt_written_objects
 from app.modules.media_storage.write_cleanup import write_cleanup_delivery, clean_write_attempt
 from tests.support.object_storage import InMemoryObjectStorage
+from app.storage.base import ObjectStorageOperationFailedError, ObjectStorageUnavailableError
 
 
 @pytest.fixture
@@ -87,11 +90,11 @@ def test_partial_batch_failure_keeps_every_key_cleanup_owned(writes):
 
     def failing(**kwargs):
         if kwargs["key"] == "batch/b":
-            raise OSError("provider unavailable")
+            raise ObjectStorageOperationFailedError("provider rejected bytes")
         return put(**kwargs)
 
     storage.put_bytes = failing
-    with pytest.raises(OSError):
+    with pytest.raises(ObjectStorageOperationFailedError):
         coordinator.write_batch([ObjectWriteItem("batch/" + suffix, b"bytes") for suffix in "abc"])
     with sessions() as db:
         rows = list(db.scalars(select(ObjectWriteIntent)))
@@ -121,7 +124,12 @@ def test_copy_verifies_exact_bytes_and_uses_atomic_adoption(writes):
     with sessions() as db:
         obj = adopt_written_object(db, receipt)
         db.add(
-            Upload(stored_object_id=obj.id, uploader_user_id=1, original_filename="recording.webm")
+            Upload(
+                upload_session=settled_upload_session(user_id=1),
+                stored_object_id=obj.id,
+                uploader_user_id=1,
+                original_filename="recording.webm",
+            )
         )
         db.rollback()
     with sessions() as db:
@@ -129,7 +137,12 @@ def test_copy_verifies_exact_bytes_and_uses_atomic_adoption(writes):
         assert db.scalar(select(ObjectWriteIntent)).status == Status.WRITTEN
         obj = adopt_written_object(db, receipt)
         db.add(
-            Upload(stored_object_id=obj.id, uploader_user_id=1, original_filename="recording.webm")
+            Upload(
+                upload_session=settled_upload_session(user_id=1),
+                stored_object_id=obj.id,
+                uploader_user_id=1,
+                original_filename="recording.webm",
+            )
         )
         db.commit()
     assert storage.read_bytes("final/output") == data
@@ -169,7 +182,12 @@ def test_concurrent_adoption_waits_on_intent_and_preserves_two_owners(writes):
                 waiting.set()
             obj = adopt_written_object(db, receipt)
             db.add(
-                Upload(stored_object_id=obj.id, uploader_user_id=owner, original_filename="data")
+                Upload(
+                    upload_session=settled_upload_session(user_id=owner),
+                    stored_object_id=obj.id,
+                    uploader_user_id=owner,
+                    original_filename="data",
+                )
             )
             db.flush()
             if owner == 1:
@@ -261,4 +279,67 @@ def test_physical_failure_does_not_rollback_pending_business_changes(writes):
         caller.commit()
     with sessions() as observer:
         assert observer.get(User, 1).display_name == "pending mutation"
-        assert observer.scalar(select(ObjectWriteIntent)).status == Status.CLEANUP_PENDING
+        assert observer.scalar(select(ObjectWriteIntent)).status == Status.WRITE_UNKNOWN
+
+
+@pytest.mark.parametrize("command", ["bytes", "batch", "copy"])
+def test_provider_io_has_no_open_coordinator_session_or_checked_out_connection(writes, command):
+    sessions, storage, _ = writes
+    engine = sessions.kw["bind"]
+    storage.put_bytes(key="source", content=b"bytes", content_type="application/octet-stream")
+    active = set()
+
+    class ObservedSession(Session):
+        def __enter__(self):
+            active.add(id(self))
+            return super().__enter__()
+
+        def close(self):
+            super().close()
+            active.discard(id(self))
+
+    observed = sessionmaker(engine, class_=ObservedSession, expire_on_commit=False)
+    coordinator = ObjectWriteCoordinator(storage, observed)
+    for name in ("put_bytes", "copy", "object_metadata", "iter_bytes"):
+        original = getattr(storage, name)
+
+        def guarded(*args, _original=original, **kwargs):
+            assert not active and engine.pool.checkedout() == 0
+            return _original(*args, **kwargs)
+
+        setattr(storage, name, guarded)
+    if command == "bytes":
+        coordinator.write_bytes(key="result", content=b"bytes")
+    elif command == "batch":
+        coordinator.write_batch(
+            [ObjectWriteItem("batch/a", b"a"), ObjectWriteItem("batch/b", b"b")]
+        )
+    else:
+        coordinator.copy_object(
+            "source",
+            key="result",
+            byte_size=5,
+            sha256=sha256(b"bytes").hexdigest(),
+            content_type="application/octet-stream",
+        )
+
+
+def test_unknown_provider_mutation_excludes_cleanup_and_replacement_generation(writes):
+    sessions, storage, coordinator = writes
+
+    def unknown(**kwargs):
+        raise ObjectStorageUnavailableError("Provider outcome unknown")
+
+    storage.put_bytes = unknown
+    with pytest.raises(ObjectStorageUnavailableError):
+        coordinator.write_bytes(key="unknown", content=b"bytes")
+    with sessions() as db:
+        row = db.scalar(select(ObjectWriteIntent))
+        assert row.status == Status.WRITE_UNKNOWN
+        generation = row.write_token
+        assert write_cleanup_delivery.recover_and_list_due(db) == []
+        db.commit()
+    with pytest.raises(ValueError, match="owns"):
+        coordinator.write_bytes(key="unknown", content=b"bytes")
+    with sessions() as db:
+        assert db.scalar(select(ObjectWriteIntent)).write_token == generation

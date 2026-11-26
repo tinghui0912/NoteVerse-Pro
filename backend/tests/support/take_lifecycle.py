@@ -36,7 +36,7 @@ class TakeLifecycleServices:
         )
         self.reservations = PerformanceTakeReservationService(
             repository=repository,
-            storage=storage,
+            uploads=resources.build_upload_session_service(storage),
             storage_usage_service=usage,
             score_access_policy=score_access_policy,
             practice_bundle_service=bundle,
@@ -45,7 +45,7 @@ class TakeLifecycleServices:
         )
         self.finalization = PerformanceTakeFinalizationService(
             repository=self.reservations.repository,
-            storage=storage,
+            uploads=resources.build_upload_session_service(storage),
             storage_usage_service=usage,
             quota=quota,
             delivery=delivery,
@@ -61,6 +61,10 @@ class TakeLifecycleServices:
         self.finalization.repository = value
         self.finalization.writer.repository = value
         self.finalization.recovery.repository = value
+
+    @property
+    def uploads(self):
+        return self.reservations.uploads
 
     @property
     def takes(self):
@@ -82,3 +86,9 @@ class TakeLifecycleServices:
 
     def finalize_take(self, *args, **kwargs):
         return self.finalization.finalize_take(*args, **kwargs)
+
+
+def initialize_reservation(row, state):
+    row.status = state.status
+    row.finalizing_token = state.lease.token if state.lease else None
+    row.finalizing_expires_at = state.lease.expires_at if state.lease else None

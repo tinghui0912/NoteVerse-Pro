@@ -1,5 +1,6 @@
 """Authorized delivery policy, immutable caching and provider capability issuance."""
 
+from pydantic import BaseModel
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
@@ -87,6 +88,13 @@ class MediaDeliveryService:
             f"{'public' if public else 'private'}, max-age={cache_seconds}, immutable",
         )
 
+    def access(self, target: DeliveryTarget) -> "MediaAccessRead":
+        return MediaAccessRead(
+            playback_url=self.signed_url(target),
+            download_url=self.signed_url(target, attachment=True),
+            expires_in=self.policy.signed_url_ttl_seconds,
+        )
+
     def signed_url(
         self,
         target: DeliveryTarget,
@@ -102,3 +110,9 @@ class MediaDeliveryService:
             if expires_seconds is not None
             else self.policy.signed_url_ttl_seconds,
         )
+
+
+class MediaAccessRead(BaseModel):
+    playback_url: str
+    download_url: str
+    expires_in: int

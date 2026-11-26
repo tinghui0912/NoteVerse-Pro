@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from app.modules.performance_takes.upload_reservation.cleanup import (
-    upload_reservation_cleanup_service,
-)
+from app.composition.media_resources import build_take_reservation_cleanup_service
+from app.composition.storage_resources import build_upload_session_service
+from app.modules.media_storage.upload_sessions.maintenance import UploadSessionMaintenance
 
-from app.core.logger import logger
 from app.db.session import SessionLocal
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.modules.mail.outbox_service import mail_outbox_service
@@ -14,7 +13,6 @@ from app.modules.media_storage.retirement import retirement_delivery
 from app.modules.practice.bundle.retention import practice_bundle_retention
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.revisions.render_delivery import revision_render_delivery
-from app.composition.storage_resources import storage_usage_service, storage_quota_service
 from app.storage import object_storage
 from app.worker.task_runtime import run_scheduler_scan
 
@@ -90,24 +88,18 @@ def execute_stored_object_retirement_maintenance() -> dict[str, int]:
             practice_bundle_retention.collect_unowned_ready(db)
             due = retirement_delivery.recover_and_list_due(db)
             db.commit()
-        errors, cleaned = 0, 0
-        try:
-            with SessionLocal() as db:
-                cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
-                    db, object_storage, storage_usage_service, quota=storage_quota_service
-                )
-                db.commit()
-        except Exception:
-            errors = 1
-            logger.exception("upload_reservation.cleanup_failed")
+        with SessionLocal() as db:
+            expired = build_take_reservation_cleanup_service(object_storage).expire(db)
+            db.commit()
+        transfers = UploadSessionMaintenance(build_upload_session_service(object_storage)).run()
         from app.worker.dispatch.stored_object_retirement import dispatch_stored_object_retirement
 
         dispatched = sum(1 for uuid in due if dispatch_stored_object_retirement(uuid))
         return {
             "due": len(due),
             "dispatched": dispatched,
-            "cleaned_reservations": cleaned,
-            "cleanup_errors": errors,
+            "expired_reservations": expired,
+            **transfers,
         }
 
     return run_scheduler_scan("stored_object_retirement", scan)
