@@ -1,6 +1,8 @@
 """Real transaction phases and live access fences of durable bundle admission."""
 
-from app.db.models.practice_bundle import PracticeBundleStatus
+from app.composition import storage_resources as _resource_wiring
+
+from app.modules.practice.bundle.states import PracticeBundleStatus
 
 from datetime import timedelta
 from unittest.mock import patch
@@ -70,7 +72,9 @@ def test_writer_commits_creation_before_io_and_reauthorizes_before_binding(
             return put(**kwargs)
 
         monkeypatch.setattr(storage, "put_bytes", physical)
-        writer = PracticeBundleWriter(storage, repository=repository)
+        writer = PracticeBundleWriter(
+            repository=repository, writes=_resource_wiring.build_object_write_coordinator(storage)
+        )
         add = repository.add_binding
 
         def binding(*args, **kwargs):
@@ -189,7 +193,9 @@ def test_creation_reauthorizes_live_access_after_physical_write(
         live = authorization(db, repository, member_id)
         live()
         with pytest.raises((UnauthorizedException, ResourceNotFoundException)):
-            PracticeBundleWriter(storage).ensure_binding(
+            PracticeBundleWriter(
+                writes=_resource_wiring.build_object_write_coordinator(storage)
+            ).ensure_binding(
                 db,
                 candidate,
                 revision_id=repository.test_revision_id,
@@ -220,7 +226,9 @@ def test_expired_creation_lease_cannot_adopt_or_bind(postgres_bundle, monkeypatc
         live = authorization(db, repository)
         live()
         with pytest.raises(ValueError, match="lease expired"):
-            PracticeBundleWriter(storage).ensure_binding(
+            PracticeBundleWriter(
+                writes=_resource_wiring.build_object_write_coordinator(storage)
+            ).ensure_binding(
                 db,
                 candidate,
                 revision_id=repository.test_revision_id,

@@ -296,7 +296,8 @@ def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, d
     from fastapi.testclient import TestClient
     from app.api.deps import get_current_user, get_db
     from app.core.exception_handlers import register_exception_handlers
-    from app.modules.practice.bundle.router import router, get_practice_bundle_service
+    from app.modules.practice.bundle.router import router
+    from app.api.resource_dependencies import get_practice_bundle_service
 
     assert round(numerator * 4 / denominator, 6) == 4
     path = tmp_path / "score.musicxml"

@@ -1,5 +1,7 @@
 """Closed identity, retained owner history and fresh invitations on PostgreSQL."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from datetime import timedelta
 from uuid import uuid4
 import pytest
@@ -23,15 +25,15 @@ from app.db.models import (
     MailOutbox,
     MailOutboxStatus,
     StorageUsageAccount,
-    StorageUsageCategory as Category,
     AccountDeletionPhase,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
 from app.db.models.score_access import InviteTerminalOutcome as Outcome, MembershipRole
 from app.modules.account.deletion_service import AccountDeletionService
 from app.modules.account.deletion_delivery import account_deletion_delivery as delivery
 from app.composition.account_deletion import AccountDeletionExecutor
-from app.modules.storage_inventory.composition import build_storage_inventory_registry
-from app.modules.storage_usage.service import storage_usage_service as usage
+from app.composition.storage_inventory import build_storage_inventory_registry
+from app.composition.storage_resources import storage_usage_service as usage
 from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.schemas import InviteCreateRequest
 from app.modules.collaboration.invite_lifecycle import hash_invite_token
@@ -369,7 +371,9 @@ def test_same_email_registration_gets_only_new_invitation_and_role(
     with Session(collaboration_accounts) as db:
         assert db.get(User, 1) is None
         assert db.scalar(select(ScoreMembership).where(ScoreMembership.user_id == 1)) is None
-        verification = EmailVerificationService()
+        verification = EmailVerificationService(
+            provision_storage=_resource_wiring.provision_storage_resources
+        )
         monkeypatch.setattr(verification, "_new_token", lambda: "fresh-registration")
         verification.register(
             db,

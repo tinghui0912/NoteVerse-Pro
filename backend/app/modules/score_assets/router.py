@@ -5,11 +5,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
-from app.api.storage_streaming import stream_storage_object
+from app.api.media_delivery import deliver_media_object
+from app.modules.media_storage.delivery import DeliveryMode
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.db.models.score import RenderAssetKind
-from app.modules.score_assets.dependencies import get_score_asset_service
+from app.modules.score_assets.domain import RenderAssetKind
+from app.api.resource_dependencies import get_score_asset_service
 from app.modules.score_assets.schemas import (
     AssetAccessRead,
     ScoreRevisionAssetsRead,
@@ -154,8 +155,9 @@ def archive_score_render_assets(
 
 
 def _stream_asset(delivery, service: ScoreAssetService, *, attachment: bool):
-    return stream_storage_object(
-        storage=service.storage,
+    return deliver_media_object(
+        service=service.delivery,
+        mode=DeliveryMode.CONTROLLED_STREAM,
         target=delivery,
         attachment=attachment,
     )

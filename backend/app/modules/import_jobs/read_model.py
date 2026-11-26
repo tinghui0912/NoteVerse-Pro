@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportJob, Score
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from .public_errors import public_import_job_error_code
 from .repository import ImportJobRepository
 from .requested_options import decode_requested_options

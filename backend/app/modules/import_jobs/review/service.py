@@ -1,5 +1,11 @@
 from __future__ import annotations
-from app.composition.storage_resources import storage_quota_service
+
+from app.modules.storage_governance.quota.service import StorageQuotaService
+from app.modules.revisions.writer import RevisionWriter
+from app.modules.scores.input_asset_lifecycle import ScoreInputAssetLifecycle
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
 from app.modules.account.resource_admission import lock_active_resource_user
 from uuid import uuid4
 from datetime import timedelta
@@ -8,9 +14,9 @@ from app.shared.time import utc_now
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 from app.modules.import_jobs.object_keys import review_musicxml_object_key
 from app.modules.import_jobs.artifact_records import REVIEW_MUSICXML_MIME_TYPE
-from app.storage import ObjectStorage
-from app.modules.storage_objects.retirement import retire_after_release
-from app.modules.storage_objects.writes import write_object, adopt_written_object
+from app.modules.media_storage.retirement import retire_after_release
+
+from app.modules.media_storage.adoption import adopt_written_object
 
 import hashlib
 import uuid
@@ -24,28 +30,19 @@ from app.core.exceptions import (
     UnauthorizedException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import (
-    ImportArtifact,
-    ImportJob,
-    ImportDispatch,
-    Score,
-    StorageUsageCategory,
-)
-from app.db.models.import_job import ImportJobState
+from app.db.models import ImportArtifact, ImportJob, ImportDispatch, Score
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.lifecycle import mark_confirmed
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.notifications import (
     admit_import_confirmation_consequences,
 )
-from app.modules.revisions.writer import (
-    revision_writer,
-    PreparedRevisionSource,
-    InitialRevisionWrite,
-)
+from app.modules.revisions.writer import PreparedRevisionSource, InitialRevisionWrite
 from app.modules.revisions.post_commit import revision_post_commit
 from app.core.logger import logger
-from app.modules.scores.input_asset_lifecycle import score_input_asset_lifecycle
+
 from app.modules.import_jobs.review.read_model import ImportReviewReadModel
 from app.modules.import_jobs.review.schemas import (
     ImportJobReviewRead,
@@ -60,21 +57,30 @@ from app.modules.import_jobs.requested_options import (
     ImportJobRequestedOptionsV1,
     decode_requested_options,
 )
-from app.modules.storage_usage.service import storage_usage_service
+
 from app.shared.error_codes import CustomerErrorCode
-from app.db.models.import_job import ImportArtifactKind
-from app.storage import object_storage
+from app.modules.import_jobs.domain import ImportArtifactKind
 from app.processing.musicxml.notation_title import extract_notation_title
 
 
 class ImportReviewService:
     def __init__(
         self,
-        storage: ObjectStorage | None = None,
         score_repository: ScoreRepository | None = None,
         read_model: ImportReviewReadModel | None = None,
+        *,
+        quota: StorageQuotaService,
+        revision_writer: RevisionWriter,
+        input_assets: ScoreInputAssetLifecycle,
+        usage: StorageUsageService,
+        writes: ObjectWriteCoordinator,
     ) -> None:
-        self.storage = storage or object_storage
+        self.quota = quota
+        self.revision_writer = revision_writer
+        self.input_assets = input_assets
+        self.usage = usage
+        self.writes = writes
+        self.storage = writes.storage
         self.score_repository = score_repository or ScoreRepository()
         self.read_model = read_model or ImportReviewReadModel(self.storage)
 
@@ -146,7 +152,7 @@ class ImportReviewService:
             score_uuid=score_uuid, revision_uuid=revision_uuid
         )
         lock_active_resource_user(db, user_id)
-        reservation = storage_quota_service.create_hold(
+        reservation = self.quota.create_hold(
             db,
             user_id=user_id,
             category=StorageUsageCategory.SOURCE,
@@ -156,16 +162,12 @@ class ImportReviewService:
         )
         try:
             db.commit()
-            stored = write_object(
-                db,
-                self.storage,
-                key=key,
-                content=content,
-                content_type="application/vnd.recordare.musicxml+xml",
+            stored = self.writes.write_bytes(
+                key=key, content=content, content_type="application/vnd.recordare.musicxml+xml"
             )
         except Exception:
             db.rollback()
-            storage_quota_service.release_hold(db, reservation.hold_id)
+            self.quota.release_hold(db, reservation.hold_id)
             db.commit()
             raise
 
@@ -195,7 +197,7 @@ class ImportReviewService:
                     .get(job.id)
                 )
                 if existing is not None:
-                    storage_quota_service.release_hold(db, reservation.hold_id)
+                    self.quota.release_hold(db, reservation.hold_id)
                     db.commit()
                     return ReviewConfirmRead(score_id=existing.score_uuid)
             if job.user_id != user_id or job.state != ImportJobState.READY_FOR_REVIEW:
@@ -220,7 +222,7 @@ class ImportReviewService:
                 "1",
                 reservation.hold_id,
             )
-            write_result = revision_writer.write(
+            write_result = self.revision_writer.write(
                 db,
                 InitialRevisionWrite(
                     score_uuid,
@@ -229,14 +231,14 @@ class ImportReviewService:
                     f"job-confirm:{job_uuid}",
                 ),
             )
-            score_input_asset_lifecycle.promote_import_uploads(
+            self.input_assets.promote_import_uploads(
                 db,
                 job_id=require_persisted_id(job.id, entity="import job"),
                 score_id=score_id,
                 user_id=user_id,
             )
             mark_confirmed(job, now=utc_now())
-            ImportJobDeletionService().cleanup_binary_artifacts(db, job, user_id)
+            ImportJobDeletionService(usage=self.usage).cleanup_binary_artifacts(db, job, user_id)
             admit_import_confirmation_consequences(
                 db,
                 job,
@@ -246,7 +248,7 @@ class ImportReviewService:
             db.commit()
         except Exception:
             db.rollback()
-            storage_quota_service.release_hold(db, reservation.hold_id)
+            self.quota.release_hold(db, reservation.hold_id)
             db.commit()
             raise
 
@@ -302,9 +304,10 @@ class ImportReviewService:
                 "import_artifact", job_uuid, CustomerErrorCode.XML_NOT_FOUND
             )
 
-        stored = write_object(
-            db,
-            self.storage,
+        # The use case ends its validation transaction before external IO and
+        # rechecks the locked domain facts in the adoption transaction.
+        db.commit()
+        stored = self.writes.write_bytes(
             key=review_musicxml_object_key(
                 job_uuid=job_uuid, content_sha256=hashlib.sha256(content).hexdigest()
             ),
@@ -333,7 +336,7 @@ class ImportReviewService:
                 .execution_options(populate_existing=True)
             )
         ).scalar_one()
-        storage_usage_service.committed_bytes(db, user_id, lock=True)
+        self.usage.committed_bytes(db, user_id, lock=True)
         previous_object = artifact.stored_object
         old_artifact_uuid = artifact.artifact_uuid
         old_storage_key = artifact.stored_object.object_key
@@ -343,7 +346,7 @@ class ImportReviewService:
             artifact.filename = stored.object_key.rsplit("/", 1)[-1]
             db.flush()
             job.updated_at = utc_now()
-            storage_usage_service.record_release(
+            self.usage.record_release(
                 db,
                 user_id=user_id,
                 category=StorageUsageCategory.TEMP_IMPORT,
@@ -353,7 +356,7 @@ class ImportReviewService:
                 object_id=old_artifact_uuid,
                 storage_key=old_storage_key,
             )
-            storage_usage_service.record_allocation(
+            self.usage.record_allocation(
                 db,
                 user_id=user_id,
                 category=StorageUsageCategory.TEMP_IMPORT,
@@ -393,6 +396,3 @@ class ImportReviewService:
         if request.genres is not None:
             return request.genres
         return options.genres
-
-
-import_review_service = ImportReviewService()

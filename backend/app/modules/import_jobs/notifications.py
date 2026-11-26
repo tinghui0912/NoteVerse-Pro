@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.models import ImportJob, Notification, NotificationKind
 from app.shared.realtime import RealtimeChangeKind
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.requested_options import decode_requested_options
 from app.modules.notifications.service import notification_service
 from app.modules.realtime.publisher import publish_change

@@ -1,6 +1,10 @@
 from __future__ import annotations
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 from tests.support.quota import quota_hold_fact
-from app.db.models.storage_quota import StorageQuotaHoldStatus
+from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
 from app.composition.storage_resources import storage_quota_service
 from tests.support.quota import admit_hold
 
@@ -24,7 +28,7 @@ from app.modules.performance_takes.upload_reservation.domain import (
     OrphanFinalCandidate,
     FinalizeLease,
 )
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 from app.modules.performance_takes.upload_reservation.persistence import (
     initialize_lifecycle,
     lifecycle_from_row,
@@ -57,21 +61,21 @@ from app.db.models import (
     PerformanceTakeUploadReservation,
     PracticeBundleRecord,
     ScoreRevisionPracticeBinding,
-    PracticeBundleStatus,
     Score,
     ScoreRevision,
     StoragePlanPolicy,
     UserStorageEntitlement,
     StorageUsageAccount,
-    StorageUsageCategory,
     StorageUsageCounter,
     User,
 )
-from app.db.models.score import RevisionOrigin
+from app.modules.practice.bundle.states import PracticeBundleStatus
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.revisions.domain import RevisionOrigin
 from app.main import app
 from app.db.models import StoredObjectRetirement
 from app.worker.execution import stored_object_retirement
-from app.modules.performance_takes.dependencies import (
+from app.api.resource_dependencies import (
     get_performance_take_service,
     get_performance_take_reservation_service,
     get_performance_take_finalization_service,
@@ -96,10 +100,10 @@ from app.modules.practice.score.artifact import (
     canonical_practice_artifact_bytes,
     practice_artifact_id,
 )
-from app.modules.scores.dependencies import get_score_service
+from app.api.resource_dependencies import get_score_service
 from app.modules.scores.service import ScoreService
-from app.modules.storage_usage.dependencies import get_storage_usage_service
-from app.modules.storage_usage.service import StorageUsageService
+from app.api.resource_dependencies import get_storage_usage_service
+from app.modules.storage_governance.usage.service import StorageUsageService
 from app.shared.error_codes import CustomerErrorCode
 from app.storage.factory import get_object_storage
 from tests.support.object_storage import InMemoryObjectStorage
@@ -180,7 +184,9 @@ def _performance_take_service(
     return TakeLifecycleServices(
         storage=storage,
         storage_usage_service=storage_usage_service,
-        practice_bundle_service=PracticeBundleService(storage=storage),
+        practice_bundle_service=PracticeBundleService(
+            writes=_resource_wiring.build_object_write_coordinator(storage)
+        ),
     )
 
 
@@ -356,7 +362,10 @@ def test_invalid_stored_scope_reports_validation_error(test_env):
     document = json.loads(take.manifest.manifest_json)
     document["manifest"]["scope"]["kind"] = "INVALID"
     take.manifest.manifest_json = json.dumps(document)
-    service = PerformanceTakeService(storage=storage)
+    service = PerformanceTakeService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
     with pytest.raises(ValidationException) as raised:
         service._to_read_dto(take)
     assert raised.value.code == CustomerErrorCode.VALIDATION_ERROR
@@ -785,6 +794,7 @@ def test_take_lifecycle_direct_oss_and_quota(test_env, monkeypatch: pytest.Monke
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
+            quota=_resource_wiring.storage_quota_service,
         )
         session.commit()
         assert cleaned_count == 1
@@ -1173,7 +1183,10 @@ def test_real_soft_delete_and_real_cleanup_hard_delete(test_env, monkeypatch: py
         assert init_item["can_open_score"] is True
 
         # 2. REAL SOFT DELETE: invoke real ScoreService.batch_delete / HTTP POST /api/v1/scores/batch-delete
-        score_svc = ScoreService(storage=storage)
+        score_svc = ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        )
         app.dependency_overrides[get_score_service] = lambda: score_svc
 
         res_soft = client.post("/api/v1/scores/batch-delete", json={"score_ids": ["score-uuid-10"]})
@@ -1408,6 +1421,7 @@ def test_cancel_upload_reservation(test_env, monkeypatch: pytest.MonkeyPatch):
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
+            quota=_resource_wiring.storage_quota_service,
         )
         session.commit()
         assert cleaned_count == 1
@@ -2192,6 +2206,7 @@ def test_crash_abandoned_after_reservation(test_env, monkeypatch: pytest.MonkeyP
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
+            quota=_resource_wiring.storage_quota_service,
         )
         session.commit()
         assert cleaned_count == 1
@@ -2281,6 +2296,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
+            quota=_resource_wiring.storage_quota_service,
         )
         session.commit()
 
@@ -2297,6 +2313,7 @@ def test_expired_reservation_staging_delete_failure_is_retryable(test_env, monke
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
+            quota=_resource_wiring.storage_quota_service,
         )
         session.commit()
 
@@ -2385,6 +2402,7 @@ def test_completed_reservation_late_staging_put_is_cleaned_after_expiry(test_env
             session,
             storage=storage,
             storage_usage_service=storage_usage_svc,
+            quota=_resource_wiring.storage_quota_service,
         )
         session.commit()
 
@@ -2567,6 +2585,7 @@ def test_expired_reservation_cleanup_releases_db_lock_before_storage_delete(test
             session,
             storage=LockAssertingStorage(storage),
             storage_usage_service=storage_usage_svc,
+            quota=_resource_wiring.storage_quota_service,
         )
         session.commit()
 
@@ -2639,6 +2658,7 @@ def test_reservation_cleanup_does_not_complete_when_delete_returns_false(test_en
         session,
         storage=DeleteFalseStorage(storage),
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -2677,6 +2697,7 @@ def test_reservation_cleanup_does_not_complete_when_head_still_exists(test_env):
         session,
         storage=DeleteLiesStorage(storage),
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -2722,6 +2743,7 @@ def test_reservation_cleanup_does_not_complete_when_final_head_fails(test_env):
         session,
         storage=HeadFailsAfterDeleteStorage(storage),
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -2791,6 +2813,7 @@ def test_completed_reservation_cleanup_does_not_touch_storage(test_env):
         session,
         storage=FailsOnAccessStorage(),
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -2835,6 +2858,7 @@ def test_reservation_cleanup_retries_orphan_final_without_touching_completed_sta
         session,
         storage=TrackingStorage(storage),
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -2871,6 +2895,7 @@ def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_conver
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
     assert cleaned == 0
@@ -2887,6 +2912,7 @@ def test_reservation_cleanup_keeps_unknown_absent_orphan_until_grace_then_conver
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -2920,6 +2946,7 @@ def test_reservation_cleanup_removes_absent_known_orphan(test_env):
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -2958,6 +2985,7 @@ def test_reservation_cleanup_preserves_remaining_orphan_remove_after(test_env):
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -3037,6 +3065,7 @@ def test_reservation_cleanup_does_not_delete_orphan_key_referenced_by_take(test_
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -3074,6 +3103,7 @@ def test_expired_finalizing_lease_records_candidate_before_retry(test_env):
         session,
         storage=storage,
         storage_usage_service=StorageUsageService(),
+        quota=_resource_wiring.storage_quota_service,
     )
     session.commit()
 
@@ -3314,7 +3344,7 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
     from dataclasses import replace
     from types import SimpleNamespace
     from unittest.mock import Mock
-    from app.modules.practice.bundle.router import get_practice_bundle_service
+    from app.api.resource_dependencies import get_practice_bundle_service
 
     session, storage, user, other_user = test_env
     canonical = (
@@ -3335,7 +3365,9 @@ def test_bound_bundle_authorization_preserves_admitted_representation_identity(t
     )
     session.add(assets.canonical_source.return_value.stored_object)
     session.commit()
-    bundles = PracticeBundleService(storage=storage, asset_repository=assets)
+    bundles = PracticeBundleService(
+        asset_repository=assets, writes=_resource_wiring.build_object_write_coordinator(storage)
+    )
     uploads = TakeLifecycleServices(storage=storage, practice_bundle_service=bundles)
 
     def override_db():
@@ -3726,7 +3758,7 @@ def test_cleanup_rejects_active_reservation_with_take_as_invariant_violation(tes
     session.commit()
     with pytest.raises(ReservationInvariantError, match="atomic"):
         upload_reservation_cleanup_service.cleanup_expired_reservations(
-            session, storage, StorageUsageService()
+            session, storage, StorageUsageService(), quota=_resource_wiring.storage_quota_service
         )
     session.rollback()
     session.refresh(row)
@@ -4097,10 +4129,12 @@ def test_take_deletion_retires_media_but_preserves_manifest_and_reservation(test
         take = session.scalar(select(PerformanceTake))
         assert take.manifest_id == manifest_id
         assert finalized.json()["manifest"] == accepted["manifest"]
-        from app.modules.storage_inventory.composition import build_storage_inventory_registry
-        from app.modules.storage_usage.reconciliation import StorageUsageReconciliation
+        from app.composition.storage_inventory import build_storage_inventory_registry
+        from app.modules.storage_governance.usage.reconciliation import StorageUsageReconciliation
 
-        reconciler = StorageUsageReconciliation(build_storage_inventory_registry())
+        reconciler = StorageUsageReconciliation(
+            build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+        )
         assert not reconciler.inspect_user(session, user.id).drift
         assert (
             reconciler.inspect_user(session, user.id).expected_account.used_bytes
@@ -4233,4 +4267,7 @@ def test_take_read_rejects_corrupt_or_capture_mismatched_blob(test_env, field, b
     )
     setattr(take.recording_object, field, bad)
     with pytest.raises(ValidationException):
-        PerformanceTakeService(storage=storage)._to_read_dto(take)
+        PerformanceTakeService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        )._to_read_dto(take)

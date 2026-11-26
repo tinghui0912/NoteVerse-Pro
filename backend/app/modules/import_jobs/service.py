@@ -1,6 +1,8 @@
 from __future__ import annotations
-from app.modules.storage_objects.reads import StoredObjectDelivery
-from app.storage import ObjectStorage
+
+from app.modules.media_storage.delivery import MediaDeliveryService
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.reads import StoredObjectDelivery
 
 from dataclasses import dataclass
 
@@ -14,7 +16,7 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.models import ImportJob, ImportJobUpload, StoredObject, Upload, User
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.db.model_utils import require_persisted_id
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.import_jobs.requested_options import decode_requested_options
@@ -29,7 +31,6 @@ from app.modules.import_jobs.schemas import (
 )
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.read_model import ImportJobReadModel
-from app.storage import object_storage
 from app.shared.error_codes import CustomerErrorCode
 
 
@@ -45,15 +46,20 @@ class ImportJobService:
         self,
         repository: ImportJobRepository | None = None,
         submission_service: ImportJobSubmissionService | None = None,
-        storage: ObjectStorage | None = None,
         deletion_service: ImportJobDeletionService | None = None,
         read_model: ImportJobReadModel | None = None,
+        *,
+        usage: StorageUsageService,
+        delivery: MediaDeliveryService,
     ) -> None:
+        self.delivery = delivery
         self.repository = repository or ImportJobRepository()
         self.read_model = read_model or ImportJobReadModel(self.repository)
-        self.submission_service = submission_service or ImportJobSubmissionService(self.repository)
-        self.storage = storage or object_storage
-        self.deletion_service = deletion_service or ImportJobDeletionService()
+        self.submission_service = submission_service or ImportJobSubmissionService(
+            self.repository, usage=usage
+        )
+        self.storage = delivery.storage
+        self.deletion_service = deletion_service or ImportJobDeletionService(usage=usage)
 
     def submit(
         self, db: Session, current_user: User, request: ImportJobSubmitRequestLike
@@ -201,6 +207,3 @@ class ImportJobService:
         _, upload, blob = row
         filename = upload.original_filename
         return StoredObjectDelivery.for_object(blob, filename)
-
-
-job_service = ImportJobService()

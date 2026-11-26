@@ -9,7 +9,8 @@ import pytest
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException
-from app.db.models import ImportJob, ImportJobState, ImportDispatch, ImportDispatchStatus
+from app.db.models import ImportJob, ImportDispatch, ImportDispatchStatus
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
 from app.modules.ops.command_service import OpsAsyncOperationCommandService
 from app.modules.ops.query_service import OpsAsyncOperationQueryService

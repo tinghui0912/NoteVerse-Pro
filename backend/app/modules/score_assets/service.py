@@ -1,10 +1,11 @@
 from __future__ import annotations
-from app.modules.storage_objects.reads import (
+
+from app.modules.media_storage.delivery import MediaDeliveryService
+from app.modules.media_storage.reads import (
     StoredObjectDelivery,
     StoredObjectReadTarget,
     read_admitted_bytes,
 )
-from app.storage import ObjectStorage
 
 import io
 import zipfile
@@ -15,7 +16,7 @@ from app.core.generated.customer_browser_protocol import CUSTOMER_API_PREFIX
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
-from app.db.models.score import RenderAssetKind
+from app.modules.score_assets.domain import RenderAssetKind
 from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRecord, ScoreAssetRepository
@@ -27,7 +28,6 @@ from app.modules.score_assets.schemas import (
 )
 from app.modules.scores.repository import ScoreRepository
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage
 
 
 class ScoreAssetService:
@@ -35,12 +35,14 @@ class ScoreAssetService:
         self,
         repository: ScoreAssetRepository | None = None,
         score_repository: ScoreRepository | None = None,
-        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
+        *,
+        delivery: MediaDeliveryService,
     ) -> None:
+        self.delivery = delivery
         self.repository = repository or ScoreAssetRepository()
         self.score_repository = score_repository or ScoreRepository()
-        self.storage = storage or object_storage
+        self.storage = delivery.storage
         self.access_policy = access_policy or ScoreAccessPolicy()
 
     def list_revision_assets(

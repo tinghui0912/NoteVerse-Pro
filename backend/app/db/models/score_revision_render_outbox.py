@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import enum
+import app.modules.revisions.render_states as render_states
+
 from datetime import datetime
 from typing import Optional
 
@@ -39,22 +40,13 @@ from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
-class ScoreRevisionRenderStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    DISPATCHED = "DISPATCHED"
-    PROCESSING = "PROCESSING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    SUPERSEDED = "SUPERSEDED"
-
-
 class ScoreRevisionRenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_revision_render_outbox"
     __table_args__ = (
         durable_failure_facts_constraint(name="ck_score_revision_render_outbox_failure_facts"),
         delivery_attempt_token_constraint(
             name="ck_score_revision_render_outbox_attempt_token",
-            processing_status=ScoreRevisionRenderStatus.PROCESSING,
+            processing_status=render_states.ScoreRevisionRenderStatus.PROCESSING,
         ),
         delivery_attempt_count_constraint(name="ck_score_revision_render_outbox_attempt_count"),
         UniqueConstraint(
@@ -100,11 +92,11 @@ class ScoreRevisionRenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         default=SCORE_PRESENTATION_RENDER_PROFILE,
         sa_column=Column(String(128), default=SCORE_PRESENTATION_RENDER_PROFILE, nullable=False),
     )
-    status: ScoreRevisionRenderStatus = Field(
-        default=ScoreRevisionRenderStatus.PENDING,
+    status: render_states.ScoreRevisionRenderStatus = Field(
+        default=render_states.ScoreRevisionRenderStatus.PENDING,
         sa_column=Column(
             SAEnum(
-                ScoreRevisionRenderStatus,
+                render_states.ScoreRevisionRenderStatus,
                 name="ck_score_revision_render_outbox_status",
                 native_enum=False,
                 create_constraint=True,
@@ -112,7 +104,7 @@ class ScoreRevisionRenderOutbox(SQLModel, table=True):  # type: ignore[call-arg]
                 values_callable=lambda cls: [value.value for value in cls],
                 length=16,
             ),
-            default=ScoreRevisionRenderStatus.PENDING,
+            default=render_states.ScoreRevisionRenderStatus.PENDING,
             nullable=False,
         ),
     )

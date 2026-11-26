@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from app.core.config import settings
 from app.core.settings.revision_metadata_delivery import RevisionMetadataDeliverySettings
-from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
 from app.modules.revisions.metadata_delivery import metadata_lifecycle
 from app.task_queue.schedule import build_beat_schedule
 

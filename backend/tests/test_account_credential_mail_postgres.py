@@ -1,5 +1,9 @@
 """Credential and source-mail lifecycle invariants on independent PostgreSQL sessions."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from queue import Queue
@@ -246,7 +250,9 @@ def test_score_tombstone_cancels_only_its_invitation_sources(credential_database
         mail.attempt_count = 1
         uuid, foreign_uuid = mail.outbox_uuid, foreign.outbox_uuid
         db.commit()
-        ScoreLifecycleService().admit_deletions(db, [score.score_uuid], 1)
+        ScoreLifecycleService(
+            deletion_executor=_media_wiring.build_score_deletion_executor()
+        ).admit_deletions(db, [score.score_uuid], 1)
         db.commit()
     with Session(credential_database) as db:
         mail = db.scalar(select(MailOutbox).where(MailOutbox.outbox_uuid == uuid))
@@ -278,7 +284,9 @@ def test_source_invalidation_rolls_back_with_score_tombstone(credential_database
         score, _, mail = invite(db)
         uuid = mail.outbox_uuid
         db.commit()
-        ScoreLifecycleService().admit_deletions(db, [score.score_uuid], 1)
+        ScoreLifecycleService(
+            deletion_executor=_media_wiring.build_score_deletion_executor()
+        ).admit_deletions(db, [score.score_uuid], 1)
         db.rollback()
         assert db.get(Score, score.id).deleted_at is None
         assert db.scalar(select(MailOutbox).where(MailOutbox.outbox_uuid == uuid)).text_body
@@ -567,7 +575,9 @@ def test_registration_mail_follows_replacement_verification_and_ttl(credential_d
         email="applicant@example.com", password="secret123", display_name="Applicant", locale="en"
     )
     with Session(credential_database) as db:
-        service = EmailVerificationService()
+        service = EmailVerificationService(
+            provision_storage=_resource_wiring.provision_storage_resources
+        )
         service.register(db, registration)
         first = db.scalar(select(MailOutbox))
         first_id = first.id
@@ -642,7 +652,11 @@ def test_batch_score_tombstones_cancel_complete_invitation_set(credential_databa
         foreign_id = foreign.outbox_uuid
         db.commit()
         assert (
-            len(ScoreLifecycleService().admit_deletions(db, ["owned-mail-2", "owned-mail-1"], 1))
+            len(
+                ScoreLifecycleService(
+                    deletion_executor=_media_wiring.build_score_deletion_executor()
+                ).admit_deletions(db, ["owned-mail-2", "owned-mail-1"], 1)
+            )
             == 2
         )
         db.commit()

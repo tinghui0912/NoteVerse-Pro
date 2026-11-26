@@ -4,8 +4,8 @@ import json
 
 from app.core.exceptions import ValidationException
 from app.db.models.practice_bundle import PracticeBundleRecord
-from app.modules.storage_objects.persistence import object_from_row
-from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
+from app.modules.media_storage.persistence import object_from_row
+from app.modules.media_storage.reads import StoredObjectReadTarget, read_admitted_bytes
 from app.modules.practice.score.artifact import (
     canonical_practice_artifact_bytes,
     practice_artifact_id,

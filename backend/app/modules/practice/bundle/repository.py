@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevisionPracticeBinding
-from app.db.models.practice_bundle import PracticeBundleRecord, PracticeBundleStatus
+from app.db.models.practice_bundle import PracticeBundleRecord
+from app.modules.practice.bundle.states import PracticeBundleStatus
 from app.shared.error_codes import CustomerErrorCode
 from .domain import PracticeBundleRef
 

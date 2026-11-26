@@ -1,6 +1,8 @@
 """Import terminal state, notification history and wake-ups share one commit."""
 
-from app.db.models.import_job import ImportArtifactKind
+from app.composition import storage_resources as _resource_wiring
+
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
@@ -23,7 +25,7 @@ from app.db.models import (
     Notification,
     RealtimeChange,
 )
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs import notifications, dispatch_service
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.realtime import publisher
@@ -71,7 +73,7 @@ def outcome(monkeypatch):
 
 
 def finish(db, lease, result):
-    service = ImportExecutionRecorder()
+    service = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
     if result == "success":
         service.finalize_success(db, lease)
     elif result == "failure":

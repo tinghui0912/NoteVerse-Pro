@@ -21,7 +21,7 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.main import app
-from app.modules.guest_previews.dependencies import get_guest_preview_service
+from app.api.resource_dependencies import get_guest_preview_service
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.responses import ApiErrorResponse
 

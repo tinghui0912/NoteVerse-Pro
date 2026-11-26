@@ -17,12 +17,14 @@ from app.core.exceptions import FileException, ValidationException
 from app.db.models import User, StoredObject
 from app.db.model_utils import require_persisted_id
 from sqlalchemy import select
+from app.modules.media_storage.reads import StoredObjectDelivery
 from app.modules.account.avatar_service import (
     AvatarService,
     AvatarFileTooLargeError,
     avatar_object_key,
 )
-from app.modules.account.dependencies import get_avatar_service, get_profile_service
+from app.modules.account.dependencies import get_profile_service
+from app.api.resource_dependencies import get_avatar_service
 from app.modules.account.profile_service import ProfileService
 from app.modules.account.schemas import (
     AvatarRead,
@@ -138,9 +140,11 @@ def read_avatar(
     )
     if current is None:
         raise ResourceNotFoundException("avatar", filename)
-    return RedirectResponse(
-        avatar_service.storage.download_url(current.object_key, content_type=current.content_type)
+    delivery = avatar_service.delivery.deliver(
+        StoredObjectDelivery.for_object(current, filename), public=True
     )
+    assert delivery.location is not None
+    return RedirectResponse(delivery.location, headers={"Cache-Control": delivery.cache_control})
 
 
 @router.delete(

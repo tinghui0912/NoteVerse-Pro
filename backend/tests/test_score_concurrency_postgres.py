@@ -1,5 +1,9 @@
 """Score metadata CAS and immutable revision head CAS are independent domains."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
@@ -11,12 +15,14 @@ from app.core.exceptions import ConflictException
 from app.db.models import Score, ScoreRevision
 from app.modules.revisions.schemas import RevisionRestoreRequest
 from app.modules.revisions.service import RevisionService
-from app.modules.revisions.writer import AppendRevisionWrite, revision_writer
-from app.db.models.score import RevisionOrigin
+from app.modules.revisions.writer import AppendRevisionWrite
+from app.modules.revisions.domain import RevisionOrigin
 from app.modules.scores.schemas import ScoreUpdateRequest
 from app.modules.scores.service import ScoreService
 from tests.test_revision_writer_postgres import database as database, initial, prepare
 from tests.test_score_revision_services import MUSICXML_2
+
+revision_writer = _media_wiring.build_revision_writer()
 
 
 def append(database, expected_head):
@@ -33,7 +39,10 @@ def append(database, expected_head):
 def update(database, expected_version=1, **patch):
     engine, storage = database
     with Session(engine) as db:
-        return ScoreService(storage=storage).update(
+        return ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        ).update(
             db, "score", 1, ScoreUpdateRequest(expected_metadata_version=expected_version, **patch)
         )
 
@@ -55,7 +64,10 @@ def test_observed_metadata_token_and_head_survive_the_other_domain_write(databas
         assert metadata.metadata_version == 2
         assert metadata.head_revision_id == new_head
     with Session(engine) as db:
-        read = ScoreService(storage=storage).get(db, "score", 1)
+        read = ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        ).get(db, "score", 1)
         assert read.metadata_version == 2
         assert read.display_title == "Renamed"
         assert read.head_revision_id == new_head
@@ -148,7 +160,11 @@ def test_restore_uses_observed_head_and_preserves_metadata_token(database):
     target = initial(database)
     head = append(database, target)
     with Session(engine) as db:
-        service = RevisionService(storage=storage)
+        service = RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
         with pytest.raises(ConflictException) as failure:
             service.restore(
                 db, "score", target, 1, RevisionRestoreRequest(expected_head_revision_id=target)
@@ -161,7 +177,10 @@ def test_restore_uses_observed_head_and_preserves_metadata_token(database):
         restored = service.restore(
             db, "score", target, 1, RevisionRestoreRequest(expected_head_revision_id=head)
         )
-        read = ScoreService(storage=storage).get(db, "score", 1)
+        read = ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        ).get(db, "score", 1)
         assert restored.revision_number == read.head_revision_number == 3
         assert read.head_revision_id == restored.revision_id
         assert read.metadata_version == 1

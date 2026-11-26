@@ -11,16 +11,18 @@ from app.db.models import (
     ScoreRenderAsset,
     ScorePlaybackAsset,
     ImportArtifact,
-    ImportArtifactKind,
     ImportJob,
     Upload,
     PerformanceTake,
     PerformanceTakeManifest,
 )
-from app.db.models.storage_usage import StorageUsageCategory as Category
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat, RenderAssetKind
-from app.db.models.playback import PlaybackAssetKind
-from app.modules.storage_inventory.composition import build_storage_inventory_registry
+from app.modules.import_jobs.domain import ImportArtifactKind
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.playback.domain import PlaybackAssetKind
+from app.composition.storage_inventory import build_storage_inventory_registry
 from app.modules.performance_takes.storage_inventory import PerformanceTakeStorageInventoryProvider
 from app.modules.uploads.storage_inventory import UploadStorageInventoryProvider
 from app.modules.scores.storage_inventory import ScoreInputStorageInventoryProvider

@@ -28,9 +28,9 @@ def test_storage_infrastructure_treats_domain_locators_as_opaque():
     }
     for folder in (
         "storage",
-        "modules/storage_objects",
-        "modules/storage_usage",
-        "modules/storage_quota",
+        "modules/media_storage",
+        "modules/storage_governance/usage",
+        "modules/storage_governance/quota",
     ):
         for path in (ROOT / folder).rglob("*.py"):
             tree = ast.parse(path.read_text(encoding="utf-8"))

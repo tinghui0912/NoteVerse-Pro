@@ -1,5 +1,8 @@
 from __future__ import annotations
-from app.modules.storage_objects.retirement import retire_after_release
+
+from app.modules.scores.input_asset_lifecycle import ScoreInputAssetLifecycle
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.retirement import retire_after_release
 
 from dataclasses import dataclass
 from sqlalchemy import select
@@ -13,11 +16,10 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionSource,
     StoredObject,
-    StorageUsageCategory,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.scores.cleanup_records import StorageUsageReleaseRecord
-from app.modules.scores.input_asset_lifecycle import score_input_asset_lifecycle
-from app.modules.storage_usage.service import storage_usage_service
+
 
 from .deletion_delivery import (
     ScoreDeletionDeliveryService,
@@ -36,7 +38,15 @@ class ScoreDeletionResult:
 class ScoreDeletionExecutor:
     """One permitted Score graph cleanup; the caller owns its transaction."""
 
-    def __init__(self, delivery: ScoreDeletionDeliveryService | None = None):
+    def __init__(
+        self,
+        delivery: ScoreDeletionDeliveryService | None = None,
+        *,
+        input_assets: ScoreInputAssetLifecycle,
+        usage: StorageUsageService,
+    ) -> None:
+        self.input_assets = input_assets
+        self.usage = usage
         self.delivery = delivery or ScoreDeletionDeliveryService()
 
     def execute(self, db: Session, lease: ScoreDeletionLease) -> ScoreDeletionResult:
@@ -133,7 +143,7 @@ class ScoreDeletionExecutor:
             for asset_uuid, storage_key, size_bytes in audio_rows
         )
         storage_keys.extend(storage_key for _, storage_key, _ in audio_rows)
-        released_input_objects = score_input_asset_lifecycle.release_score_inputs(
+        released_input_objects = self.input_assets.release_score_inputs(
             db, score_id=score_id, user_id=owner_user_id
         )
         representations = list(
@@ -143,7 +153,7 @@ class ScoreDeletionExecutor:
         db.delete(score)
         db.flush()
         for release in usage_releases:
-            storage_usage_service.record_release(
+            self.usage.record_release(
                 db,
                 user_id=owner_user_id,
                 category=release.category,

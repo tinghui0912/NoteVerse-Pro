@@ -8,18 +8,22 @@ from app.db.models import (
     PerformanceTakeManifest,
     PerformanceTakeUploadReservation as Reservation,
 )
-from app.composition.storage_resources import storage_quota_service
+from app.modules.storage_governance.quota.service import StorageQuotaService
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.performance_takes.upload_reservation.persistence import (
     lifecycle_from_row,
     apply_transition,
 )
-from app.shared.performance_take_upload import UploadReservationStatus as Status
+from app.modules.performance_takes.upload_reservation.states import (
+    UploadReservationStatus as Status,
+)
 from app.shared.time import utc_now
 
 
-def cleanup_account_take(db: Session, user_id: int) -> str:
-    storage_quota_service.lock_user(db, user_id)
+def cleanup_account_take(
+    db: Session, user_id: int, *, quota: StorageQuotaService, takes: PerformanceTakeService
+) -> str:
+    quota.lock_user(db, user_id)
     row = db.scalar(
         select(Reservation)
         .where(
@@ -34,7 +38,7 @@ def cleanup_account_take(db: Session, user_id: int) -> str:
     if row is not None:
         transition = lifecycle_from_row(row).cancel_for_account(now=utc_now())
         apply_transition(row, transition, now=utc_now())
-        storage_quota_service.release_hold(db, row.quota_hold_id)
+        quota.release_hold(db, row.quota_hold_id)
         return "progress"
     take = db.scalar(
         select(PerformanceTake)
@@ -43,7 +47,7 @@ def cleanup_account_take(db: Session, user_id: int) -> str:
         .limit(1)
     )
     if take is not None:
-        PerformanceTakeService().delete_take(db, user_id, take.manifest.take_uuid)
+        takes.delete_take(db, user_id, take.manifest.take_uuid)
         return "progress"
     return "busy" if account_take_cleanup_pending(db, user_id) else "empty"
 

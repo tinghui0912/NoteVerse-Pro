@@ -1,5 +1,9 @@
 """PostgreSQL hash-only credential invariants and serialized lifecycle commands."""
 
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from time import monotonic, sleep
@@ -45,7 +49,9 @@ def test_fresh_postgres_credential_constraints(credential_database):
     } == {("score_id",), ("token_hash",)}
     fk = inspector.get_foreign_keys("guest_preview_credentials")[0]
     assert fk["referred_table"] == "scores" and fk["options"]["ondelete"] == "CASCADE"
-    service = GuestPreviewService()
+    service = GuestPreviewService(
+        delivery=_resource_wiring.build_media_delivery_service(_storage_provider)
+    )
     with Session(engine) as db:
         issued = service.issue_credential(db, "preview", owner)
         db.commit()
@@ -87,7 +93,9 @@ def test_credential_commands_serialize_on_score_before_credential(
     credential_database, first, second
 ):
     engine, owner = credential_database
-    service = GuestPreviewService()
+    service = GuestPreviewService(
+        delivery=_resource_wiring.build_media_delivery_service(_storage_provider)
+    )
     with Session(engine) as db:
         original = (
             service.issue_credential(db, "preview", owner).token if first != "issue" else None

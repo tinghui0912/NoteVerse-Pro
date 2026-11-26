@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.modules.storage_governance.usage.service import StorageUsageService
+
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -8,10 +10,11 @@ from app.modules.uploads.repository import UploadRepository
 
 from app.core.config import settings
 from app.core.logger import logger
-from app.db.models import StoredObject, StorageUsageCategory
+from app.db.models import StoredObject
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.import_jobs.repository import ImportJobRepository
-from app.modules.storage_usage.service import storage_usage_service
-from app.modules.storage_objects.retirement import retire_after_release
+
+from app.modules.media_storage.retirement import retire_after_release
 from app.shared.time import utc_now
 
 
@@ -22,9 +25,9 @@ class JobMaintenanceResult:
 
 class ImportJobMaintenanceService:
     def __init__(
-        self,
-        repository: ImportJobRepository | None = None,
+        self, repository: ImportJobRepository | None = None, *, usage: StorageUsageService
     ) -> None:
+        self.usage = usage
         self.repository = repository or ImportJobRepository()
 
     def run(self, db: Session) -> JobMaintenanceResult:
@@ -40,7 +43,7 @@ class ImportJobMaintenanceService:
                 with db.begin_nested():
                     if upload.uploader_user_id is None:
                         raise RuntimeError("Orphan Upload requires an owner")
-                    storage_usage_service.committed_bytes(db, upload.uploader_user_id, lock=True)
+                    self.usage.committed_bytes(db, upload.uploader_user_id, lock=True)
                     uploads = UploadRepository()
                     upload = uploads.get_upload_by_uuid(db, upload.upload_uuid, lock=True)
                     if upload is None or uploads.upload_reference_count(db, upload.id) > 0:
@@ -49,7 +52,7 @@ class ImportJobMaintenanceService:
                     if blob is None:
                         raise RuntimeError("Orphan Upload is missing StoredObject authority")
                     if blob is not None and upload.uploader_user_id is not None and blob.byte_size:
-                        storage_usage_service.record_release(
+                        self.usage.record_release(
                             db,
                             user_id=upload.uploader_user_id,
                             category=StorageUsageCategory.UPLOAD,
@@ -71,6 +74,3 @@ class ImportJobMaintenanceService:
                     exception_type=type(exc).__name__,
                 ).opt(exception=exc).warning("Orphan upload deletion failed")
         return deleted
-
-
-job_maintenance_service = ImportJobMaintenanceService()

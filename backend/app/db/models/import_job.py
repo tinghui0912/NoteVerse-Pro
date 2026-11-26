@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import enum
+import app.modules.import_jobs.domain as import_states
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -40,25 +41,6 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 metadata_json_type = JSON().with_variant(JSONB, "postgresql")
 
 
-class ImportArtifactKind(enum.StrEnum):
-    REVIEW_MUSICXML = "review_musicxml"
-
-
-class ImportJobState(str, enum.Enum):
-    QUEUED = "QUEUED"
-    PROCESSING = "PROCESSING"
-    READY_FOR_REVIEW = "READY_FOR_REVIEW"
-    CONFIRMED = "CONFIRMED"
-    FAILED = "FAILED"
-
-
-class ImportJobStepStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-
-
 class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "import_jobs"
     __table_args__ = (
@@ -95,9 +77,9 @@ class ImportJob(SQLModel, table=True):  # type: ignore[call-arg]
     )
     job_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
-    state: ImportJobState = Field(
+    state: import_states.ImportJobState = Field(
         sa_column=Column(
-            SAEnum(ImportJobState, name="importjobstate"),
+            SAEnum(import_states.ImportJobState, name="importjobstate"),
             nullable=False,
         )
     )
@@ -163,9 +145,9 @@ class ImportJobStep(SQLModel, table=True):  # type: ignore[call-arg]
         )
     )
     name: str = Field(sa_column=Column(String(64), nullable=False))
-    status: ImportJobStepStatus = Field(
+    status: import_states.ImportJobStepStatus = Field(
         sa_column=Column(
-            SAEnum(ImportJobStepStatus, name="importjobstepstatus"),
+            SAEnum(import_states.ImportJobStepStatus, name="importjobstepstatus"),
             nullable=False,
         )
     )
@@ -219,10 +201,10 @@ class ImportArtifact(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    kind: ImportArtifactKind = Field(
+    kind: import_states.ImportArtifactKind = Field(
         sa_column=Column(
             SAEnum(
-                ImportArtifactKind,
+                import_states.ImportArtifactKind,
                 name="importartifactkind",
                 values_callable=lambda kind: [value.value for value in kind],
                 validate_strings=True,

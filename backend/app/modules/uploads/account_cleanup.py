@@ -4,8 +4,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from app.shared.integrity import ResourceIntegrityError
 from app.db.models import Upload, UploadCreationRequest, User
-from app.modules.storage_usage.service import storage_usage_service
-from .service import upload_service
+from app.modules.storage_governance.usage.service import StorageUsageService
+from .service import UploadService
 
 
 def has_account_uploads(db: Session, user_id: int) -> bool:
@@ -14,8 +14,10 @@ def has_account_uploads(db: Session, user_id: int) -> bool:
     )
 
 
-def cleanup_account_upload(db: Session, user_id: int) -> bool:
-    storage_usage_service.committed_bytes(db, user_id, lock=True)
+def cleanup_account_upload(
+    db: Session, user_id: int, *, usage: StorageUsageService, uploads: UploadService
+) -> bool:
+    usage.committed_bytes(db, user_id, lock=True)
     upload = db.scalar(
         select(Upload).where(Upload.uploader_user_id == user_id).order_by(Upload.id).limit(1)
     )
@@ -24,7 +26,7 @@ def cleanup_account_upload(db: Session, user_id: int) -> bool:
     user = db.get(User, user_id)
     if user is None or user.deleted_at is None:
         raise ResourceIntegrityError("Upload erasure requires its closed owner")
-    upload_service.delete_upload(db, user, upload.upload_uuid)
+    uploads.delete_upload(db, user, upload.upload_uuid)
     return True
 
 

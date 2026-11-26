@@ -1,6 +1,6 @@
 """Real foreign-key ownership and durable retirement behavior without a broker."""
 
-from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+from app.modules.media_storage.domain import StoredObjectRetirementStatus
 
 from contextlib import contextmanager
 from datetime import timedelta
@@ -12,15 +12,16 @@ from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 
 from app.db.models import StoredObject, StoredObjectRetirement, Upload, User
-from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.storage_objects.references import SEMANTIC_REFERENCES
-from app.modules.storage_objects.retirement import (
+from app.modules.media_storage.persistence import object_from_bytes
+from app.modules.media_storage.references import SEMANTIC_REFERENCES
+from app.modules.media_storage.retirement import (
     retire_after_release,
     retain_for_reference,
     retirement_delivery,
     delivery_lifecycle,
 )
 from app.worker.execution import stored_object_retirement as worker
+from app.modules.media_storage import retirement_execution
 from app.shared.time import utc_now
 from tests.support.object_storage import InMemoryObjectStorage
 
@@ -182,7 +183,9 @@ def test_failures_do_not_retire_live_or_unverified_bytes(retirement_db, monkeypa
     )
     monkeypatch.setattr(storage, "delete", delete)
     if failure == "foreign_key":
-        monkeypatch.setattr(worker, "stored_object_has_semantic_references", lambda *_: False)
+        monkeypatch.setattr(
+            retirement_execution, "stored_object_has_semantic_references", lambda *_: False
+        )
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "failed"
     assert delete.call_count == (1 if failure == "storage" else 0)
     assert storage.exists("immutable/object")
@@ -239,7 +242,7 @@ def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
         setattr(
             operation, field, now - timedelta(seconds=getattr(delivery_lifecycle().policy, timeout))
         )
-    monkeypatch.setattr("app.modules.storage_objects.retirement.utc_now", lambda: now)
+    monkeypatch.setattr("app.modules.media_storage.retirement.utc_now", lambda: now)
     with transaction() as db:
         assert retirement_delivery.recover_and_list_due(db) == [uuid]
         operation = retirement_delivery.get(db, uuid)

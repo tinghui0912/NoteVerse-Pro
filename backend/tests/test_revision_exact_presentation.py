@@ -1,5 +1,8 @@
 """Head-exact delivery and owner-exact disposal of derived presentation."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 from tests.support.retirement import drain_retirements
 
 
@@ -11,11 +14,11 @@ from app.db.models import (
     ScorePlaybackAsset,
     ScoreRevisionSource,
     ScoreRevision,
-    StorageUsageCategory,
     StorageUsageCounter,
     PlaybackOutbox,
-    PlaybackOutboxStatus,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.playback.domain import PlaybackOutboxStatus
 from app.modules.revisions.derived_asset_retention_service import DerivedAssetRetentionService
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.schemas import RevisionCreateRequest
@@ -23,7 +26,7 @@ from app.modules.scores.service import ScoreService
 from app.modules.playback.delivery import PlaybackDeliveryReadModel
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.guest_previews.service import GuestPreviewService
-from app.modules.storage_usage.service import storage_usage_service
+from app.composition.storage_resources import storage_usage_service
 from app.shared.error_codes import CustomerErrorCode
 from tests.test_revision_derivative_demand import revisions as revisions
 from tests.test_guest_previews import add_page, add_audio
@@ -59,7 +62,10 @@ def seed_assets(db, storage, rows):
 def test_head_projection_and_playback_do_not_read_other_revision(revisions):
     db, storage, score, rows = revisions
     seed_assets(db, storage, rows[:1])
-    detail = ScoreService(storage=storage).get(db, score.score_uuid, 1)
+    detail = ScoreService(
+        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    ).get(db, score.score_uuid, 1)
     assert detail.head_revision_id == rows[2].revision_uuid
     assert detail.derived_assets.model_dump() == {
         "preview": {"status": "processing", "asset_id": None},
@@ -77,8 +83,10 @@ def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode, mon
     db, storage, score, rows = revisions
     keys = seed_assets(db, storage, rows)
     if enabled:
-        GuestPreviewService(storage=storage).issue_credential(db, score.score_uuid, 1)
-    cleanup = DerivedAssetRetentionService()
+        GuestPreviewService(
+            delivery=_resource_wiring.build_media_delivery_service(storage)
+        ).issue_credential(db, score.score_uuid, 1)
+    cleanup = DerivedAssetRetentionService(usage=_resource_wiring.storage_usage_service)
     if mode == "async":
         result = cleanup.cleanup_for_score(db, score_id=score.id)
     elif mode == "sync":
@@ -133,10 +141,14 @@ def test_background_retention_disposes_old_head_while_new_derivatives_are_pendin
     db, storage, score, rows = revisions
     keys = seed_assets(db, storage, rows[2:])
     token = None
-    previews = GuestPreviewService(storage=storage)
+    previews = GuestPreviewService(delivery=_resource_wiring.build_media_delivery_service(storage))
     if active_preview:
         token = (previews.issue_credential(db, score.score_uuid, 1)).token
-    created = RevisionService(storage=storage).create(
+    created = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    ).create(
         db,
         score.score_uuid,
         1,
@@ -155,7 +167,9 @@ def test_background_retention_disposes_old_head_while_new_derivatives_are_pendin
         == PlaybackOutboxStatus.PENDING
     )
     assert db.scalar(select(ScoreRenderAsset)) is not None
-    DerivedAssetRetentionService().cleanup_for_score(db, score_id=score.id)
+    DerivedAssetRetentionService(usage=_resource_wiring.storage_usage_service).cleanup_for_score(
+        db, score_id=score.id
+    )
     db.commit()
     assert db.scalar(select(ScoreRenderAsset)) is None
     assert db.scalar(select(ScorePlaybackAsset)) is None

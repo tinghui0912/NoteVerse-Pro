@@ -15,12 +15,12 @@ from app.db.models import (
     User,
     RefreshToken,
     ImportJob,
-    ImportJobState,
     ImportDispatch,
     ScoreInvite,
     Score,
     MembershipRole,
 )
+from app.modules.import_jobs.domain import ImportJobState
 from app.shared.time import Instant, utc_now, require_utc
 from app.shared.api_model import ApiModel
 from app.shared.pagination import OffsetPage

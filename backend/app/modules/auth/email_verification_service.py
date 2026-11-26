@@ -14,7 +14,7 @@ from app.core.exceptions import ResourceAlreadyExistsException, ValidationExcept
 from app.db.models.auth import PendingRegistration
 from app.db.models.user import User
 from app.db.model_utils import require_persisted_id
-from app.composition.storage_resources import provision_storage_resources
+from collections.abc import Callable
 from app.modules.auth.schemas import RegisterRequest, VerifyEmailRequest
 from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
 from app.modules.account.email_identity import lock_email_identity
@@ -26,6 +26,9 @@ from app.shared.time import utc_now
 
 class EmailVerificationService:
     """Owns pending registrations and email verification tokens."""
+
+    def __init__(self, provision_storage: Callable[[Session, int], None]) -> None:
+        self.provision_storage = provision_storage
 
     def _hash_token(self, token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -155,7 +158,7 @@ class EmailVerificationService:
         )
         db.add(user)
         db.flush()
-        provision_storage_resources(db, require_persisted_id(user.id, entity="user"))
+        self.provision_storage(db, require_persisted_id(user.id, entity="user"))
         cancel_source_mail(
             db,
             MailSourceKind.REGISTRATION,

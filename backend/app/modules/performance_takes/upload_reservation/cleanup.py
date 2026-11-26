@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session
 from app.core.logger import logger
 from app.db.models.stored_object import StoredObject
 from app.db.models import PerformanceTake, PerformanceTakeUploadReservation, User
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 from app.modules.performance_takes.upload_reservation.persistence import (
     apply_transition,
     lifecycle_from_row,
 )
-from app.modules.storage_usage.service import StorageUsageService
-from app.modules.storage_quota.service import StorageQuotaService
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.storage_governance.quota.service import StorageQuotaService
 from app.storage.base import ObjectStorage
 from app.shared.time import utc_now
 
@@ -21,9 +21,13 @@ class UploadReservationCleanupService:
     """Bounded recovery and reference-aware cleanup of reservation-owned objects."""
 
     def cleanup_expired_reservations(
-        self, db: Session, storage: ObjectStorage, storage_usage_service: StorageUsageService
+        self,
+        db: Session,
+        storage: ObjectStorage,
+        storage_usage_service: StorageUsageService,
+        *,
+        quota: StorageQuotaService,
     ) -> int:
-        quota = StorageQuotaService(storage_usage_service)
         now = utc_now()
         ids = list(
             db.execute(

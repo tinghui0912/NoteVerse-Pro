@@ -2,7 +2,7 @@
 
 from tests.support.quota import quota_hold_fact
 
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 
 import hashlib
 from tests.test_performance_takes import VALID_WEBM_BYTES

@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from app.core.exceptions import ValidationException
 from app.shared.error_codes import CustomerErrorCode
 from app.db.models.performance_take import PerformanceTake
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_from_row
+from app.modules.media_storage.facts import StoredObjectFacts
+from app.modules.media_storage.persistence import object_from_row
 from .manifest import TakeManifest
 from .manifest_persistence import manifest_from_row
 

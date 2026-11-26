@@ -3,7 +3,7 @@
 from sqlmodel import SQLModel
 from app.db import models  # noqa: F401
 from app.modules.account.resource_ownership import ACCOUNT_RESOURCE_POLICIES
-from app.modules.storage_objects.references import SEMANTIC_REFERENCES
+from app.modules.media_storage.references import SEMANTIC_REFERENCES
 
 
 def test_every_user_foreign_key_has_an_explicit_account_erasure_policy():

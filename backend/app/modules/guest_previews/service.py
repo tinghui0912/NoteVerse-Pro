@@ -1,3 +1,4 @@
+from app.modules.media_storage.delivery import MediaDeliveryService
 from app.modules.score_access.queries import active_score_predicate
 import re
 
@@ -7,14 +8,13 @@ from app.modules.guest_previews.credentials import (
     issue_guest_preview_token,
     guest_preview_token_hash,
 )
-from app.storage import ObjectStorage
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.model_utils import require_persisted_id
 
 from app.core.exceptions import ResourceNotFoundException, ConflictException
 from app.db.models import GuestPreviewCredential, Score, ScoreRevision, User
-from app.db.models.score import RenderAssetKind
+from app.modules.score_assets.domain import RenderAssetKind
 from app.modules.guest_previews.schemas import (
     GuestPreviewCredentialIssuedRead,
     GuestPreviewSettingsRead,
@@ -25,21 +25,18 @@ from app.modules.playback.delivery import PlaybackDeliveryReadModel
 from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.storage_objects.reads import StoredObjectDelivery
+from app.modules.media_storage.reads import StoredObjectDelivery
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage
 
 
 class GuestPreviewService:
     """Owner settings and presentation-only bearer access to the current Score head."""
 
     def __init__(
-        self,
-        *,
-        storage: ObjectStorage | None = None,
-        access_policy: ScoreAccessPolicy | None = None,
+        self, *, access_policy: ScoreAccessPolicy | None = None, delivery: MediaDeliveryService
     ) -> None:
-        self.storage = storage or object_storage
+        self.delivery = delivery
+        self.storage = delivery.storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.assets = ScoreAssetRepository()
         self.playback = PlaybackDeliveryReadModel(access_policy=self.access_policy)

@@ -5,7 +5,8 @@ from app.db.models import StoredObject
 import pytest
 
 from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User, StoragePlanPolicy
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from scripts import seed_integration_user
 from tests.test_stored_object_retirement_postgres import retirement_postgres as retirement_postgres
 
@@ -56,14 +57,16 @@ async def test_seed_source_reservation_and_revision_have_explicit_durable_bounda
         return result
 
     monkeypatch.setattr(storage, "put_bytes", physical_put)
-    write = seed_integration_user.revision_writer.write
+    writer = seed_integration_user.build_revision_writer()
+    monkeypatch.setattr(seed_integration_user, "build_revision_writer", lambda: writer)
+    write = writer.write
 
     def reject_admission(*args, **kwargs):
         write(*args, **kwargs)
         raise RuntimeError("seed admission unavailable")
 
     if outcome == "writer_failure":
-        monkeypatch.setattr(seed_integration_user.revision_writer, "write", reject_admission)
+        monkeypatch.setattr(writer, "write", reject_admission)
     if outcome == "success":
         seed_integration_user.seed_user()
     else:

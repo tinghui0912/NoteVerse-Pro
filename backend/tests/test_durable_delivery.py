@@ -328,8 +328,8 @@ def test_generic_token_mutation_belongs_to_delivery_lifecycle():
 def test_domain_execution_leases_share_the_common_attempt_identity():
     from app.modules.import_jobs.dispatch_service import ImportExecutionLease
     from app.modules.scores.deletion_delivery import ScoreDeletionLease
-    from app.modules.storage_objects.retirement import RetirementAttempt
-    from app.modules.storage_objects.writes import CleanupAttempt
+    from app.modules.media_storage.retirement import RetirementAttempt
+    from app.modules.media_storage.write_cleanup import CleanupAttempt
 
     for lease_type in (ImportExecutionLease, ScoreDeletionLease, RetirementAttempt, CleanupAttempt):
         assert issubclass(lease_type, DeliveryAttemptLease)

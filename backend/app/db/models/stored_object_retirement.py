@@ -1,6 +1,7 @@
 """Durable operation evidence for retirement of an unreferenced physical object."""
 
-from enum import StrEnum
+import app.modules.media_storage.domain as media_states
+
 from datetime import datetime
 from uuid import uuid4
 
@@ -35,15 +36,6 @@ from app.db.durable_delivery import (
 from app.shared.time import utc_now
 
 
-class StoredObjectRetirementStatus(StrEnum):
-    PENDING = "PENDING"
-    DISPATCHED = "DISPATCHED"
-    PROCESSING = "PROCESSING"
-    FAILED = "FAILED"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
-
-
 class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "stored_object_retirements"
     __table_args__ = (
@@ -54,7 +46,7 @@ class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
         ),
         delivery_attempt_token_constraint(
             name="ck_stored_object_retirements_attempt_token",
-            processing_status=StoredObjectRetirementStatus.PROCESSING,
+            processing_status=media_states.StoredObjectRetirementStatus.PROCESSING,
         ),
         UniqueConstraint("stored_object_id", name="uq_object_retirement_object"),
         delivery_attempt_count_constraint(name="ck_object_retirement_attempts"),
@@ -80,11 +72,11 @@ class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
     byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     sha256: str = Field(sa_column=Column(String(64), nullable=False))
     content_type: str = Field(sa_column=Column(String(255), nullable=False))
-    status: StoredObjectRetirementStatus = Field(
-        default=StoredObjectRetirementStatus.PENDING,
+    status: media_states.StoredObjectRetirementStatus = Field(
+        default=media_states.StoredObjectRetirementStatus.PENDING,
         sa_column=Column(
             SAEnum(
-                StoredObjectRetirementStatus,
+                media_states.StoredObjectRetirementStatus,
                 native_enum=False,
                 create_constraint=True,
                 validate_strings=True,
@@ -93,7 +85,7 @@ class StoredObjectRetirement(SQLModel, table=True):  # type: ignore[call-arg]
                 length=24,
             ),
             nullable=False,
-            default=StoredObjectRetirementStatus.PENDING,
+            default=media_states.StoredObjectRetirementStatus.PENDING,
         ),
     )
     attempt_count: int = delivery_attempt_count_field()

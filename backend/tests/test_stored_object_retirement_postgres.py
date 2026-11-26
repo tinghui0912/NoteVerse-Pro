@@ -1,9 +1,12 @@
 """Real PostgreSQL retirement/reference fences across independent connections."""
 
+from app.composition import storage_resources as _resource_wiring
+
+
 from uuid import uuid4
 
-from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.media_storage.domain import StoredObjectRetirementStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 
 from app.db.models import StoragePlanPolicy, UserStorageEntitlement
 
@@ -29,16 +32,17 @@ from app.db.models import (
     User,
     StorageUsageAccount,
     StorageUsageCounter,
-    StorageUsageCategory,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.uploads.service import UploadService, blob_object_key
-from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.storage_objects.retirement import (
+from app.modules.media_storage.persistence import object_from_bytes
+from app.modules.media_storage.retirement import (
     retire_after_release,
     retirement_delivery,
     delivery_lifecycle,
 )
 from app.worker.execution import stored_object_retirement as worker
+from app.modules.media_storage import retirement_execution
 from app.shared.time import utc_now
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
@@ -105,7 +109,11 @@ def seed(fixture, *, prior_owner=False, queued=True):
             db.add(upload)
         db.commit()
         if prior_owner:
-            UploadService(storage=storage).delete_upload(db, db.get(User, 1), upload.upload_uuid)
+            UploadService(
+                quota=_resource_wiring.storage_quota_service,
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).delete_upload(db, db.get(User, 1), upload.upload_uuid)
             db.commit()
         elif queued:
             retire_after_release(db, identity)
@@ -123,7 +131,7 @@ def test_retirement_vs_upload_reacquisition_after_last_reference_release(
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres, prior_owner=prior_owner)
     entered, release = Event(), Event()
-    delete, lookup = storage.delete, worker._object
+    delete, lookup = storage.delete, retirement_execution._object
 
     def held_delete(key):
         entered.set()
@@ -136,7 +144,7 @@ def test_retirement_vs_upload_reacquisition_after_last_reference_release(
         return lookup(db, object_id)
 
     monkeypatch.setattr(
-        storage if worker_wins else worker,
+        storage if worker_wins else retirement_execution,
         "delete" if worker_wins else "_object",
         held_delete if worker_wins else held_lookup,
     )
@@ -145,7 +153,11 @@ def test_retirement_vs_upload_reacquisition_after_last_reference_release(
     def upload():
         with sessions() as db:
             pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-            return UploadService(storage=storage).create_upload(
+            return UploadService(
+                quota=_resource_wiring.storage_quota_service,
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).create_upload(
                 db,
                 db.get(User, 1),
                 UploadFile(
@@ -280,14 +292,14 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
     postgres_bundle, retirement_postgres, monkeypatch
 ):
     from tests.support.take_lifecycle import TakeLifecycleServices
-    from app.modules.storage_usage.service import storage_usage_service
+    from app.composition.storage_resources import storage_usage_service
     from app.db.models import (
         PerformanceTake,
         PerformanceTakeManifest,
         PerformanceTakeUploadReservation,
     )
     from app.modules.performance_takes.manifest_persistence import manifest_from_row
-    from app.modules.storage_objects.retirement import retain_for_reference
+    from app.modules.media_storage.retirement import retain_for_reference
     from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
 
     engine, sessions, storage = retirement_postgres
@@ -330,7 +342,11 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         reservation = db.scalar(select(PerformanceTakeUploadReservation))
         assert reservation is not None
         assert reservation.status is UploadReservationStatus.COMPLETED
-        UploadService(storage=storage).delete_upload(db, db.get(User, 1), upload.upload_uuid)
+        UploadService(
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).delete_upload(db, db.get(User, 1), upload.upload_uuid)
         db.commit()
         operation = db.scalar(select(StoredObjectRetirement))
         uuid = operation.retirement_uuid
@@ -368,7 +384,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
 def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
     retirement_postgres, monkeypatch, commit_reached_server
 ):
-    from app.modules.storage_objects.retirement import retain_for_reference
+    from app.modules.media_storage.retirement import retain_for_reference
 
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres)
@@ -423,7 +439,11 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
         assert operation.stored_object_id is None and operation.object_key == key
         assert operation.deletion_fenced_at is not None
     with sessions() as db:
-        uploaded = UploadService(storage=storage).create_upload(
+        uploaded = UploadService(
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).create_upload(
             db,
             db.get(User, 1),
             UploadFile(filename="rewritten.png", file=io.BytesIO(CONTENT)),
@@ -442,7 +462,8 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
 def test_retirement_failure_retains_fence_and_retries_missing_key_idempotently(
     retirement_postgres, monkeypatch, missing
 ):
-    from app.modules.storage_objects.writes import write_object, adopt_written_object
+
+    from app.modules.media_storage.adoption import adopt_written_object
 
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres)
@@ -461,7 +482,9 @@ def test_retirement_failure_retains_fence_and_retries_missing_key_idempotently(
         fence = operation.deletion_fenced_at
         assert fence is not None and db.get(StoredObject, identity) is not None
         # Even an existing matching receipt cannot manufacture active reference authority.
-        receipt = write_object(db, storage, key=key, content=CONTENT, content_type="image/png")
+        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+            key=key, content=CONTENT, content_type="image/png"
+        )
         with pytest.raises(ValueError, match="deletion"):
             adopt_written_object(db, receipt)
         db.rollback()
@@ -525,7 +548,7 @@ def test_retirement_worker_vs_practice_bundle_reacquisition(
         operations = practice_bundle_retention.retire_unowned(db, reference.id)
         db.commit()
     entered, release = Event(), Event()
-    remove, lookup = storage.delete, worker._object
+    remove, lookup = storage.delete, retirement_execution._object
 
     def blocked_delete(key):
         entered.set()
@@ -538,7 +561,7 @@ def test_retirement_worker_vs_practice_bundle_reacquisition(
         return lookup(db, identity)
 
     monkeypatch.setattr(
-        storage if worker_wins else worker,
+        storage if worker_wins else retirement_execution,
         "delete" if worker_wins else "_object",
         blocked_delete if worker_wins else before_object,
     )
@@ -579,7 +602,7 @@ def test_retirement_worker_vs_practice_bundle_reacquisition(
 def test_deletion_fence_commit_uncertainty_precedes_any_physical_delete(
     retirement_postgres, monkeypatch, commit_reached_server
 ):
-    from app.modules.storage_objects.retirement import retain_for_reference
+    from app.modules.media_storage.retirement import retain_for_reference
 
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres)
@@ -623,7 +646,7 @@ def test_fenced_reference_is_integrity_failure_without_reference_or_physical_del
 ):
     from unittest.mock import Mock
     from sqlalchemy.exc import IntegrityError
-    from app.modules.storage_objects.retirement import retain_for_reference
+    from app.modules.media_storage.retirement import retain_for_reference
 
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres)
@@ -664,7 +687,7 @@ def test_retirement_retry_exhaustion_preserves_fence_and_physical_evidence(
 ):
     from unittest.mock import Mock
     from app.core.config import settings
-    from app.modules.storage_objects.retirement import retain_for_reference, snapshot
+    from app.modules.media_storage.retirement import retain_for_reference, snapshot
 
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres)

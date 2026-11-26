@@ -1,5 +1,10 @@
 """Product tombstones and independently fenced Score deletion operations."""
 
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import timedelta
@@ -27,9 +32,9 @@ from app.db.models import (
     User,
     ScoreRevisionSource,
     StorageUsageAccount,
-    StorageUsageCategory,
     StoredObjectRetirement,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.main import app
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.deletion_delivery import (
@@ -37,7 +42,7 @@ from app.modules.scores.deletion_delivery import (
     StaleScoreDeletionAttempt,
 )
 from app.modules.scores.deletion_executor import ScoreDeletionExecutor
-from app.modules.storage_usage.service import storage_usage_service
+from app.composition.storage_resources import storage_usage_service
 from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.durable_work.failure import (
     DurableFailure,
@@ -113,7 +118,9 @@ def test_admission_commits_tombstone_operation_and_attempts_immediate_dispatch(
         "app.modules.scores.lifecycle_service.get_async_trace_context",
         lambda: ("traceparent", "tracestate"),
     )
-    ScoreLifecycleService().delete_score(db, score.score_uuid, 1)
+    ScoreLifecycleService(
+        deletion_executor=_media_wiring.build_score_deletion_executor()
+    ).delete_score(db, score.score_uuid, 1)
     operation = db.scalar(select(ScoreDeletionOperation))
     assert score.deleted_at is not None
     assert operation.status == Status.PENDING
@@ -128,7 +135,9 @@ def test_admission_failure_rolls_back_tombstone_and_operation(score_db):
     db, score = score_db
     db.commit = Mock(side_effect=RuntimeError("commit failed"))
     with pytest.raises(RuntimeError, match="commit failed"):
-        ScoreLifecycleService().delete_score(db, score.score_uuid, 1)
+        ScoreLifecycleService(
+            deletion_executor=_media_wiring.build_score_deletion_executor()
+        ).delete_score(db, score.score_uuid, 1)
     db.refresh(score)
     assert score.deleted_at is None
     assert db.scalar(select(func.count()).select_from(ScoreDeletionOperation)) == 0
@@ -141,7 +150,13 @@ async def test_http_delete_hides_resource_before_cleanup(score_db):
     from app.modules.collaboration.invite_lifecycle import hash_invite_token
     from app.modules.guest_previews.service import GuestPreviewService
 
-    guest_token = GuestPreviewService().issue_credential(db, score.score_uuid, 1).token
+    guest_token = (
+        GuestPreviewService(
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider)
+        )
+        .issue_credential(db, score.score_uuid, 1)
+        .token
+    )
     invite = ScoreInvite(
         invite_uuid="pending-deletion",
         score_id=score.id,
@@ -266,7 +281,10 @@ def test_expired_delivery_recovers_without_consuming_an_attempt(score_db, proces
         assert service.complete(db, lease) is False
         assert service.fail(db, lease, "stale failure") is False
         with pytest.raises(StaleScoreDeletionAttempt):
-            ScoreDeletionExecutor().execute(db, lease)
+            ScoreDeletionExecutor(
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+            ).execute(db, lease)
         assert operation.attempt_token == current.token
         assert service.complete(db, replace(current, token="wrong-token")) is False
         assert service.fail(db, replace(current, token="wrong-token"), "wrong token") is False
@@ -320,7 +338,11 @@ def test_cleanup_and_completion_commit_together_and_operation_survives(score_db)
     service = ScoreDeletionDeliveryService()
     lease = service.claim(db, operation.operation_uuid)
     db.commit()
-    result = ScoreDeletionExecutor(service).execute(db, lease)
+    result = ScoreDeletionExecutor(
+        service,
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+    ).execute(db, lease)
     db.commit()
     db.expire_all()
     operation = db.scalar(select(ScoreDeletionOperation))
@@ -350,7 +372,10 @@ def test_absent_score_reconciles_to_success(score_db):
     assert operation.score_id is None
     lease = ScoreDeletionDeliveryService().claim(db, operation.operation_uuid)
     db.commit()
-    result = ScoreDeletionExecutor().execute(db, lease)
+    result = ScoreDeletionExecutor(
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+    ).execute(db, lease)
     db.commit()
     assert result.scores_deleted == 0 and operation.status == Status.COMPLETED
 
@@ -377,7 +402,11 @@ def test_completion_failure_rolls_back_graph_accounting_and_retirements(
     db.commit()
     monkeypatch.setattr(service, "complete", Mock(return_value=False))
     with pytest.raises(StaleScoreDeletionAttempt):
-        ScoreDeletionExecutor(service).execute(db, lease)
+        ScoreDeletionExecutor(
+            service,
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+        ).execute(db, lease)
     db.rollback()
     assert db.get(Score, score_id).deleted_at is not None
     assert db.get(ScoreRevisionSource, source_id) is not None
@@ -480,7 +509,11 @@ def test_postgres_operation_constraints_indexes_and_retention(postgres_score):
         delivery = ScoreDeletionDeliveryService()
         lease = delivery.claim(db, operation.operation_uuid)
         db.commit()
-        ScoreDeletionExecutor(delivery).execute(db, lease)
+        ScoreDeletionExecutor(
+            delivery,
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+        ).execute(db, lease)
         db.commit()
         db.refresh(operation)
         assert db.get(Score, 500) is None and operation.score_id is None
@@ -500,7 +533,10 @@ async def test_postgres_concurrent_admission_creates_one_operation(postgres_scor
             barrier.wait(10)
             return super().lock_active_deletion_set(*args, **kwargs)
 
-    service = ScoreLifecycleService(repository=ConcurrentRepository())
+    service = ScoreLifecycleService(
+        repository=ConcurrentRepository(),
+        deletion_executor=_media_wiring.build_score_deletion_executor(),
+    )
 
     def delete():
         with Session(engine, expire_on_commit=False) as db:

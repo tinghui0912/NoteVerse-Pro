@@ -6,7 +6,7 @@ from alembic import command
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.db.models import Score, ScoreRevision, User
-from app.db.models.score import RevisionOrigin
+from app.modules.revisions.domain import RevisionOrigin
 from tests.support.postgres_schema import postgres_schema_database
 
 

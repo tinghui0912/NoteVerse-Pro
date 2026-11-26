@@ -1,10 +1,9 @@
 from __future__ import annotations
-from app.modules.storage_objects.retirement import retire_after_release
-from app.modules.storage_objects.writes import (
-    adopt_written_object,
-    receipt_for_intent,
-    ObjectWriteReceipt,
-)
+
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.retirement import retire_after_release
+from app.modules.media_storage.adoption import adopt_written_object, receipt_for_intent
+from app.modules.media_storage.write_contracts import ObjectWriteReceipt
 
 from datetime import datetime
 from typing import Optional
@@ -13,12 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.model_utils import require_persisted_id
-from app.db.models import (
-    ImportArtifact,
-    ImportJobStep,
-    StorageUsageCategory,
-)
-from app.db.models.import_job import ImportJobStepStatus
+from app.db.models import ImportArtifact, ImportJobStep
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.import_jobs.domain import ImportJobStepStatus
 from app.modules.durable_work.failure import (
     DurableFailure,
 )
@@ -29,8 +25,8 @@ from app.modules.import_jobs.dispatch_service import (
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.artifact_records import ImportJobStoredArtifactItem
 from app.modules.import_jobs.notifications import admit_import_processing_outcome
-from app.modules.storage_usage.service import storage_usage_service
-from app.db.models.import_job import ImportArtifactKind
+
+from app.modules.import_jobs.domain import ImportArtifactKind
 from app.shared.time import utc_now
 from app.modules.import_jobs.lifecycle import (
     IMPORT_EXECUTION_CLOSED_STATES,
@@ -43,9 +39,9 @@ from app.modules.import_jobs.lifecycle import (
 
 class ImportExecutionRecorder:
     def __init__(
-        self,
-        repository: ImportJobRepository | None = None,
+        self, repository: ImportJobRepository | None = None, *, usage: StorageUsageService
     ) -> None:
+        self.usage = usage
         self.repository = repository or ImportJobRepository()
 
     def start_execution(self, db: Session, lease: ImportExecutionLease) -> None:
@@ -166,7 +162,7 @@ class ImportExecutionRecorder:
             for artifact in self.repository.list_artifacts(db, job_id)
             if artifact.kind == kind
         ]
-        storage_usage_service.committed_bytes(db, job.user_id, lock=True)
+        self.usage.committed_bytes(db, job.user_id, lock=True)
         released_objects = self.repository.delete_artifacts_by_kind(db, job_id, kind)
         created: list[ImportArtifact] = []
         for item in items:
@@ -187,7 +183,7 @@ class ImportExecutionRecorder:
             db.add(artifact)
             created.append(artifact)
         for artifact_uuid, storage_key, size_bytes in previous:
-            storage_usage_service.record_release(
+            self.usage.record_release(
                 db,
                 user_id=job.user_id,
                 category=StorageUsageCategory.TEMP_IMPORT,
@@ -198,7 +194,7 @@ class ImportExecutionRecorder:
                 storage_key=storage_key,
             )
         for artifact in created:
-            storage_usage_service.record_allocation(
+            self.usage.record_allocation(
                 db,
                 user_id=job.user_id,
                 category=StorageUsageCategory.TEMP_IMPORT,
@@ -211,6 +207,3 @@ class ImportExecutionRecorder:
         # Acquire all write/adoption fences before old object retirement locks.
         retire_after_release(db, *released_objects)
         db.commit()
-
-
-import_execution_recorder = ImportExecutionRecorder()

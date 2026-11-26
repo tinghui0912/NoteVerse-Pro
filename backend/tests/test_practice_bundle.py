@@ -1,9 +1,11 @@
 """Content-only compilation and binding-first application reads."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
 
@@ -120,9 +122,9 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
         repository=repository,
         writer=writer,
         compiler=compiler,
-        storage=storage,
         asset_repository=assets,
         access_policy=Mock(authorize_revision=Mock(return_value=access)),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
     )
     db = Mock()
     with patch(
@@ -178,9 +180,9 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
         repository=repository,
         writer=writer,
         compiler=compiler,
-        storage=storage,
         asset_repository=assets,
         access_policy=Mock(authorize_revision=Mock(return_value=access)),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
     )
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
@@ -224,7 +226,6 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
         writer=writer,
         compiler=compiler,
         access_policy=policy,
-        storage=Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes())),
         asset_repository=Mock(
             canonical_source=Mock(
                 return_value=SimpleNamespace(
@@ -233,6 +234,9 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
                     )
                 )
             )
+        ),
+        writes=_resource_wiring.build_object_write_coordinator(
+            Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes()))
         ),
     )
     service.asset_repository.canonical_source.return_value.stored_object.id = 1

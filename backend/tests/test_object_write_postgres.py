@@ -1,5 +1,10 @@
 """Independent PostgreSQL connections prove write/adoption/cleanup fences."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+from tests.support.media_writes import persist_prepared_bytes
+
+
 from uuid import uuid4
 
 from app.composition.storage_resources import storage_quota_service
@@ -17,14 +22,10 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.db.models import ObjectWriteIntent, StoredObject, Upload, User
-from app.modules.storage_objects.writes import (
-    write_object,
-    prepare_write,
-    perform_write,
-    adopt_written_object,
-    lock_intent,
-    write_cleanup_delivery,
-)
+
+from app.modules.media_storage.write_intents import prepare_write, lock_intent
+from app.modules.media_storage.adoption import adopt_written_object
+from app.modules.media_storage.write_cleanup import write_cleanup_delivery
 from app.shared.time import utc_now
 from app.worker.execution import object_write_cleanup as worker
 from tests.test_stored_object_retirement_postgres import (
@@ -51,8 +52,9 @@ async def prepared(fixture, monkeypatch, *, written=True, cleanup=False):
     def create():
         with Session(engine) as db:
             receipt = prepare_write(db, facts())
+            db.commit()
             if written:
-                perform_write(db, storage, receipt, b"bytes")
+                persist_prepared_bytes(db, storage, receipt, b"bytes")
             if cleanup:
                 row = lock_intent(db, receipt.intent_uuid)
                 row.write_expires_at = utc_now() - timedelta(seconds=1)
@@ -83,7 +85,7 @@ async def test_writer_put_lock_blocks_cleanup_and_prepared_is_durable(
 
     def writing():
         with Session(engine) as db:
-            perform_write(db, storage, receipt, b"bytes")
+            persist_prepared_bytes(db, storage, receipt, b"bytes")
 
     def cleaning():
         with Session(engine) as db:
@@ -136,9 +138,16 @@ async def test_cleanup_delete_lock_blocks_new_generation(retirement_postgres, mo
     pid = []
 
     def writing():
-        with Session(engine) as db:
+        from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
+        def physical_session():
+            db = Session(engine)
             pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-            return write_object(db, storage, key=receipt.object_key, content=b"bytes")
+            return db
+
+        return ObjectWriteCoordinator(storage, physical_session).write_bytes(
+            key=receipt.object_key, content=b"bytes"
+        )
 
     new = None
     try:
@@ -260,7 +269,8 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
     from tests.test_score_revision_services import Session
 
     engine, sessions, storage = setup_worker(retirement_postgres, monkeypatch)
-    from app.db.models import StorageUsageAccount, StorageUsageCounter, StorageUsageCategory
+    from app.db.models import StorageUsageAccount, StorageUsageCounter
+    from app.modules.storage_governance.usage.domain import StorageUsageCategory
 
     with Session(engine) as db:
         if db.get(StoragePlanPolicy, "FREE") is None:
@@ -279,7 +289,11 @@ async def test_two_equal_files_uploads_share_key_and_both_commit(retirement_post
     def upload(name):
         with Session(engine, expire_on_commit=False) as db:
             user = db.get(User, 1)
-            return UploadService(storage=storage).create_upload(
+            return UploadService(
+                quota=_resource_wiring.storage_quota_service,
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).create_upload(
                 db,
                 user,
                 UploadFile(filename=name, file=io.BytesIO(image_bytes())),
@@ -368,8 +382,8 @@ async def test_bundle_creating_gc_during_put_leaves_only_cleanup_owned_bytes(
 
 @pytest.mark.asyncio
 async def test_retirement_of_reused_authority_forces_fresh_write(retirement_postgres, monkeypatch):
-    from app.modules.storage_objects.retirement import retire_after_release
-    from app.modules.storage_objects.persistence import object_from_bytes
+    from app.modules.media_storage.retirement import retire_after_release
+    from app.modules.media_storage.persistence import object_from_bytes
     from app.worker.execution import stored_object_retirement
 
     engine, sessions, storage = setup_worker(retirement_postgres, monkeypatch)
@@ -386,7 +400,9 @@ async def test_retirement_of_reused_authority_forces_fresh_write(retirement_post
             uuid = retire_after_release(db, obj.id)[0]
             db.commit()
             storage.put_bytes(key=facts().object_key, content=b"bytes")
-            receipt = write_object(db, storage, key=facts().object_key, content=b"bytes")
+            receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+                key=facts().object_key, content=b"bytes"
+            )
             assert lock_intent(db, receipt.intent_uuid).status == "ADOPTED"
             db.rollback()
         assert (
@@ -398,7 +414,9 @@ async def test_retirement_of_reused_authority_forces_fresh_write(retirement_post
                 adopt_written_object(db, receipt)
             db.rollback()
             assert db.scalar(select(StoredObject)) is None
-            current = write_object(db, storage, key=receipt.object_key, content=b"bytes")
+            current = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+                key=receipt.object_key, content=b"bytes"
+            )
             assert current.write_token != receipt.write_token
             obj = adopt_written_object(db, current)
             db.add(Upload(stored_object_id=obj.id, original_filename="fresh", uploader_user_id=1))
@@ -418,8 +436,8 @@ async def test_revision_rechecks_head_after_prewrite_commit(
         ScoreRevisionSource,
         StorageUsageAccount,
         StorageUsageCounter,
-        StorageUsageCategory,
     )
+    from app.modules.storage_governance.usage.domain import StorageUsageCategory
     from app.modules.revisions.service import RevisionService
     from app.modules.revisions.schemas import RevisionCreateRequest
     from app.core.exceptions import ConflictException
@@ -465,7 +483,11 @@ async def test_revision_rechecks_head_after_prewrite_commit(
     def edit():
         with Session(engine, expire_on_commit=False) as db:
             with pytest.raises(ConflictException):
-                RevisionService(storage=storage).create(
+                RevisionService(
+                    quota=_resource_wiring.storage_quota_service,
+                    revision_writer=_media_wiring.build_revision_writer(),
+                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                ).create(
                     db,
                     repository.test_score_uuid,
                     1,
@@ -484,15 +506,17 @@ async def test_revision_rechecks_head_after_prewrite_commit(
 
 
 def test_import_artifact_replacement_acquires_intent_before_released_object(retirement_postgres):
-    from app.db.models import ImportJob, ImportArtifact, ImportArtifactKind, ImportJobState
+    from app.db.models import ImportJob, ImportArtifact
+    from app.modules.import_jobs.domain import ImportArtifactKind
+    from app.modules.import_jobs.domain import ImportJobState
     from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
     from app.modules.import_jobs.requested_options import encode_requested_options
     from tests.support.import_execution import processing_lease
     from tests.support.storage_state import provision_storage_users
-    from app.modules.storage_usage.service import storage_usage_service
-    from app.db.models import StorageUsageCategory
-    from app.modules.storage_objects.references import stored_object_has_semantic_references
-    from app.modules.storage_objects.writes import lock_intent
+    from app.composition.storage_resources import storage_usage_service
+    from app.modules.storage_governance.usage.domain import StorageUsageCategory
+    from app.modules.media_storage.references import stored_object_has_semantic_references
+    from app.modules.media_storage.write_intents import lock_intent
     from tests.test_stored_object_retirement_postgres import assert_blocked
     from sqlalchemy import text
 
@@ -508,12 +532,8 @@ def test_import_artifact_replacement_acquires_intent_before_released_object(reti
         )
         db.add(job)
         db.commit()
-        receipt = write_object(
-            db,
-            storage,
-            key="artifact/replacement.xml",
-            content=b"<score/>",
-            content_type="application/xml",
+        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+            key="artifact/replacement.xml", content=b"<score/>", content_type="application/xml"
         )
         stored = adopt_written_object(db, receipt)
         db.add(
@@ -543,7 +563,7 @@ def test_import_artifact_replacement_acquires_intent_before_released_object(reti
         with sessions() as db:
             pids.append(db.scalar(text("SELECT pg_backend_pid()")))
             entered.set()
-            ImportExecutionRecorder().replace_artifacts(
+            ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service).replace_artifacts(
                 db,
                 lease,
                 ImportArtifactKind.REVIEW_MUSICXML,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.modules.storage_governance.usage.service import StorageUsageService
+
 
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
@@ -9,14 +11,14 @@ from app.shared.integrity import ResourceIntegrityError
 from app.db.models import (
     ImportArtifact,
     ImportDispatch,
-    ImportJobState,
     ImportJob,
     ImportJobUpload,
     ScoreInputAsset,
     StoredObject,
-    StorageUsageCategory,
     Upload,
 )
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.core.exceptions import (
     ResourceNotFoundException,
     UnauthorizedException,
@@ -24,8 +26,8 @@ from app.core.exceptions import (
 )
 from app.shared.error_codes import CustomerErrorCode
 from app.db.model_utils import require_persisted_id
-from app.modules.storage_usage.service import storage_usage_service
-from app.modules.storage_objects.retirement import retire_after_release
+
+from app.modules.media_storage.retirement import retire_after_release
 
 
 CUSTOMER_DELETABLE_IMPORT_JOB_STATES = frozenset(
@@ -35,6 +37,9 @@ CUSTOMER_DELETABLE_IMPORT_JOB_STATES = frozenset(
 
 class ImportJobDeletionService:
     """Delete import-job rows and their owned temporary storage artifacts."""
+
+    def __init__(self, *, usage: StorageUsageService) -> None:
+        self.usage = usage
 
     def cleanup_for_account(self, db: Session, user_id: int) -> bool:
         from app.db.models import User
@@ -98,7 +103,7 @@ class ImportJobDeletionService:
                 )
         elif not account_erasure and job.state == ImportJobState.PROCESSING:
             raise ValidationException(code=CustomerErrorCode.JOB_RUNNING, field="state")
-        storage_usage_service.committed_bytes(db, user_id, lock=True)
+        self.usage.committed_bytes(db, user_id, lock=True)
         uploads = self._orphan_uploads_after_job_delete(db, job_id)
         if any(upload.uploader_user_id != user_id for upload, _ in uploads):
             raise ResourceIntegrityError("Import Upload ownership disagrees with its Job")
@@ -137,7 +142,7 @@ class ImportJobDeletionService:
         for upload, _ in uploads:
             db.delete(upload)
         for category, kind, identity, key, size in releases:
-            storage_usage_service.record_release(
+            self.usage.record_release(
                 db,
                 user_id=user_id,
                 category=category,

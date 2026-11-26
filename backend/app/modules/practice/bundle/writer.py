@@ -1,5 +1,7 @@
 """Creation leases, representation writes and atomic Practice revision binding."""
 
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
 from .object_keys import practice_bundle_musicxml_object_key, practice_bundle_artifact_object_key
 
 from collections.abc import Callable
@@ -10,15 +12,14 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ValidationException
 from app.db.model_utils import require_persisted_id
-from app.db.models.practice_bundle import PracticeBundleRecord, PracticeBundleStatus
-from app.modules.storage_objects.writes import (
-    write_object,
-    adopt_written_object,
-    ObjectWriteReceipt,
-)
+from app.db.models.practice_bundle import PracticeBundleRecord
+from app.modules.practice.bundle.states import PracticeBundleStatus
+
+from app.modules.media_storage.adoption import adopt_written_objects
+from app.modules.media_storage.write_contracts import ObjectWriteItem
+from app.modules.media_storage.write_contracts import ObjectWriteReceipt
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
-from app.storage import ObjectStorage
 from .content import read_verified_bundle
 from .domain import PracticeBundle, PracticeBundleRef
 from .repository import PracticeBundleRepository
@@ -30,12 +31,13 @@ BUNDLE_CREATION_LEASE_SECONDS = 15 * 60
 class PracticeBundleWriter:
     def __init__(
         self,
-        storage: ObjectStorage,
         *,
         repository: PracticeBundleRepository | None = None,
         retention: PracticeBundleRetention | None = None,
-    ):
-        self.storage = storage
+        writes: ObjectWriteCoordinator,
+    ) -> None:
+        self.writes = writes
+        self.storage = writes.storage
         self.repository = repository or PracticeBundleRepository()
         self.retention = retention or practice_bundle_retention
 
@@ -58,7 +60,7 @@ class PracticeBundleWriter:
             # leaves semantic recovery and independent ObjectWriteIntent evidence.
             db.commit()
             receipts = self._prewrite_representations(db, candidate, creation_id)
-            # Prewrite commits release access locks. Reestablish live authorization
+            # Creation admission commits before IO. Reestablish live authorization
             # before inspecting bindings or adopting any physical representation.
             reauthorize_mutation()
             bound = self.repository.read_bound_for_update(db, revision_id)
@@ -98,29 +100,24 @@ class PracticeBundleWriter:
     def _prewrite_representations(
         self, db: Session, candidate: PracticeBundle, creation_id: int
     ) -> list[ObjectWriteReceipt]:
-        receipts = []
+        representations = (
+            (practice_bundle_musicxml_object_key(candidate.bundle_id), candidate.prepared_musicxml),
+            (
+                practice_bundle_artifact_object_key(candidate.bundle_id),
+                candidate.artifact.representation,
+            ),
+        )
         try:
-            for key, representation in [
-                (
-                    practice_bundle_musicxml_object_key(candidate.bundle_id),
-                    candidate.prepared_musicxml,
-                ),
-                (
-                    practice_bundle_artifact_object_key(candidate.bundle_id),
-                    candidate.artifact.representation,
-                ),
-            ]:
-                receipt = write_object(
-                    db,
-                    self.storage,
-                    key=key,
-                    content=representation.data,
-                    content_type=representation.mime_type,
+            receipts = self.writes.write_batch(
+                tuple(
+                    ObjectWriteItem(key, value.data, value.mime_type)
+                    for key, value in representations
                 )
+            )
+            for receipt, (_, representation) in zip(receipts, representations, strict=True):
                 if self.storage.read_bytes(receipt.object_key) != representation.data:
                     raise ValueError("Practice bundle storage read-back mismatch")
-                receipts.append(receipt)
-            return receipts
+            return list(receipts)
         except Exception as error:
             db.rollback()
             self.retention.discard_creation(db, creation_id)
@@ -144,8 +141,7 @@ class PracticeBundleWriter:
         if row.status == PracticeBundleStatus.CREATING:
             if row.creation_expires_at is None or row.creation_expires_at <= utc_now():
                 raise ValueError("Bundle creation lease expired")
-            prepared = adopt_written_object(db, receipts[0])
-            artifact = adopt_written_object(db, receipts[1])
+            prepared, artifact = adopt_written_objects(db, receipts)
             row.prepared_musicxml_object, row.artifact_object = prepared, artifact
             row.status, row.creation_expires_at = PracticeBundleStatus.READY, None
             db.flush()

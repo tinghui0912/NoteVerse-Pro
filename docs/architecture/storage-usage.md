@@ -14,7 +14,7 @@ capacity admission, durable holds and the composed customer storage-usage respon
 | `StorageUsageEvent` | Immutable allocation/release/correction audit evidence |
 
 Account and counters persist no reserved capacity or limits. The classification authority
-is `storage_usage.contracts.counts_toward_quota`: SOURCE, UPLOAD and INPUT_ASSET count;
+is `storage_governance.usage.contracts.counts_toward_quota`: SOURCE, UPLOAD and INPUT_ASSET count;
 DERIVED_RENDER, DERIVED_AUDIO and TEMP_IMPORT do not. Events keep
 `counts_toward_quota_snapshot` for historical interpretation. Events do not establish
 current resource ownership and are not replayed to reconstruct inventory.

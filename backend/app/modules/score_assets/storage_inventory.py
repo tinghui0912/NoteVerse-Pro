@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.models.score import Score, ScoreRevision, ScoreRenderAsset
 from app.db.models.playback import ScorePlaybackAsset
 from app.db.models.stored_object import StoredObject
-from app.db.models.storage_usage import StorageUsageCategory
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 
 
 class ScoreAssetStorageInventoryProvider:

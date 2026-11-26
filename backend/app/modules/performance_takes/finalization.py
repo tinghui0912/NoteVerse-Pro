@@ -1,5 +1,8 @@
 """Application orchestration and outer transaction ownership for Take finalization."""
 
+from app.modules.storage_governance.quota.service import StorageQuotaService
+from app.modules.media_storage.delivery import MediaDeliveryService
+
 from app.modules.account.resource_admission import lock_active_resource_user
 import asyncio
 from datetime import timedelta
@@ -11,10 +14,9 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.core.logger import logger
-from app.modules.storage_usage.service import StorageUsageService
+from app.modules.storage_governance.usage.service import StorageUsageService
 from app.shared.error_codes import CustomerErrorCode
 from app.storage import ObjectStorage
-from app.storage.factory import object_storage
 from app.shared.time import utc_now
 from .final_media import PerformanceTakeFinalMedia
 from .writer import PerformanceTakeWriter
@@ -27,7 +29,7 @@ from .upload_reservation.domain import (
     FinalizeLease,
     ReservationTransitionError,
 )
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 from .upload_reservation.persistence import lifecycle_from_row
 from .upload_reservation.effects import apply_reservation_transition
 from .upload_reservation.recovery import (
@@ -41,16 +43,21 @@ TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
 class PerformanceTakeFinalizationService:
     def __init__(
         self,
+        *,
+        quota: StorageQuotaService,
         repository: PerformanceTakeRepository | None = None,
-        storage: ObjectStorage | None = None,
-        storage_usage_service: StorageUsageService | None = None,
+        storage: ObjectStorage,
+        delivery: MediaDeliveryService,
+        storage_usage_service: StorageUsageService,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
-        usage = storage_usage_service or StorageUsageService()
-        self.media = PerformanceTakeFinalMedia(storage or object_storage)
-        self.writer = PerformanceTakeWriter(self.repository, usage)
-        self.recovery = PerformanceTakeFinalizationRecovery(self.repository, usage)
-        self.takes = PerformanceTakeService(repository=self.repository, storage=storage)
+        usage = storage_usage_service
+        self.media = PerformanceTakeFinalMedia(storage)
+        self.writer = PerformanceTakeWriter(self.repository, usage, quota=quota)
+        self.recovery = PerformanceTakeFinalizationRecovery(self.repository, usage, quota=quota)
+        self.takes = PerformanceTakeService(
+            repository=self.repository, delivery=delivery, usage=usage
+        )
 
     def finalize_take(self, db: Session, user_id: int, reservation_id: str) -> PerformanceTakeRead:
         lock_active_resource_user(db, user_id)

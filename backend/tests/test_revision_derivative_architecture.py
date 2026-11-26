@@ -94,7 +94,7 @@ def test_worker_generation_admission_and_completion_share_the_callers_transactio
             for node in ast.walk(function)
             if isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
-            and node.func.id == "adopt_written_object"
+            and node.func.id in {"adopt_written_object", "adopt_written_objects"}
         ]
         assert object_adoptions and all(
             gate.lineno < node.lineno < adoption.lineno for node in object_adoptions

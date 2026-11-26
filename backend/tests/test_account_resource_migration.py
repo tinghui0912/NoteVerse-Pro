@@ -1,5 +1,7 @@
 """Persisted Import replay lineage and Account schema upgrade safety."""
 
+from app.composition import storage_resources as _resource_wiring
+
 import hashlib
 import json
 import pytest
@@ -63,7 +65,7 @@ def test_populated_submission_upgrade_preserves_exact_replay_and_rejects_conflic
                 ).encode()
             ).hexdigest()
             assert job.submission_fingerprint == expected
-            service = ImportJobSubmissionService()
+            service = ImportJobSubmissionService(usage=_resource_wiring.storage_usage_service)
             result = service.submit(
                 db,
                 db.get(User, 1),

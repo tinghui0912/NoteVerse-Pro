@@ -1,5 +1,7 @@
 """Pipeline import-job context and shared runtime state."""
 
+from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
+
 import os
 import time
 from dataclasses import dataclass, field
@@ -16,10 +18,10 @@ from app.modules.import_jobs.dispatch_service import (
     StaleImportDispatchAttempt,
 )
 from app.processing.engines.omr import OmrSuccessResult
-from app.modules.import_jobs.execution_recorder import import_execution_recorder
-from app.modules.import_jobs.pipeline.artifact_recorder import replace_files
+
+from app.modules.import_jobs.pipeline.artifact_recorder import ImportArtifactRecorder
 from app.modules.import_jobs.pipeline.step_tracker import StepTracker
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 if TYPE_CHECKING:
     from app.modules.import_jobs.pipeline.base import Pipeline
@@ -29,6 +31,8 @@ if TYPE_CHECKING:
 class JobContext:
     """Mutable import-job state shared across pipeline steps."""
 
+    artifacts: ImportArtifactRecorder
+    recorder: ImportExecutionRecorder
     lease: ImportExecutionLease
     db: Session
     celery_task: CeleryTaskLike
@@ -70,7 +74,7 @@ class JobContext:
     def _upsert(self, name: str, **kwargs) -> None:
         """Persist step-tracking state."""
         try:
-            import_execution_recorder.upsert_step(self.db, self.lease, name=name, **kwargs)
+            self.recorder.upsert_step(self.db, self.lease, name=name, **kwargs)
         except StaleImportDispatchAttempt:
             raise
         except Exception as exc:
@@ -95,7 +99,7 @@ class JobContext:
     ) -> None:
         """Persist and log task progress updates."""
         try:
-            import_execution_recorder.record_progress(
+            self.recorder.record_progress(
                 self.db,
                 self.lease,
                 prog,
@@ -158,11 +162,11 @@ class JobContext:
 
         if not self.main_xml or not os.path.exists(self.main_xml):
             raise FileNotFoundError("Canonical MusicXML was not produced")
-        replace_files(self.lease, ImportArtifactKind.REVIEW_MUSICXML, [self.main_xml])
-        total_time = int(time.time() - self._start_ts)
-        import_execution_recorder.finalize_success(
-            self.db, self.lease, total_time_seconds=total_time
+        self.artifacts.replace_files(
+            self.lease, ImportArtifactKind.REVIEW_MUSICXML, [self.main_xml]
         )
+        total_time = int(time.time() - self._start_ts)
+        self.recorder.finalize_success(self.db, self.lease, total_time_seconds=total_time)
         logger.bind(
             event="import_pipeline.job_completed",
             job_id=self.job_id,

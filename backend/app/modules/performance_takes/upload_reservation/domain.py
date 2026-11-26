@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Literal
 
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 
 
 class ReservationInvariantError(ValueError):

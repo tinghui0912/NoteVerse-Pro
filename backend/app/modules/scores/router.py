@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
-from app.api.storage_streaming import stream_storage_object
+from app.api.media_delivery import deliver_media_object
+from app.modules.media_storage.delivery import DeliveryMode
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.fingering.schemas import FingeringRequest, FingeringResultRead
@@ -20,11 +21,8 @@ from app.modules.revisions.schemas import (
     RevisionRestoreRequest,
 )
 from app.modules.revisions.service import RevisionService
-from app.modules.scores.dependencies import (
-    get_fingering_service,
-    get_revision_service,
-    get_score_service,
-)
+from app.modules.scores.dependencies import get_fingering_service
+from app.api.resource_dependencies import get_revision_service, get_score_service
 from app.modules.scores.schemas import (
     ScoreBatchDeleteRequest,
     ScoreRead,
@@ -87,8 +85,9 @@ def download_score_input_asset(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = service.input_asset_delivery(db, score_id, asset_id, user_id)
-    return stream_storage_object(
-        storage=service.storage,
+    return deliver_media_object(
+        service=service.delivery,
+        mode=DeliveryMode.CONTROLLED_STREAM,
         target=delivery,
         attachment=True,
     )

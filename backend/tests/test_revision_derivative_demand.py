@@ -1,5 +1,8 @@
 """Durable presentation demand, post-commit relaying, and generation admission."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 
 from app.shared.time import utc_now
@@ -19,16 +22,17 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionSource,
     ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
     PlaybackOutbox,
-    PlaybackOutboxStatus,
     RevisionMetadataOutbox,
     ImportJob,
     ImportDispatch,
     ImportDispatchStatus,
 )
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.playback.domain import PlaybackOutboxStatus
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.playback import dispatch
 from app.modules.revisions import render_dispatch, metadata_dispatch
 from app.modules.revisions.post_commit import revision_post_commit, RevisionPostCommitCoordinator
@@ -127,7 +131,9 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
 ):
     db, storage, score, rows = revisions
     if enabled:
-        GuestPreviewService(storage=storage).issue_credential(db, score.score_uuid, 1)
+        GuestPreviewService(
+            delivery=_resource_wiring.build_media_delivery_service(storage)
+        ).issue_credential(db, score.score_uuid, 1)
     from app.worker.execution import score_revision_render_outbox, playback_outbox
 
     @contextmanager
@@ -140,7 +146,11 @@ def test_historical_revisions_are_not_generation_demand_and_never_runs_generator
     render = Mock(side_effect=AssertionError("Unexpected historical render"))
     audio = Mock(side_effect=AssertionError("Unexpected historical audio"))
     monkeypatch.setattr(score_revision_render_outbox, "_render_revision", render)
-    monkeypatch.setattr(playback_outbox.PlaybackGenerationService, "render_for_worker", audio)
+    monkeypatch.setattr(
+        playback_outbox,
+        "build_playback_generation_service",
+        lambda *_: Mock(render_for_worker=audio),
+    )
     for number in (1, 2):
         for work in work_rows(db, number):
             work.attempt_count = 2
@@ -273,7 +283,11 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
 
     monkeypatch.setattr(revision_post_commit, "dispatch_best_effort", after_commit)
     if operation == "save":
-        RevisionService(storage=storage).create(
+        RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).create(
             db,
             score.score_uuid,
             1,
@@ -283,7 +297,11 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
             ),
         )
     elif operation == "restore":
-        RevisionService(storage=storage).restore(
+        RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).restore(
             db,
             score.score_uuid,
             rows[0].revision_uuid,
@@ -305,9 +323,13 @@ def test_business_commit_precedes_immediate_dispatch_and_broker_failure_is_recov
         db.commit()
         db.add(ImportDispatch(job_id=850, status=ImportDispatchStatus.COMPLETED))
         db.commit()
-        ImportReviewService(storage=storage).confirm(
-            db, "confirm-demand", 1, ReviewConfirmRequest(content=MUSICXML_2)
-        )
+        ImportReviewService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).confirm(db, "confirm-demand", 1, ReviewConfirmRequest(content=MUSICXML_2))
     assert len(observed) == 1 and len(calls) == 3
     work = observed[0]
     render = db.scalar(
@@ -361,7 +383,7 @@ def test_preview_toggle_only_changes_access_state(revisions, monkeypatch):
     ]
     relay = Mock(side_effect=AssertionError("Toggle must not dispatch work"))
     monkeypatch.setattr(revision_post_commit, "dispatch_best_effort", relay)
-    service = GuestPreviewService(storage=storage)
+    service = GuestPreviewService(delivery=_resource_wiring.build_media_delivery_service(storage))
     for enabled in [True, False]:
         if enabled:
             service.issue_credential(db, score.score_uuid, 1)

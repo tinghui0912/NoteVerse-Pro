@@ -2,7 +2,7 @@
 
 import sqlalchemy as sa
 from alembic import command
-from app.modules.storage_objects.references import SEMANTIC_REFERENCES
+from app.modules.media_storage.references import SEMANTIC_REFERENCES
 from tests.support.postgres_schema import postgres_schema_database
 
 

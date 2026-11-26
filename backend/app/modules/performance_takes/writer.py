@@ -7,9 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.models.score import Score
 from app.db.models.performance_take import PerformanceTake
-from app.modules.storage_objects.persistence import object_to_row
-from app.modules.storage_usage.service import StorageUsageService
-from app.modules.storage_quota.service import StorageQuotaService
+from app.modules.media_storage.persistence import object_to_row
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.storage_governance.quota.service import StorageQuotaService
 from app.shared.time import utc_now
 from app.core.exceptions import ValidationException
 from app.shared.error_codes import CustomerErrorCode
@@ -23,11 +23,15 @@ from .upload_reservation.effects import apply_reservation_transition
 
 class PerformanceTakeWriter:
     def __init__(
-        self, repository: PerformanceTakeRepository, storage_usage_service: StorageUsageService
+        self,
+        repository: PerformanceTakeRepository,
+        storage_usage_service: StorageUsageService,
+        *,
+        quota: StorageQuotaService,
     ) -> None:
         self.repository = repository
         self.storage_usage_service = storage_usage_service
-        self.quota = StorageQuotaService(storage_usage_service)
+        self.quota = quota
 
     def adopt(
         self,

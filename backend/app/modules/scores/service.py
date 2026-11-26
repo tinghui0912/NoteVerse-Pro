@@ -1,6 +1,7 @@
 from __future__ import annotations
-from app.modules.storage_objects.reads import StoredObjectDelivery
-from app.storage import ObjectStorage
+
+from app.modules.media_storage.delivery import MediaDeliveryService
+from app.modules.media_storage.reads import StoredObjectDelivery
 
 
 from sqlalchemy import select
@@ -35,7 +36,6 @@ from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage
 from app.shared.time import utc_now
 
 
@@ -43,18 +43,18 @@ class ScoreService:
     def __init__(
         self,
         repository: ScoreRepository | None = None,
-        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        lifecycle_service: ScoreLifecycleService | None = None,
+        *,
+        lifecycle_service: ScoreLifecycleService,
+        delivery: MediaDeliveryService,
     ) -> None:
+        self.delivery = delivery
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or object_storage
+        self.storage = delivery.storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.lifecycle_service = lifecycle_service or ScoreLifecycleService(
-            repository=self.repository,
-        )
+        self.lifecycle_service = lifecycle_service
 
     def get(self, db: Session, score_uuid: str, user_id: int) -> ScoreRead:
         access = self.access_policy.authorize_score(

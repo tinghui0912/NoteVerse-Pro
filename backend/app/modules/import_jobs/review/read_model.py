@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
+from app.modules.media_storage.reads import StoredObjectReadTarget, read_admitted_bytes
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,8 +12,8 @@ from app.core.exceptions import (
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportArtifact, ImportJob, ImportJobUpload, StoredObject, Upload
-from app.db.models.import_job import ImportJobState
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.import_jobs.domain import ImportArtifactKind
 from app.modules.import_jobs.read_model import ImportJobReadModel
 from app.modules.import_jobs.requested_options import decode_requested_options
 from app.modules.import_jobs.review.schemas import (

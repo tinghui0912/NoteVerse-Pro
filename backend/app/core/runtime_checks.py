@@ -196,7 +196,7 @@ def check_database(_: bool = False) -> CheckResult:
 def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
     from app.db.session import engine
-    from app.db.models.storage_quota import StoragePlanCode
+    from app.modules.storage_governance.quota.states import StoragePlanCode
 
     try:
         with engine.connect() as connection:

@@ -4,7 +4,7 @@ NoteVerse uses one private `ObjectStorage` namespace per deployment. The capabil
 
 `StoredObject` in `app/db/models/stored_object.py` persists exactly `id`, `object_key`, `byte_size`, `sha256`, `content_type` and `created_at`. Its key is unique within the deployment namespace. Byte size is nonnegative. SHA-256 is a full lowercase digest and is not unique. Filename, user, product identity, authorization, generator and lifecycle belong to semantic owners.
 
-`modules/storage_objects/facts.py` validates the immutable `StoredObjectFacts` value. `persistence.py` is the physical-fact hydration/creation boundary. Application-verified complete bytes establish size and SHA; provider checksums and ETags do not establish durable SHA authority.
+`modules/media_storage/facts.py` validates the immutable `StoredObjectFacts` value. `persistence.py` is the physical-fact hydration/creation boundary. Application-verified complete bytes establish size and SHA; provider checksums and ETags do not establish durable SHA authority.
 
 ## Domain object-key authority
 
@@ -48,7 +48,9 @@ HTTP byte streaming uses `AsyncObjectReader` over the same namespace. Provider
 iterator construction and advancement cross its `asyncio.to_thread` boundary;
 the adapter owns scheduling only, with no database or domain policy.
 
-Server-created durable objects use `write_object()` with synchronous ObjectStorage.
+Server-created durable objects use `ObjectWriteCoordinator` with an independent SessionFactory
+and synchronous ObjectStorage. `write_batch()` prepares all intents atomically and finalizes
+the successful batch in one transaction. The coordinator never commits a business Session.
 Generation preparation and exact admission precede physical put; the intent row
 lock protects the physical mutation until WRITTEN finalization. PREPARED is durable
 before IO and WRITTEN is durable before semantic adoption. Failed or uncertain
@@ -65,7 +67,7 @@ physical deletion.
 ## Admitted reads
 
 A committed semantic reference to `StoredObject` admits the object's existence and
-immutable facts. `modules/storage_objects/reads.py` carries those persisted facts in
+immutable facts. `modules/media_storage/reads.py` carries those persisted facts in
 immutable read targets and deliveries. Normal list, readiness, authorization and
 delivery paths use database facts without provider HEAD probes. Revision sources
 and render assets expose their admitted facts. Derived-asset status follows asset rows
@@ -112,7 +114,7 @@ The server commits PREPARED before physical mutation. A separate transaction loc
 
 Adoption locks the WRITTEN intent, checks generation/facts/lease, and creates or retains the matching StoredObject. The semantic owner, quota effects and ADOPTED transition commit together. On rollback the write remains unadopted and cleanup-owned. An existing exact StoredObject needs no physical rewrite. Its intent records existing ADOPTED authority without speculative retention, and semantic attachment retains it under the retirement fence. If that authority retires before attachment, the receipt cannot create a new StoredObject; a fresh generation must write first. A matching SHA at another domain key grants no reuse.
 
-Prewrite transactions precede semantic mutation and require a clean semantic session. Domain application code reestablishes its parent admission after prewrite commits. Domain parent locks (Score/Revision, Bundle, User or ImportJob) precede intent locks during semantic adoption. User admission and Quota/Usage serialization precede Objects locks. The shared physical lock order is ObjectWriteIntent → StoredObject → StoredObjectRetirement. Retirement itself never needs a write-intent lock. Multiple representation writes finish before their one semantic replacement transaction begins.
+The coordinator owns independent prewrite transactions and never flushes, commits or rolls back a business session. Domain application code releases capacity/admission locks at its explicit command boundary before physical IO and reestablishes parent admission before adoption. Domain parent locks (Score/Revision, Bundle, User or ImportJob) precede intent locks during semantic adoption. User admission and Quota/Usage serialization precede Objects locks. The shared physical lock order is ObjectWriteIntent → StoredObject → StoredObjectRetirement. Retirement itself never needs a write-intent lock. Multiple representation writes finish before their one semantic replacement transaction begins.
 
 StorageUsage mutates and flushes accounting state inside the caller-owned transaction;
 its service and repository do not commit. Upload creation commits its StorageQuotaHold
@@ -140,7 +142,7 @@ neither authority and does not determine user/category allocation multiplicity.
 
 ## Semantic release and durable retirement
 
-StoredObject may be shared across domains by exact physical identity. The real semantic foreign keys are the ownership authority; `modules/storage_objects/references.py` enumerates every such reference. Physical deletion never follows a local-domain-only reference count.
+StoredObject may be shared across domains by exact physical identity. The real semantic foreign keys are the ownership authority; `modules/media_storage/references.py` enumerates every such reference. Physical deletion never follows a local-domain-only reference count.
 
 ```text
 
@@ -218,7 +220,7 @@ Unit/application tests use a test-only object-map adapter. `NOTEVERSE_TEST_OBJEC
 
 
 `ObjectWriteIntentStatus` and `StoredObjectRetirementStatus` each own their complete
-lifecycle vocabulary in their respective `app/db/models` modules. ORM status
+lifecycle vocabulary in `app/modules/media_storage/domain.py`. ORM status
 fields are enums; non-native SQLAlchemy Enum projects each VARCHAR(24) admission
 CHECK. Write/adoption, cleanup and retirement predicates and transitions consume
 their domain enum members. ObjectWriteIntent keeps physical-write states alongside
@@ -241,8 +243,8 @@ shared `object_storage` instance.
 
 | Call site | Class | Physical/semantic authority |
 | --- | --- | --- |
-| `app/modules/storage_objects/persistence.py`: `object_to_row`, `object_from_bytes`, `object_from_row` | A | Immutable fact mapping; the byte factory is used by fixtures, not product admission |
-| `app/modules/storage_objects/writes.py`: `prepare_object_write`, `prepare_write`, `perform_write`, `inspect_write`, `finalize_write`, `write_object` | A/B | Sole ordinary server put; committed PREPARED and WRITTEN generation phases |
+| `app/modules/media_storage/persistence.py`: `object_to_row`, `object_from_bytes`, `object_from_row` | A | Immutable fact mapping; the byte factory is used by fixtures, not product admission |
+| `app/modules/media_storage/write_coordinator.py`: `ObjectWriteCoordinator.write_bytes`, `write_batch`, `copy_object`; `write_intents.py` | A/B | Sole ordinary server put; committed PREPARED and WRITTEN generation phases |
 | Same file: `adopt_written_object`, `retain_existing_object`, `receipt_for_intent` | A/B | Exact intent/generation/fact verification and retirement-fenced reference admission |
 | `app/modules/uploads/service.py`: `create_upload` / `delete_upload` | A/B | Stable Upload command/capacity generation, canonical key write/adopt, UPLOAD allocation; no cross-domain SHA deduplication |
 | `app/modules/revisions/service.py`: `_append`; `writer.py`: `write`, `_unused` | A/B | Canonical source prewrite, parent re-admission, source/head/consequences/adoption/accounting; unused receipt releases capacity and remains intent cleanup-owned |
@@ -265,7 +267,7 @@ shared `object_storage` instance.
 | `app/modules/scores/deletion_executor.py`: `execute` | F | Score graph/source/assets/inputs release; retained Upload reclassification stays distinct from physical retirement |
 | `app/modules/performance_takes/service.py`: `delete_take` | F | Recording reference/accounting release and retirement; Manifest/reservation lineage remains |
 | `app/modules/practice/bundle/retention.py`: `_retire`, `retire_unowned`, `discard_creation`, `recover_stale_creating`, `collect_unowned_ready` | F/H | Binding/Bundle lifecycle selects semantic cleanup; no local physical reference-count substitute |
-| `app/modules/storage_objects/retirement.py`: `retain_for_reference`, `retire_if_unreferenced`, `retire_after_release` | B/F/G | StoredObject → retirement locks; all semantic FKs checked; durable deletion fence cannot be cancelled |
+| `app/modules/media_storage/retirement.py`: `retain_for_reference`, `retire_if_unreferenced`, `retire_after_release` | B/F/G | StoredObject → retirement locks; all semantic FKs checked; durable deletion fence cannot be cancelled |
 | `app/worker/execution/stored_object_retirement.py`: `_execute` | G | Sole formal-object physical deletion; committed deletion fence, attempt/snapshot/reference/FK validation, idempotent storage delete and retained history |
 | `app/worker/execution/object_write_cleanup.py`: `execute_object_write_cleanup_task` | H | Intent-generation cleanup only; existing matching StoredObject prevents physical deletion |
 | `app/modules/performance_takes/upload_reservation/cleanup.py`: `cleanup_expired_reservations` | E/H | Reservation-owned staging/candidate grace, lease and reference evidence; never formal recording retirement |
@@ -273,7 +275,7 @@ shared `object_storage` instance.
 | `app/storage/s3_compatible.py`; `app/storage/async_reader.py` | Adapter | Configured provider put/copy/delete/metadata/capability primitives; async scheduling carries no product ownership |
 | `scripts/verify_practice_acoustic_model_asset.py`: `verify_asset` | Deployment distribution | Manifest-identified model artifact, outside customer semantic resources: private-bucket validation, explicit conditional publish, metadata/full-byte verification; no StoredObject row or product quota |
 
-All nine semantic FKs are explicitly registered in `storage_objects/references.py`:
+All nine semantic FKs are explicitly registered in `media_storage/references.py`:
 Upload, Take recording, ImportArtifact, Revision source, render asset, playback asset,
 two Bundle representations and current User avatar. Each uses RESTRICT. Retirement's
 SET NULL FK retains operation evidence and is deliberately excluded from semantic
@@ -305,3 +307,35 @@ completion commit. Integrity failures stop automatic retry. The unified Ops proj
 exposes retirement UUIDs, never object keys or signed capabilities. Operator retry requires
 a reason and an audit event; Domain validation rejects active, completed or cancelled work
 and preserves every irreversible fence. No new reference is admitted after fencing.
+
+
+## Write and delivery composition
+
+`app/composition/storage_resources.py` constructs the accounting/quota authorities,
+ObjectWriteCoordinator and MediaDeliveryService. `app/composition/media_resources.py`
+assembles domain services with these dependencies. `app/api/resource_dependencies.py`
+is HTTP wiring; Worker execution invokes the same explicit factories independently
+of HTTP request sessions. Business services import neither composition module.
+
+| Producer | Write command | Semantic transaction |
+| --- | --- | --- |
+| UploadService.create_upload | write_bytes | Upload + consumed hold + UPLOAD allocation + adopted intent |
+| RevisionService._append | write_bytes | Revision source + SOURCE allocation + consumed hold |
+| ImportReviewService.confirm / update | write_bytes | Revision or ImportArtifact + matching logical release/allocation |
+| ImportArtifactRecorder.prepare_file_item | write_bytes | ImportExecutionRecorder attaches the artifact under execution lease |
+| AvatarService.replace_user_avatar | write_bytes | Current User avatar + previous reference retirement |
+| ScoreRevisionRenderService._render_records | write_batch | All rendered page references + usage replacement + render completion |
+| PlaybackGenerationService | write_bytes | Audio reference + usage replacement + playback completion |
+| PracticeBundleWriter._prewrite_representations | write_batch | Both object references + READY bundle + revision binding |
+| Deployment seed tooling | write_bytes | Canonical revision persistence participant |
+
+`adopt_written_objects()` acquires every Intent in canonical key order before any
+StoredObject lock. It returns objects in caller receipt order without committing.
+Physical write failure leaves cleanup intent evidence even if semantic adoption never
+starts. The cleanup worker supplies transaction boundaries to `clean_write_attempt()`;
+formal retirement execution belongs to media_storage and retains snapshot/fence checks.
+
+MediaDeliveryService issues signed capabilities after business authorization and
+chooses signed redirect or controlled streaming through DeliveryPolicy. See
+[ADR delivery contracts](../adr/0009-media-storage-refoundation.md#executable-delivery-contracts)
+for the exact endpoint matrix and binary Range response contracts.

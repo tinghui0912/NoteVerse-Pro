@@ -1,6 +1,6 @@
 """Bindings own Bundle lifetime; each representation retires independently."""
 
-from app.db.models.practice_bundle import PracticeBundleStatus
+from app.modules.practice.bundle.states import PracticeBundleStatus
 
 from tests.support.practice_bundle import bind_bundle
 
@@ -18,7 +18,7 @@ from app.db.models import (
     Upload,
 )
 from app.modules.practice.bundle.retention import practice_bundle_retention
-from app.modules.storage_objects.retirement import retire_after_release
+from app.modules.media_storage.retirement import retire_after_release
 from app.shared.time import utc_now
 from tests.test_performance_takes import (
     test_env as test_env,
@@ -136,7 +136,7 @@ def test_creation_write_failure_queues_both_representations_without_binding(test
     assert db.scalar(select(StoredObject)) is None
     assert db.scalar(select(StoredObjectRetirement)) is None
     assert sorted(row.status for row in db.scalars(select(ObjectWriteIntent))) == [
-        "PREPARED",
-        "WRITTEN",
+        "CLEANUP_PENDING",
+        "CLEANUP_PENDING",
     ]
     assert all(result["status"] == "cleaned" for result in drain_write_cleanup(db, storage))

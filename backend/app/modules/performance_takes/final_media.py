@@ -6,7 +6,7 @@ import hmac
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.shared.error_codes import CustomerErrorCode
 from app.storage import ObjectStorage
-from app.modules.storage_objects.facts import StoredObjectFacts
+from app.modules.media_storage.facts import StoredObjectFacts
 from .manifest import TakeManifest
 from .recording_media_admission import (
     normalize_recording_mime,

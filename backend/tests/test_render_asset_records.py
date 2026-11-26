@@ -2,13 +2,13 @@ from types import SimpleNamespace
 from typing import cast
 
 from app.db.models import ScoreRenderAsset
-from app.db.models.score import RenderAssetKind
+from app.modules.score_assets.domain import RenderAssetKind
 from app.modules.score_assets.render_asset_records import (
     build_render_asset_record,
     render_asset_usage,
     rendered_page_object_key,
 )
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 
 
 def test_rendered_page_object_key_uses_profile_and_page_scoped_asset_path() -> None:

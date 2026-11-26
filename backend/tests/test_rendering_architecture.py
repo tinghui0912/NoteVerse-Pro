@@ -6,7 +6,8 @@ from typing import get_type_hints
 from pathlib import Path
 
 from sqlalchemy import UniqueConstraint
-from app.db.models import ScoreRevisionRenderOutbox, ScoreRevisionRenderStatus
+from app.db.models import ScoreRevisionRenderOutbox
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
 from app.modules.revisions.render_delivery import _delivery_lifecycle, revision_render_delivery
 from app.modules.revisions.render_target import ScoreRevisionRenderTarget
 from app.modules.durable_work.delivery import DurableDeliveryLifecycle
@@ -75,7 +76,7 @@ def test_renderer_capability_and_revision_execution_have_distinct_owners():
         "traceparent",
         "tracestate",
     }
-    assert "app.modules.score_assets.score_revision_rendering" in imports(
+    assert "app.composition.media_resources" in imports(
         "worker/execution/score_revision_render_outbox.py"
     )
     assert "app.modules.revisions.render_delivery" in imports(
@@ -100,7 +101,7 @@ def test_revision_render_asset_mutation_requires_durable_execution_ownership():
         assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
         assert parameter.default is inspect.Parameter.empty
     assert get_type_hints(execution)["lease"] is DeliveryAttemptLease
-    assert set(inspect.signature(ScoreRevisionRenderService).parameters) == {"storage"}
+    assert set(inspect.signature(ScoreRevisionRenderService).parameters) == {"writes", "usage"}
 
 
 def test_rendered_page_variant_identity_is_required_in_persistence_and_public_contract():

@@ -1,9 +1,17 @@
 """Import confirmation commits provenance, revision admission, notification enrichment and release together."""
 
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+
 from app.composition.storage_resources import storage_quota_service
 
 from app.modules.import_jobs.requested_options import encode_requested_options
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 from tests.support.storage_state import provision_storage_users
 
@@ -35,7 +43,6 @@ from app.db.models import (
     PlaybackOutbox,
     RevisionMetadataOutbox,
     ScoreInputAsset,
-    StorageUsageCategory,
     StorageUsageCounter,
     StorageUsageEvent,
     ObjectWriteIntent,
@@ -43,13 +50,14 @@ from app.db.models import (
     RealtimeChange,
     RealtimeStreamState,
 )
-from app.db.models.import_job import ImportJobState
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.review import service as review
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.notifications import admit_import_processing_outcome
-from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.storage_usage.service import storage_usage_service
+from app.modules.media_storage.persistence import object_from_bytes
+from app.composition.storage_resources import storage_usage_service
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
@@ -148,7 +156,13 @@ def confirmation(monkeypatch, request):
 def confirm(engine, storage):
     with Session(engine, expire_on_commit=False) as db:
         return (
-            review.ImportReviewService(storage=storage)
+            review.ImportReviewService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            )
             .confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
             .score_id
         )
@@ -186,7 +200,13 @@ def test_confirmation_initializes_display_title_from_explicit_precedence(
         db.commit()
         processing_finished_at = job.processing_finished_at
         processing_started_at = job.processing_started_at
-        result = review.ImportReviewService(storage=storage).confirm(
+        result = review.ImportReviewService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).confirm(
             db,
             "job",
             1,
@@ -196,9 +216,13 @@ def test_confirmation_initializes_display_title_from_explicit_precedence(
         assert confirmed_at is not None
         assert job.processing_started_at == processing_started_at
         assert job.processing_finished_at == processing_finished_at
-        repeated = review.ImportReviewService(storage=storage).confirm(
-            db, "job", 1, ReviewConfirmRequest(content=content, display_title=explicit)
-        )
+        repeated = review.ImportReviewService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).confirm(db, "job", 1, ReviewConfirmRequest(content=content, display_title=explicit))
         assert repeated.score_id == result.score_id and job.confirmed_at == confirmed_at
         drain_revision_metadata(db, storage)
         score = db.scalar(sa.select(Score).where(Score.score_uuid == result.score_id))
@@ -223,7 +247,13 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
         job.requested_options = encode_requested_options({})
         db.commit()
         score_id = (
-            review.ImportReviewService(storage=storage)
+            review.ImportReviewService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            )
             .confirm(
                 db,
                 "job",
@@ -250,7 +280,11 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
         db.commit()
 
         edited = content.replace("Moonlight Sonata", "Moonlight Sonata — edited notation")
-        RevisionService(storage=storage).create(
+        RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).create(
             db,
             score_id,
             1,
@@ -294,7 +328,10 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
             m.revision_id: m.notation_title for m in db.scalars(sa.select(ScoreRevisionMetadata))
         }
 
-        ScoreService(storage=storage).update(
+        ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        ).update(
             db,
             score_id,
             1,
@@ -393,13 +430,13 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
         raise RuntimeError("confirmation interrupted")
 
     if stage == "writer":
-        original = review.revision_writer.write
+        original = review.RevisionWriter.write
 
         def write(*args, **kwargs):
             original(*args, **kwargs)
             interrupted()
 
-        monkeypatch.setattr(review.revision_writer, "write", write)
+        monkeypatch.setattr(review.RevisionWriter, "write", write)
     if stage in {"confirmed", "release"}:
         original = review.ImportJobDeletionService.cleanup_binary_artifacts
 
@@ -434,9 +471,13 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
 
             monkeypatch.setattr(adapter, "commit", commit)
         with pytest.raises(RuntimeError, match="confirmation interrupted"):
-            review.ImportReviewService(storage=storage).confirm(
-                adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
-            )
+            review.ImportReviewService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).confirm(adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
         db.rollback()
         assert snapshot(db) == before
         job = db.scalar(sa.select(ImportJob))
@@ -511,14 +552,14 @@ def test_concurrent_confirmation_admits_one_complete_import_transaction(
         before = realtime_rows(db)
         assert len(before) == 2
     barrier = Barrier(2)
-    original = review.write_object
+    original = ObjectWriteCoordinator.write_batch
 
     def paused(*args, **kwargs):
         result = original(*args, **kwargs)
         barrier.wait(15)
         return result
 
-    monkeypatch.setattr(review, "write_object", paused)
+    monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", paused)
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _: confirm(engine, storage), range(2)))
     assert results[0] == results[1]
@@ -589,13 +630,22 @@ def test_confirmation_and_deletion_serialize_on_dispatch_before_job(
                 waiting_pid.put(db.scalar(sa.text("SELECT pg_backend_pid()")))
             try:
                 if kind == "confirm":
-                    return review.ImportReviewService(storage=storage).confirm(
+                    return review.ImportReviewService(
+                        quota=_resource_wiring.storage_quota_service,
+                        revision_writer=_media_wiring.build_revision_writer(),
+                        input_assets=_media_wiring.build_input_asset_lifecycle(),
+                        usage=_resource_wiring.storage_usage_service,
+                        writes=_resource_wiring.build_object_write_coordinator(storage),
+                    ).confirm(
                         db,
                         "job",
                         1,
                         ReviewConfirmRequest(content=MUSICXML_1.decode()),
                     )
-                ImportJobService().delete(db, "job", 1)
+                ImportJobService(
+                    usage=_resource_wiring.storage_usage_service,
+                    delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                ).delete(db, "job", 1)
                 db.commit()
             except (ResourceNotFoundException, ValidationException) as exc:
                 db.rollback()
@@ -634,10 +684,17 @@ def test_import_commands_wait_on_dispatch_without_holding_job(confirmation, comm
             pid.put(db.scalar(sa.text("SELECT pg_backend_pid()")))
             adapter = db
             if command_kind == "confirm":
-                return review.ImportReviewService(storage=storage).confirm(
-                    adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
-                )
-            result = ImportJobService().delete(adapter, "job", 1)
+                return review.ImportReviewService(
+                    quota=_resource_wiring.storage_quota_service,
+                    revision_writer=_media_wiring.build_revision_writer(),
+                    input_assets=_media_wiring.build_input_asset_lifecycle(),
+                    usage=_resource_wiring.storage_usage_service,
+                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                ).confirm(adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
+            result = ImportJobService(
+                usage=_resource_wiring.storage_usage_service,
+                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            ).delete(adapter, "job", 1)
             db.commit()
             return result
 
@@ -662,7 +719,8 @@ def test_import_commands_wait_on_dispatch_without_holding_job(confirmation, comm
 
 def test_confirmed_revision_render_adopts_its_first_pages(confirmation, monkeypatch):
     from sqlalchemy.orm import sessionmaker
-    from app.db.models import ScoreRenderAsset, ScoreRevisionRenderStatus
+    from app.db.models import ScoreRenderAsset
+    from app.modules.revisions.render_states import ScoreRevisionRenderStatus
     from app.modules.rendering.renderer import RenderedPage
     from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
     from app.worker.execution import score_revision_render_outbox as worker
@@ -672,22 +730,29 @@ def test_confirmed_revision_render_adopts_its_first_pages(confirmation, monkeypa
     with Session(engine) as db:
         assert db.scalar(sa.select(Score)) is None
         assert db.scalar(sa.select(ScoreRevisionRenderOutbox)) is None
-        review.ImportReviewService(storage=storage).confirm(
-            db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
-        )
+        review.ImportReviewService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
         outbox = db.scalar(sa.select(ScoreRevisionRenderOutbox))
         uuid = outbox.outbox_uuid
         assert outbox.render_profile == SCORE_PRESENTATION_RENDER_PROFILE
         assert db.scalar(sa.select(ScoreRenderAsset)) is None
         assert db.scalar(sa.select(RevisionMetadataOutbox)) is not None
         assert db.scalar(sa.select(PlaybackOutbox)) is not None
-    renderer = ScoreRevisionRenderService(storage=storage)
+    renderer = ScoreRevisionRenderService(
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     monkeypatch.setattr(
         renderer,
         "_render_pages",
         lambda *_: [RenderedPage(1, b"<svg>page</svg>", "image/svg+xml", ".svg", "test-renderer")],
     )
-    monkeypatch.setattr(worker, "ScoreRevisionRenderService", lambda: renderer)
+    monkeypatch.setattr(worker, "build_render_service", lambda: renderer)
     monkeypatch.setattr(worker, "SessionLocal", sessionmaker(engine))
     assert worker.execute_score_revision_render_task(None, uuid)["status"] == "rendered"
     with Session(engine) as db:
@@ -707,12 +772,14 @@ def test_shared_upload_promotions_and_last_input_release_match_semantic_inventor
     from app.db.models import ScoreDeletionOperation
     from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService
     from app.modules.scores.deletion_executor import ScoreDeletionExecutor
-    from app.modules.storage_inventory.composition import build_storage_inventory_registry
-    from app.modules.storage_usage.reconciliation import StorageUsageReconciliation
+    from app.composition.storage_inventory import build_storage_inventory_registry
+    from app.modules.storage_governance.usage.reconciliation import StorageUsageReconciliation
     from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 
     engine, storage = confirmation
-    reconciliation = StorageUsageReconciliation(build_storage_inventory_registry())
+    reconciliation = StorageUsageReconciliation(
+        build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+    )
 
     def assert_usage(db, uploads, inputs):
         report = reconciliation.inspect_user(db, 1)
@@ -777,7 +844,13 @@ def test_shared_upload_promotions_and_last_input_release_match_semantic_inventor
             )
         db.commit()
         assert_usage(db, 8, 0)
-        service = review.ImportReviewService(storage=storage)
+        service = review.ImportReviewService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
         first = service.confirm(
             db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
         ).score_id
@@ -798,13 +871,19 @@ def test_shared_upload_promotions_and_last_input_release_match_semantic_inventor
             lease = delivery.claim(db, operation.operation_uuid)
             db.commit()
             assert lease is not None
-            ScoreDeletionExecutor(delivery).execute(db, lease)
+            ScoreDeletionExecutor(
+                delivery,
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+            ).execute(db, lease)
             db.commit()
             assert_usage(db, 8 if expected == 0 and keep_import_reference else 0, expected)
         if keep_import_reference:
             assert db.get(Upload, upload_id) is not None
             keeper = db.scalar(sa.select(ImportJob).where(ImportJob.job_uuid == "keeper"))
-            ImportJobDeletionService().delete_job(db, keeper, 1)
+            ImportJobDeletionService(usage=_resource_wiring.storage_usage_service).delete_job(
+                db, keeper, 1
+            )
             db.commit()
         assert db.get(Upload, upload_id) is None
         assert_usage(db, 0, 0)
@@ -814,8 +893,8 @@ def test_shared_upload_promotions_and_last_input_release_match_semantic_inventor
 def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation, monkeypatch):
     from app.core.exceptions import ConflictException
     from app.db.models import ImportJobStep, ScoreDeletionOperation, ScoreDeletionOperationStatus
-    from app.db.models.import_job import ImportJobStepStatus
-    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.modules.import_jobs.domain import ImportJobStepStatus
+    from app.modules.media_storage.domain import StoredObjectRetirementStatus
     from app.modules.import_jobs.dispatch_service import ImportDispatchService
     from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
     from app.modules.scores.service import ScoreService
@@ -825,7 +904,10 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
     from sqlalchemy.orm import sessionmaker
 
     engine, storage = confirmation
-    imports = ImportJobService(storage=storage)
+    imports = ImportJobService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
     with Session(engine, expire_on_commit=False) as db:
         job = db.scalar(sa.select(ImportJob))
         job_id = job.id
@@ -839,7 +921,7 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
         payload = delivery.claim(db, dispatch.dispatch_uuid)
         assert payload is not None
         db.commit()
-        recorder = ImportExecutionRecorder()
+        recorder = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
         recorder.start_execution(db, payload.lease)
         assert db.get(ImportJob, job_id).state is ImportJobState.PROCESSING
         recorder.upsert_step(
@@ -849,7 +931,13 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
         delivery.complete(db, payload.lease)
         db.commit()
         assert db.get(ImportJob, job_id).state is ImportJobState.READY_FOR_REVIEW
-        review_service = review.ImportReviewService(storage=storage)
+        review_service = review.ImportReviewService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
         request = ReviewConfirmRequest(content=MUSICXML_1.decode())
         result = review_service.confirm(db, "job", 1, request)
         db.expire_all()
@@ -878,7 +966,10 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
             db.rollback()
             assert db.get(ImportJob, job_id).confirmed_at == confirmed_at
 
-        ScoreService(storage=storage).delete(db, result.score_id, 1)
+        ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        ).delete(db, result.score_id, 1)
         assert_history_without_live_score()
         assert db.scalar(sa.select(sa.func.count()).select_from(Score)) == 1
         operation = db.scalar(sa.select(ScoreDeletionOperation))
@@ -886,7 +977,11 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
         lease = deletion.claim(db, operation.operation_uuid)
         assert lease is not None
         db.commit()
-        deleted = ScoreDeletionExecutor(deletion).execute(db, lease)
+        deleted = ScoreDeletionExecutor(
+            deletion,
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+        ).execute(db, lease)
         db.commit()
         assert deleted.scores_deleted == 1
         assert_history_without_live_score()

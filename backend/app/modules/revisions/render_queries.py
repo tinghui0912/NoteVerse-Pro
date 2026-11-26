@@ -3,7 +3,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import ScoreRevisionRenderOutbox, ScoreRevisionRenderStatus
+from app.db.models import ScoreRevisionRenderOutbox
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
 
 
 def revision_render_status(

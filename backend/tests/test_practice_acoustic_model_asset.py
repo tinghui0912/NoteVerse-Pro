@@ -1,5 +1,7 @@
 """Network-free current delivery and strict descriptor conformance."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from tests.support.object_storage import InMemoryObjectStorage
 import pytest
 from pydantic import ValidationError
@@ -11,12 +13,15 @@ from app.modules.model_assets.generated.practice_acoustic_model_asset import (
     MODEL_ASSET_DESCRIPTOR,
 )
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
-from app.modules.model_assets.service import ModelAssetService, get_model_asset_service
+from app.modules.model_assets.service import ModelAssetService
+from app.api.resource_dependencies import get_model_asset_service
 from app.modules.model_assets.router import router
 
 
 def delivery():
-    return ModelAssetService(storage=InMemoryObjectStorage())
+    return ModelAssetService(
+        delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage())
+    )
 
 
 def test_current_delivery_matches_canonical_descriptor_and_content_addressed_key():

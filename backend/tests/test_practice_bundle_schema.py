@@ -1,12 +1,12 @@
 """Fresh PostgreSQL Bundle binding ownership and cascades."""
 
-from app.db.models.practice_bundle import PracticeBundleStatus
+from app.modules.practice.bundle.states import PracticeBundleStatus
 
 import sqlalchemy as sa
 from alembic import command
 from sqlmodel import SQLModel
 from app.db.models import StoredObject, User, Score, ScoreRevision, ScoreRevisionPracticeBinding
-from app.db.models.score import RevisionOrigin
+from app.modules.revisions.domain import RevisionOrigin
 from tests.support.postgres_schema import postgres_schema_database
 
 

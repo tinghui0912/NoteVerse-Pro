@@ -1,5 +1,7 @@
 """Current semantic inventory and exact, caller-owned projection maintenance."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from tests.support.quota import admit_hold
 from tests.support.quota import allocate_hold
 from app.composition.storage_resources import storage_quota_service
@@ -24,35 +26,40 @@ from app.db.models import (
     ScorePlaybackAsset,
     ImportJob,
     ImportArtifact,
-    ImportArtifactKind,
     Upload,
     ScoreInputAsset,
     StoredObject,
     PerformanceTake,
     PerformanceTakeManifest,
     PracticeBundleRecord,
-    PracticeBundleStatus,
     StoragePlanPolicy,
     StorageUsageAccount,
     StorageUsageCounter,
     StorageUsageEvent,
     StorageQuotaHold,
-    StorageUsageCategory as Category,
     UserStorageEntitlement,
 )
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat, RenderAssetKind
-from app.db.models.playback import PlaybackAssetKind
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportArtifactKind
+from app.modules.practice.bundle.states import PracticeBundleStatus
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.requested_options import encode_requested_options
-from app.modules.storage_usage.contracts import counts_toward_quota
-from app.modules.storage_usage.accounting import (
+from app.modules.storage_governance.usage.contracts import counts_toward_quota
+from app.modules.storage_governance.usage.accounting import (
     StorageUsageInvariantError,
     new_usage_event,
 )
 from app.composition.storage_resources import provision_storage_resources
-from app.modules.storage_inventory.composition import build_storage_inventory_registry
-from app.modules.storage_usage.reconciliation import StorageUsageReconciliation, UsageTotals
-from app.modules.storage_usage.service import storage_usage_service as usage
+from app.composition.storage_inventory import build_storage_inventory_registry
+from app.modules.storage_governance.usage.reconciliation import (
+    StorageUsageReconciliation,
+    UsageTotals,
+)
+from app.composition.storage_resources import storage_usage_service as usage
 
 
 @pytest.fixture
@@ -208,14 +215,18 @@ def test_inventory_counts_semantic_rows_and_intentionally_excludes_unaccounted_o
         assert build_storage_inventory_registry().snapshot_user(db, 2).used_bytes == dict.fromkeys(
             Category, 0
         )  # backing Upload is promoted
-        report = StorageUsageReconciliation(build_storage_inventory_registry()).inspect_user(db, 1)
+        report = StorageUsageReconciliation(
+            build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+        ).inspect_user(db, 1)
         assert {item.category: item.expected.used_bytes for item in report.categories} == expected
         assert report.expected_account.used_bytes == 11 + 54 + 58
         assert set(expected) == set(Category)
 
 
 def test_repair_uses_semantic_facts_preserves_holds_and_is_transactional_and_idempotent(database):
-    reconcile = StorageUsageReconciliation(build_storage_inventory_registry())
+    reconcile = StorageUsageReconciliation(
+        build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+    )
     with Session(database) as db:
         expected = inventory(db)
         for category in Category:
@@ -267,13 +278,15 @@ def test_repair_uses_semantic_facts_preserves_holds_and_is_transactional_and_ide
 
 def test_repair_creates_missing_counters_without_reprovisioning_or_spurious_events(database):
     with Session(database) as db:
-        report = StorageUsageReconciliation(build_storage_inventory_registry()).reconcile_user(
-            db, 1
-        )
+        report = StorageUsageReconciliation(
+            build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+        ).reconcile_user(db, 1)
         assert not report.drift
         assert all(not item.counter_exists for item in report.categories)
         assert (
-            not StorageUsageReconciliation(build_storage_inventory_registry())
+            not StorageUsageReconciliation(
+                build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+            )
             .inspect_user(db, 1)
             .drift
         )
@@ -290,7 +303,9 @@ def test_maintenance_does_not_repair_missing_provisioning_authorities(database, 
     with Session(database) as db:
         db.execute(delete(missing).where(missing.user_id == 1))
         with pytest.raises(AppException) as error:
-            StorageUsageReconciliation(build_storage_inventory_registry()).reconcile_user(db, 1)
+            StorageUsageReconciliation(
+                build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+            ).reconcile_user(db, 1)
         assert error.value.code == "quota_check_unavailable"
 
 
@@ -348,7 +363,9 @@ def test_exact_release_records_the_requested_delta(database):
 @pytest.mark.parametrize("operation", ["allocation", "reservation", "commit", "release"])
 @pytest.mark.parametrize("winner", ["domain", "reconciler"])
 def test_maintenance_serializes_with_semantic_and_hold_transactions(database, operation, winner):
-    reconcile = StorageUsageReconciliation(build_storage_inventory_registry())
+    reconcile = StorageUsageReconciliation(
+        build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+    )
     entered = Event()
     waiter_pid = []
     hold = None
@@ -429,15 +446,15 @@ def test_maintenance_serializes_with_semantic_and_hold_transactions(database, op
 def test_inventory_and_maintenance_have_no_object_store_or_event_reconstruction_dependency(
     database,
 ):
-    import app.modules.storage_inventory.registry as inventory_module
-    import app.modules.storage_usage.reconciliation as reconciliation_module
+    import app.modules.storage_governance.inventory.registry as inventory_module
+    import app.modules.storage_governance.usage.reconciliation as reconciliation_module
 
     for module in [inventory_module, reconciliation_module]:
         tree = ast.parse(Path(module.__file__).read_text())
         imports = [node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
         assert not any(
             name
-            and (name.startswith("app.storage") or name.startswith("app.modules.storage_objects"))
+            and (name.startswith("app.storage") or name.startswith("app.modules.media_storage"))
             for name in imports
         )
     # Complete composition returns explicit zero totals for an empty semantic inventory.
@@ -472,7 +489,9 @@ def test_inspection_is_a_read_only_inventory_without_event_reads(database):
 
         event.listen(database, "before_cursor_execute", record)
         try:
-            StorageUsageReconciliation(build_storage_inventory_registry()).inspect_user(db, 1)
+            StorageUsageReconciliation(
+                build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+            ).inspect_user(db, 1)
         finally:
             event.remove(database, "before_cursor_execute", record)
         assert statements and all(
@@ -500,9 +519,9 @@ def test_operator_command_has_explicit_transaction_ownership_and_opaque_output(
     assert '"user_id": 1' in output and '"drift": true' in output
     assert "sensitive-filename-and-locator" not in output and "opaque/" not in output
     with Session(database) as db:
-        assert StorageUsageReconciliation(build_storage_inventory_registry()).inspect_user(
-            db, 1
-        ).drift == (command == "inspect")
+        assert StorageUsageReconciliation(
+            build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+        ).inspect_user(db, 1).drift == (command == "inspect")
         if command == "repair":
             assert db.get(StorageUsageAccount, 1).used_bytes == 13
             assert db.scalar(select(func.count()).select_from(StorageUsageCounter)) == len(Category)
@@ -520,7 +539,9 @@ def test_inspection_never_flushes_pending_caller_writes(database):
             reason="pending",
         )
         db.add(pending)
-        StorageUsageReconciliation(build_storage_inventory_registry()).inspect_user(db, 1)
+        StorageUsageReconciliation(
+            build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+        ).inspect_user(db, 1)
         assert pending in db.new
         assert account.used_bytes == 123
         with Session(database) as observer:
@@ -530,7 +551,7 @@ def test_inspection_never_flushes_pending_caller_writes(database):
 
 @pytest.mark.parametrize("model", [StorageUsageEvent])
 def test_durable_quota_classification_is_explicitly_a_snapshot(model):
-    from app.modules.storage_quota.schemas import StorageUsageBreakdownRead
+    from app.modules.storage_governance.quota.schemas import StorageUsageBreakdownRead
 
     assert model.__table__.c.counts_toward_quota_snapshot.nullable is False
     assert "counts_toward_quota_snapshot" in model.model_fields
@@ -539,7 +560,7 @@ def test_durable_quota_classification_is_explicitly_a_snapshot(model):
 
 
 def test_request_accounting_uses_projection_while_inventory_is_a_maintenance_boundary():
-    import app.modules.storage_usage.service as service
+    import app.modules.storage_governance.usage.service as service
 
     tree = ast.parse(Path(service.__file__).read_text())
     imports = [node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
@@ -551,7 +572,9 @@ def test_reconciliation_has_no_entitlement_dependency(database):
         db.execute(delete(UserStorageEntitlement).where(UserStorageEntitlement.user_id == 1))
         db.commit()
         assert (
-            not StorageUsageReconciliation(build_storage_inventory_registry())
+            not StorageUsageReconciliation(
+                build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+            )
             .reconcile_user(db, 1)
             .drift
         )

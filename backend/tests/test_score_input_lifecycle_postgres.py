@@ -1,5 +1,9 @@
 """Same-user classification preserves admitted occupancy; extra semantic inputs need capacity."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 import pytest
@@ -8,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ValidationException, UnauthorizedException
 from app.db.models import (
     User,
-    ImportJobState,
     Score,
     Upload,
     StoredObject,
@@ -17,14 +20,17 @@ from app.db.models import (
     ScoreInputAsset,
     StoragePlanPolicy,
     StorageQuotaHold,
-    StorageUsageCategory as Category,
 )
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
 from app.modules.import_jobs.requested_options import encode_requested_options
-from app.modules.scores.input_asset_lifecycle import score_input_asset_lifecycle as lifecycle
-from app.modules.storage_usage.service import storage_usage_service as usage
-from app.modules.storage_usage.reconciliation import StorageUsageReconciliation
-from app.modules.storage_inventory.composition import build_storage_inventory_registry
+
+from app.composition.storage_resources import storage_usage_service as usage
+from app.modules.storage_governance.usage.reconciliation import StorageUsageReconciliation
+from app.composition.storage_inventory import build_storage_inventory_registry
 from tests.support.storage_state import provision_storage_users
+
+lifecycle = _media_wiring.build_input_asset_lifecycle()
 
 
 @pytest.fixture
@@ -78,7 +84,9 @@ def test_zero_quota_allows_net_zero_promotion_and_return(inputs):
         db.commit()
         assert usage.snapshot_user(db, 1).categories[Category.UPLOAD] == 8
         assert (
-            not StorageUsageReconciliation(build_storage_inventory_registry())
+            not StorageUsageReconciliation(
+                build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+            )
             .inspect_user(db, 1)
             .drift
         )
@@ -104,7 +112,9 @@ def test_concurrent_promotions_cannot_bypass_positive_capacity(inputs):
         assert db.scalar(select(func.count()).select_from(ScoreInputAsset)) == 1
         assert usage.committed_bytes(db, 1) == 8
         assert (
-            not StorageUsageReconciliation(build_storage_inventory_registry())
+            not StorageUsageReconciliation(
+                build_storage_inventory_registry(), usage=_resource_wiring.storage_usage_service
+            )
             .inspect_user(db, 1)
             .drift
         )

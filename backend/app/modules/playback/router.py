@@ -1,4 +1,5 @@
 from fastapi.responses import Response
+from app.api.resource_dependencies import get_playback_delivery_service
 from app.api.response_contracts import binary_responses
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
@@ -24,10 +25,6 @@ router = APIRouter()
 )
 def create_performance_plan(payload: PerformancePlanRequest) -> PerformancePlanRead:
     return compile_performance_plan(payload.musicxml)
-
-
-def get_playback_delivery_service() -> PlaybackDeliveryService:
-    return PlaybackDeliveryService()
 
 
 @router.get(

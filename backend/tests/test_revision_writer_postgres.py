@@ -1,9 +1,15 @@
 """Canonical admission, transactional consequences and metadata fencing on real PostgreSQL."""
 
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+
 from tests.support.quota import admit_hold
 from app.composition.storage_resources import storage_quota_service
 
-from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
@@ -31,7 +37,6 @@ from app.db.models import (
     ImportJob,
     ImportDispatch,
     ImportDispatchStatus,
-    StorageUsageCategory,
     StorageQuotaHold,
     StorageUsageEvent,
     StorageUsageAccount,
@@ -46,11 +51,12 @@ from app.db.models import (
     RealtimeChange,
     RevisionMetadataOutbox,
 )
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RevisionOrigin, MetadataStatus
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.metadata.domain import MetadataStatus
 from app.modules.revisions import writer as writer_module
 from app.modules.revisions.writer import (
-    revision_writer,
     PreparedRevisionSource,
     InitialRevisionWrite,
     AppendRevisionWrite,
@@ -61,7 +67,7 @@ from app.modules.revisions.metadata_delivery import (
     compute_metadata,
     MetadataResult,
 )
-from app.modules.storage_objects.writes import write_object
+
 from app.core.exceptions import ConflictException, ResourceNotFoundException
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.processing.musicxml.admission import admit_musicxml_document
@@ -70,6 +76,8 @@ from tests.support.postgres_schema import postgres_schema_database
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import MUSICXML_1, MUSICXML_2
+
+revision_writer = _media_wiring.build_revision_writer()
 
 
 @pytest.fixture
@@ -124,9 +132,7 @@ def prepare(engine, storage, content=MUSICXML_1):
             bytes_count=len(content),
         )
         db.commit()
-        receipt = write_object(
-            db,
-            storage,
+        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
             key=f"scores/score/revisions/{uuid}/score.musicxml",
             content=content,
             content_type="application/vnd.recordare.musicxml+xml",
@@ -486,7 +492,7 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
     from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 
     barrier = Barrier(2)
-    write = review_module.write_object
+    write = ObjectWriteCoordinator.write_batch
 
     def paused(*args, **kwargs):
         receipt = write(*args, **kwargs)
@@ -496,13 +502,19 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
     def latency_only(*args):
         pass
 
-    monkeypatch.setattr(review_module, "write_object", paused)
+    monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", paused)
     monkeypatch.setattr(review_module.revision_post_commit, "dispatch_best_effort", latency_only)
 
     def confirm():
         with Session(engine) as db:
             return (
-                review_module.ImportReviewService(storage=storage)
+                review_module.ImportReviewService(
+                    quota=_resource_wiring.storage_quota_service,
+                    revision_writer=_media_wiring.build_revision_writer(),
+                    input_assets=_media_wiring.build_input_asset_lifecycle(),
+                    usage=_resource_wiring.storage_usage_service,
+                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                )
                 .confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_2))
                 .score_id
             )
@@ -680,9 +692,7 @@ def test_writer_rejects_a_receipt_outside_the_canonical_revision_identity(databa
     engine, storage = database
     source = prepare(engine, storage)
     with Session(engine) as db:
-        wrong = write_object(
-            db,
-            storage,
+        wrong = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
             key="other/source.musicxml",
             content=storage.read_bytes(source.receipt.object_key),
             content_type=source.receipt.facts.content_type,

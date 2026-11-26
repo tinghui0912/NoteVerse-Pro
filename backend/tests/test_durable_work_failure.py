@@ -15,14 +15,14 @@ from app.core.exceptions import (
 )
 from app.db.models import (
     ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
     PlaybackOutbox,
-    PlaybackOutboxStatus,
     MailOutbox,
     MailOutboxStatus,
     ScoreDeletionOperation,
     ScoreDeletionOperationStatus,
 )
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.playback.domain import PlaybackOutboxStatus
 from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.durable_work.failure import (
     DurableFailure,

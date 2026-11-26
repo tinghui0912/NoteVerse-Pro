@@ -1,11 +1,11 @@
 """PracticeBundle retention owns semantic GC; physical retirement is shared."""
 
-from app.db.models.practice_bundle import PracticeBundleStatus
+from app.modules.practice.bundle.states import PracticeBundleStatus
 
 from sqlalchemy import select
 from app.core.config import settings
 from app.db.models import PracticeBundleRecord, ScoreRevisionPracticeBinding
-from app.modules.storage_objects.retirement import retire_after_release
+from app.modules.media_storage.retirement import retire_after_release
 from app.shared.time import utc_now
 
 

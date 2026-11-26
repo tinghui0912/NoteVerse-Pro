@@ -1,5 +1,7 @@
 """Bounded avatar input and image decoding budgets."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from io import BytesIO
 from unittest.mock import Mock
 import struct
@@ -23,7 +25,10 @@ def png() -> bytes:
 
 @pytest.mark.parametrize("size", [None, 5 * 1024 * 1024])
 def test_avatar_accepts_bounded_bytes_and_normalizes_jpeg(size):
-    service = AvatarService(InMemoryObjectStorage())
+    service = AvatarService(
+        writes=_resource_wiring.build_object_write_coordinator(InMemoryObjectStorage()),
+        delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage()),
+    )
     data = png()
     if size:
         data += b"\0" * (size - len(data))
@@ -41,7 +46,10 @@ def test_oversized_avatar_stops_after_one_sentinel_byte_and_returns_413():
             return super().read(size)
 
     stream = Stream(b"x" * (settings.AVATAR_MAX_UPLOAD_BYTES + 1024 * 1024))
-    service = AvatarService(InMemoryObjectStorage())
+    service = AvatarService(
+        writes=_resource_wiring.build_object_write_coordinator(InMemoryObjectStorage()),
+        delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage()),
+    )
     service.replace_user_avatar = Mock()
     with pytest.raises(HTTPException) as raised:
         upload_avatar(UploadFile(stream, filename="large.png"), Mock(), Mock(), service)
@@ -54,10 +62,13 @@ def test_http_avatar_rejects_input_larger_than_budget():
     from fastapi.testclient import TestClient
     from app.main import create_app
     from app.api.deps import get_current_user, get_db
-    from app.modules.account.dependencies import get_avatar_service
+    from app.api.resource_dependencies import get_avatar_service
 
     app = create_app()
-    service = AvatarService(InMemoryObjectStorage())
+    service = AvatarService(
+        writes=_resource_wiring.build_object_write_coordinator(InMemoryObjectStorage()),
+        delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage()),
+    )
     service.replace_user_avatar = Mock()
     app.dependency_overrides[get_current_user] = lambda: Mock()
     app.dependency_overrides[get_db] = lambda: Mock()
@@ -76,7 +87,10 @@ def test_http_avatar_rejects_input_larger_than_budget():
 @pytest.mark.parametrize("data", [b"", b"not an image", png()[:40]])
 def test_corrupt_images_fail_closed(data):
     with pytest.raises(ValueError):
-        AvatarService(InMemoryObjectStorage()).process_avatar(data, "photo.png", 1)
+        AvatarService(
+            writes=_resource_wiring.build_object_write_coordinator(InMemoryObjectStorage()),
+            delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage()),
+        ).process_avatar(data, "photo.png", 1)
 
 
 @pytest.mark.parametrize("width,height", [(5000, 5000), (9000, 1), (100000, 100000)])
@@ -88,10 +102,16 @@ def test_image_header_exceeding_decode_budget_is_rejected_before_load(width, hei
         "PIL.PngImagePlugin.PngImageFile.load", Mock(side_effect=AssertionError("decode"))
     )
     with pytest.raises(ValueError):
-        AvatarService(InMemoryObjectStorage()).process_avatar(bytes(data), "photo.png", 1)
+        AvatarService(
+            writes=_resource_wiring.build_object_write_coordinator(InMemoryObjectStorage()),
+            delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage()),
+        ).process_avatar(bytes(data), "photo.png", 1)
 
 
 def test_stream_limit_uses_injected_configuration(monkeypatch):
     monkeypatch.setattr(settings, "AVATAR_MAX_UPLOAD_BYTES", 16)
     with pytest.raises(AvatarFileTooLargeError):
-        AvatarService(InMemoryObjectStorage()).read_upload(BytesIO(b"x" * 17))
+        AvatarService(
+            writes=_resource_wiring.build_object_write_coordinator(InMemoryObjectStorage()),
+            delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage()),
+        ).read_upload(BytesIO(b"x" * 17))

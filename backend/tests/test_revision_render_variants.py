@@ -1,24 +1,22 @@
 """Revision render identity is the exact revision/profile pair."""
 
+from app.composition import storage_resources as _resource_wiring
+
 import zipfile
 
 import pytest
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import IntegrityError
 
-from app.db.models import (
-    ScoreRevision,
-    ScoreRenderAsset,
-    ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
-)
-from app.db.models.score import RenderAssetKind
+from app.db.models import ScoreRevision, ScoreRenderAsset, ScoreRevisionRenderOutbox
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.score_assets.domain import RenderAssetKind
 from app.modules.revisions.render_admission import admit_revision_render
 from app.modules.revisions.render_queries import revision_render_status
 from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.service import ScoreAssetService
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
@@ -108,7 +106,7 @@ def test_asset_list_exposes_variants_and_archive_selects_one_profile(score_servi
         for page in (2, 1):
             add_page(db, storage, profile, page)
     db.commit()
-    service = ScoreAssetService(storage=storage)
+    service = ScoreAssetService(delivery=_resource_wiring.build_media_delivery_service(storage))
     listing = service.list_revision_assets(db, "variant-score", 1)
     assert {asset.render_profile for asset in listing.render_assets} == {
         SCORE_PRESENTATION_RENDER_PROFILE,

@@ -4,7 +4,7 @@ from app.shared.time import Instant
 
 from pydantic import BaseModel
 
-from app.db.models.score import MetadataStatus
+from app.modules.metadata.domain import MetadataStatus
 from app.processing.musicxml.metadata import KeySignatureEvent, TimeSignatureEvent, TempoEvent
 
 

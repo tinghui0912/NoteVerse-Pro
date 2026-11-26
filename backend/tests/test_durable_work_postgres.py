@@ -11,16 +11,16 @@ from app.db.models import (
     StoredObjectRetirement,
     ImportDispatch,
     ImportJob,
-    ImportJobState,
     MailOutbox,
     PlaybackOutbox,
     ScoreRevisionRenderOutbox,
-    RevisionOrigin,
     Score,
     ScoreDeletionOperation,
     ScoreRevision,
     User,
 )
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionOrigin
 from app.modules.durable_work.failure import (
     DurableFailure,
     clear_failure_facts,

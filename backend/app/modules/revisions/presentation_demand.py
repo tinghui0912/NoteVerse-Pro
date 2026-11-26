@@ -12,7 +12,7 @@ from app.db.models import (
     ScoreRevisionSource,
     StoredObject,
 )
-from app.db.models.score import RevisionSourceFormat
+from app.modules.revisions.domain import RevisionSourceFormat
 
 
 class RevisionPresentationDemand(Enum):

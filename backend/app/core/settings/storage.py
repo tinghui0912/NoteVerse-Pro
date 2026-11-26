@@ -21,6 +21,8 @@ class StorageSettings(BaseModel):
     AVATAR_MAX_UPLOAD_BYTES: int = Field(default=5 * 1024 * 1024, gt=0, le=5 * 1024 * 1024)
     AVATAR_MAX_PIXELS: int = Field(default=16_000_000, gt=0)
     AVATAR_MAX_DIMENSION: int = Field(default=8192, gt=0)
+    MEDIA_DELIVERY_CACHE_SECONDS: int = Field(default=900, gt=0)
+    MEDIA_DELIVERY_MAX_STREAM_MEDIA_BYTES: int = Field(default=20 * 1024 * 1024, gt=0)
     WORK_ROOT: str = "data/work"
 
     @field_validator("WORK_ROOT")

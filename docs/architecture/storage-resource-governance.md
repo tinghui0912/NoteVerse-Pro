@@ -57,7 +57,7 @@ in Objects write/reference/retirement lifecycles.
 
 ## Domain-owned Inventory
 
-`app/modules/storage_inventory/contracts.py` defines read-only provider and consumer
+`app/modules/storage_governance/inventory/contracts.py` defines read-only provider and consumer
 contracts and an immutable user snapshot. Providers return database-aggregated bytes for
 every declared current category, including explicit zero. They return neither ORM rows
 nor object keys. Per-resource materialization and per-resource queries are prohibited.
@@ -158,3 +158,15 @@ concrete participants, locks and recovery owners. [Migration and recovery](stora
 identifies initialization and operational failure boundaries. Provider/category changes
 require semantic inventory and accounting tests. Account erasure coordinates domain
 cleanup without replacing Take protocols or Objects fences.
+
+
+## Executable module ownership
+
+`app/modules/storage_governance/quota/` owns entitlement and hold admission;
+`usage/` owns counters, events and reconciliation; `inventory/` owns read-only
+contracts and registry completeness. `app/composition/storage_inventory.py` is the
+only concrete cross-domain provider assembly. `app/modules/media_storage/` owns
+physical object facts, independent write transactions, adoption, references,
+retirement and delivery policy. Models import their pure domain enums; domain
+services do not retrieve state taxonomy from ORM modules. Namespace placement
+changes neither quota classification nor database schema semantics.

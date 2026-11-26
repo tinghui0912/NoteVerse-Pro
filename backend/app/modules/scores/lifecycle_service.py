@@ -1,5 +1,6 @@
 """Score-owned deletion admission and its post-commit latency hint."""
 
+from app.modules.scores.deletion_executor import ScoreDeletionExecutor
 from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 from app.shared.integrity import ResourceIntegrityError
@@ -18,13 +19,15 @@ from app.shared.time import utc_now
 
 
 class ScoreLifecycleService:
-    def __init__(self, repository: ScoreRepository | None = None) -> None:
+    def __init__(
+        self, repository: ScoreRepository | None = None, *, deletion_executor: ScoreDeletionExecutor
+    ) -> None:
         self.repository = repository or ScoreRepository()
+        self.deletion_executor = deletion_executor
 
     def cleanup_for_account(self, db: Session, user_id: int) -> str:
         """Erase one owned graph using its existing deletion authority."""
         from app.modules.scores.deletion_delivery import score_deletion_delivery
-        from app.modules.scores.deletion_executor import ScoreDeletionExecutor
 
         score = db.scalar(
             select(Score).where(Score.owner_user_id == user_id).order_by(Score.id).limit(1)
@@ -52,7 +55,7 @@ class ScoreLifecycleService:
                 raise ResourceIntegrityError("Owned Score deletion has exhausted retries")
             return "busy"
         db.flush()
-        ScoreDeletionExecutor().execute(db, lease)
+        self.deletion_executor.execute(db, lease)
         return "deleted"
 
     def admit_deletions(self, db: Session, score_uuids: list[str], user_id: int) -> list[str]:
@@ -139,9 +142,6 @@ class ScoreLifecycleService:
 
     def delete_score(self, db: Session, score_uuid: str, user_id: int) -> None:
         self.delete_scores(db, [score_uuid], user_id)
-
-
-score_lifecycle_service = ScoreLifecycleService()
 
 
 def has_account_scores(db: Session, user_id: int) -> bool:

@@ -1,12 +1,14 @@
 """Database-authoritative Bundle lifecycle admission across independent transactions."""
 
 from __future__ import annotations
+
+from app.composition import storage_resources as _resource_wiring
 from app.modules.practice.bundle.object_keys import (
     practice_bundle_musicxml_object_key,
     practice_bundle_artifact_object_key,
 )
 
-from app.db.models.practice_bundle import PracticeBundleStatus
+from app.modules.practice.bundle.states import PracticeBundleStatus
 
 from tests.support.practice_bundle import bind_bundle
 from app.modules.practice.bundle.content import read_verified_bundle
@@ -36,7 +38,7 @@ from tests.support.object_storage import InMemoryObjectStorage
 
 
 @pytest.fixture
-def postgres_bundle(tmp_path, request):
+def postgres_bundle(tmp_path, request, monkeypatch):
     url = os.environ.get("NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL")
     if not url:
         pytest.skip(
@@ -50,6 +52,11 @@ def postgres_bundle(tmp_path, request):
     with admin.begin() as connection:
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
     engine = create_engine(url, connect_args={"options": f"-csearch_path={schema}"})
+    from app.composition import storage_resources
+
+    monkeypatch.setattr(
+        storage_resources, "write_sessions", sessionmaker(engine, expire_on_commit=False)
+    )
     try:
         # DDL compilation owns a private metadata graph, independently of other test dialects.
         metadata = MetaData()
@@ -366,8 +373,12 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
         from app.db.models import ObjectWriteIntent, StoredObject
 
         assert row.prepared_musicxml_object_id is None and row.artifact_object_id is None
-        intent = db.scalar(select(ObjectWriteIntent))
-        assert intent.status == "PREPARED" and storage.exists(intent.object_key)
+        intents = list(db.scalars(select(ObjectWriteIntent)))
+        assert len(intents) == 2 and all(intent.status == "CLEANUP_PENDING" for intent in intents)
+        written_keys = {
+            intent.object_key for intent in intents if storage.exists(intent.object_key)
+        }
+        assert len(written_keys) == 1
         assert db.scalar(select(StoredObject)) is None
         assert db.scalar(select(ScoreRevisionPracticeBinding)) is None
         row.creation_expires_at = utc_now() - timedelta(seconds=1)
@@ -376,7 +387,7 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
         db.commit()
         assert due == [] and db.scalar(select(PracticeBundleRecord)) is None
         assert db.scalar(select(StoredObject)) is None
-        assert storage.exists(intent.object_key)
+        assert all(storage.exists(key) for key in written_keys)
 
 
 @pytest.mark.asyncio
@@ -415,7 +426,9 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
             )
             seed.commit()
 
-    service = PracticeBundleService(repository=repository, storage=storage)
+    service = PracticeBundleService(
+        repository=repository, writes=_resource_wiring.build_object_write_coordinator(storage)
+    )
     entered, release = Event(), Event()
     from app.modules.practice.bundle.content import read_verified_bundle
 

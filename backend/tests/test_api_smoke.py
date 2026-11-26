@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+
 from app.core.generated.customer_browser_protocol import (
     AUTH_COOKIE_NAME,
     REFRESH_COOKIE_NAME,
@@ -19,10 +23,10 @@ from app.api.deps import get_current_user, get_db
 from app.core.config import settings
 from app.main import app, create_app
 from app.core.middleware import normalize_origin
-from app.modules.playback.router import get_playback_delivery_service
-from app.modules.storage_objects.reads import StoredObjectDelivery
-from app.modules.practice.bundle.router import get_practice_bundle_service
-from app.modules.uploads.dependencies import get_upload_service
+from app.api.resource_dependencies import get_playback_delivery_service
+from app.modules.media_storage.reads import StoredObjectDelivery
+from app.api.resource_dependencies import get_practice_bundle_service
+from app.api.resource_dependencies import get_upload_service
 from app.modules.uploads.repository import UploadRepository
 from app.modules.uploads.service import UploadService
 
@@ -47,7 +51,10 @@ def test_upload_delete_projects_resource_and_persistence_errors(upload_exists, s
     application.dependency_overrides[get_db] = database
     application.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     application.dependency_overrides[get_upload_service] = lambda: UploadService(
-        repository=repository
+        repository=repository,
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
     )
     with TestClient(application, raise_server_exceptions=False) as client:
         response = client.delete("/api/v1/uploads/upload-requested")

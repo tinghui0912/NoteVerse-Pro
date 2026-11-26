@@ -1,8 +1,12 @@
 """Import delivery, domain outcomes and current-attempt mutation authority."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+
 from app.composition.storage_resources import storage_quota_service
 
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
@@ -27,7 +31,6 @@ from app.db.models import (
     RealtimeChange,
     ImportDispatchStatus,
     ImportJob,
-    ImportJobState,
     ImportJobStep,
     ImportJobUpload,
     StoredObject,
@@ -38,6 +41,7 @@ from app.db.models import (
     ExecutionManifest,
     User,
 )
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs import dispatch_service as dispatch_module, execution_manifest
 from app.modules.import_jobs.dispatch_service import (
     ImportDispatchService,
@@ -45,7 +49,7 @@ from app.modules.import_jobs.dispatch_service import (
 )
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
-from app.modules.storage_objects.writes import write_object
+
 from app.modules.import_jobs.pipeline.context import JobContext
 from app.modules.import_jobs.pipeline.step_tracker import StepTracker
 from app.task_queue.tracing import import_dispatch_trace_context
@@ -257,7 +261,9 @@ def test_exhausted_delivery_accepts_failure_with_the_observed_processing_start(
     db, _, job, row = setup_delivery
     lease = claim(db, row)
     if processing_started:
-        ImportExecutionRecorder().start_execution(db, lease)
+        ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service).start_execution(
+            db, lease
+        )
     observed_start = job.processing_started_at
     assert job.processing_last_heartbeat_at is None
     row.attempt_count = dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
@@ -303,7 +309,7 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
     first = claim(db, row)
     second = takeover(db, row)
     assert second.attempt == first.attempt + 1 and second.token != first.token
-    worker = ImportExecutionRecorder()
+    worker = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
     actions = {
         "start": lambda: worker.start_execution(db, first),
         "binding": lambda: execution_manifest.bind_import_job_execution_manifest(db, first),
@@ -363,7 +369,9 @@ def test_execution_start_requires_exact_delivery_job_attempt_token_without_commi
     event.listen(db, "after_commit", committed)
     try:
         with pytest.raises(StaleImportDispatchAttempt):
-            ImportExecutionRecorder().start_execution(db, replace(lease, **change))
+            ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service).start_execution(
+                db, replace(lease, **change)
+            )
     finally:
         event.remove(db, "after_commit", committed)
     assert commits == []
@@ -380,7 +388,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
 ):
     db, storage, job, row = setup_delivery
     first = claim(db, row)
-    worker = ImportExecutionRecorder()
+    worker = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
     worker.upsert_step(db, first, "ocr", "RUNNING")
 
     # A write can finish after its execution lease is lost. ObjectWriteIntent owns it.
@@ -391,8 +399,8 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
             own.commit()
 
     monkeypatch.setattr("app.db.session.SessionLocal", worker_db)
-    original = write_object(
-        db, storage, key="jobs/current-result", content=b"current", content_type="application/xml"
+    original = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+        key="jobs/current-result", content=b"current", content_type="application/xml"
     )
     worker.replace_artifacts(
         db,
@@ -408,8 +416,8 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
         ],
     )
     artifact_id = db.scalar(select(ImportArtifact)).id
-    receipt = write_object(
-        db, storage, key="jobs/written-result", content=b"result", content_type="application/xml"
+    receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+        key="jobs/written-result", content=b"result", content_type="application/xml"
     )
     db.commit()
     second = takeover(db, row)
@@ -448,7 +456,7 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
 def test_domain_pipeline_failure_completes_current_delivery(setup_delivery):
     db, _, job, row = setup_delivery
     lease = claim(db, row)
-    worker = ImportExecutionRecorder()
+    worker = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
     worker.finalize_failure(
         db,
         lease,
@@ -474,7 +482,7 @@ def test_trace_context_belongs_to_dispatch(setup_delivery):
 def test_submission_atomically_creates_one_delivery_and_upload_links(setup_delivery, monkeypatch):
     db, _, _, _ = setup_delivery
 
-    service = ImportJobSubmissionService()
+    service = ImportJobSubmissionService(usage=_resource_wiring.storage_usage_service)
     monkeypatch.setattr(
         "app.modules.import_jobs.submission_service.get_request_id", lambda: "submission-request"
     )
@@ -519,18 +527,24 @@ def test_submission_atomically_creates_one_delivery_and_upload_links(setup_deliv
 @pytest.mark.parametrize("path", ["progress", "step", "tracker", "complete"])
 def test_pipeline_telemetry_never_swallows_lease_loss(monkeypatch, path):
     from app.modules.import_jobs.dispatch_service import ImportExecutionLease
-    from app.modules.import_jobs.pipeline import context as module
 
     lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
-    ctx = JobContext(lease=lease, db=Mock(), celery_task=Mock(), image_paths=[])
+    ctx = JobContext(
+        lease=lease,
+        db=Mock(),
+        celery_task=Mock(),
+        image_paths=[],
+        recorder=_media_wiring.build_import_artifact_recorder().recorder,
+        artifacts=_media_wiring.build_import_artifact_recorder(),
+    )
     stale = Mock(side_effect=StaleImportDispatchAttempt("lost"))
     if path == "progress":
-        monkeypatch.setattr(module.import_execution_recorder, "record_progress", stale)
+        monkeypatch.setattr(ctx.recorder, "record_progress", stale)
 
         def action():
             ctx.progress("ocr", 20)
     elif path == "step":
-        monkeypatch.setattr(module.import_execution_recorder, "upsert_step", stale)
+        monkeypatch.setattr(ctx.recorder, "upsert_step", stale)
 
         def action():
             ctx._upsert("ocr", status="running")
@@ -564,7 +578,7 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
             db.rollback()
             raise
 
-    worker = ImportExecutionRecorder()
+    worker = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
 
     def run(task, lease, keys):
         assert lease.dispatch_uuid == row.dispatch_uuid and lease.job_uuid == job.job_uuid
@@ -595,7 +609,9 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
         return {"success": True, "job_id": job.job_uuid}
 
     monkeypatch.setattr(executor, "SessionLocal", worker_db)
-    monkeypatch.setattr(executor.import_pipeline_runner, "run_pipeline", run)
+    monkeypatch.setattr(
+        executor, "build_import_pipeline_runner", lambda: SimpleNamespace(run_pipeline=run)
+    )
     task = Mock()
     task.request.id = "celery-task"
     if outcome == "failure":
@@ -623,7 +639,7 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
     db.commit()
     lease = claim(db, row)
     assert lease.attempt == dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
-    ImportExecutionRecorder().finalize_failure(
+    ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service).finalize_failure(
         db,
         lease,
         failure=DurableFailure(
@@ -654,7 +670,7 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
 def test_started_execution_crash_before_progress_recovers_to_queued(setup_delivery):
     db, _, job, row = setup_delivery
     lease = claim(db, row)
-    ImportExecutionRecorder().start_execution(db, lease)
+    ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service).start_execution(db, lease)
     db.refresh(job)
     assert row.status == ImportDispatchStatus.PROCESSING
     assert job.state == ImportJobState.PROCESSING and job.processing_started_at is not None
@@ -680,14 +696,18 @@ def test_materialization_failure_preserves_committed_start_without_a_progress_he
 ):
     from sqlalchemy.orm import sessionmaker
     from app.modules.import_jobs import pipeline_runner
-    from app.modules.storage_objects.reads import StoredObjectIntegrityError
+    from app.modules.media_storage.reads import StoredObjectIntegrityError
 
     db, storage, job, row = setup_delivery
     payload = ImportDispatchService().claim(db, row.dispatch_uuid)
     db.commit()
     engine = db.get_bind()
     job_uuid = job.job_uuid
-    runner = pipeline_runner.ImportPipelineRunner(storage=storage)
+    runner = pipeline_runner.ImportPipelineRunner(
+        recorder=_media_wiring.build_import_artifact_recorder().recorder,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+        sessions=_resource_wiring.write_sessions,
+    )
     resolve_inputs = runner._resolve_input_paths
     observed_start = []
 
@@ -702,7 +722,7 @@ def test_materialization_failure_preserves_committed_start_without_a_progress_he
             observed_start.append(current.processing_started_at)
         return resolve_inputs(inputs)
 
-    monkeypatch.setattr(pipeline_runner, "SessionLocal", sessionmaker(bind=engine))
+    monkeypatch.setattr(runner, "sessions", sessionmaker(bind=engine))
     monkeypatch.setattr(pipeline_runner, "object_work_path", lambda _: str(tmp_path / "input.png"))
     monkeypatch.setattr(runner, "_resolve_input_paths", materialize)
     with pytest.raises(StoredObjectIntegrityError):
@@ -721,26 +741,26 @@ def test_pipeline_and_review_updates_share_content_addressed_musicxml_identity(
     setup_delivery, monkeypatch, tmp_path
 ):
     import hashlib
-    from app.modules.import_jobs.pipeline import artifact_recorder
     from app.modules.import_jobs.object_keys import review_musicxml_object_key
     from app.modules.import_jobs.artifact_records import REVIEW_MUSICXML_MIME_TYPE
     from app.modules.import_jobs.review.service import ImportReviewService
     from app.modules.import_jobs.review.schemas import ReviewUpdateRequest
     from app.processing.musicxml.admission import admit_musicxml_document
-    from app.db.models import StorageUsageCounter, StorageUsageCategory, StoredObjectRetirement
+    from app.db.models import StorageUsageCounter, StoredObjectRetirement
+    from app.modules.storage_governance.usage.domain import StorageUsageCategory
     from tests.test_score_revision_services import MUSICXML_1, MUSICXML_2
 
     db, storage, job, dispatch = setup_delivery
     lease = claim(db, dispatch)
-    recorder = ImportExecutionRecorder()
+    recorder = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
     recorder.start_execution(db, lease)
 
     @contextmanager
     def session():
         yield db
 
-    monkeypatch.setattr(artifact_recorder, "SessionLocal", session)
-    monkeypatch.setattr(artifact_recorder, "object_storage", storage)
+    artifacts = _media_wiring.build_import_artifact_recorder(storage)
+    artifacts.sessions = session
     content = admit_musicxml_document(MUSICXML_1)
     expected = review_musicxml_object_key(
         job_uuid=job.job_uuid, content_sha256=hashlib.sha256(content).hexdigest()
@@ -748,7 +768,7 @@ def test_pipeline_and_review_updates_share_content_addressed_musicxml_identity(
     for filename in ("temporary.xml", "different-worker-name.musicxml"):
         path = tmp_path / filename
         path.write_bytes(content)
-        artifact_recorder.replace_files(lease, ImportArtifactKind.REVIEW_MUSICXML, [str(path)])
+        artifacts.replace_files(lease, ImportArtifactKind.REVIEW_MUSICXML, [str(path)])
         artifact = db.scalar(select(ImportArtifact).where(ImportArtifact.job_id == job.id))
         assert artifact.stored_object.object_key == expected
         assert artifact.filename == "score.musicxml"
@@ -756,7 +776,13 @@ def test_pipeline_and_review_updates_share_content_addressed_musicxml_identity(
     first_id = artifact.stored_object_id
     recorder.finalize_success(db, lease)
     assert job.state is ImportJobState.READY_FOR_REVIEW
-    service = ImportReviewService(storage=storage)
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     service.update(db, job.job_uuid, 1, ReviewUpdateRequest(content=content.decode()))
     db.refresh(artifact)
     assert artifact.stored_object_id == first_id

@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, get_command_db
-from app.api.storage_streaming import stream_storage_object
+from app.api.media_delivery import deliver_media_object
+from app.modules.media_storage.delivery import DeliveryMode
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.modules.import_jobs.dependencies import get_import_job_service
+from app.api.resource_dependencies import get_import_job_service
 from app.modules.import_jobs.schemas import (
     BatchImportJobStatusRequest,
     ImportJobBatchStatusRead,
@@ -128,8 +129,9 @@ def download_job_artifact(
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
     delivery = service.artifact_delivery(db, job_id, artifact_id, user_id)
-    return stream_storage_object(
-        storage=service.storage,
+    return deliver_media_object(
+        service=service.delivery,
+        mode=DeliveryMode.CONTROLLED_STREAM,
         target=delivery,
         attachment=False,
     )

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import app.modules.practice.bundle.states as bundle_states
+
 from datetime import datetime
-import enum
 from typing import Optional
 
 from sqlalchemy import Enum as SAEnum
@@ -25,11 +26,6 @@ from app.shared.time import utc_now
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
-class PracticeBundleStatus(str, enum.Enum):
-    CREATING = "CREATING"
-    READY = "READY"
-
-
 class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "practice_bundles"
     __table_args__ = (
@@ -39,9 +35,9 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
         Index("ix_practice_bundles_status_creation", "status", "creation_expires_at"),
         CheckConstraint(
             "("
-            f"status = '{PracticeBundleStatus.CREATING.value}' AND creation_expires_at IS NOT NULL AND prepared_musicxml_object_id IS NULL AND artifact_object_id IS NULL"
+            f"status = '{bundle_states.PracticeBundleStatus.CREATING.value}' AND creation_expires_at IS NOT NULL AND prepared_musicxml_object_id IS NULL AND artifact_object_id IS NULL"
             ") OR ("
-            f"status = '{PracticeBundleStatus.READY.value}' AND creation_expires_at IS NULL AND prepared_musicxml_object_id IS NOT NULL AND artifact_object_id IS NOT NULL"
+            f"status = '{bundle_states.PracticeBundleStatus.READY.value}' AND creation_expires_at IS NULL AND prepared_musicxml_object_id IS NOT NULL AND artifact_object_id IS NOT NULL"
             ")",
             name="ck_practice_bundles_creation_lease",
         ),
@@ -78,10 +74,10 @@ class PracticeBundleRecord(SQLModel, table=True):  # type: ignore[call-arg]
             StoredObject, foreign_keys="PracticeBundleRecord.artifact_object_id", lazy="selectin"
         )
     )
-    status: PracticeBundleStatus = Field(
+    status: bundle_states.PracticeBundleStatus = Field(
         sa_column=Column(
             SAEnum(
-                PracticeBundleStatus,
+                bundle_states.PracticeBundleStatus,
                 native_enum=False,
                 create_constraint=True,
                 validate_strings=True,

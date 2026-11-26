@@ -1,5 +1,7 @@
 """Real PostgreSQL ownership constraints and concurrent Import lease authority."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 
 from datetime import timedelta
@@ -13,12 +15,12 @@ from app.db.models import (
     ImportDispatch,
     ImportDispatchStatus,
     ImportJob,
-    ImportJobState,
     ImportJobUpload,
     StoredObject,
     Upload,
     User,
 )
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.dispatch_service import (
     ImportDispatchService,
     require_current_attempt,
@@ -196,10 +198,16 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             assert second.attempt == first.attempt + 1 and second.token != first.token
             # populate_existing defeats an identity-map copy of the first attempt.
             with pytest.raises(StaleImportDispatchAttempt):
-                ImportExecutionRecorder().record_progress(worker, first, 99)
+                ImportExecutionRecorder(
+                    usage=_resource_wiring.storage_usage_service
+                ).record_progress(worker, first, 99)
             worker.rollback()
-            ImportExecutionRecorder().start_execution(recovery, second)
-            ImportExecutionRecorder().record_progress(recovery, second, 21)
+            ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service).start_execution(
+                recovery, second
+            )
+            ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service).record_progress(
+                recovery, second, 21
+            )
             worker.expire_all()
             assert worker.scalar(sa.select(ImportJob)).progress == 21
 
@@ -252,7 +260,9 @@ def test_deletion_contends_on_dispatch_before_job_and_rechecks_state(monkeypatch
                     pid = deleting.scalar(sa.text("SELECT pg_backend_pid()"))
                     ready.put(pid)
                     assert start.wait(10)
-                    ImportJobDeletionService().delete_job(deleting, stale_job, 1)
+                    ImportJobDeletionService(
+                        usage=_resource_wiring.storage_usage_service
+                    ).delete_job(deleting, stale_job, 1)
                     deleting.commit()  # The public use case owns the release transaction.
                 result.put(None)
             except BaseException as exc:

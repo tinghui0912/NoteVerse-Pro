@@ -1,4 +1,7 @@
-from app.modules.storage_objects.reads import StoredObjectReadTarget
+from app.composition import media_resources as _media_wiring
+
+from app.composition import storage_resources as _resource_wiring
+from app.modules.media_storage.reads import StoredObjectReadTarget
 from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -15,7 +18,7 @@ from app.modules.import_jobs.dispatch_service import (
 from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.modules.durable_work.failure import DurableFailure
 from app.shared.durable_failure import DurableFailureClass
-from app.modules.storage_objects.reads import StoredObjectIntegrityError
+from app.modules.media_storage.reads import StoredObjectIntegrityError
 
 
 def test_soft_time_limit_maps_to_pipeline_timeout() -> None:
@@ -60,7 +63,11 @@ def test_pipeline_rejections_have_explicit_failure_facts(code, expected, classif
 
 
 def test_successful_pipeline_records_progress_and_accepts_its_review_outcome():
-    service = ImportPipelineRunner(storage=Mock())
+    service = ImportPipelineRunner(
+        recorder=_media_wiring.build_import_artifact_recorder().recorder,
+        writes=_resource_wiring.build_object_write_coordinator(Mock()),
+        sessions=_resource_wiring.write_sessions,
+    )
     task, context, pipeline = Mock(), Mock(), Mock()
     lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
     order = []
@@ -75,9 +82,10 @@ def test_successful_pipeline_records_progress_and_accepts_its_review_outcome():
         yield Mock()
 
     with (
-        patch("app.modules.import_jobs.pipeline_runner.SessionLocal", database_scope),
-        patch(
-            "app.modules.import_jobs.pipeline_runner.import_execution_recorder.start_execution",
+        patch.object(service, "sessions", database_scope),
+        patch.object(
+            service.recorder,
+            "start_execution",
             side_effect=lambda *_: order.append("start"),
         ) as start,
         patch(
@@ -104,7 +112,11 @@ def test_successful_pipeline_records_progress_and_accepts_its_review_outcome():
 
 
 def test_pipeline_failure_is_persisted_and_reraised() -> None:
-    service = ImportPipelineRunner(storage=Mock())
+    service = ImportPipelineRunner(
+        recorder=_media_wiring.build_import_artifact_recorder().recorder,
+        writes=_resource_wiring.build_object_write_coordinator(Mock()),
+        sessions=_resource_wiring.write_sessions,
+    )
     service.storage.iter_bytes.return_value = iter([b"input"])
     task = SimpleNamespace(
         request=SimpleNamespace(id="job-123"),
@@ -128,10 +140,11 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
         patch.object(
             service, "failure_for_exception", wraps=service.failure_for_exception
         ) as mapper,
-        patch("app.modules.import_jobs.pipeline_runner.import_execution_recorder.start_execution"),
+        patch.object(service.recorder, "start_execution"),
         patch("app.modules.import_jobs.pipeline_runner.bind_import_job_execution_manifest"),
-        patch(
-            "app.modules.import_jobs.pipeline_runner.SessionLocal",
+        patch.object(
+            service,
+            "sessions",
             side_effect=database_scope,
         ),
         patch(
@@ -142,9 +155,7 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
             "app.modules.import_jobs.pipeline_runner.PipelineBuilder.build",
             return_value=pipeline,
         ),
-        patch(
-            "app.modules.import_jobs.pipeline_runner.import_execution_recorder.finalize_failure"
-        ) as finalize_failure,
+        patch.object(service.recorder, "finalize_failure") as finalize_failure,
         pytest.raises(TimeoutException),
     ):
         service.run_pipeline(task, lease, [StoredObjectReadTarget(1, "upload-id", 5, "image/png")])
@@ -161,7 +172,11 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
 
 
 def test_stale_execution_aborts_before_materialization_without_domain_failure():
-    service = ImportPipelineRunner(storage=Mock())
+    service = ImportPipelineRunner(
+        recorder=_media_wiring.build_import_artifact_recorder().recorder,
+        writes=_resource_wiring.build_object_write_coordinator(Mock()),
+        sessions=_resource_wiring.write_sessions,
+    )
     lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
 
     @contextmanager
@@ -169,14 +184,13 @@ def test_stale_execution_aborts_before_materialization_without_domain_failure():
         yield Mock()
 
     with (
-        patch("app.modules.import_jobs.pipeline_runner.SessionLocal", database_scope),
-        patch(
-            "app.modules.import_jobs.pipeline_runner.import_execution_recorder.start_execution",
+        patch.object(service, "sessions", database_scope),
+        patch.object(
+            service.recorder,
+            "start_execution",
             side_effect=StaleImportDispatchAttempt("lost"),
         ),
-        patch(
-            "app.modules.import_jobs.pipeline_runner.import_execution_recorder.finalize_failure"
-        ) as failure,
+        patch.object(service.recorder, "finalize_failure") as failure,
         patch.object(service, "_resolve_input_paths") as materialize,
         pytest.raises(StaleImportDispatchAttempt),
     ):

@@ -2,8 +2,8 @@
 
 from dataclasses import FrozenInstanceError
 import pytest
-from app.modules.storage_objects.facts import StoredObjectFacts
-from app.modules.storage_objects.persistence import object_from_row, object_to_row
+from app.modules.media_storage.facts import StoredObjectFacts
+from app.modules.media_storage.persistence import object_from_row, object_to_row
 from app.modules.performance_takes.aggregate import PerformanceTakeFacts
 from tests.test_take_manifest import value as manifest_value
 
@@ -91,6 +91,10 @@ def test_every_semantic_owner_has_explicit_physical_references():
     "field,bad",
     [
         ("object_key", ""),
+        ("object_key", "/object"),
+        ("object_key", "object/"),
+        ("object_key", "object//bytes"),
+        ("object_key", "object/../bytes"),
         ("byte_size", -1),
         ("byte_size", 1.5),
         ("byte_size", True),
@@ -154,7 +158,7 @@ def test_physical_schema_and_dependency_ownership():
         isinstance(c, UniqueConstraint) and [column.name for column in c.columns] == ["object_key"]
         for c in blob.constraints
     )
-    root = Path(__file__).parents[1] / "app/modules/storage_objects"
+    root = Path(__file__).parents[1] / "app/modules/media_storage"
     allowed = {"dataclasses", "re", "hashlib", "app.db.models.stored_object", "facts"}
     for file in (root / "facts.py", root / "persistence.py"):
         for node in ast.walk(ast.parse(file.read_text())):

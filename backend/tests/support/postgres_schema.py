@@ -32,6 +32,12 @@ def postgres_schema_database(monkeypatch):
     config = Config(str(backend / "alembic.ini"))
     config.set_main_option("script_location", str(backend / "alembic"))
     monkeypatch.setattr(settings, "DATABASE_URL", url.render_as_string(hide_password=False))
+    from sqlalchemy.orm import sessionmaker
+    from app.composition import storage_resources
+
+    monkeypatch.setattr(
+        storage_resources, "write_sessions", sessionmaker(bind=engine, expire_on_commit=False)
+    )
     try:
         yield engine, config
     finally:

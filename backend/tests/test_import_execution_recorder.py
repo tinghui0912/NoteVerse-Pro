@@ -1,3 +1,4 @@
+from app.composition import storage_resources as _resource_wiring
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.durable_work.failure import DurableFailure
 from app.shared.durable_failure import DurableFailureClass
@@ -12,7 +13,8 @@ from app.modules.import_jobs import execution_recorder
 
 import pytest
 
-from app.db.models.import_job import ImportJobState, ImportJobStepStatus
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.import_jobs.domain import ImportJobStepStatus
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 
 
@@ -61,7 +63,7 @@ def _service_with_job(job: object | None) -> tuple[ImportExecutionRecorder, Mock
     admission = execution_recorder.admit_import_processing_outcome
     return (
         ImportExecutionRecorder(
-            repository=repository,
+            repository=repository, usage=_resource_wiring.storage_usage_service
         ),
         repository,
         admission,

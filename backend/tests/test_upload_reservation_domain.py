@@ -11,7 +11,7 @@ from app.modules.performance_takes.upload_reservation.domain import (
     UploadReservationLifecycle,
     UNKNOWN_OUTCOME_GRACE,
 )
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 
 NOW = datetime(2026, 11, 1, tzinfo=UTC)
 

@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
 from uuid import uuid4
 from app.composition.storage_resources import storage_quota_service
 from tests.support.quota import admit_hold
@@ -31,27 +34,28 @@ from app.db.models import (
     StoredObject,
     StoragePlanPolicy,
     StorageUsageAccount,
-    StorageUsageCategory,
     StorageUsageCounter,
     StorageUsageEvent,
     StorageQuotaHold,
     Upload,
     User,
 )
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.uploads.service import UploadService
-from app.modules.uploads.dependencies import get_upload_service
+from app.api.resource_dependencies import get_upload_service
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.revisions.service import RevisionService
 from app.modules.scores.deletion_executor import ScoreDeletionExecutor
 from tests.support.score_deletion import complete_score_deletions
 from app.modules.scores.service import ScoreService
-from app.modules.storage_usage.service import storage_usage_service
+from app.composition.storage_resources import storage_usage_service
 from tests.support.storage_state import provision_storage_users
 from app.shared.error_codes import CustomerErrorCode
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.shared.time import utc_now
 
@@ -357,7 +361,11 @@ def test_upload_quota_exceeded_does_not_store_file(
 ) -> None:
     session, storage = storage_usage_session
     _set_quota(session, 3)
-    service = UploadService(storage=storage)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     db = session
     user = session.get(User, 1)
     assert user is not None
@@ -398,7 +406,11 @@ def test_upload_api_returns_storage_quota_error_without_storing_file(
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_current_user
-    app.dependency_overrides[get_upload_service] = lambda: UploadService(storage=storage)
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     try:
         response = client.post(
             "/api/v1/uploads",
@@ -436,7 +448,11 @@ def test_upload_api_hides_storage_key(
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_current_user
-    app.dependency_overrides[get_upload_service] = lambda: UploadService(storage=storage)
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     try:
         response = client.post(
             "/api/v1/uploads",
@@ -467,7 +483,11 @@ def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
     session, storage = storage_usage_session
     _seed_score_with_source(session, storage)
     _set_quota(session, 1)
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     db = session
 
     base = session.execute(select(ScoreRevision)).scalar_one()
@@ -511,7 +531,10 @@ def test_score_delete_releases_source_usage_and_storage_object(
     session.commit()
     assert storage.exists(source_storage_key)
 
-    service = ScoreService(storage=storage)
+    service = ScoreService(
+        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
     service.delete(session, score.score_uuid, 1)
 
     marked_score = session.get(Score, score.id)
@@ -685,9 +708,14 @@ def test_score_delete_keeps_confirmed_history_after_import_binary_release(
     from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 
     confirmed_at = job.confirmed_at
-    ImportJobDeletionService().cleanup_binary_artifacts(session, job, 1)
+    ImportJobDeletionService(usage=_resource_wiring.storage_usage_service).cleanup_binary_artifacts(
+        session, job, 1
+    )
     session.commit()
-    service = ScoreService(storage=storage)
+    service = ScoreService(
+        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
     service.delete(session, score.score_uuid, 1)
 
     marked_score = session.get(Score, score.id)
@@ -797,7 +825,10 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
     )
     session.commit()
 
-    ImportJobService(storage=storage).delete(session, job_uuid, 1)
+    ImportJobService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    ).delete(session, job_uuid, 1)
 
     assert session.get(ImportJob, 1001) is None
     assert session.get(Upload, 1002) is None
@@ -889,7 +920,10 @@ def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     )
     session.commit()
 
-    ImportJobService(storage=storage).delete(
+    ImportJobService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    ).delete(
         session,
         "job-delete-shared-a",
         1,
@@ -923,7 +957,11 @@ def test_uploads_owns_sha_key_dedup_and_last_upload_deletion(
     put = Mock(wraps=storage.put_bytes)
     monkeypatch.setattr(storage, "put_bytes", put)
     service, db, user = (
-        UploadService(storage=storage),
+        UploadService(
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ),
         session,
         session.get(User, 1),
     )
@@ -974,7 +1012,11 @@ def test_uploads_failed_upload_retires_only_newly_written_bytes(
     key = blob_object_key(hashlib.sha256(content).hexdigest(), ".png")
     if preexisting_object:
         storage.put_bytes(key=key, content=content, content_type="image/png")
-    service = UploadService(storage=storage)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     monkeypatch.setattr(
         service.repository,
         "create_upload",

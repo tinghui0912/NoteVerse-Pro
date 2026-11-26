@@ -23,7 +23,7 @@ from sqlalchemy.orm import relationship
 from .performance_take_manifest import PerformanceTakeManifest
 
 from app.shared.time import utc_now
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 

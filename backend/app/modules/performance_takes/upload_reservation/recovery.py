@@ -4,15 +4,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import DBAPIError, InterfaceError
 from app.db.session import SessionLocal
 from app.modules.performance_takes.repository import PerformanceTakeRepository
-from app.modules.storage_usage.service import StorageUsageService
-from app.modules.storage_quota.service import StorageQuotaService
-from app.db.models.storage_quota import StorageQuotaHoldStatus
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.storage_governance.quota.service import StorageQuotaService
+from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
 from app.modules.performance_takes.manifest_persistence import manifest_from_row
-from app.db.models.storage_usage import StorageUsageCategory
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.shared.time import utc_now
 from .domain import FinalizeLease
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 from .persistence import lifecycle_from_row
 from .effects import apply_reservation_transition
 
@@ -27,11 +27,15 @@ def is_transient_db_disconnect(error: BaseException) -> bool:
 
 class PerformanceTakeFinalizationRecovery:
     def __init__(
-        self, repository: PerformanceTakeRepository, storage_usage_service: StorageUsageService
+        self,
+        repository: PerformanceTakeRepository,
+        storage_usage_service: StorageUsageService,
+        *,
+        quota: StorageQuotaService,
     ) -> None:
         self.repository = repository
         self.storage_usage_service = storage_usage_service
-        self.quota = StorageQuotaService(storage_usage_service)
+        self.quota = quota
 
     def validate_completed_hold(self, db: Session, row: PerformanceTakeUploadReservation) -> None:
         manifest = manifest_from_row(row.manifest)

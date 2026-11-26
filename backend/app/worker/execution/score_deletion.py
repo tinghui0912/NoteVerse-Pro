@@ -1,8 +1,9 @@
 """Attempt-fenced, transactional Score graph deletion."""
 
+from app.composition.media_resources import build_score_deletion_executor
+
 from app.db.session import SessionLocal
 from app.modules.scores.deletion_delivery import score_deletion_delivery, StaleScoreDeletionAttempt
-from app.modules.scores.deletion_executor import ScoreDeletionExecutor
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,
@@ -29,7 +30,7 @@ def execute_score_deletion_task(task, operation_uuid: str) -> dict[str, object]:
                 tracestate=lease.tracestate,
             ):
                 with SessionLocal() as db:
-                    result = ScoreDeletionExecutor().execute(db, lease)
+                    result = build_score_deletion_executor().execute(db, lease)
                     db.commit()
             return {
                 "status": "completed",

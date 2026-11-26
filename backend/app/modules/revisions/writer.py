@@ -1,5 +1,8 @@
 """Single canonical revision persistence algorithm; the use case owns commit."""
 
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.storage_governance.quota.service import StorageQuotaService
+
 from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 
@@ -18,15 +21,18 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionEvent,
     User,
-    StorageUsageCategory,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.shared.realtime import RealtimeChangeKind
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat, MetadataStatus
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.metadata.domain import MetadataStatus
 from app.db.models.revision_metadata_outbox import RevisionMetadataOutbox
-from app.modules.storage_objects.writes import ObjectWriteReceipt, adopt_written_object
-from app.modules.storage_usage.service import storage_usage_service
-from app.composition.storage_resources import storage_quota_service
-from app.db.models.storage_quota import StorageQuotaHoldStatus
+from app.modules.media_storage.write_contracts import ObjectWriteReceipt
+from app.modules.media_storage.adoption import adopt_written_object
+
+
+from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
 from app.modules.revisions.render_admission import admit_revision_render
 from app.modules.playback.outbox_service import create_playback_outbox
 from app.modules.revisions.post_commit import RevisionPostCommitWork
@@ -80,6 +86,10 @@ class RevisionWriteResult:
 
 
 class RevisionWriter:
+    def __init__(self, *, usage: StorageUsageService, quota: StorageQuotaService) -> None:
+        self.usage = usage
+        self.quota = quota
+
     def write(
         self, db: Session, command: InitialRevisionWrite | AppendRevisionWrite
     ) -> RevisionWriteResult:
@@ -106,7 +116,7 @@ class RevisionWriter:
             raise ValueError("Prepared canonical source identity disagrees with revision")
         for identity in sorted({score.owner_user_id, command.actor_user_id}):
             lock_active_resource_user(db, identity)
-        hold = storage_quota_service.lock_hold(db, prepared.quota_hold_id)
+        hold = self.quota.lock_hold(db, prepared.quota_hold_id)
         if (
             hold.user_id != score.owner_user_id
             or hold.category != StorageUsageCategory.SOURCE
@@ -124,7 +134,7 @@ class RevisionWriter:
             else None
         )
         if existing is not None:
-            return self._unused(db, prepared, existing)
+            return self._release_unused_source(db, prepared, existing)
         if hold.status != StorageQuotaHoldStatus.HELD:
             raise ValueError("New canonical source requires an active quota hold")
         initial = isinstance(command, InitialRevisionWrite)
@@ -155,7 +165,7 @@ class RevisionWriter:
                 if target.content_hash != prepared.content_hash:
                     raise ValueError("Restore source differs from immutable target")
             if head.content_hash == prepared.content_hash:
-                return self._unused(db, prepared, head)
+                return self._release_unused_source(db, prepared, head)
             number, origin = head.revision_number + 1, command.origin
         now = utc_now()
         revision = ScoreRevision(
@@ -227,9 +237,9 @@ class RevisionWriter:
                     created_at=now,
                 )
             )
-        if not storage_quota_service.consume_hold(db, prepared.quota_hold_id):
+        if not self.quota.consume_hold(db, prepared.quota_hold_id):
             raise ValueError("New canonical source requires an unconsumed quota hold")
-        storage_usage_service.record_allocation(
+        self.usage.record_allocation(
             db,
             user_id=score.owner_user_id,
             category=StorageUsageCategory.SOURCE,
@@ -326,12 +336,8 @@ class RevisionWriter:
             )
         return head
 
-    @staticmethod
-    def _unused(
-        db: Session, source: PreparedRevisionSource, revision: ScoreRevision
+    def _release_unused_source(
+        self, db: Session, source: PreparedRevisionSource, revision: ScoreRevision
     ) -> RevisionWriteResult:
-        storage_quota_service.release_hold(db, source.quota_hold_id)
+        self.quota.release_hold(db, source.quota_hold_id)
         return RevisionWriteResult(revision, None)
-
-
-revision_writer = RevisionWriter()

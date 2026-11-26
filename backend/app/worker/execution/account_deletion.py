@@ -7,7 +7,7 @@ from app.modules.account.deletion_delivery import (
     StaleAccountDeletionAttempt,
 )
 from app.composition.account_deletion import AccountDeletionExecutor
-from app.modules.storage_inventory.composition import build_storage_inventory_registry
+from app.composition.storage_inventory import build_storage_inventory_registry
 from app.worker.task_runtime import bind_task_context, clear_task_context, run_scheduler_scan
 from app.worker.dispatch.account_deletion import (
     dispatch_account_deletion,

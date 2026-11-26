@@ -18,17 +18,14 @@ from app.db.models import (
     StoredObject,
     User,
 )
-from app.db.models.practice_bundle import PracticeBundleStatus
-from app.db.models.revision_metadata_outbox import (
-    RevisionMetadataOutbox,
-    RevisionMetadataOutboxStatus,
-)
-from app.db.models.object_write_intent import ObjectWriteIntent, ObjectWriteIntentStatus
-from app.db.models.stored_object_retirement import (
-    StoredObjectRetirement,
-    StoredObjectRetirementStatus,
-)
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.practice.bundle.states import PracticeBundleStatus
+from app.db.models.revision_metadata_outbox import RevisionMetadataOutbox
+from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
+from app.db.models.object_write_intent import ObjectWriteIntent
+from app.modules.media_storage.domain import ObjectWriteIntentStatus
+from app.db.models.stored_object_retirement import StoredObjectRetirement
+from app.modules.media_storage.domain import StoredObjectRetirementStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 from app.shared.time import utc_now
 from tests.test_delivery_attempt_postgres import database  # noqa: F401
 from tests.test_performance_take_schema import manifest_values
@@ -197,7 +194,7 @@ def test_attempt_token_constraint_consumes_enum_authority():
 def test_metadata_batch_limit_uses_current_settings(status_database, monkeypatch):
     from app.core.config import settings
     from app.db.models import ScoreRevision
-    from app.db.models.score import RevisionOrigin
+    from app.modules.revisions.domain import RevisionOrigin
     from app.modules.revisions.metadata_delivery import metadata_delivery
 
     engine, _ = status_database

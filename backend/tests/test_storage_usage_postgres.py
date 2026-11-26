@@ -1,5 +1,7 @@
 """Accounting and semantic ownership follow the caller's PostgreSQL transaction."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from uuid import uuid4
 
 from tests.support.quota import admit_hold
@@ -22,7 +24,6 @@ from app.db.models import (
     ObjectWriteIntent,
     StoragePlanPolicy,
     StorageUsageAccount,
-    StorageUsageCategory,
     StorageUsageCounter,
     StorageUsageEvent,
     StorageQuotaHold,
@@ -30,8 +31,9 @@ from app.db.models import (
     Upload,
     User,
 )
-from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.storage_usage.service import storage_usage_service as usage
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.media_storage.persistence import object_from_bytes
+from app.composition.storage_resources import storage_usage_service as usage
 from app.modules.uploads.service import UploadService, blob_object_key
 from tests.support.images import image_bytes
 from tests.support.write_cleanup import drain_write_cleanup
@@ -270,7 +272,11 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
         user = db.get(User, 1)
 
         def operation():
-            return UploadService(storage=storage).create_upload(
+            return UploadService(
+                quota=_resource_wiring.storage_quota_service,
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).create_upload(
                 db,
                 user,
                 UploadFile(file=io.BytesIO(content), filename="score.png"),
@@ -308,7 +314,7 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
                 == 0
             )
             assert hold.status.value == "RELEASED"
-            assert intent.status == ("PREPARED" if outcome == "put_failure" else "WRITTEN")
+            assert intent.status == ("CLEANUP_PENDING" if outcome == "put_failure" else "WRITTEN")
     if outcome != "success":
         assert storage.exists(key)
         setup_worker(accounting, monkeypatch)

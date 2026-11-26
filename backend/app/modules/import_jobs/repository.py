@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.engine import RowMapping
 
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 from app.db.models import (
     ExecutionManifest,

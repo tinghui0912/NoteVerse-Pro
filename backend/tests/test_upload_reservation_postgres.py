@@ -1,6 +1,10 @@
 """Upload reservation ownership across independent PostgreSQL transactions."""
 
 from __future__ import annotations
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 from app.composition.storage_resources import storage_quota_service
 
 from tests.support.practice_bundle import bind_bundle
@@ -24,8 +28,8 @@ from app.db.models import (
     PracticeBundleRecord,
     StorageUsageAccount,
     StorageUsageCounter,
-    StorageUsageCategory,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.db.models.performance_take_manifest import PerformanceTakeManifest
 from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
@@ -42,7 +46,7 @@ from app.modules.performance_takes.upload_reservation.persistence import (
     initialize_lifecycle,
 )
 from app.modules.performance_takes.upload_reservation.domain import FinalizeLease
-from app.modules.storage_usage.service import StorageUsageService
+from app.modules.storage_governance.usage.service import StorageUsageService
 from app.modules.practice.bundle.service import PracticeBundleService
 from app.shared.time import utc_now
 
@@ -101,7 +105,7 @@ def test_terminal_transitions_atomically_release_quota_and_preserve_provenance(
                 return_value=now + timedelta(hours=2),
             ):
                 upload_reservation_cleanup_service.cleanup_expired_reservations(
-                    db, storage, StorageUsageService()
+                    db, storage, StorageUsageService(), quota=_resource_wiring.storage_quota_service
                 )
         db.refresh(row)
         assert row.status == ("CANCELLED" if command == "cancel" else "EXPIRED")
@@ -186,7 +190,9 @@ def setup_bundle(postgres_bundle):
         reference, verified_bundle = bind_bundle(
             db, storage, bundle, revision_id=repository.test_revision_id
         )
-    source = PracticeBundleService(repository=repository, storage=storage)
+    source = PracticeBundleService(
+        repository=repository, writes=_resource_wiring.build_object_write_coordinator(storage)
+    )
     request = PerformanceTakeUploadReservationRequest.model_validate(
         {
             "client_request_id": "same-request",
@@ -352,7 +358,7 @@ async def test_finalize_lease_blocks_concurrency_and_expired_takeover_preserves_
                 return_value=utc_now() + timedelta(hours=2),
             ):
                 upload_reservation_cleanup_service.cleanup_expired_reservations(
-                    db, storage, StorageUsageService()
+                    db, storage, StorageUsageService(), quota=_resource_wiring.storage_quota_service
                 )
             assert not storage.exists(candidates[0])
             assert storage.exists(take.recording_object.object_key)
@@ -516,7 +522,7 @@ def test_account_erasure_retains_temporary_cleanup_authority(postgres_bundle, fi
         erase_account_take_history,
     )
     from app.modules.performance_takes.upload_reservation.persistence import apply_transition
-    from app.shared.performance_take_upload import UploadReservationStatus
+    from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
     from unittest.mock import patch
 
     sessions, source, storage, request = setup_bundle(postgres_bundle)
@@ -539,12 +545,28 @@ def test_account_erasure_retains_temporary_cleanup_authority(postgres_bundle, fi
             storage.put_bytes(key="erase-candidate", content=MEDIA, content_type="audio/webm")
         storage.put_bytes(key=row.staging_object_key, content=MEDIA, content_type="audio/webm")
         db.commit()
-        assert cleanup_account_take(db, 1) == "progress"
+        assert (
+            cleanup_account_take(
+                db,
+                1,
+                quota=_resource_wiring.storage_quota_service,
+                takes=_media_wiring.build_take_service(),
+            )
+            == "progress"
+        )
         db.commit()
         db.refresh(row)
         assert row.status == UploadReservationStatus.CANCELLED
         assert db.get(StorageQuotaHold, row.quota_hold_id).status == "RELEASED"
-        assert cleanup_account_take(db, 1) == "busy"
+        assert (
+            cleanup_account_take(
+                db,
+                1,
+                quota=_resource_wiring.storage_quota_service,
+                takes=_media_wiring.build_take_service(),
+            )
+            == "busy"
+        )
         db.rollback()
         assert storage.exists(row.staging_object_key)
         with pytest.raises(RuntimeError, match="lineage"):
@@ -555,9 +577,17 @@ def test_account_erasure_retains_temporary_cleanup_authority(postgres_bundle, fi
             return_value=now + timedelta(hours=2),
         ):
             upload_reservation_cleanup_service.cleanup_expired_reservations(
-                db, storage, StorageUsageService()
+                db, storage, StorageUsageService(), quota=_resource_wiring.storage_quota_service
             )
-        assert cleanup_account_take(db, 1) == "empty"
+        assert (
+            cleanup_account_take(
+                db,
+                1,
+                quota=_resource_wiring.storage_quota_service,
+                takes=_media_wiring.build_take_service(),
+            )
+            == "empty"
+        )
         erase_account_take_history(db, 1, limit=1)
         db.commit()
         assert db.scalar(select(PerformanceTakeUploadReservation)) is None

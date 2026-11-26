@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import timedelta
 from threading import Event
 from time import monotonic
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -30,8 +31,9 @@ from app.db.models import (
     StoredObjectRetirement,
     User,
 )
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.playback.outbox_service import playback_outbox_service
@@ -294,7 +296,11 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
         monkeypatch.setattr(module, "_render_revision", generate)
         execute = module.execute_score_revision_render_task
     else:
-        monkeypatch.setattr(module.PlaybackGenerationService, "render_for_worker", generate)
+        monkeypatch.setattr(
+            module,
+            "build_playback_generation_service",
+            lambda: SimpleNamespace(render_for_worker=generate),
+        )
         execute = module.execute_playback_outbox_task
     assert execute(None, kind)["status"] == "stale"
     publish.assert_not_called()

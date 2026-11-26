@@ -5,7 +5,8 @@ from app.composition.storage_resources import provision_storage_resources
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import StoragePlanPolicy, StoragePlanCode, User
+from app.db.models import StoragePlanPolicy, User
+from app.modules.storage_governance.quota.states import StoragePlanCode
 from app.db.model_utils import require_persisted_id
 
 

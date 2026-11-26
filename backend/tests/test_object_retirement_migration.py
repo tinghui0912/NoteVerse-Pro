@@ -5,9 +5,9 @@ from sqlalchemy import text, inspect, select
 from sqlalchemy.orm import Session, sessionmaker
 from alembic import command
 from app.db.models import StoredObject, StoredObjectRetirement
-from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
-from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.storage_objects.retirement import retire_after_release, snapshot
+from app.modules.media_storage.domain import StoredObjectRetirementStatus
+from app.modules.media_storage.persistence import object_from_bytes
+from app.modules.media_storage.retirement import retire_after_release, snapshot
 from app.shared.time import utc_now
 from app.worker.execution import stored_object_retirement as worker
 from tests.support.object_storage import InMemoryObjectStorage

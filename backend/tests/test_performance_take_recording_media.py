@@ -16,13 +16,13 @@ from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ValidationException
 from app.db.models import PerformanceTake, PerformanceTakeManifest
 from app.main import app
-from app.modules.performance_takes.dependencies import (
+from app.api.resource_dependencies import (
     get_performance_take_service,
     get_performance_take_reservation_service,
     get_performance_take_finalization_service,
 )
-from app.modules.storage_usage.service import StorageUsageService
-from app.modules.storage_usage.dependencies import get_storage_usage_service
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.api.resource_dependencies import get_storage_usage_service
 from app.storage.factory import get_object_storage
 from app.storage.base import ObjectMetadata
 from tests.test_performance_takes import (

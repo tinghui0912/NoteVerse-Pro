@@ -9,12 +9,12 @@ ownership. This contract defines the two cohesive infrastructure domains and the
 upload, adoption, cleanup and delivery guarantees.
 
 The executable provider boundary is [app/storage](../../backend/app/storage/base.py).
-Avatar uses bounded API input and JPEG normalization. ObjectWriteIntent,
-StoredObject, StoredObjectRetirement and the three governance modules have their
-own runtime implementations. The `media_storage`, `storage_governance`,
-UploadSession and ObjectWriteCoordinator definitions below are implementation
-contracts, not claims that these directories or tables exist in the database.
-Database changes require explicit migrations and their own verification.
+[media_storage](../../backend/app/modules/media_storage/) owns physical object facts,
+independent write coordination, adoption, references, retirement and delivery policy.
+[storage_governance](../../backend/app/modules/storage_governance/) owns capacity,
+accounting and inventory contracts. Avatar uses bounded API input and JPEG normalization.
+UploadSession and nullable StoredObject checksum definitions below are schema contracts;
+they require explicit migrations before use. Current StoredObject requires full SHA-256.
 
 ## Authorities and dependencies
 
@@ -31,7 +31,7 @@ flowchart TD
 - `app/storage/` owns provider transport, signing, metadata and wire errors. It has
   no ORM, FastAPI or business-domain dependency. SDK imports belong here.
 - `media_storage` owns immutable physical facts, ObjectWriteCoordinator,
-  UploadSession, adoption, references, retirement, GC and delivery policy.
+  adoption, references, retirement, GC and delivery policy. UploadSession belongs to this domain.
 - `storage_governance` contains entitlement/quota, logical usage and inventory
   contracts. Accounting and reconciliation remain independent authorities within
   that domain. Its core does not import business ORM or modify business resources.
@@ -258,8 +258,8 @@ discovery evidence. Evidence is retained according to operational retention poli
 ObjectWriteCoordinator owns an independent SessionFactory. It never commits or
 rolls back a caller's business session. `write` and `write_batch` persist exact
 write intentions before provider IO; batch preparation and result persistence
-avoid one database round trip per rendered page. Provider IO holds no business
-row lock. Generation-fenced receipts bind exact key, bytes, size and content type.
+avoid one database round trip per rendered page. Provider IO acquires no business parent lock. Exact write-intent locks cover
+synchronous IO and WRITTEN persistence to fence cleanup and competing generations. Generation-fenced receipts bind exact key, bytes, size and content type.
 The business transaction adopts receipts and semantic references atomically.
 Failed adoption leaves durable cleanup ownership. A stale generation cannot
 revive cleaned authority. An intent-driven copy retains source and target identity
@@ -307,3 +307,49 @@ Avatar decoding. Provider doubles validate adapter behavior only. Real-provider
 tests use an isolated authorized namespace, and report untested capabilities.
 PostgreSQL tests establish atomic adoption/accounting, hold concurrency, reference
 versus retirement, irreversible fencing, retries and unknown-commit recovery.
+
+## Executable delivery contracts
+
+MediaDeliveryService owns signed URL issuance and DeliveryPolicy. The configured defaults
+are 900 seconds for signatures/cache and 20 MiB for controlled audio/video streaming.
+Large media selects signed delivery; Controlled Backend Streaming rejects oversized media.
+Avatar resolves with a bodyless signed redirect and immutable cache headers. Take playback
+URL responses and model-manifest URLs use the same signed capability policy.
+
+Binary response contracts remain explicit at these HTTP adapters:
+
+| Endpoint | Current response | Delivery authority |
+| --- | --- | --- |
+| `/me/avatars/{filename}` | 307 signed redirect | MediaDeliveryService |
+| `/performance-takes/{take_id}/playback-url` | Signed URL JSON | MediaDeliveryService |
+| `/model-assets/practice-acoustic/access` | Signed URL JSON | MediaDeliveryService |
+| `/revision-sources/{source_id}/access-url`, `/render-assets/{render_asset_id}/access-url` | Authorized application download URL JSON | Business authorization; target uses MediaDeliveryService |
+| `/revision-sources/{source_id}/download` | Controlled binary | MediaDeliveryService |
+| `/render-assets/{render_asset_id}/download`, `/view` | Controlled binary | MediaDeliveryService |
+| `/scores/{score_id}/input-assets/{asset_id}/download` | Controlled binary | MediaDeliveryService |
+| `/import-jobs/{job_id}/artifacts/{artifact_id}/download` | Controlled binary | MediaDeliveryService |
+| `/guest-previews/{token}/render-assets/{asset_id}/view` | Controlled binary | MediaDeliveryService |
+| `/scores/{score_id}/revisions/{revision_id}/playback` | Binary Range stream | Explicit HTTP contract; frontend-linked signed delivery is not active |
+| `/performance-takes/{take_id}/media` | Binary Range stream | Explicit HTTP contract; frontend-linked signed delivery is not active |
+| `/guest-previews/{token}/playback` | Binary Range stream | Explicit HTTP contract; frontend-linked signed delivery is not active |
+
+Upload HTTP responses carry semantic Upload IDs and facts, without a separate object
+download endpoint. Import input downloads reuse the artifact endpoint after authorization.
+
+These three Range contracts do proxy media through the application. They are a documented
+implementation gap against the large-media offload policy and require one coordinated
+API/client contract change. They do not claim signed offload is active. Render archives
+stream generated ZIP bytes from domain-authorized inputs, not a formal object transfer.
+
+ObjectWriteCoordinator accepts only its independent SessionFactory and ObjectStorage.
+`write_bytes` and `write_batch` persist all PREPARED rows in one transaction, then acquire
+all exact Intent locks in key order, perform IO and persist WRITTEN in a second transaction.
+A failed batch queues matching unadopted generations for cleanup; transaction uncertainty
+retains PREPARED/WRITTEN evidence and expiry recovery. `copy_object` verifies source and
+copied target bytes before WRITTEN. Adoption and batch adoption never commit or rollback.
+Batch adoption locks every Intent in key order before locking any StoredObject.
+
+Composition constructs infrastructure and business participants. API dependency functions
+and Worker execution import composition; business modules do not. ORM definitions import
+pure domain state modules without importing application services. Enum values, SQL types,
+constraints and table structures remain unchanged by namespace placement.

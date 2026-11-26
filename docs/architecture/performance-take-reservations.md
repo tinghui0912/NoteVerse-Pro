@@ -42,7 +42,7 @@ Content-Type, container signature and full SHA-256 against the admitted recordin
 
 ## Lifecycle and persistence
 
-`app/shared/performance_take_upload.py` owns `UploadReservationStatus`, consumed by
+`app/modules/performance_takes/upload_reservation/states.py` owns `UploadReservationStatus`, consumed by
 both the lifecycle domain and persistence. The ORM status field is typed with this
 enum; its VARCHAR(24) admission CHECK is projected by SQLAlchemy Enum with
 `native_enum=False`. The finalize-lease CHECK projects FINALIZING from the same
@@ -186,7 +186,7 @@ and requires exact Manifest Bundle/artifact identity, score timebase and scope a
 
 ## Durable server bytes
 
-`modules/storage_objects/facts.py` owns immutable StoredObjectFacts; `modules/storage_objects/persistence.py` is its
+`modules/media_storage/facts.py` owns immutable StoredObjectFacts; `modules/media_storage/persistence.py` is its
 single hydration boundary. A StoredObject records object key, exact byte size,
 full server-computed SHA-256 and canonical content type. Locator uniqueness is object key within the deployment namespace. Hashes are observations; domain-owned reuse policies do not imply global deduplication. StoredObject has no user, Capture kind,
 Practice identity, authorization or lifecycle state.

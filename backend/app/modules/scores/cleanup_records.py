@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.db.models import StorageUsageCategory
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 
 
 @dataclass(frozen=True)

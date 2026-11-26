@@ -16,16 +16,16 @@ from app.db.models import (
     StorageUsageAccount,
     StorageUsageCounter,
     StorageUsageEvent,
-    StorageUsageCategory,
     Score,
     ScoreRevision,
     ScoreRenderAsset,
     ScorePlaybackAsset,
     SchedulerHeartbeat,
 )
-from app.db.models.score import RevisionOrigin
-from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.storage_usage.service import storage_usage_service
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.media_storage.persistence import object_from_bytes
+from app.composition.storage_resources import storage_usage_service
 from app.shared.time import utc_now
 from tests.support.maintenance import configure_maintenance
 from tests.test_score_revision_services import score_service_session as score_service_session
@@ -113,7 +113,7 @@ def test_batch_cleanup_obeys_its_execution_transaction(maintenance, monkeypatch,
             "deleted",
         ),
         "job": (
-            worker.job_maintenance_service,
+            worker.build_import_maintenance_service(),
             "run",
             worker.execute_job_maintenance,
             Upload,
@@ -121,6 +121,8 @@ def test_batch_cleanup_obeys_its_execution_transaction(maintenance, monkeypatch,
             "orphan_uploads_deleted",
         ),
     }[kind]
+    if kind == "job":
+        monkeypatch.setattr(worker, "build_import_maintenance_service", lambda: service)
     mutate = getattr(service, method)
     if outcome == "caller_rollback":
         with Session(engine) as db:
@@ -255,9 +257,9 @@ def test_derived_retention_commits_each_score_and_its_complete_release_graph(
     engine, storage, worker = maintenance
     facts = seed_derived(engine, storage)
     with Session(engine) as db:
-        assert worker.derived_asset_retention_service.candidate_score_ids(db) == [10, 20]
+        assert worker.build_derived_asset_retention_service().candidate_score_ids(db) == [10, 20]
     if stage in {"asset_deletion", "usage_release"}:
-        release = domain.storage_usage_service.record_release
+        release = storage_usage_service.record_release
 
         def interrupted(db, **kwargs):
             failing = kwargs["object_id"] == facts[20]["render_uuid"]
@@ -267,7 +269,7 @@ def test_derived_retention_commits_each_score_and_its_complete_release_graph(
                 db.flush()
                 raise RuntimeError("score cleanup interrupted")
 
-        monkeypatch.setattr(domain.storage_usage_service, "record_release", interrupted)
+        monkeypatch.setattr(storage_usage_service, "record_release", interrupted)
     elif stage == "retirement":
         retire = domain.retire_after_release
 
@@ -281,9 +283,9 @@ def test_derived_retention_commits_each_score_and_its_complete_release_graph(
     if stage == "caller_rollback":
         with Session(engine) as db:
             assert (
-                worker.derived_asset_retention_service.cleanup_for_score(
-                    db, score_id=10
-                ).object_retirements_queued
+                worker.build_derived_asset_retention_service()
+                .cleanup_for_score(db, score_id=10)
+                .object_retirements_queued
                 == 2
             )
             db.rollback()

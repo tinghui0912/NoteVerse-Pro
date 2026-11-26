@@ -1,7 +1,9 @@
 """Import semantic release succeeds independently of another physical owner."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from app.modules.import_jobs.requested_options import encode_requested_options
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 from app.shared.time import utc_now
 
@@ -19,14 +21,14 @@ from app.db.models import (
     StoredObject,
     User,
     StorageUsageCounter,
-    StorageUsageCategory,
 )
-from app.db.models.import_job import ImportJobState
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.media_storage.persistence import object_from_bytes
 from app.modules.import_jobs.deletion_service import ImportJobDeletionService
 from app.modules.durable_work.failure import DurableFailure, set_failure_facts
 from app.shared.durable_failure import DurableFailureClass
-from app.modules.storage_usage.service import storage_usage_service
+from app.composition.storage_resources import storage_usage_service
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
 )
@@ -116,7 +118,7 @@ def test_import_release_accounts_atomically_and_protects_other_owners(
         object_type="import_artifact",
     )
     db.commit()
-    service = ImportJobDeletionService()
+    service = ImportJobDeletionService(usage=_resource_wiring.storage_usage_service)
     release = service.cleanup_binary_artifacts if keep_job else service.delete_job
     release(db, job, 1)
     assert (db.get(ImportJob, job_id) is not None) is keep_job
@@ -195,7 +197,9 @@ def test_import_release_rechecks_locked_job_state(score_service_session, state):
     db.refresh(job)
     set_committed_value(job, "state", ImportJobState.READY_FOR_REVIEW)
     with pytest.raises(ValidationException) as error:
-        ImportJobDeletionService().delete_job(db, job, 1)
+        ImportJobDeletionService(usage=_resource_wiring.storage_usage_service).delete_job(
+            db, job, 1
+        )
     assert error.value.code == (
         CustomerErrorCode.JOB_RUNNING
         if state == ImportJobState.PROCESSING
@@ -231,7 +235,9 @@ def test_internal_binary_cleanup_rechecks_locked_running_state(score_service_ses
     db.add(ImportDispatch(job_id=job.id))
     db.commit()
     with pytest.raises(ValidationException) as error:
-        ImportJobDeletionService().cleanup_binary_artifacts(
+        ImportJobDeletionService(
+            usage=_resource_wiring.storage_usage_service
+        ).cleanup_binary_artifacts(
             db, SimpleNamespace(id=job.id, state=ImportJobState.CONFIRMED), 1
         )
     assert error.value.code == CustomerErrorCode.JOB_RUNNING
@@ -255,7 +261,7 @@ def test_import_release_requires_delivery_ownership(score_service_session, keep_
     db.add(job)
     db.commit()
     identity = job.id
-    service = ImportJobDeletionService()
+    service = ImportJobDeletionService(usage=_resource_wiring.storage_usage_service)
     release = service.cleanup_binary_artifacts if keep_job else service.delete_job
     with pytest.raises(RuntimeError, match="requires a durable dispatch"):
         release(db, job, 1)

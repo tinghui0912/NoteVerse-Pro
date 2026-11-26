@@ -1,6 +1,7 @@
 """Durable ownership of server-created bytes before semantic adoption."""
 
-from enum import StrEnum
+import app.modules.media_storage.domain as media_states
+
 from datetime import datetime
 from uuid import uuid4
 
@@ -28,23 +29,12 @@ from app.db.durable_delivery import (
 from app.shared.time import utc_now
 
 
-class ObjectWriteIntentStatus(StrEnum):
-    PREPARED = "PREPARED"
-    WRITTEN = "WRITTEN"
-    ADOPTED = "ADOPTED"
-    CLEANUP_PENDING = "CLEANUP_PENDING"
-    CLEANUP_DISPATCHED = "CLEANUP_DISPATCHED"
-    CLEANUP_PROCESSING = "CLEANUP_PROCESSING"
-    CLEANUP_FAILED = "CLEANUP_FAILED"
-    CLEANED = "CLEANED"
-
-
 class ObjectWriteIntent(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "object_write_intents"
     __table_args__ = (
         delivery_attempt_token_constraint(
             name="ck_object_write_intents_attempt_token",
-            processing_status=ObjectWriteIntentStatus.CLEANUP_PROCESSING,
+            processing_status=media_states.ObjectWriteIntentStatus.CLEANUP_PROCESSING,
         ),
         UniqueConstraint("object_key", name="uq_object_write_intent_key"),
         delivery_attempt_count_constraint(name="ck_object_write_intent_attempts"),
@@ -64,11 +54,11 @@ class ObjectWriteIntent(SQLModel, table=True):  # type: ignore[call-arg]
     byte_size: int = Field(sa_column=Column(BigInteger, nullable=False))
     sha256: str = Field(sa_column=Column(String(64), nullable=False))
     content_type: str = Field(sa_column=Column(String(255), nullable=False))
-    status: ObjectWriteIntentStatus = Field(
-        default=ObjectWriteIntentStatus.PREPARED,
+    status: media_states.ObjectWriteIntentStatus = Field(
+        default=media_states.ObjectWriteIntentStatus.PREPARED,
         sa_column=Column(
             SAEnum(
-                ObjectWriteIntentStatus,
+                media_states.ObjectWriteIntentStatus,
                 native_enum=False,
                 create_constraint=True,
                 validate_strings=True,
@@ -77,7 +67,7 @@ class ObjectWriteIntent(SQLModel, table=True):  # type: ignore[call-arg]
                 length=24,
             ),
             nullable=False,
-            default=ObjectWriteIntentStatus.PREPARED,
+            default=media_states.ObjectWriteIntentStatus.PREPARED,
         ),
     )
     write_token: str = Field(sa_column=Column(String(36), nullable=False))

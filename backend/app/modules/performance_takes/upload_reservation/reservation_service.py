@@ -1,8 +1,9 @@
 from __future__ import annotations
 from app.modules.account.resource_admission import lock_active_resource_user
+from app.modules.media_storage.delivery import MediaDeliveryService
 from app.storage import ObjectStorage
 
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 from app.modules.performance_takes.object_keys import performance_take_staging_object_key
 
 from dataclasses import asdict
@@ -29,7 +30,7 @@ from app.core.exceptions import (
 from app.db.models.performance_take_upload_reservation import (
     PerformanceTakeUploadReservation,
 )
-from app.db.models.storage_usage import StorageUsageCategory
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.performance_takes.upload_reservation.domain import (
     ReservationTransitionError,
@@ -61,10 +62,9 @@ from app.modules.practice.planning.score_plan import (
 from app.modules.practice.score.domain import PracticeTempoSegment
 
 from app.modules.score_access.policy import ScoreAccessPolicy
-from app.modules.storage_usage.service import StorageUsageService
-from app.modules.storage_quota.service import StorageQuotaService
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.storage_governance.quota.service import StorageQuotaService
 from app.shared.error_codes import CustomerErrorCode
-from app.storage.factory import object_storage
 from app.shared.time import utc_now
 
 from .effects import apply_reservation_transition
@@ -76,26 +76,27 @@ TAKE_UPLOAD_RESERVATION_SECONDS = 3600
 class PerformanceTakeReservationService:
     def __init__(
         self,
+        *,
+        quota: StorageQuotaService,
         repository: PerformanceTakeRepository | None = None,
-        storage: ObjectStorage | None = None,
-        storage_usage_service: StorageUsageService | None = None,
+        storage: ObjectStorage,
+        delivery: MediaDeliveryService,
+        storage_usage_service: StorageUsageService,
         score_access_policy: ScoreAccessPolicy | None = None,
-        practice_bundle_service: PracticeBundleService | None = None,
+        practice_bundle_service: PracticeBundleService,
     ) -> None:
         self.repository = repository or PerformanceTakeRepository()
         self.takes = PerformanceTakeService(
             repository=repository,
-            storage=storage,
+            delivery=delivery,
             score_access_policy=score_access_policy,
+            usage=storage_usage_service,
         )
-        self.storage = storage or object_storage
-        self.storage_usage_service = storage_usage_service or StorageUsageService()
-        self.quota = StorageQuotaService(self.storage_usage_service)
+        self.storage = storage
+        self.storage_usage_service = storage_usage_service
+        self.quota = quota
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
-        self.practice_bundle_service = practice_bundle_service or PracticeBundleService(
-            access_policy=self.score_access_policy,
-            storage=storage,
-        )
+        self.practice_bundle_service = practice_bundle_service
 
     def _put_url_expires_at(self, now: datetime) -> datetime:
         return now + timedelta(seconds=settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS)

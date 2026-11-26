@@ -22,7 +22,8 @@ from app.db.models import (
     StoredObjectRetirement,
 )
 from app.modules.durable_work import delivery, failure
-from app.shared import durable_failure, performance_take_upload, realtime
+from app.shared import durable_failure, realtime
+from app.modules.performance_takes.upload_reservation import states as reservation_states
 from app.shared.durable_failure import DurableFailureClass
 from app.shared.time import utc_now
 
@@ -157,7 +158,7 @@ def test_detail_only_records_do_not_own_structured_failure_facts(model):
 
 
 @pytest.mark.parametrize(
-    "module", (delivery, failure, durable_failure, performance_take_upload, realtime)
+    "module", (delivery, failure, durable_failure, reservation_states, realtime)
 )
 def test_transition_and_failure_mechanics_depend_only_on_pure_behavior(module):
     import sys
@@ -179,7 +180,7 @@ def test_transition_and_failure_mechanics_depend_only_on_pure_behavior(module):
         )
 
 
-def test_database_layer_does_not_depend_on_application_modules():
+def test_database_layer_only_imports_domain_owned_state_taxonomies():
     from importlib.util import resolve_name
 
     db_root = Path(durable_delivery.__file__).parent
@@ -194,9 +195,26 @@ def test_database_layer_does_not_depend_on_application_modules():
                 names = [module, *(module + "." + alias.name for alias in node.names)]
             else:
                 continue
-            assert not any(
-                name == "app.modules" or name.startswith("app.modules.") for name in names
-            ), path
+            allowed = {
+                "app.modules.media_storage.domain",
+                "app.modules.storage_governance.usage.domain",
+                "app.modules.storage_governance.quota.states",
+                "app.modules.performance_takes.upload_reservation.states",
+                "app.modules.practice.bundle.states",
+                "app.modules.revisions.domain",
+                "app.modules.revisions.render_states",
+                "app.modules.score_assets.domain",
+                "app.modules.scores.domain",
+                "app.modules.metadata.domain",
+                "app.modules.metadata.delivery_states",
+                "app.modules.playback.domain",
+                "app.modules.import_jobs.domain",
+            }
+            for name in names:
+                if name.startswith("app.modules."):
+                    assert any(
+                        name == owner or name.startswith(owner + ".") for owner in allowed
+                    ), (path, name)
 
 
 def test_shared_taxonomy_is_the_failure_classification_authority():

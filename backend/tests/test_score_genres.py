@@ -1,3 +1,7 @@
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
 from uuid import uuid4
 
 import pytest
@@ -6,9 +10,10 @@ from alembic import command
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app.db.models import ImportArtifact, ImportJob, Score, Upload, User, StorageUsageCategory
-from app.modules.storage_usage.service import storage_usage_service
-from app.db.models.import_job import ImportArtifactKind
+from app.db.models import ImportArtifact, ImportJob, Score, Upload, User
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.composition.storage_resources import storage_usage_service
+from app.modules.import_jobs.domain import ImportArtifactKind
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.modules.import_jobs.service import ImportJobService
@@ -19,7 +24,7 @@ from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.scores.genres import ScoreGenre, ordered_unique_genres
 from app.modules.scores.schemas import ScoreUpdateRequest
 from app.modules.scores.service import ScoreService
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import (
@@ -99,7 +104,10 @@ def test_score_genres_replace_clear_and_preserve_with_version_checks(genre_sessi
         title="Genres",
     )
     db = session
-    service = ScoreService(storage=storage)
+    service = ScoreService(
+        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
     for patch, expected in [
         ({"genres": list(reversed(ScoreGenre))}, list(ScoreGenre)),
         ({"display_title": "Renamed"}, list(ScoreGenre)),
@@ -161,7 +169,7 @@ def test_import_review_score_and_library_share_score_genres(
         reason="fixture",
     )
     session.commit()
-    result = ImportJobSubmissionService().submit(
+    result = ImportJobSubmissionService(usage=_resource_wiring.storage_usage_service).submit(
         session,
         session.get(User, 1),
         ImportJobSubmitRequest(
@@ -203,11 +211,20 @@ def test_import_review_score_and_library_share_score_genres(
     )
     session.commit()
     db = session
-    review = ImportReviewService(storage=storage)
-    assert (review.detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(requested)
-    assert (ImportJobService().detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(
-        requested
+    review = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
     )
+    assert (review.detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(requested)
+    assert (
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).detail(db, job.job_uuid, 1)
+    ).genres == ordered_unique_genres(requested)
     values = {"content": MUSICXML_1.decode()}
     if override is not None:
         values["genres"] = override
@@ -215,7 +232,12 @@ def test_import_review_score_and_library_share_score_genres(
     score = session.scalar(sa.select(Score).where(Score.score_uuid == confirmed.score_id))
     assert score.genres == expected
     assert all(type(code) is str for code in score.genres)
-    assert (ScoreService(storage=storage).get(db, score.score_uuid, 1)).genres == expected
+    assert (
+        ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        ).get(db, score.score_uuid, 1)
+    ).genres == expected
     entries, total = LibraryService().list_scores(
         db,
         1,

@@ -1,6 +1,8 @@
 """Consumer operations have explicit semantic identities and truthful success bodies."""
 
-from app.modules.storage_objects.reads import StoredObjectDelivery
+from app.composition import storage_resources as _resource_wiring
+
+from app.modules.media_storage.reads import StoredObjectDelivery
 
 from app.storage import AsyncObjectReader
 import fnmatch
@@ -18,13 +20,13 @@ from app.api.deps import get_current_user, get_db
 from app.api.runtime_schemas import RootRead, LivenessRead, ReadinessRead
 from app.main import app
 from app.modules.auth.dependencies import get_password_reset_service
-from app.modules.account.dependencies import get_avatar_service
-from app.modules.guest_previews.dependencies import get_guest_preview_service
-from app.modules.import_jobs.dependencies import get_import_job_service
-from app.modules.performance_takes.dependencies import get_performance_take_service
-from app.modules.playback.router import get_playback_delivery_service
-from app.modules.score_assets.dependencies import get_score_asset_service
-from app.modules.scores.dependencies import get_score_service
+from app.api.resource_dependencies import get_avatar_service
+from app.api.resource_dependencies import get_guest_preview_service
+from app.api.resource_dependencies import get_import_job_service
+from app.api.resource_dependencies import get_performance_take_service
+from app.api.resource_dependencies import get_playback_delivery_service
+from app.api.resource_dependencies import get_score_asset_service
+from app.api.resource_dependencies import get_score_service
 from tests.support.object_storage import InMemoryObjectStorage
 
 
@@ -212,6 +214,7 @@ def test_storage_route_success_matches_its_declared_binary_content(
     result = delivery
     service = SimpleNamespace(
         storage=storage,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
         async_storage=AsyncObjectReader(storage),
         **{method: Mock(return_value=result)},
     )
@@ -318,12 +321,17 @@ def test_avatar_resolution_is_a_bodyless_redirect_with_location(client):
     service = SimpleNamespace(
         avatar_exists=Mock(return_value=True),
         storage=SimpleNamespace(download_url=Mock(return_value=target)),
+        delivery=_resource_wiring.build_media_delivery_service(
+            SimpleNamespace(download_url=Mock(return_value=target))
+        ),
     )
 
     def database():
         yield SimpleNamespace(
             scalar=Mock(
-                return_value=SimpleNamespace(object_key="avatar", content_type="image/jpeg")
+                return_value=SimpleNamespace(
+                    id=1, object_key="avatar", byte_size=1, content_type="image/jpeg"
+                )
             )
         )
 

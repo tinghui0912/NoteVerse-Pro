@@ -3,11 +3,12 @@
 from datetime import datetime, timedelta
 from uuid import uuid4
 from sqlalchemy.orm import Session
-from app.db.models.storage_quota import StorageQuotaHold, StorageQuotaHoldStatus
+from app.db.models.storage_quota import StorageQuotaHold
+from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
 from app.composition.storage_resources import storage_quota_service
-from app.modules.storage_quota.contracts import StorageQuotaHoldReceipt
-from app.modules.storage_usage.service import storage_usage_service
-from app.db.models.storage_usage import StorageUsageCategory
+from app.modules.storage_governance.quota.contracts import StorageQuotaHoldReceipt
+from app.composition.storage_resources import storage_usage_service
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.shared.time import utc_now
 
 

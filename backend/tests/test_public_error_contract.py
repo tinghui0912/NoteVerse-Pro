@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import get_db
 from app.main import app
-from app.modules.guest_previews.dependencies import get_guest_preview_service
+from app.api.resource_dependencies import get_guest_preview_service
 from app.shared.error_codes import CustomerErrorCode
 from app.core.generated.control_plane_browser_protocol import (
     OPERATOR_AUTH_COOKIE_NAME,

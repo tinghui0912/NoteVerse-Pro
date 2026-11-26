@@ -64,7 +64,7 @@ def test_guest_preview_dependencies_own_presentation_authorization_and_demand_pr
         "score_assets",
         "playback",
         "revisions",
-        "storage_objects",
+        "media_storage",
     }
     for path in (BACKEND_ROOT / "app/modules/guest_previews").glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))

@@ -5,9 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_command_db, get_current_user, get_db
 from app.api.storage_streaming import stream_storage_object
+from app.api.media_delivery import deliver_media_object
+from app.modules.media_storage.delivery import DeliveryMode
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.modules.guest_previews.dependencies import get_guest_preview_service
+from app.api.resource_dependencies import get_guest_preview_service
 from app.modules.guest_previews.schemas import (
     GuestPreviewCredentialIssuedRead,
     GuestPreviewSettingsRead,
@@ -104,8 +106,9 @@ def view_guest_preview_page(
     service: GuestPreviewService = Depends(get_guest_preview_service),
 ):
     delivery = service.image(db, token, asset_id)
-    response = stream_storage_object(
-        storage=service.storage,
+    response = deliver_media_object(
+        service=service.delivery,
+        mode=DeliveryMode.CONTROLLED_STREAM,
         target=delivery,
         attachment=False,
     )

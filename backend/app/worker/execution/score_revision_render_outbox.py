@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.composition.media_resources import build_render_service
+
 import sys
 from sqlalchemy.orm import Session
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
@@ -18,7 +20,6 @@ from app.modules.revisions.render_target import (
     ScoreRevisionRenderAttempt,
     ScoreRevisionRenderTarget,
 )
-from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
 from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
     bind_task_context,
@@ -112,7 +113,7 @@ def execute_score_revision_render_task(
 
 def _render_revision(db: Session, payload: ScoreRevisionRenderAttempt) -> None:
     target = payload.target
-    ScoreRevisionRenderService().render_for_worker(
+    build_render_service().render_for_worker(
         db,
         target.score_uuid,
         target.revision_uuid,

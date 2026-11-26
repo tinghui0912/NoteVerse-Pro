@@ -5,7 +5,7 @@ from app.shared.time import Instant
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db.models.score import RevisionOrigin
+from app.modules.revisions.domain import RevisionOrigin
 from app.shared.pagination import CursorPage
 from app.shared.api_model import ApiModel
 

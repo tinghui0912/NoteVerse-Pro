@@ -1,5 +1,9 @@
 """Avatar service under the account module boundary."""
 
+from app.modules.media_storage.delivery import MediaDeliveryService
+
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
 import hashlib
 import io
 import warnings
@@ -14,10 +18,10 @@ from app.core.config import settings
 from app.db.model_utils import require_persisted_id
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import User
-from app.modules.storage_objects.writes import write_object, adopt_written_object
+
+from app.modules.media_storage.adoption import adopt_written_object
 from app.modules.account.avatar_presentation import avatar_url_for_user
-from app.modules.storage_objects.retirement import retire_after_release
-from app.storage import object_storage, ObjectStorage
+from app.modules.media_storage.retirement import retire_after_release
 
 
 def avatar_object_key(filename: str) -> str:
@@ -36,8 +40,10 @@ class AvatarService:
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
     AVATAR_SIZE = (200, 200)
 
-    def __init__(self, storage: ObjectStorage | None = None) -> None:
-        self.storage = storage or object_storage
+    def __init__(self, *, writes: ObjectWriteCoordinator, delivery: MediaDeliveryService) -> None:
+        self.delivery = delivery
+        self.writes = writes
+        self.storage = writes.storage
 
     def read_upload(self, stream: BinaryIO) -> bytes:
         limit = settings.AVATAR_MAX_UPLOAD_BYTES
@@ -118,9 +124,7 @@ class AvatarService:
         key, content = self.process_avatar(
             file_bytes=file_bytes, filename=filename, user_id=user_id
         )
-        written = write_object(
-            db, self.storage, key=key, content=content, content_type="image/jpeg"
-        )
+        written = self.writes.write_bytes(key=key, content=content, content_type="image/jpeg")
         user = (
             db.execute(
                 select(User)
@@ -161,6 +165,3 @@ class AvatarService:
         user.avatar_object_id = None
         retire_after_release(db, previous.id)
         return True
-
-
-avatar_service = AvatarService()

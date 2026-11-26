@@ -1,5 +1,8 @@
 """Authenticated collaboration matrix and real source disclosure boundaries."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 import hashlib
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.db.models import ScoreRevision
@@ -20,7 +23,7 @@ from app.db.models import (
     ScoreInvite,
 )
 from app.db.models.score_access import MembershipRole, AccessOrigin, InviteTerminalOutcome
-from app.db.models.score import RevisionSourceFormat
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.main import app
 from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
@@ -28,11 +31,11 @@ from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.service import ScoreService
 from app.modules.revisions.service import RevisionService
 from app.modules.playback.delivery import PlaybackDeliveryService
-from app.modules.playback.router import get_playback_delivery_service
+from app.api.resource_dependencies import get_playback_delivery_service
 from app.modules.practice.bundle.service import PracticeBundleService
-from app.modules.practice.bundle.router import get_practice_bundle_service
-from app.modules.score_assets.dependencies import get_score_asset_service
-from app.modules.scores.dependencies import get_score_service, get_revision_service
+from app.api.resource_dependencies import get_practice_bundle_service
+from app.api.resource_dependencies import get_score_asset_service
+from app.api.resource_dependencies import get_score_service, get_revision_service
 from app.modules.collaboration.dependencies import get_invitation_service
 from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.schemas import InviteCreateRequest, MemberUpdateRequest
@@ -163,10 +166,10 @@ def test_every_action_is_authorized_by_the_canonical_matrix(collaboration, role)
 async def test_http_source_disclosure_and_editing_boundaries(collaboration, role):
     session, storage, score, db = collaboration
     user_id = member_for(session, role)
-    source = PracticeBundleService(storage=storage)
+    source = PracticeBundleService(writes=_resource_wiring.build_object_write_coordinator(storage))
     admitted = source.resolve_bundle(db, score.score_uuid, 1, "trusted-revision")
     bundle_id = admitted.bundle.bundle_id
-    from app.modules.performance_takes.dependencies import (
+    from app.api.resource_dependencies import (
         get_performance_take_reservation_service,
         get_performance_take_finalization_service,
     )
@@ -176,11 +179,22 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
         get_performance_take_reservation_service: TakeLifecycleServices(
             storage=storage, practice_bundle_service=source
         ),
-        get_score_service: ScoreService(storage=storage),
-        get_revision_service: RevisionService(storage=storage),
-        get_score_asset_service: ScoreAssetService(storage=storage),
+        get_score_service: ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        ),
+        get_revision_service: RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ),
+        get_score_asset_service: ScoreAssetService(
+            delivery=_resource_wiring.build_media_delivery_service(storage)
+        ),
         get_practice_bundle_service: source,
-        get_playback_delivery_service: PlaybackDeliveryService(storage=storage),
+        get_playback_delivery_service: PlaybackDeliveryService(
+            delivery=_resource_wiring.build_media_delivery_service(storage)
+        ),
         get_invitation_service: InvitationService(),
         get_membership_service: MembershipService(),
     }

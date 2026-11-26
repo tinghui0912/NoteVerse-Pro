@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from app.db.models import ImportJob
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.durable_work.failure import DurableFailure, clear_failure_facts, set_failure_facts
 from app.shared.time import require_utc
 

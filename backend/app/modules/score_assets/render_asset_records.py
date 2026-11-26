@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.db.models import ScoreRenderAsset
-from app.db.models.score import RenderAssetKind
+from app.modules.score_assets.domain import RenderAssetKind
 from app.db.models.stored_object import StoredObject
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
-from app.modules.storage_objects.retirement import retire_after_release
+
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.retirement import retire_after_release
 
 from dataclasses import dataclass
 
@@ -7,15 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.db.models import (
-    Score,
-    ScorePlaybackAsset,
-    ScoreRenderAsset,
-    ScoreRevision,
-    StorageUsageCategory,
-)
-from app.db.models.score import RenderAssetKind
-from app.modules.storage_usage.service import storage_usage_service
+from app.db.models import Score, ScorePlaybackAsset, ScoreRenderAsset, ScoreRevision
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.score_assets.domain import RenderAssetKind
 
 
 @dataclass(frozen=True)
@@ -26,6 +22,9 @@ class DerivedAssetRetentionResult:
 
 
 class DerivedAssetRetentionService:
+    def __init__(self, *, usage: StorageUsageService) -> None:
+        self.usage = usage
+
     def candidate_score_ids(self, db: Session) -> list[int]:
         return list(
             db.scalars(
@@ -42,7 +41,7 @@ class DerivedAssetRetentionService:
         score = db.execute(self._score_for_cleanup_statement(score_id)).scalar_one_or_none()
         if score is None:
             return DerivedAssetRetentionResult()
-        storage_usage_service.committed_bytes(db, score.owner_user_id, lock=True)
+        self.usage.committed_bytes(db, score.owner_user_id, lock=True)
         protected_ids = set(db.execute(self._protected_revision_ids_statement(score_id)).scalars())
         rendered_pages = list(
             db.execute(
@@ -71,7 +70,7 @@ class DerivedAssetRetentionService:
             db.delete(asset)
         if owner_user_id is not None:
             for asset_uuid, storage_key, size_bytes in render_usage:
-                storage_usage_service.record_release(
+                self.usage.record_release(
                     db,
                     user_id=owner_user_id,
                     category=StorageUsageCategory.DERIVED_RENDER,
@@ -82,7 +81,7 @@ class DerivedAssetRetentionService:
                     storage_key=storage_key,
                 )
             for asset_uuid, storage_key, size_bytes in audio_usage:
-                storage_usage_service.record_release(
+                self.usage.record_release(
                     db,
                     user_id=owner_user_id,
                     category=StorageUsageCategory.DERIVED_AUDIO,
@@ -145,6 +144,3 @@ class DerivedAssetRetentionService:
         if protected_ids:
             statement = statement.where(col(ScorePlaybackAsset.revision_id).not_in(protected_ids))
         return statement
-
-
-derived_asset_retention_service = DerivedAssetRetentionService()

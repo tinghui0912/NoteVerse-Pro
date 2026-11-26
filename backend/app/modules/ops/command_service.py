@@ -10,7 +10,7 @@ from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.mail.outbox_service import mail_outbox_service
 from app.modules.scores.deletion_delivery import score_deletion_delivery
 from app.modules.account.deletion_delivery import account_deletion_delivery
-from app.modules.storage_objects.retirement import retirement_delivery
+from app.modules.media_storage.retirement import retirement_delivery
 from app.modules.ops.query_service import ops_async_operation_query_service
 from app.modules.ops.schemas import AsyncOperationKind, AsyncOperationRead
 

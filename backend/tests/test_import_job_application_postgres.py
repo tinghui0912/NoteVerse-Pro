@@ -1,5 +1,10 @@
 """Real Session Import HTTP admission, bulk projection and idempotency."""
 
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 
 from tests.support.storage_state import provision_storage_users
@@ -27,22 +32,22 @@ from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ResourceNotFoundException
 from app.db.execution_manifests import manifest_sha256
 from app.db.models import (
-    StorageUsageCategory,
     ExecutionManifest,
     ImportArtifact,
     ImportDispatch,
     ImportDispatchStatus,
     ImportJob,
-    ImportJobState,
     ImportJobUpload,
     Score,
     StoredObject,
     Upload,
     User,
 )
-from app.modules.storage_usage.service import storage_usage_service
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.import_jobs.domain import ImportJobState
+from app.composition.storage_resources import storage_usage_service
 from app.main import app
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
@@ -204,7 +209,10 @@ def complete_jobs(db, count=1):
 def test_list_and_detail_share_the_complete_current_projection(application_db):
     db = application_db
     complete_jobs(db)
-    service = ImportJobService()
+    service = ImportJobService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+    )
     detail = service.detail(db, "complete-0", 1)
     rows, total = service.list_jobs(db, 1, page=1, page_size=20)
     assert total == 1
@@ -244,7 +252,10 @@ def test_list_projection_query_count_is_bounded_for_one_and_fifty_jobs(applicati
 
     event.listen(db.bind.engine, "before_cursor_execute", count_query)
     try:
-        service = ImportJobService()
+        service = ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        )
         one, total = service.list_jobs(db, 1, page=1, page_size=1)
         first_count = len(calls)
         calls.clear()
@@ -263,7 +274,10 @@ def test_read_model_requires_valid_durable_requested_options(application_db):
     job.requested_options = {"schema_version": 1, "display_title": None, "genres": ["unsupported"]}
     db.commit()
     with pytest.raises(ValidationError):
-        ImportJobService().detail(db, job.job_uuid, 1)
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).detail(db, job.job_uuid, 1)
 
 
 @pytest.mark.parametrize("failure", ["missing", "foreign", "links"])
@@ -278,7 +292,9 @@ def test_submission_rolls_back_the_whole_admission_unit(application_db, failure)
     request = ImportJobSubmitRequest(upload_ids=upload_ids)
     error = IntegrityError if failure == "links" else ResourceNotFoundException
     with pytest.raises(error) as caught:
-        ImportJobSubmissionService().submit(db, user, request)
+        ImportJobSubmissionService(usage=_resource_wiring.storage_usage_service).submit(
+            db, user, request
+        )
     if failure != "links":
         assert caught.value.code == CustomerErrorCode.FILE_NOT_FOUND
     with Session(db.bind) as observer:
@@ -290,7 +306,7 @@ def test_submission_rolls_back_the_whole_admission_unit(application_db, failure)
 async def test_concurrent_idempotency_admits_one_job_dispatch_and_ordered_link_set(application_db):
     db = application_db
     both_looked_up = Barrier(2)
-    service = ImportJobSubmissionService()
+    service = ImportJobSubmissionService(usage=_resource_wiring.storage_usage_service)
     request = ImportJobSubmitRequest(
         upload_ids=["upload-b", "upload-a"], idempotency_key="parallel-admission"
     )
@@ -483,14 +499,22 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
 
         def delete():
             with Session(db.bind, expire_on_commit=False) as request_db:
-                return ImportJobService(deletion_service=WaitingDeletion()).delete(
-                    request_db, job_uuid, 1
-                )
+                return ImportJobService(
+                    deletion_service=WaitingDeletion(usage=_resource_wiring.storage_usage_service),
+                    usage=_resource_wiring.storage_usage_service,
+                    delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                ).delete(request_db, job_uuid, 1)
 
         request = asyncio.create_task(asyncio.to_thread(delete))
         assert await asyncio.to_thread(observed.wait, 10)
         try:
-            review = ImportReviewService(storage=storage)
+            review = ImportReviewService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            )
             confirmed = review.confirm(
                 confirming, job.job_uuid, 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
             )
@@ -567,7 +591,9 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
 def test_submission_persists_canonical_v1_requested_intent(application_db, options, expected):
     db = application_db
     request = ImportJobSubmitRequest(upload_ids=["upload-a"], options=options)
-    result = ImportJobSubmissionService().submit(db, db.get(User, 1), request)
+    result = ImportJobSubmissionService(usage=_resource_wiring.storage_usage_service).submit(
+        db, db.get(User, 1), request
+    )
     db.expire_all()
     job = db.scalar(select(ImportJob).where(ImportJob.job_uuid == result["job_id"]))
     assert job.requested_options == expected
@@ -584,7 +610,10 @@ def test_retry_decodes_intent_and_encodes_a_new_durable_payload(application_db, 
     original_payload = original.requested_options
     encoder = Mock(wraps=encode_requested_options)
     monkeypatch.setattr(submission_service, "encode_requested_options", encoder)
-    result = ImportJobService().retry(db, original.job_uuid, db.get(User, 1), 1)
+    result = ImportJobService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+    ).retry(db, original.job_uuid, db.get(User, 1), 1)
     encoder.assert_called_once()
     intent = encoder.call_args.args[0]
     assert set(intent) == {"display_title", "genres"}

@@ -1,3 +1,6 @@
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
 from app.modules.import_jobs.requested_options import encode_requested_options
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -9,7 +12,7 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.service import ImportJobService
 from app.shared.error_codes import CustomerErrorCode
 from pydantic import ValidationError
@@ -36,7 +39,11 @@ def test_retry_rejects_invalid_persisted_genres_before_submission():
 def _service_with_job(job: object | None) -> tuple[ImportJobService, Mock]:
     repository = Mock()
     repository.get_by_uuid = Mock(return_value=job)
-    return ImportJobService(repository=repository), repository
+    return ImportJobService(
+        repository=repository,
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+    ), repository
 
 
 def test_get_owned_job_allows_only_its_owner() -> None:
@@ -145,7 +152,12 @@ def test_delete_delegates_owned_jobs_to_locked_deletion_admission(state) -> None
     repository.get_by_uuid = Mock(return_value=job)
     deletion_service = Mock()
     deletion_service.delete_job = Mock()
-    service = ImportJobService(repository=repository, deletion_service=deletion_service)
+    service = ImportJobService(
+        repository=repository,
+        deletion_service=deletion_service,
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+    )
     database = Mock(commit=Mock())
 
     service.delete(database, "job-1", 7)

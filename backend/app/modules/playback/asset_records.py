@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.db.models import PlaybackAssetKind, ScorePlaybackAsset
+from app.db.models import ScorePlaybackAsset
+from app.modules.playback.domain import PlaybackAssetKind
 from app.processing.engines.playback import RenderedAudio
 from app.db.models.stored_object import StoredObject
 

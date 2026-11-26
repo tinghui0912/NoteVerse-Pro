@@ -73,7 +73,8 @@ def test_unsupported_capacity_fails_before_schema_changes(monkeypatch, mutation)
 
 def test_downgrade_preserves_non_free_entitlement_decision(monkeypatch):
     from sqlalchemy.orm import Session
-    from app.db.models import User, StoragePlanCode
+    from app.db.models import User
+    from app.modules.storage_governance.quota.states import StoragePlanCode
     from app.composition.storage_resources import provision_storage_resources, storage_quota_service
 
     with postgres_schema_database(monkeypatch) as (engine, config):

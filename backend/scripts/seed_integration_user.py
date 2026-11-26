@@ -6,6 +6,9 @@ validated only; they are never silently repaired or overwritten.
 """
 
 from __future__ import annotations
+
+from app.composition.media_resources import build_revision_writer
+from app.composition.storage_resources import build_object_write_coordinator
 from app.composition.storage_resources import storage_quota_service
 from uuid import uuid4
 from datetime import timedelta
@@ -20,15 +23,14 @@ from sqlmodel import select
 from app.core.security import get_password_hash
 from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User
 from app.db.model_utils import require_persisted_id
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.revisions.writer import (
-    revision_writer,
     InitialRevisionWrite,
     PreparedRevisionSource,
 )
-from app.modules.storage_objects.writes import write_object
 from app.composition.storage_resources import provision_storage_resources
-from app.db.models import StorageUsageCategory
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.db.session import SessionLocal
 from app.storage import object_storage
@@ -101,9 +103,7 @@ def seed_user() -> None:
             )
             try:
                 session.commit()
-                stored = write_object(
-                    session,
-                    object_storage,
+                stored = build_object_write_coordinator(object_storage).write_bytes(
                     key=storage_key,
                     content=content,
                     content_type="application/vnd.recordare.musicxml+xml",
@@ -123,7 +123,7 @@ def seed_user() -> None:
                     "1",
                     reservation.hold_id,
                 )
-                revision_writer.write(
+                build_revision_writer().write(
                     session,
                     InitialRevisionWrite(
                         INTEGRATION_PRACTICE_SCORE_ID,

@@ -1,19 +1,29 @@
 """Score-owned semantic input allocation, conversion and final-reference release."""
 
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.storage_governance.quota.service import StorageQuotaService
+
 from datetime import timedelta
 from uuid import uuid4
 from sqlalchemy.orm import Session
 from app.core.exceptions import UnauthorizedException, ResourceNotFoundException, ConflictException
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
-from app.db.models import ScoreInputAsset, StorageUsageCategory as Category
-from app.modules.storage_usage.service import storage_usage_service as usage
-from app.composition.storage_resources import storage_quota_service as quota
+from app.db.models import ScoreInputAsset
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
 from .input_asset_repository import ScoreInputAssetRepository
 
 
 class ScoreInputAssetLifecycle:
-    def __init__(self, repository: ScoreInputAssetRepository | None = None) -> None:
+    def __init__(
+        self,
+        repository: ScoreInputAssetRepository | None = None,
+        *,
+        usage: StorageUsageService,
+        quota: StorageQuotaService,
+    ) -> None:
+        self.usage = usage
+        self.quota = quota
         self.repository = repository or ScoreInputAssetRepository()
 
     def promote_import_uploads(
@@ -27,7 +37,7 @@ class ScoreInputAssetLifecycle:
         from app.modules.account.resource_admission import lock_active_resource_user
 
         lock_active_resource_user(db, user_id)
-        quota.lock_user(db, user_id)
+        self.quota.lock_user(db, user_id)
         uploads = self.repository.lock_import_uploads(db, job_id)
         if any(upload.uploader_user_id != user_id for upload in uploads):
             raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
@@ -45,7 +55,7 @@ class ScoreInputAssetLifecycle:
             identity = str(uuid4())
             if upload.id not in counted:
                 # This is the same User's already-admitted occupancy, not positive growth.
-                usage.record_release(
+                self.usage.record_release(
                     db,
                     user_id=user_id,
                     category=Category.UPLOAD,
@@ -56,7 +66,7 @@ class ScoreInputAssetLifecycle:
                     storage_key=upload.object_key,
                 )
             else:
-                hold = quota.create_hold(
+                hold = self.quota.create_hold(
                     db,
                     user_id=user_id,
                     category=Category.INPUT_ASSET,
@@ -64,7 +74,7 @@ class ScoreInputAssetLifecycle:
                     command_key="input-asset:" + identity,
                     expires_at=utc_now() + timedelta(minutes=15),
                 )
-                if not quota.consume_hold(db, hold.hold_id):
+                if not self.quota.consume_hold(db, hold.hold_id):
                     raise RuntimeError("New Score input requires fresh capacity admission")
             db.add(
                 ScoreInputAsset(
@@ -75,7 +85,7 @@ class ScoreInputAssetLifecycle:
                     sort_order=upload.sort_order,
                 )
             )
-            usage.record_allocation(
+            self.usage.record_allocation(
                 db,
                 user_id=user_id,
                 category=Category.INPUT_ASSET,
@@ -90,7 +100,7 @@ class ScoreInputAssetLifecycle:
 
     def release_score_inputs(self, db: Session, *, score_id: int, user_id: int) -> list[int]:
         """Caller holds Score. Return orphaned objects for its final retirement admission."""
-        usage.committed_bytes(db, user_id, lock=True)
+        self.usage.committed_bytes(db, user_id, lock=True)
         uploads = self.repository.lock_score_uploads(db, score_id)
         if any(upload.uploader_user_id != user_id for upload in uploads):
             raise RuntimeError("Score input ownership differs from its admitted Upload owner")
@@ -103,7 +113,7 @@ class ScoreInputAssetLifecycle:
         self.repository.delete_score_inputs(db, score_id)
         for asset in inputs:
             upload = by_id[asset.upload_id]
-            usage.record_release(
+            self.usage.record_release(
                 db,
                 user_id=user_id,
                 category=Category.INPUT_ASSET,
@@ -120,7 +130,7 @@ class ScoreInputAssetLifecycle:
                 continue
             if upload.id in retained:
                 # Restoring a surviving Upload reduces/preserves occupancy even over quota.
-                usage.record_allocation(
+                self.usage.record_allocation(
                     db,
                     user_id=user_id,
                     category=Category.UPLOAD,
@@ -134,6 +144,3 @@ class ScoreInputAssetLifecycle:
                 orphans.append(upload)
         self.repository.delete_uploads(db, [upload.id for upload in orphans])
         return [upload.object_id for upload in orphans]
-
-
-score_input_asset_lifecycle = ScoreInputAssetLifecycle()

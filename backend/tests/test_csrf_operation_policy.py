@@ -37,10 +37,10 @@ from app.modules.account.schemas import ProfileUserRead
 from app.modules.auth.dependencies import (
     get_auth_service,
     get_email_change_service,
-    get_email_verification_service,
     get_password_reset_service,
     get_session_service,
 )
+from app.api.resource_dependencies import get_email_verification_service
 
 
 @pytest.fixture

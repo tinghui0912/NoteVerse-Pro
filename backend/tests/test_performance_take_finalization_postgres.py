@@ -1,5 +1,7 @@
 """Authoritative Take admission, rollback, and persisted-lineage recovery on PostgreSQL."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from app.composition.storage_resources import storage_quota_service
 
 from app.shared.error_codes import CustomerErrorCode
@@ -32,7 +34,7 @@ from app.modules.performance_takes.upload_reservation.domain import (
     ReservationTransitionError,
     UNKNOWN_OUTCOME_GRACE,
 )
-from app.modules.storage_usage.service import StorageUsageService
+from app.modules.storage_governance.usage.service import StorageUsageService
 from app.shared.time import utc_now
 from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
 
@@ -48,10 +50,18 @@ def setup(postgres_bundle):
     sessions, source, storage, request = setup_bundle(postgres_bundle)
     usage = StorageUsageService()
     reservations = PerformanceTakeReservationService(
-        storage=storage, practice_bundle_service=source, storage_usage_service=usage
+        storage=storage,
+        practice_bundle_service=source,
+        storage_usage_service=usage,
+        quota=_resource_wiring.storage_quota_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
     )
     finalization = PerformanceTakeFinalizationService(
-        repository=reservations.repository, storage=storage, storage_usage_service=usage
+        repository=reservations.repository,
+        storage=storage,
+        storage_usage_service=usage,
+        quota=_resource_wiring.storage_quota_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
     )
     with sessions() as db:
         accepted = reservations.reserve_upload(db, 1, request)
@@ -555,7 +565,8 @@ async def test_late_candidate_cannot_adopt_or_recover_new_inflight_lease(postgre
 
 
 def test_late_finalization_cannot_consume_expired_quota_hold(postgres_bundle):
-    from app.db.models.storage_quota import StorageQuotaHold, StorageQuotaHoldStatus
+    from app.db.models.storage_quota import StorageQuotaHold
+    from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
     from app.core.exceptions import ConflictException
 
     sessions, reservations, service, storage, request, accepted, manifest, key = setup(

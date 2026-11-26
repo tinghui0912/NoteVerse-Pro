@@ -9,16 +9,16 @@ from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 
 from app.db.models.score import (
-    MetadataStatus,
-    RenderAssetKind,
-    RevisionOrigin,
-    RevisionSourceFormat,
     Score,
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
 )
+from app.modules.metadata.domain import MetadataStatus
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.db.models.score_access import (
     MembershipRole,
     ScoreMembership,

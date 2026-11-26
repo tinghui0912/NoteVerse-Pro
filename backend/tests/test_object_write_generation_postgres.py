@@ -1,5 +1,7 @@
 """Physical mutations retain the PostgreSQL write-generation fence."""
 
+from app.composition import storage_resources as _resource_wiring
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from time import monotonic, sleep
@@ -10,12 +12,10 @@ import pytest
 from sqlalchemy import select, text
 
 from app.db.models import ObjectWriteIntent, StoredObject, Upload
-from app.modules.storage_objects.writes import (
-    adopt_written_object,
-    write_object,
-    write_cleanup_delivery,
-    lock_intent,
-)
+from app.modules.media_storage.adoption import adopt_written_object
+
+from app.modules.media_storage.write_cleanup import write_cleanup_delivery
+from app.modules.media_storage.write_intents import lock_intent
 from app.shared.time import utc_now
 from tests.test_stored_object_retirement_postgres import (
     retirement_postgres as retirement_postgres,
@@ -50,10 +50,18 @@ def test_physical_put_holds_generation_lock_until_settled(
     monkeypatch.setattr(storage, "put_bytes", put)
 
     def write(second=False):
-        with sessions() as db:
+        from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+        from sqlalchemy.orm import Session
+
+        def physical_session():
+            db = Session(engine)
             if second:
                 pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-            return write_object(db, storage, key="generation/fenced", content=b"bytes")
+            return db
+
+        return ObjectWriteCoordinator(storage, physical_session).write_bytes(
+            key="generation/fenced", content=b"bytes"
+        )
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(write)
@@ -80,7 +88,15 @@ def test_physical_put_holds_generation_lock_until_settled(
                 first.result(10)
         else:
             first.result(10)
-        receipt = second.result(10)
+        if interrupted:
+            with pytest.raises(ValueError, match="cleanup owns|lease is not active"):
+                second.result(10)
+            with sessions() as cleanup_db:
+                identity = cleanup_db.scalar(select(ObjectWriteIntent.intent_uuid))
+            assert worker.execute_object_write_cleanup_task(None, identity)["status"] == "cleaned"
+            receipt = write()
+        else:
+            receipt = second.result(10)
     assert len(puts) == (2 if interrupted else 1)
     with sessions() as db:
         row = db.scalar(select(ObjectWriteIntent))
@@ -99,7 +115,9 @@ def test_physical_put_holds_generation_lock_until_settled(
     )
     assert not storage.exists(receipt.object_key)
     with sessions() as db:
-        replacement = write_object(db, storage, key=receipt.object_key, content=b"bytes")
+        replacement = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+            key=receipt.object_key, content=b"bytes"
+        )
         assert replacement.write_token != receipt.write_token
         with pytest.raises(ValueError, match="Stale"):
             adopt_written_object(db, receipt)
@@ -109,7 +127,7 @@ def test_physical_put_holds_generation_lock_until_settled(
         db.commit()
 
 
-def test_failed_put_retains_prepared_cleanup_evidence(retirement_postgres, monkeypatch):
+def test_failed_put_retains_cleanup_evidence(retirement_postgres, monkeypatch):
     _, sessions, storage = retirement_postgres
 
     def fail(**kwargs):
@@ -118,10 +136,12 @@ def test_failed_put_retains_prepared_cleanup_evidence(retirement_postgres, monke
     monkeypatch.setattr(storage, "put_bytes", fail)
     with sessions() as db:
         with pytest.raises(OSError):
-            write_object(db, storage, key="generation/failure", content=b"bytes")
+            _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+                key="generation/failure", content=b"bytes"
+            )
     with sessions() as db:
         row = db.scalar(select(ObjectWriteIntent))
-        assert row.status == "PREPARED" and row.written_at is None
+        assert row.status == "CLEANUP_PENDING" and row.written_at is None
         assert db.scalar(select(StoredObject)) is None
 
 
@@ -129,7 +149,9 @@ def test_existing_exact_object_reuses_without_provider_put(retirement_postgres, 
     _, sessions, storage = retirement_postgres
     adapter = storage
     with sessions() as db:
-        receipt = write_object(db, adapter, key="generation/exact", content=b"bytes")
+        receipt = _resource_wiring.build_object_write_coordinator(adapter).write_bytes(
+            key="generation/exact", content=b"bytes"
+        )
         obj = adopt_written_object(db, receipt)
         db.add(Upload(stored_object_id=obj.id, original_filename="owner", uploader_user_id=1))
         db.commit()
@@ -139,5 +161,7 @@ def test_existing_exact_object_reuses_without_provider_put(retirement_postgres, 
 
     monkeypatch.setattr(storage, "put_bytes", unexpected)
     with sessions() as db:
-        duplicate = write_object(db, adapter, key="generation/exact", content=b"bytes")
+        duplicate = _resource_wiring.build_object_write_coordinator(adapter).write_bytes(
+            key="generation/exact", content=b"bytes"
+        )
         assert duplicate == receipt

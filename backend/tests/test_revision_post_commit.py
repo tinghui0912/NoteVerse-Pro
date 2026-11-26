@@ -1,5 +1,9 @@
 """Committed revision work is an immutable hint, never durable execution authority."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+
 from dataclasses import fields, MISSING, FrozenInstanceError
 from unittest.mock import Mock
 
@@ -17,11 +21,11 @@ from app.db.models import (
     RevisionMetadataOutbox,
     ImportJob,
 )
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.revisions import post_commit, render_dispatch, metadata_dispatch
 from app.modules.playback import dispatch as playback_dispatch
 from app.modules.revisions.post_commit import RevisionPostCommitWork, RevisionPostCommitCoordinator
-from app.modules.revisions.writer import revision_writer, RevisionWriteResult, InitialRevisionWrite
+from app.modules.revisions.writer import RevisionWriteResult, InitialRevisionWrite
 from app.modules.revisions.service import RevisionService
 from app.modules.revisions.schemas import RevisionCreateRequest, RevisionRestoreRequest
 from app.modules.import_jobs.review.service import ImportReviewService
@@ -29,6 +33,8 @@ from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from tests.test_revision_writer_postgres import database as database, prepare, initial, snapshot
 from tests.test_score_revision_services import MUSICXML_1, MUSICXML_2
 from tests.test_import_confirmation_postgres import confirmation as confirmation
+
+revision_writer = _media_wiring.build_revision_writer()
 
 
 def ticket():
@@ -146,7 +152,11 @@ def test_committed_business_success_survives_dispatch_and_coordinator_errors(
     if operation == "restore":
         with Session(engine) as db:
             current = (
-                RevisionService(storage=storage)
+                RevisionService(
+                    quota=_resource_wiring.storage_quota_service,
+                    revision_writer=_media_wiring.build_revision_writer(),
+                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                )
                 .create(
                     db,
                     "score",
@@ -186,17 +196,29 @@ def test_committed_business_success_survives_dispatch_and_coordinator_errors(
 
         monkeypatch.setattr(post_commit.revision_post_commit, "dispatch_best_effort", after_commit)
         if operation == "confirm":
-            response = ImportReviewService(storage=storage).confirm(
-                db, "job", 1, ReviewConfirmRequest(content=MUSICXML_2)
-            )
+            response = ImportReviewService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_2))
             assert response.score_id
         elif operation == "restore":
-            response = RevisionService(storage=storage).restore(
+            response = RevisionService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).restore(
                 db, "score", head, 1, RevisionRestoreRequest(expected_head_revision_id=current)
             )
             assert response.revision_id
         else:
-            response = RevisionService(storage=storage).create(
+            response = RevisionService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).create(
                 db,
                 "score",
                 1,
@@ -224,7 +246,11 @@ def test_revision_service_replay_does_not_fast_dispatch_existing_work(database, 
     hint = Mock()
     monkeypatch.setattr(post_commit.revision_post_commit, "dispatch_best_effort", hint)
     with Session(engine) as db:
-        service = RevisionService(storage=storage)
+        service = RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
         if kind == "idempotency":
             request = RevisionCreateRequest(
                 content=MUSICXML_2, expected_head_revision_id=head, idempotency_key="client-retry"
@@ -252,12 +278,8 @@ def test_revision_service_replay_does_not_fast_dispatch_existing_work(database, 
 def test_confirm_dispatch_failure_preserves_committed_input_ownership_handoff(
     confirmation, monkeypatch
 ):
-    from app.db.models import (
-        ImportArtifact,
-        ScoreInputAsset,
-        StorageUsageCounter,
-        StorageUsageCategory,
-    )
+    from app.db.models import ImportArtifact, ScoreInputAsset, StorageUsageCounter
+    from app.modules.storage_governance.usage.domain import StorageUsageCategory
 
     engine, storage = confirmation
     mocks = dispatchers(monkeypatch, "all")
@@ -267,9 +289,13 @@ def test_confirm_dispatch_failure_preserves_committed_input_ownership_handoff(
         RevisionPostCommitCoordinator().dispatch_best_effort,
     )
     with Session(engine) as db:
-        response = ImportReviewService(storage=storage).confirm(
-            db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
-        )
+        response = ImportReviewService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
     with Session(engine) as db:
         score = db.scalar(sa.select(Score).where(Score.score_uuid == response.score_id))
         job = db.scalar(sa.select(ImportJob))

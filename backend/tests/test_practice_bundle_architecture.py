@@ -88,7 +88,7 @@ def test_bundle_owners_have_distinct_persistence_workflow_and_content_dependenci
     assert {"repository", "writer", "content", "compiler", "mutation_access"} <= service
     repository = {node.module for node in imports("modules/practice/bundle/repository.py")}
     assert not any(
-        module and module.startswith(("app.storage", "app.modules.storage_objects"))
+        module and module.startswith(("app.storage", "app.modules.media_storage"))
         for module in repository
     )
     imported_models = {
@@ -99,14 +99,19 @@ def test_bundle_owners_have_distinct_persistence_workflow_and_content_dependenci
     }
     assert imported_models == {
         "PracticeBundleRecord",
-        "PracticeBundleStatus",
         "ScoreRevisionPracticeBinding",
     }
     content = {node.module for node in imports("modules/practice/bundle/content.py")}
-    assert "app.modules.storage_objects.reads" in content
+    assert "app.modules.media_storage.reads" in content
     assert not any(module and module.startswith(("sqlalchemy", "fastapi")) for module in content)
     writer = {node.module for node in imports("modules/practice/bundle/writer.py")}
-    assert {"repository", "content", "retention", "app.modules.storage_objects.writes"} <= writer
+    assert {
+        "repository",
+        "content",
+        "retention",
+        "app.modules.media_storage.write_coordinator",
+        "app.modules.media_storage.adoption",
+    } <= writer
     assert not any(module and module.startswith("app.modules.score_access") for module in writer)
 
 

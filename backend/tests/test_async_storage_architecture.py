@@ -30,24 +30,12 @@ def test_database_backed_delivery_executes_in_synchronous_http_operations():
     assert AsyncObjectReader(object_storage)._storage is object_storage
 
 
-def test_object_write_protocol_uses_exact_generation_admission():
-    tree = ast.parse((ROOT / "modules/storage_objects/writes.py").read_text())
-    writer = next(
-        node
-        for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "write_object"
-    )
-    calls = {ast.unparse(node.func) for node in ast.walk(writer) if isinstance(node, ast.Call)}
-    assert {"prepare_object_write", "perform_write"} <= calls
-    physical = next(
-        node
-        for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "perform_write"
-    )
-    physical_calls = {
-        ast.unparse(node.func) for node in ast.walk(physical) if isinstance(node, ast.Call)
-    }
-    assert {"inspect_write", "finalize_write", "storage.put_bytes", "db.commit"} <= physical_calls
+def test_coordinator_exposes_only_independent_write_commands():
+    import inspect
+    from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
+    for name in ("write_bytes", "write_batch", "copy_object"):
+        assert "db" not in inspect.signature(getattr(ObjectWriteCoordinator, name)).parameters
 
 
 def test_score_upload_admission_is_application_owned_and_domain_specific():

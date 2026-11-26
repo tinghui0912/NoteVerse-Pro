@@ -1,5 +1,9 @@
 """Content-verified Upload facts and bounded admission before durable prewrite."""
 
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+
 from uuid import uuid4
 
 import asyncio
@@ -34,9 +38,12 @@ def test_upload_delete_identifies_the_missing_resource():
     db = Mock()
 
     with pytest.raises(ResourceNotFoundException) as failure:
-        UploadService(repository=repository).delete_upload(
-            db, SimpleNamespace(id=1), "upload-missing"
-        )
+        UploadService(
+            repository=repository,
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+        ).delete_upload(db, SimpleNamespace(id=1), "upload-missing")
 
     assert failure.value.code == "resource_not_found"
     assert failure.value.details == {
@@ -57,9 +64,12 @@ def test_upload_delete_requires_its_persisted_stored_object():
     db.get.return_value = None
 
     with pytest.raises(RuntimeError, match="Upload is missing its required stored object"):
-        UploadService(repository=repository).delete_upload(
-            db, SimpleNamespace(id=1), "upload-present"
-        )
+        UploadService(
+            repository=repository,
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+        ).delete_upload(db, SimpleNamespace(id=1), "upload-present")
 
     db.get.assert_called_once_with(StoredObject, 7)
     repository.delete_upload_by_id.assert_not_called()
@@ -85,7 +95,11 @@ def test_upload_records_detected_container_facts(
     db, storage = score_service_session
     content = image_bytes(container)
     filename = f"original.{suffix}"
-    result = UploadService(storage=storage).create_upload(
+    result = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    ).create_upload(
         db,
         db.get(User, 1),
         UploadFile(
@@ -118,7 +132,11 @@ def test_upload_records_detected_container_facts(
 def test_invalid_images_have_no_durable_admission(score_service_session, content, filename):
     db, storage = score_service_session
     with pytest.raises(ValidationException):
-        UploadService(storage=storage).create_upload(
+        UploadService(
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).create_upload(
             db,
             db.get(User, 1),
             UploadFile(filename=filename, file=io.BytesIO(content)),
@@ -143,7 +161,11 @@ def test_bounded_reader_accepts_exact_limit_and_reads_only_limit_plus_one():
 def test_oversize_is_rejected_before_quota_or_object_prewrite(score_service_session):
     db, storage = score_service_session
     with pytest.raises(ValidationException):
-        UploadService(storage=storage).create_upload(
+        UploadService(
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).create_upload(
             db,
             db.get(User, 1),
             UploadFile(
@@ -159,7 +181,11 @@ def test_oversize_is_rejected_before_quota_or_object_prewrite(score_service_sess
 @pytest.mark.parametrize("mime", ["text/plain", "image/jpeg", "application/octet-stream"])
 def test_client_mime_cannot_override_detected_png(score_service_session, mime):
     db, storage = score_service_session
-    UploadService(storage=storage).create_upload(
+    UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    ).create_upload(
         db,
         db.get(User, 1),
         UploadFile(
@@ -175,7 +201,11 @@ def test_client_mime_cannot_override_detected_png(score_service_session, mime):
 def test_jpeg_aliases_share_one_physical_object_and_preserve_names(score_service_session):
     db, storage = score_service_session
     storage.put_bytes = Mock(wraps=storage.put_bytes)
-    service = UploadService(storage=storage)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     for name in ("first.jpg", "second.jpeg"):
         service.create_upload(
             db,
@@ -196,9 +226,9 @@ def test_http_upload_and_delivery_schedule_provider_io_off_event_loop(score_serv
     from sqlalchemy.orm import Session
     from app.main import create_app
     from app.api.deps import get_db, get_current_user
-    from app.modules.uploads.dependencies import get_upload_service
+    from app.api.resource_dependencies import get_upload_service
     from app.api.storage_streaming import stream_storage_object
-    from app.modules.storage_objects.reads import StoredObjectDelivery
+    from app.modules.media_storage.reads import StoredObjectDelivery
 
     db, storage = score_service_session
     bind = db.get_bind()
@@ -212,7 +242,11 @@ def test_http_upload_and_delivery_schedule_provider_io_off_event_loop(score_serv
             return _method(*args, **kwargs)
 
         setattr(storage, name, observe)
-    service = UploadService(storage=storage)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     application = create_app()
 
     def database():

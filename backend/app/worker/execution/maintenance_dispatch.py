@@ -10,11 +10,11 @@ from app.core.logger import logger
 from app.db.session import SessionLocal
 from app.modules.import_jobs.dispatch_service import import_dispatch_service
 from app.modules.mail.outbox_service import mail_outbox_service
-from app.modules.storage_objects.retirement import retirement_delivery
+from app.modules.media_storage.retirement import retirement_delivery
 from app.modules.practice.bundle.retention import practice_bundle_retention
 from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.revisions.render_delivery import revision_render_delivery
-from app.modules.storage_usage.service import storage_usage_service
+from app.composition.storage_resources import storage_usage_service, storage_quota_service
 from app.storage import object_storage
 from app.worker.task_runtime import run_scheduler_scan
 
@@ -94,7 +94,7 @@ def execute_stored_object_retirement_maintenance() -> dict[str, int]:
         try:
             with SessionLocal() as db:
                 cleaned = upload_reservation_cleanup_service.cleanup_expired_reservations(
-                    db, object_storage, storage_usage_service
+                    db, object_storage, storage_usage_service, quota=storage_quota_service
                 )
                 db.commit()
         except Exception:
@@ -114,7 +114,7 @@ def execute_stored_object_retirement_maintenance() -> dict[str, int]:
 
 
 def execute_object_write_cleanup_maintenance() -> dict[str, int]:
-    from app.modules.storage_objects.writes import write_cleanup_delivery
+    from app.modules.media_storage.write_cleanup import write_cleanup_delivery
     from app.worker.dispatch.object_write_cleanup import dispatch_object_write_cleanup
 
     def scan():

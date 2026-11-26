@@ -1,5 +1,9 @@
 from __future__ import annotations
-from app.modules.storage_objects.reads import StoredObjectReadTarget, materialize_admitted_object
+
+from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator, SessionFactory
+from app.modules.import_jobs.pipeline.artifact_recorder import ImportArtifactRecorder
+from app.modules.media_storage.reads import StoredObjectReadTarget, materialize_admitted_object
 
 from celery.exceptions import SoftTimeLimitExceeded
 
@@ -11,22 +15,30 @@ from app.modules.import_jobs.dispatch_service import (
     ImportExecutionLease,
     StaleImportDispatchAttempt,
 )
-from app.db.session import SessionLocal
 from app.modules.import_jobs.schemas import (
     PipelineExecutionSuccessResult,
 )
-from app.modules.import_jobs.execution_recorder import import_execution_recorder
+
 from app.modules.import_jobs.execution_manifest import bind_import_job_execution_manifest
 from app.modules.import_jobs.pipeline import JobContext, PipelineBuilder
 from app.task_queue.protocols import CeleryTaskLike
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import ObjectStorage, object_storage
 from app.storage.paths import object_work_path
 
 
 class ImportPipelineRunner:
-    def __init__(self, storage: ObjectStorage | None = None) -> None:
-        self.storage = storage or object_storage
+    def __init__(
+        self,
+        *,
+        recorder: ImportExecutionRecorder,
+        writes: ObjectWriteCoordinator,
+        sessions: SessionFactory,
+    ) -> None:
+        self.recorder = recorder
+        self.writes = writes
+        self.sessions = sessions
+        self.artifacts = ImportArtifactRecorder(writes, sessions, recorder)
+        self.storage = writes.storage
 
     @staticmethod
     def failure_for_exception(exception: Exception) -> DurableFailure:
@@ -64,14 +76,16 @@ class ImportPipelineRunner:
     ) -> PipelineExecutionSuccessResult:
         job_id = lease.job_uuid
         try:
-            with SessionLocal() as db:
-                import_execution_recorder.start_execution(db, lease)
+            with self.sessions() as db:
+                self.recorder.start_execution(db, lease)
             image_paths = self._resolve_input_paths(inputs)
-            with SessionLocal() as db:
+            with self.sessions() as db:
                 bind_import_job_execution_manifest(db, lease)
                 context = JobContext(
                     lease=lease,
                     db=db,
+                    recorder=self.recorder,
+                    artifacts=self.artifacts,
                     celery_task=celery_task,
                     image_paths=image_paths,
                 )
@@ -105,8 +119,8 @@ class ImportPipelineRunner:
                 exception_type=type(exc).__name__,
             ).opt(exception=exc).error("Import job pipeline failed")
             try:
-                with SessionLocal() as db:
-                    import_execution_recorder.finalize_failure(
+                with self.sessions() as db:
+                    self.recorder.finalize_failure(
                         db,
                         lease,
                         failure=failure,
@@ -118,6 +132,3 @@ class ImportPipelineRunner:
             except Exception:
                 pass
             raise
-
-
-import_pipeline_runner = ImportPipelineRunner()

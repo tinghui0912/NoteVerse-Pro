@@ -1,6 +1,10 @@
 """Feature failures leave committed intent evidence, not best-effort orphan cleanup."""
 
-from app.db.models.import_job import ImportArtifactKind
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
@@ -8,7 +12,6 @@ from app.shared.time import utc_now
 
 import hashlib
 from tests.support.derivative_execution import revision_attempt
-from contextlib import contextmanager
 from unittest.mock import Mock
 
 import pytest
@@ -26,9 +29,9 @@ from app.db.models import (
     ScoreRevisionSource,
     StoredObject,
 )
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RevisionSourceFormat
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.media_storage.persistence import object_from_bytes
 from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
@@ -38,6 +41,8 @@ from tests.test_score_revision_services import (
     MUSICXML_1,
     add_active_score_with_head_revision,
 )
+
+import_execution_recorder = _media_wiring.build_import_artifact_recorder().recorder
 
 
 def test_review_confirm_source_survives_failed_semantic_adoption_as_intent(
@@ -56,7 +61,13 @@ def test_review_confirm_source_survives_failed_semantic_adoption_as_intent(
     db.flush()
     db.add(ImportDispatch(job_id=job.id, status=ImportDispatchStatus.COMPLETED))
     db.commit()
-    service = ImportReviewService(storage=storage)
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     monkeypatch.setattr(
         "app.modules.import_jobs.review.service.ImportJobDeletionService.cleanup_binary_artifacts",
         Mock(side_effect=RuntimeError("semantic confirmation failed")),
@@ -127,7 +138,10 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
     db.commit()
     payload = revision_attempt(db, "render", score, revision)
     with pytest.raises(OSError, match="third page"):
-        ScoreRevisionRenderService(storage=storage).render_for_worker(
+        ScoreRevisionRenderService(
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).render_for_worker(
             db,
             score.score_uuid,
             "partial-revision",
@@ -138,9 +152,9 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
         )
     intents = list(db.scalars(select(ObjectWriteIntent)))
     assert len(intents) == 3 and sorted(row.status for row in intents) == [
-        "PREPARED",
-        "WRITTEN",
-        "WRITTEN",
+        "CLEANUP_PENDING",
+        "CLEANUP_PENDING",
+        "CLEANUP_PENDING",
     ]
     assert db.scalar(select(ScoreRenderAsset)) is None
     assert len(list(db.scalars(select(StoredObject)))) == 1
@@ -151,8 +165,6 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
 def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     score_service_session, monkeypatch, tmp_path
 ):
-    from app.modules.import_jobs.pipeline import artifact_recorder
-    from app.modules.import_jobs.execution_recorder import import_execution_recorder
 
     db, storage = score_service_session
     from app.db.models import ImportJob
@@ -168,27 +180,16 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     db.commit()
     lease = processing_lease(db, job)
 
-    @contextmanager
-    def session():
-        try:
-            yield db
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
-
-    monkeypatch.setattr(artifact_recorder, "SessionLocal", session)
-    monkeypatch.setattr("app.db.session.SessionLocal", session)
-    monkeypatch.setattr(artifact_recorder, "object_storage", storage)
+    artifacts = _media_wiring.build_import_artifact_recorder(storage)
     monkeypatch.setattr(
-        import_execution_recorder,
+        artifacts.recorder,
         "replace_artifacts",
         Mock(side_effect=RuntimeError("artifact adoption failed")),
     )
     path = tmp_path / "review.musicxml"
     path.write_bytes(MUSICXML_1)
     with pytest.raises(RuntimeError, match="artifact adoption failed"):
-        artifact_recorder.replace_files(lease, ImportArtifactKind.REVIEW_MUSICXML, [str(path)])
+        artifacts.replace_files(lease, ImportArtifactKind.REVIEW_MUSICXML, [str(path)])
     row = db.scalar(select(ObjectWriteIntent))
     assert row.status == "WRITTEN" and row.sha256 == hashlib.sha256(MUSICXML_1).hexdigest()
     assert db.scalar(select(ImportArtifact)) is None and db.scalar(select(StoredObject)) is None

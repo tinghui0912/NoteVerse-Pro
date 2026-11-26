@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevision, ScoreRevisionMetadata
-from app.db.models.score import MetadataStatus
+from app.modules.metadata.domain import MetadataStatus
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.metadata.event_codec import (
     encode_key_signature_events,
@@ -23,7 +23,7 @@ from app.processing.musicxml import (
     MusicXMLMetadata,
 )
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import ObjectStorage, object_storage
+from app.storage import ObjectStorage
 from app.shared.time import utc_now
 
 
@@ -32,12 +32,13 @@ class MetadataProjectionService:
         self,
         score_repository: ScoreRepository | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
+        *,
+        storage: ObjectStorage,
     ) -> None:
         self.score_repository = score_repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or object_storage
+        self.storage = storage
         self.access_policy = access_policy or ScoreAccessPolicy()
 
     def get(self, db: Session, score_uuid: str, revision_uuid: str, user_id: int) -> MetadataRead:

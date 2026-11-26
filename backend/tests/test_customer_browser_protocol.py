@@ -1,6 +1,8 @@
 """Customer browser identity and HTTP route projections have explicit source owners."""
 
-from app.modules.storage_objects.reads import StoredObjectDelivery
+from app.composition import storage_resources as _resource_wiring
+
+from app.modules.media_storage.reads import StoredObjectDelivery
 
 
 import importlib.util
@@ -175,9 +177,9 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
 ):
     from app.api.deps import get_current_user, get_db
     from app.main import create_app
-    from app.modules.guest_previews.dependencies import get_guest_preview_service
-    from app.modules.playback.router import get_playback_delivery_service
-    from app.modules.score_assets.dependencies import get_score_asset_service
+    from app.api.resource_dependencies import get_guest_preview_service
+    from app.api.resource_dependencies import get_playback_delivery_service
+    from app.api.resource_dependencies import get_score_asset_service
     from tests.support.object_storage import InMemoryObjectStorage
 
     app = create_app()
@@ -186,7 +188,11 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
     delivery = StoredObjectDelivery(1, "native", len(b"native bytes"), mime, "native")
     from app.storage import AsyncObjectReader
 
-    service = SimpleNamespace(storage=storage, async_storage=AsyncObjectReader(storage))
+    service = SimpleNamespace(
+        storage=storage,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+        async_storage=AsyncObjectReader(storage),
+    )
     dependencies = {
         "guest": get_guest_preview_service,
         "playback": get_playback_delivery_service,

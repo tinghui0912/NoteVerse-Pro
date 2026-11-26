@@ -1,5 +1,7 @@
 """Durable admission of an Import job, dispatch and ordered upload links."""
 
+from app.modules.storage_governance.usage.service import StorageUsageService
+
 import uuid
 import hashlib
 import json
@@ -11,10 +13,10 @@ from app.core.exceptions import ResourceNotFoundException, ConflictException
 from app.core.request_correlation import get_request_id
 from app.db.model_utils import require_persisted_id
 from app.db.models import ImportDispatch, ImportJob, ImportJobUpload, User
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.import_jobs.repository import ImportJobRepository
-from app.modules.storage_usage.service import storage_usage_service
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.import_jobs.schemas import (
     ImportJobSubmitRequestLike,
@@ -26,7 +28,10 @@ from app.modules.import_jobs.lifecycle import queue_import
 
 
 class ImportJobSubmissionService:
-    def __init__(self, repository: ImportJobRepository | None = None) -> None:
+    def __init__(
+        self, repository: ImportJobRepository | None = None, *, usage: StorageUsageService
+    ) -> None:
+        self.usage = usage
         self.repository = repository or ImportJobRepository()
 
     def submit(
@@ -47,7 +52,7 @@ class ImportJobSubmissionService:
             if key
             else None
         )
-        storage_usage_service.committed_bytes(db, user_id, lock=True)
+        self.usage.committed_bytes(db, user_id, lock=True)
         if key:
             existing = self.repository.get_by_idempotency_key(db, user_id, key)
             if existing:

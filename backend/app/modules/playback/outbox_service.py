@@ -10,13 +10,9 @@ from app.core.async_trace_context import get_async_trace_context
 from app.core.config import settings
 from app.core.logger import logger
 from app.core.request_correlation import get_request_id
-from app.db.models import (
-    PlaybackAssetKind,
-    PlaybackOutbox,
-    PlaybackOutboxStatus,
-    Score,
-    ScoreRevision,
-)
+from app.db.models import PlaybackOutbox, Score, ScoreRevision
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.playback.domain import PlaybackOutboxStatus
 from app.modules.durable_work.failure import (
     DurableFailure,
     set_failure_facts,

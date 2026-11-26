@@ -1,5 +1,7 @@
+from app.composition import storage_resources as _resource_wiring
+
 from uuid import uuid4
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.shared.time import utc_now
 from tests.support.images import image_bytes
@@ -15,14 +17,14 @@ import pytest
 from PIL import Image
 
 from app.db.models import StoredObject, Upload, ScoreRevisionSource
-from app.db.models.score import RevisionSourceFormat
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.avatar_presentation import avatar_url_for_user
 from app.modules.account.profile_service import ProfileService
 from app.modules.auth.schemas import User as UserRead
 from app.modules.uploads.service import UploadService
-from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.storage_objects.writes import write_object
+from app.modules.media_storage.persistence import object_from_bytes
+
 from tests.support.retirement import drain_retirements
 from app.db.models import StoredObjectRetirement
 from tests.test_score_revision_services import score_service_session as score_service_session
@@ -35,7 +37,7 @@ from tests.test_score_revision_services import (
 def test_upload_dedup_is_owned_by_upload_references(score_service_session):
     db, storage = score_service_session
     from app.db.models import User, ScoreRenderAsset
-    from app.db.models.score import RenderAssetKind
+    from app.modules.score_assets.domain import RenderAssetKind
 
     score = add_active_score_with_head_revision(
         db,
@@ -64,7 +66,11 @@ def test_upload_dedup_is_owned_by_upload_references(score_service_session):
     )
     db.commit()
     user = db.get(User, 1)
-    service = UploadService(storage=storage)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     put = Mock(wraps=storage.put_bytes)
     storage.put_bytes = put
     first = service.create_upload(
@@ -106,7 +112,10 @@ def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_servic
     from app.db.models import User
 
     user = db.get(User, 1)
-    service = AvatarService(storage=storage)
+    service = AvatarService(
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
     put = Mock(wraps=storage.put_bytes)
     storage.put_bytes = put
 
@@ -151,7 +160,9 @@ def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_servic
     assert signed.call_count == 2
     signed.assert_called_with(
         user.avatar_object.object_key,
+        filename=None,
         content_type="image/jpeg",
+        expires_seconds=900,
     )
     assert avatar_url_for_user(user) == second_url
     current_id, current_key = user.avatar_object_id, user.avatar_object.object_key
@@ -169,7 +180,7 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     score_service_session, monkeypatch, cleanup_fails
 ):
     from app.db.models import ImportJob, ImportArtifact
-    from app.db.models.import_job import ImportJobState
+    from app.modules.import_jobs.domain import ImportJobState
     from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
     from app.modules.import_jobs.service import ImportJobService
 
@@ -184,11 +195,11 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     )
     db.add(job)
     db.commit()
-    worker = ImportExecutionRecorder()
+    worker = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
 
     def item(key, content):
-        written = write_object(
-            db, storage, key=key, content=content, content_type="application/xml"
+        written = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+            key=key, content=content, content_type="application/xml"
         )
         return dict(
             write_intent_uuid=written.intent_uuid,
@@ -205,7 +216,7 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     )
     first = db.scalar(select(ImportArtifact))
     first_object, first_key = first.stored_object, first.stored_object.object_key
-    from app.modules.storage_objects.persistence import object_from_row
+    from app.modules.media_storage.persistence import object_from_row
 
     first_facts = object_from_row(first_object)
     if cleanup_fails:
@@ -231,9 +242,10 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     assert current.stored_object.byte_size == len(b"second")
     assert current.stored_object.sha256 == hashlib.sha256(b"second").hexdigest()
     assert storage.exists(first_key) is cleanup_fails
-    delivery = ImportJobService(storage=storage).artifact_delivery(
-        db, job.job_uuid, current.artifact_uuid, 1
-    )
+    delivery = ImportJobService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    ).artifact_delivery(db, job.job_uuid, current.artifact_uuid, 1)
     assert delivery.filename == "score.xml" and delivery.media_type == "application/xml"
     assert storage.read_bytes(delivery.storage_key) == b"second"
 
@@ -243,7 +255,10 @@ def test_avatar_retirement_failure_cannot_revert_new_reference(score_service_ses
     from app.db.models import User
 
     user = db.get(User, 1)
-    service = AvatarService(storage=storage)
+    service = AvatarService(
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
 
     def picture(color):
         output = io.BytesIO()
@@ -290,9 +305,10 @@ def test_avatar_post_commit_refresh_failure_preserves_committed_bytes(
     delete = Mock(wraps=storage.delete)
     monkeypatch.setattr(storage, "delete", delete)
     with pytest.raises(RuntimeError, match="refresh failed"):
-        AvatarService(storage=storage).replace_user_avatar(
-            adapter, user, file_bytes=output.getvalue(), filename="new.png"
-        )
+        AvatarService(
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        ).replace_user_avatar(adapter, user, file_bytes=output.getvalue(), filename="new.png")
     monkeypatch.setattr(db, "refresh", original_refresh)
     db.refresh(user)
     assert user.avatar_object_id is not None
@@ -307,7 +323,11 @@ def test_upload_release_succeeds_while_score_source_retains_exact_object(
 
     db, storage = score_service_session
     user = db.get(User, 1)
-    service = UploadService(storage=storage)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     response = service.create_upload(
         db,
         user,
@@ -354,9 +374,9 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
         ScoreRenderAsset,
         ScorePlaybackAsset,
         StorageUsageCounter,
-        StorageUsageCategory,
         StorageUsageEvent,
     )
+    from app.modules.storage_governance.usage.domain import StorageUsageCategory
     from app.modules.score_assets.score_revision_rendering import ScoreRevisionRenderService
     from app.modules.playback.service import PlaybackGenerationService
     from app.processing.engines.playback import RenderedAudio
@@ -392,15 +412,17 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
     )
     db.commit()
     if kind == "render":
-        service = ScoreRevisionRenderService(storage=storage)
+        service = ScoreRevisionRenderService(
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
         model, category = ScoreRenderAsset, StorageUsageCategory.DERIVED_RENDER
 
-        def records(session, **kwargs):
+        def records(**kwargs):
             key = f"scores/replace/render/{uuid4()}.svg"
-            written = write_object(
-                session, storage, key=key, content=b"<svg />", content_type="image/svg+xml"
+            written = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+                key=key, content=b"<svg />", content_type="image/svg+xml"
             )
-            kwargs["uploaded_keys"].append(key)
             return [
                 dict(
                     asset_uuid=str(uuid4()),
@@ -438,7 +460,11 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
             generator_version="1",
             soundfont_sha256="a" * 64,
         )
-        service = PlaybackGenerationService(storage=storage, renderer=renderer)
+        service = PlaybackGenerationService(
+            renderer=renderer,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
         model, category = ScorePlaybackAsset, StorageUsageCategory.DERIVED_AUDIO
 
         def generate():
@@ -480,9 +506,10 @@ def test_orphan_scan_retirement_failure_rolls_back_only_that_owner(
     score_service_session, monkeypatch
 ):
     from datetime import timedelta
-    from app.db.models import StorageUsageAccount, StorageUsageCategory
+    from app.db.models import StorageUsageAccount
+    from app.modules.storage_governance.usage.domain import StorageUsageCategory
     from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
-    from app.modules.storage_usage.service import storage_usage_service
+    from app.composition.storage_resources import storage_usage_service
     from app.shared.time import utc_now
 
     db, storage = score_service_session
@@ -514,7 +541,12 @@ def test_orphan_scan_retirement_failure_rolls_back_only_that_owner(
         return retire(session, object_id)
 
     monkeypatch.setattr(maintenance, "retire_after_release", queue)
-    assert ImportJobMaintenanceService().cleanup_orphan_uploads(db) == 1
+    assert (
+        ImportJobMaintenanceService(
+            usage=_resource_wiring.storage_usage_service
+        ).cleanup_orphan_uploads(db)
+        == 1
+    )
     assert db.get(Upload, uploads[0][0]) is None
     assert db.get(Upload, uploads[1][0]) is not None
     assert db.get(StorageUsageAccount, 1).used_bytes == 3

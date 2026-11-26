@@ -8,7 +8,7 @@ from app.db.models import Score, ScoreInvite, ScoreMembership, User
 from app.db.models.score_access import InviteTerminalOutcome, MembershipRole
 from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.membership_service import MembershipService
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 

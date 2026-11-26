@@ -1,14 +1,17 @@
 from __future__ import annotations
-from app.composition.storage_resources import storage_quota_service
+
+from app.modules.storage_governance.quota.service import StorageQuotaService
+from app.modules.revisions.writer import RevisionWriter
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
 from app.modules.account.resource_admission import lock_active_resource_user
 from uuid import uuid4
 from datetime import timedelta
 from app.shared.time import utc_now
 
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
-from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
-from app.storage import ObjectStorage
-from app.modules.storage_objects.writes import write_object
+from app.modules.media_storage.reads import StoredObjectReadTarget, read_admitted_bytes
+
 
 import hashlib
 import uuid
@@ -20,18 +23,10 @@ from app.core.exceptions import (
     ResourceNotFoundException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import (
-    ScoreRevision,
-    ScoreRevisionNote,
-    StorageUsageCategory,
-)
-from app.db.models.score import RevisionOrigin
-from app.modules.revisions.writer import (
-    revision_writer,
-    PreparedRevisionSource,
-    AppendRevisionWrite,
-    RestoreLineage,
-)
+from app.db.models import ScoreRevision, ScoreRevisionNote
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.writer import PreparedRevisionSource, AppendRevisionWrite, RestoreLineage
 from app.modules.revisions.post_commit import revision_post_commit
 from app.core.logger import logger
 from app.modules.revisions.read_model import RevisionReadModel
@@ -49,7 +44,6 @@ from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.scores.repository import ScoreRepository
 from app.processing.musicxml.admission import admit_musicxml_document
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage
 
 
 class RevisionService:
@@ -57,13 +51,19 @@ class RevisionService:
         self,
         repository: ScoreRepository | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         read_model: RevisionReadModel | None = None,
+        *,
+        quota: StorageQuotaService,
+        revision_writer: RevisionWriter,
+        writes: ObjectWriteCoordinator,
     ) -> None:
+        self.quota = quota
+        self.revision_writer = revision_writer
+        self.writes = writes
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or object_storage
+        self.storage = writes.storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.read_model = read_model or RevisionReadModel()
 
@@ -98,7 +98,7 @@ class RevisionService:
         idempotency_key: str | None = None,
         restore: RestoreLineage | None = None,
     ) -> RevisionRead:
-        existing = revision_writer.existing_append(
+        existing = self.revision_writer.existing_append(
             db,
             score_uuid=score_uuid,
             expected_head_uuid=expected_head_uuid,
@@ -111,7 +111,7 @@ class RevisionService:
         revision_uuid = str(uuid.uuid4())
         for identity in sorted({owner_user_id, user_id}):
             lock_active_resource_user(db, identity)
-        reservation = storage_quota_service.create_hold(
+        reservation = self.quota.create_hold(
             db,
             user_id=owner_user_id,
             category=StorageUsageCategory.SOURCE,
@@ -121,9 +121,7 @@ class RevisionService:
         )
         try:
             db.commit()
-            receipt = write_object(
-                db,
-                self.storage,
+            receipt = self.writes.write_bytes(
                 key=canonical_revision_source_object_key(
                     score_uuid=score_uuid, revision_uuid=revision_uuid
                 ),
@@ -139,7 +137,7 @@ class RevisionService:
                 "1",
                 reservation.hold_id,
             )
-            result = revision_writer.write(
+            result = self.revision_writer.write(
                 db,
                 AppendRevisionWrite(
                     score_uuid,
@@ -154,7 +152,7 @@ class RevisionService:
             db.commit()
         except Exception:
             db.rollback()
-            storage_quota_service.release_hold(db, reservation.hold_id)
+            self.quota.release_hold(db, reservation.hold_id)
             db.commit()
             raise
 

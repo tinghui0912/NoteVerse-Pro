@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.composition import storage_resources as _resource_wiring
+
 from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
 
 import datetime
@@ -16,7 +18,8 @@ from app.core.http_application import HttpApplication
 
 from app.api.deps import get_current_user
 from app.db.models.user import User
-from app.modules.model_assets.router import get_model_asset_service, router
+from app.modules.model_assets.router import router
+from app.api.resource_dependencies import get_model_asset_service
 from app.modules.model_assets.service import ModelAssetService
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
 from app.modules.model_assets.generated.practice_acoustic_model_asset import MODEL_ASSET_DESCRIPTOR
@@ -28,7 +31,10 @@ app.include_router(router, prefix="/api/v1/model-assets")
 
 
 def create_test_model_asset_service() -> ModelAssetService:
-    return ModelAssetService(storage=InMemoryObjectStorage(), ttl_seconds=3600)
+    return ModelAssetService(
+        ttl_seconds=3600,
+        delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage()),
+    )
 
 
 def test_model_asset_access_unauthenticated_returns_401() -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
-from app.modules.storage_objects.reads import StoredObjectDelivery
-from app.storage import ObjectStorage
+
+from app.modules.media_storage.delivery import MediaDeliveryService
+from app.modules.media_storage.reads import StoredObjectDelivery
 
 
 from sqlalchemy import select
@@ -8,14 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
-from app.db.models import (
-    PlaybackAssetKind,
-    ScorePlaybackAsset,
-)
+from app.db.models import ScorePlaybackAsset
+from app.modules.playback.domain import PlaybackAssetKind
 from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage
 
 
 class PlaybackDeliveryReadModel:
@@ -67,11 +65,13 @@ class PlaybackDeliveryService:
 
     def __init__(
         self,
-        storage: ObjectStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         delivery_read_model: PlaybackDeliveryReadModel | None = None,
+        *,
+        delivery: MediaDeliveryService,
     ) -> None:
-        self.storage = storage or object_storage
+        self.delivery = delivery
+        self.storage = delivery.storage
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.delivery_read_model = delivery_read_model or PlaybackDeliveryReadModel(
             access_policy=self.access_policy,

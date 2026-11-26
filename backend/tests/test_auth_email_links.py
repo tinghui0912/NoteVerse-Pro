@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.composition import storage_resources as _resource_wiring
+
 from datetime import timedelta
 
 import pytest
@@ -164,7 +166,9 @@ def test_register_creates_pending_registration_and_sends_verification_link(
     verification_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
-    service = EmailVerificationService()
+    service = EmailVerificationService(
+        provision_storage=_resource_wiring.provision_storage_resources
+    )
 
     service.register(
         db,  # type: ignore[arg-type]
@@ -187,7 +191,9 @@ def test_register_refreshes_existing_pending_registration(
     verification_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
-    service = EmailVerificationService()
+    service = EmailVerificationService(
+        provision_storage=_resource_wiring.provision_storage_resources
+    )
     service.register(
         db,  # type: ignore[arg-type]
         RegisterRequest(
@@ -220,7 +226,9 @@ def test_verify_email_creates_user_and_removes_pending_registration(
     verification_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
-    service = EmailVerificationService()
+    service = EmailVerificationService(
+        provision_storage=_resource_wiring.provision_storage_resources
+    )
     token = service._new_token()
     db.add(
         PendingRegistration(
@@ -254,7 +262,9 @@ def test_register_rejects_existing_verified_user() -> None:
             is_active=True,
         )
     )
-    service = EmailVerificationService()
+    service = EmailVerificationService(
+        provision_storage=_resource_wiring.provision_storage_resources
+    )
 
     with pytest.raises(ResourceAlreadyExistsException):
         service.register(

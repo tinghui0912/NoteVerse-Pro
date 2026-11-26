@@ -1,5 +1,7 @@
 """Active Score admission serializes child actor commands with parent deletion."""
 
+from app.composition import media_resources as _media_wiring
+
 from datetime import timedelta
 from queue import Queue
 from threading import Thread
@@ -70,7 +72,9 @@ def parent_graph(postgres_engine):
 def run_command(db, action, member_id):
     invitations, members = InvitationService(), MembershipService()
     if action == "delete":
-        ScoreLifecycleService().admit_deletions(db, ["shared"], 1)
+        ScoreLifecycleService(
+            deletion_executor=_media_wiring.build_score_deletion_executor()
+        ).admit_deletions(db, ["shared"], 1)
     elif action == "create":
         invitations.create_invite(
             db,
@@ -237,7 +241,9 @@ def test_pending_page_admits_active_parents_before_limit_and_seek(parent_graph):
             utc_now() + timedelta(seconds=1)
         )
         db.commit()
-        ScoreLifecycleService().admit_deletions(db, ["shared"], 1)
+        ScoreLifecycleService(
+            deletion_executor=_media_wiring.build_score_deletion_executor()
+        ).admit_deletions(db, ["shared"], 1)
         db.commit()
         seen, cursor = [], None
         while True:

@@ -11,7 +11,7 @@ from app.api.deps import get_current_user, get_db, get_command_db
 from app.api.storage_streaming import stream_storage_object
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.modules.performance_takes.dependencies import (
+from app.api.resource_dependencies import (
     get_performance_take_service,
     get_performance_take_reservation_service,
     get_performance_take_finalization_service,

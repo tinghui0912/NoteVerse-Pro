@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from uuid import uuid4
 from app.core.logger import logger
 from app.db.session import SessionLocal
-from app.modules.storage_objects.retirement import retirement_delivery
+from app.modules.media_storage.retirement import retirement_delivery
 from app.task_queue.producer import send_durable_task
 from app.task_queue.tracing import DurableTraceContext
 

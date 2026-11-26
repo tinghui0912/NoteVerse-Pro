@@ -21,15 +21,11 @@ from app.db.models import (
     ImportDispatch,
     ImportDispatchStatus,
     ImportJob,
-    ImportJobState,
     MailOutbox,
     MailOutboxStatus,
     OpsAuditEvent,
-    PlaybackAssetKind,
     PlaybackOutbox,
     ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
-    RevisionOrigin,
     Score,
     ScoreDeletionOperation,
     ScoreDeletionOperationStatus,
@@ -39,8 +35,12 @@ from app.db.models import (
     OperatorIdentityProvider,
     OperatorRole,
     OperatorSession,
-    PlaybackOutboxStatus,
 )
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.playback.domain import PlaybackOutboxStatus
 from app.modules.ops.schemas import (
     AsyncOperationKind,
     AsyncOperationStatus,
@@ -1285,7 +1285,7 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
 def revision_render_ids(db, user_id):
     from uuid import uuid4
     from app.db.models import Score, ScoreRevision
-    from app.db.models.score import RevisionOrigin
+    from app.modules.revisions.domain import RevisionOrigin
 
     score = Score(score_uuid=str(uuid4()), owner_user_id=user_id, display_title="Ops render")
     db.add(score)
@@ -1309,7 +1309,7 @@ def revision_render_ids(db, user_id):
 def test_erasure_ops_query_summary_and_audited_rearm_preserve_domain_lineage(
     client, ops_session, kind
 ):
-    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.modules.media_storage.domain import StoredObjectRetirementStatus
     from app.db.models import (
         AccountDeletionOperation,
         AccountDeletionPhase,
@@ -1388,9 +1388,9 @@ def test_erasure_ops_query_summary_and_audited_rearm_preserve_domain_lineage(
 
 def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_session):
     from app.db.models import StoredObjectRetirement
-    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.modules.media_storage.domain import StoredObjectRetirementStatus
     from app.observability.async_operation_metrics import async_operation_metrics_text
-    from app.modules.storage_objects.retirement import retirement_delivery
+    from app.modules.media_storage.retirement import retirement_delivery
     from app.core.exceptions import ValidationException
 
     row = StoredObjectRetirement(
@@ -1431,14 +1431,14 @@ def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_ses
     "kind", [AsyncOperationKind.ACCOUNT_DELETION, AsyncOperationKind.STORED_OBJECT_RETIREMENT]
 )
 def test_erasure_ops_rejects_live_leases_and_completed_work(ops_session, kind):
-    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.modules.media_storage.domain import StoredObjectRetirementStatus
     from app.db.models import (
         AccountDeletionOperation,
         AccountDeletionStatus,
         StoredObjectRetirement,
     )
     from app.modules.account.deletion_delivery import account_deletion_delivery
-    from app.modules.storage_objects.retirement import retirement_delivery
+    from app.modules.media_storage.retirement import retirement_delivery
     from app.core.exceptions import ValidationException
 
     if kind == AsyncOperationKind.ACCOUNT_DELETION:

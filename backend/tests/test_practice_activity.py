@@ -36,8 +36,8 @@ from app.db.models.practice_activity import (
     PracticeActivityInputSource as Input,
     PracticeActivityScopeKind as Scope,
 )
-from app.db.models.practice_bundle import PracticeBundleStatus
-from app.db.models.score import RevisionOrigin
+from app.modules.practice.bundle.states import PracticeBundleStatus
+from app.modules.revisions.domain import RevisionOrigin
 from app.db.models.score_access import MembershipRole
 from app.core.exceptions import AppException, ConflictException
 from app.modules.practice.activities.schemas import (
@@ -440,8 +440,8 @@ def test_current_vocabulary_columns_and_dependencies_are_narrow():
             and name.startswith(
                 (
                     "app.storage",
-                    "app.modules.storage_usage",
-                    "app.modules.storage_objects",
+                    "app.modules.storage_governance.usage",
+                    "app.modules.media_storage",
                     "app.modules.performance_takes",
                     "app.processing",
                 )

@@ -1,5 +1,7 @@
 """Bind test candidates under the real live Practice mutation authority."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from app.db.models import Score, ScoreRevision
 from app.modules.practice.bundle.writer import PracticeBundleWriter
 from app.modules.practice.bundle.mutation_access import lock_live_practice_mutation_access
@@ -25,7 +27,9 @@ def bind_bundle(db, storage, candidate, *, revision_id):
         )
 
     reauthorize_mutation()
-    return PracticeBundleWriter(storage).ensure_binding(
+    return PracticeBundleWriter(
+        writes=_resource_wiring.build_object_write_coordinator(storage)
+    ).ensure_binding(
         db,
         candidate,
         revision_id=revision_id,

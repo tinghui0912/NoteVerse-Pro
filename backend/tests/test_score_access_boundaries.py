@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_current_user, get_db
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import Score, ScoreMembership, ScoreRevision, User
-from app.db.models.score import RevisionOrigin
+from app.modules.revisions.domain import RevisionOrigin
 from app.db.models.score_access import MembershipRole
 from app.main import app
 from app.modules.score_access.actions import ScoreAction

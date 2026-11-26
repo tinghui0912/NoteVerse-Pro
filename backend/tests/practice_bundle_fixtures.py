@@ -1,7 +1,9 @@
 """Application test ports for unbound canonical notation compilation."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from types import SimpleNamespace
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 from unittest.mock import Mock
 from app.modules.practice.bundle.service import PracticeBundleService
 
@@ -12,11 +14,13 @@ def bundle_service_for_notation(content: bytes):
     )
     source.id = 1
     return PracticeBundleService(
-        storage=Mock(read_bytes=Mock(return_value=content)),
         asset_repository=Mock(
             canonical_source=Mock(return_value=SimpleNamespace(stored_object=source))
         ),
         repository=Mock(read_bound=Mock(return_value=None)),
+        writes=_resource_wiring.build_object_write_coordinator(
+            Mock(read_bytes=Mock(return_value=content))
+        ),
     )
 
 

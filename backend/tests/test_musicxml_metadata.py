@@ -5,7 +5,8 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.db.models import User, Score, ScoreRevision, ScoreRevisionMetadata
-from app.db.models.score import MetadataStatus, RevisionOrigin
+from app.modules.metadata.domain import MetadataStatus
+from app.modules.revisions.domain import RevisionOrigin
 from app.modules.metadata.service import MetadataProjectionService
 from app.modules.metadata.schemas import MetadataRead
 from app.processing.musicxml.metadata import (

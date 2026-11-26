@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, get_command_db
 from app.db.models import User
-from app.modules.uploads.dependencies import get_upload_service
+from app.api.resource_dependencies import get_upload_service
 from app.modules.uploads.schemas import UploadRead
 from app.modules.uploads.service import UploadService
 

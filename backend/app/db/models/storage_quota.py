@@ -1,7 +1,8 @@
 """Durable user capacity entitlement and hold facts."""
 
+import app.modules.storage_governance.quota.states as quota_states
+
 from datetime import datetime
-from enum import Enum
 from uuid import uuid4
 from sqlalchemy import (
     BigInteger,
@@ -16,21 +17,8 @@ from sqlalchemy import (
     Enum as SAEnum,
 )
 from sqlmodel import Field, SQLModel
-from app.db.models.storage_usage import StorageUsageCategory
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.shared.time import utc_now
-
-
-class StoragePlanCode(str, Enum):
-    FREE = "FREE"
-    PLUS = "PLUS"
-    PRO = "PRO"
-
-
-class StorageQuotaHoldStatus(str, Enum):
-    HELD = "HELD"
-    CONSUMED = "CONSUMED"
-    RELEASED = "RELEASED"
-    EXPIRED = "EXPIRED"
 
 
 class StoragePlanPolicy(SQLModel, table=True):  # type: ignore[call-arg]
@@ -41,10 +29,10 @@ class StoragePlanPolicy(SQLModel, table=True):  # type: ignore[call-arg]
             name="ck_storage_plan_policies_limit_nonnegative",
         ),
     )
-    plan_code: StoragePlanCode = Field(
+    plan_code: quota_states.StoragePlanCode = Field(
         sa_column=Column(
             SAEnum(
-                StoragePlanCode,
+                quota_states.StoragePlanCode,
                 native_enum=False,
                 length=64,
                 create_constraint=True,
@@ -71,9 +59,9 @@ class UserStorageEntitlement(SQLModel, table=True):  # type: ignore[call-arg]
     user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     )
-    plan_code: StoragePlanCode = Field(
+    plan_code: quota_states.StoragePlanCode = Field(
         sa_column=Column(
-            SAEnum(StoragePlanCode, native_enum=False, length=64),
+            SAEnum(quota_states.StoragePlanCode, native_enum=False, length=64),
             ForeignKey("storage_plan_policies.plan_code"),
             nullable=False,
         )
@@ -125,10 +113,11 @@ class StorageQuotaHold(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(SAEnum(StorageUsageCategory, name="storageusagecategory"), nullable=False)
     )
     bytes_held: int = Field(sa_column=Column(BigInteger, nullable=False))
-    status: StorageQuotaHoldStatus = Field(
-        default=StorageQuotaHoldStatus.HELD,
+    status: quota_states.StorageQuotaHoldStatus = Field(
+        default=quota_states.StorageQuotaHoldStatus.HELD,
         sa_column=Column(
-            SAEnum(StorageQuotaHoldStatus, native_enum=False, length=16), nullable=False
+            SAEnum(quota_states.StorageQuotaHoldStatus, native_enum=False, length=16),
+            nullable=False,
         ),
     )
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))

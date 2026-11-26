@@ -1,8 +1,10 @@
 """Partial recipient inserts/NOTIFY must not escape authoritative outcome rollback."""
 
-from app.db.models.object_write_intent import ObjectWriteIntentStatus
+from app.composition import media_resources as _media_wiring
 
-from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+from app.modules.media_storage.domain import ObjectWriteIntentStatus
+
+from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
 
 from contextlib import contextmanager
 from datetime import timedelta
@@ -19,7 +21,7 @@ from app.db.models import (
     RevisionMetadataOutbox,
     ObjectWriteIntent,
 )
-from app.db.models.score import MetadataStatus
+from app.modules.metadata.domain import MetadataStatus
 from app.modules.realtime import publisher
 from app.modules.revisions.metadata_delivery import (
     metadata_delivery,
@@ -180,7 +182,11 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
     if kind == "render":
         monkeypatch.setattr(score_revision_render_outbox, "_render_revision", fail)
     else:
-        monkeypatch.setattr(playback_outbox.PlaybackGenerationService(), "render_for_worker", fail)
+        generator = _media_wiring.build_playback_generation_service(storage)
+        monkeypatch.setattr(generator, "render_for_worker", fail)
+        monkeypatch.setattr(
+            playback_outbox, "build_playback_generation_service", lambda *_: generator
+        )
     original, recipients = interrupt_second_notify(monkeypatch, first_outcome_only=True)
     with pytest.raises(RuntimeError, match="fan-out interrupted"):
         execute(None, "delivery")

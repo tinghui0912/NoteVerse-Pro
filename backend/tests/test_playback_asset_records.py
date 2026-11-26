@@ -1,14 +1,15 @@
 from types import SimpleNamespace
 from typing import cast
 
-from app.db.models import PlaybackAssetKind, ScorePlaybackAsset
+from app.db.models import ScorePlaybackAsset
+from app.modules.playback.domain import PlaybackAssetKind
 from app.modules.playback.asset_records import (
     build_playback_asset_record,
     playback_asset_usage,
     playback_audio_object_key,
 )
 from app.processing.engines.playback import RenderedAudio
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 
 
 def test_playback_audio_object_key_uses_revision_scoped_asset_path() -> None:

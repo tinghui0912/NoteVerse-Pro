@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.composition import media_resources as _media_wiring
+
 import os
 import subprocess
 import sys
@@ -49,7 +51,7 @@ def test_copy_image_step_copies_input_and_updates_context() -> None:
 
 def test_job_context_complete_records_review_musicxml_without_creating_score() -> None:
     from app.modules.import_jobs.pipeline.context import JobContext
-    from app.db.models.import_job import ImportArtifactKind
+    from app.modules.import_jobs.domain import ImportArtifactKind
 
     with tempfile.TemporaryDirectory() as temp_dir:
         main_xml = os.path.join(temp_dir, "score.musicxml")
@@ -66,14 +68,14 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
                 update_state=lambda *_args, **_kwargs: None,
             ),
             image_paths=[],
+            recorder=_media_wiring.build_import_artifact_recorder().recorder,
+            artifacts=_media_wiring.build_import_artifact_recorder(),
         )
         ctx.main_xml = main_xml
         ctx._tracker = None
 
-        with patch("app.modules.import_jobs.pipeline.context.replace_files") as replace_files_mock:
-            with patch(
-                "app.modules.import_jobs.pipeline.context.import_execution_recorder.finalize_success"
-            ) as finalize_success_mock:
+        with patch.object(ctx.artifacts, "replace_files") as replace_files_mock:
+            with patch.object(ctx.recorder, "finalize_success") as finalize_success_mock:
                 ctx.complete()
 
         replace_files_mock.assert_called_once_with(

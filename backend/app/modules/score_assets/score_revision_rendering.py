@@ -1,13 +1,14 @@
 from __future__ import annotations
-from app.modules.score_access.queries import active_score_predicate
-from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
-from app.storage import ObjectStorage
-from app.modules.storage_objects.retirement import retire_after_release
 
-from app.modules.storage_objects.writes import (
-    write_object,
-    adopt_written_object,
-)
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+from app.modules.score_access.queries import active_score_predicate
+from app.modules.media_storage.reads import StoredObjectReadTarget, read_admitted_bytes
+from app.modules.media_storage.retirement import retire_after_release
+
+
+from app.modules.media_storage.adoption import adopt_written_objects
+from app.modules.media_storage.write_contracts import ObjectWriteItem
 
 import uuid
 
@@ -22,14 +23,10 @@ from app.core.exceptions import (
     ScoreRenderFailedException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import (
-    Score,
-    ScoreRenderAsset,
-    ScoreRevision,
-    ScoreRevisionSource,
-    StorageUsageCategory,
-)
-from app.db.models.score import RenderAssetKind, RevisionSourceFormat
+from app.db.models import Score, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.score_assets.render_asset_records import (
     build_render_asset_record,
     render_asset_usage,
@@ -42,17 +39,18 @@ from app.modules.revisions.presentation_demand import (
     lock_presentation_score,
     admit_generated_revision,
 )
-from app.modules.storage_usage.service import storage_usage_service
+
 from app.modules.rendering.renderer import RenderedPage, RenderExecutionError, render_musicxml
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage
 
 
 class ScoreRevisionRenderService:
     """Generate replaceable derived pages without mutating canonical revisions."""
 
-    def __init__(self, storage: ObjectStorage | None = None) -> None:
-        self.storage = storage or object_storage
+    def __init__(self, *, usage: StorageUsageService, writes: ObjectWriteCoordinator) -> None:
+        self.usage = usage
+        self.writes = writes
+        self.storage = writes.storage
 
     def render_for_worker(
         self,
@@ -101,16 +99,13 @@ class ScoreRevisionRenderService:
                 "source", revision_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
 
-        uploaded_keys: list[str] = []
         try:
             pages = self._render_records(
-                db,
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
                 revision_id=revision_id,
                 canonical_source=StoredObjectReadTarget.from_object(source.stored_object),
                 profile=profile,
-                uploaded_keys=uploaded_keys,
             )
             score = lock_presentation_score(db, score.id)
             revision_render_delivery.require_revision_attempt(
@@ -126,14 +121,13 @@ class ScoreRevisionRenderService:
             assert score is not None
             manifest = get_or_create_execution_manifest(db, build_render_execution_manifest())
             execution_manifest_id = require_persisted_id(manifest.id, entity="execution manifest")
-            storage_usage_service.committed_bytes(db, score.owner_user_id, lock=True)
+            self.usage.committed_bytes(db, score.owner_user_id, lock=True)
+            adopted = adopt_written_objects(db, [item.pop("written") for item in pages])
             new_records = [
                 build_render_asset_record(
-                    stored_object=adopt_written_object(db, item.pop("written")),
-                    execution_manifest_id=execution_manifest_id,
-                    **item,
+                    stored_object=obj, execution_manifest_id=execution_manifest_id, **item
                 )
-                for item in pages
+                for obj, item in zip(adopted, pages, strict=True)
             ]
             previous = list(
                 db.execute(
@@ -151,7 +145,7 @@ class ScoreRevisionRenderService:
             for item in new_records:
                 db.add(item)
             for item in new_records:
-                storage_usage_service.record_allocation(
+                self.usage.record_allocation(
                     db,
                     user_id=score.owner_user_id,
                     category=StorageUsageCategory.DERIVED_RENDER,
@@ -162,7 +156,7 @@ class ScoreRevisionRenderService:
                     storage_key=item.stored_object.object_key,
                 )
             for usage in previous_usage:
-                storage_usage_service.record_release(
+                self.usage.record_release(
                     db,
                     user_id=score.owner_user_id,
                     category=StorageUsageCategory.DERIVED_RENDER,
@@ -184,29 +178,30 @@ class ScoreRevisionRenderService:
 
     def _render_records(
         self,
-        db: Session,
         *,
         score_uuid: str,
         revision_uuid: str,
         revision_id: int,
         canonical_source: StoredObjectReadTarget,
         profile: str,
-        uploaded_keys: list[str],
     ) -> list[dict]:
         outputs = self._render_pages(
             read_admitted_bytes(self.storage, canonical_source), revision_uuid
         )
-        records = []
-        for output in outputs:
-            item, key, media_type, content = self._render_descriptor(
-                output, score_uuid, revision_uuid, revision_id, profile
+        descriptors = [
+            self._render_descriptor(output, score_uuid, revision_uuid, revision_id, profile)
+            for output in outputs
+        ]
+        receipts = self.writes.write_batch(
+            tuple(
+                ObjectWriteItem(key, content, media_type)
+                for _, key, media_type, content in descriptors
             )
-            stored = write_object(
-                db, self.storage, key=key, content=content, content_type=media_type
-            )
-            uploaded_keys.append(stored.object_key)
-            records.append(dict(written=stored, **item))
-        return records
+        )
+        return [
+            dict(written=receipt, **descriptor[0])
+            for receipt, descriptor in zip(receipts, descriptors, strict=True)
+        ]
 
     @staticmethod
     def _render_descriptor(

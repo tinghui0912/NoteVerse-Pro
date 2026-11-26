@@ -1,6 +1,10 @@
 """Import processing outcomes, confirmation and persisted lifecycle facts agree."""
 
-from app.db.models.import_job import ImportArtifactKind
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
@@ -20,7 +24,7 @@ from app.db.models import (
     Score,
     ImportJobStep,
 )
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.lifecycle import (
     queue_import,
     begin_processing,
@@ -33,7 +37,7 @@ from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.durable_work.failure import DurableFailure
 from app.shared.durable_failure import DurableFailureClass
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 
@@ -80,7 +84,7 @@ def test_processing_outcome_and_confirmation_have_distinct_durable_instants(scor
     lease = ImportExecutionLease(
         dispatch_uuid=dispatch.dispatch_uuid, job_uuid=job.job_uuid, attempt=1, token="current"
     )
-    recorder = ImportExecutionRecorder()
+    recorder = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
     recorder.start_execution(db, lease)
     started_at = job.processing_started_at
     assert job.state == ImportJobState.PROCESSING and started_at >= admitted_at
@@ -221,7 +225,10 @@ def test_confirmed_batch_status_bulk_hydrates_score_identities(score_service_ses
 
     event.listen(db.bind, "before_cursor_execute", observe)
     try:
-        result = ImportJobService().batch_status(db, job_ids, 1)
+        result = ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).batch_status(db, job_ids, 1)
     finally:
         event.remove(db.bind, "before_cursor_execute", observe)
     assert len(queries) == 2

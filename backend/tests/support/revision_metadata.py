@@ -1,6 +1,6 @@
 """Run the actual metadata worker for admitted revision work in application tests."""
 
-from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
 
 from contextlib import contextmanager
 from unittest.mock import patch

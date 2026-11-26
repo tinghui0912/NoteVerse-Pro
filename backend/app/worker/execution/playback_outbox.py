@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.composition.media_resources import build_playback_generation_service
+
 import sys
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
@@ -10,7 +12,6 @@ from typing import Any
 from app.core.background_tracing import record_current_attempt_failure
 from app.db.session import SessionLocal
 from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.playback.service import PlaybackGenerationService
 from app.modules.realtime.publisher import (
     publish_score_change,
 )
@@ -66,7 +67,7 @@ def execute_playback_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict
 
         try:
             with SessionLocal() as db:
-                PlaybackGenerationService().render_for_worker(
+                build_playback_generation_service().render_for_worker(
                     db,
                     payload.score_uuid,
                     payload.revision_uuid,

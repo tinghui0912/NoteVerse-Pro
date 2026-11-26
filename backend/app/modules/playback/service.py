@@ -1,13 +1,13 @@
 from __future__ import annotations
-from app.modules.score_access.queries import active_score_predicate
-from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
-from app.storage import ObjectStorage
-from app.modules.storage_objects.retirement import retire_after_release
 
-from app.modules.storage_objects.writes import (
-    write_object,
-    adopt_written_object,
-)
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+from app.modules.score_access.queries import active_score_predicate
+from app.modules.media_storage.reads import StoredObjectReadTarget, read_admitted_bytes
+from app.modules.media_storage.retirement import retire_after_release
+
+
+from app.modules.media_storage.adoption import adopt_written_object
 
 import uuid
 
@@ -19,15 +19,10 @@ from app.db.execution_manifests import (
     get_or_create_execution_manifest,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import (
-    PlaybackAssetKind,
-    Score,
-    ScorePlaybackAsset,
-    ScoreRevision,
-    ScoreRevisionSource,
-    StorageUsageCategory,
-)
-from app.db.models.score import RevisionSourceFormat
+from app.db.models import Score, ScorePlaybackAsset, ScoreRevision, ScoreRevisionSource
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.playback.asset_records import (
     build_playback_asset_record,
     playback_asset_usage,
@@ -38,10 +33,9 @@ from app.modules.playback.outbox_service import playback_outbox_service
 from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.storage_usage.service import storage_usage_service
+
 from app.modules.revisions.presentation_demand import admit_generated_revision
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage
 
 
 class PlaybackGenerationService:
@@ -49,11 +43,15 @@ class PlaybackGenerationService:
 
     def __init__(
         self,
-        storage: ObjectStorage | None = None,
         renderer: FluidSynthAudioRenderer | None = None,
         asset_repository: ScoreAssetRepository | None = None,
+        *,
+        usage: StorageUsageService,
+        writes: ObjectWriteCoordinator,
     ) -> None:
-        self.storage = storage or object_storage
+        self.usage = usage
+        self.writes = writes
+        self.storage = writes.storage
         self.renderer = renderer or FluidSynthAudioRenderer()
         self.asset_repository = asset_repository or ScoreAssetRepository()
 
@@ -108,9 +106,7 @@ class PlaybackGenerationService:
         )
         audio = self.renderer.render(source_content)
         asset_uuid = str(uuid.uuid4())
-        stored = write_object(
-            db,
-            self.storage,
+        stored = self.writes.write_bytes(
             key=playback_audio_object_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
@@ -136,7 +132,7 @@ class PlaybackGenerationService:
                 )
             )
         ).scalar_one_or_none()
-        storage_usage_service.committed_bytes(db, score.owner_user_id, lock=True)
+        self.usage.committed_bytes(db, score.owner_user_id, lock=True)
         previous_usage = playback_asset_usage(previous)
         try:
             manifest = get_or_create_execution_manifest(
@@ -156,7 +152,7 @@ class PlaybackGenerationService:
                 source_fingerprint=source_fingerprint,
             )
             db.add(asset)
-            storage_usage_service.record_allocation(
+            self.usage.record_allocation(
                 db,
                 user_id=score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_AUDIO,
@@ -167,7 +163,7 @@ class PlaybackGenerationService:
                 storage_key=asset.stored_object.object_key,
             )
             if previous_usage is not None:
-                storage_usage_service.record_release(
+                self.usage.record_release(
                     db,
                     user_id=score.owner_user_id,
                     category=StorageUsageCategory.DERIVED_AUDIO,
@@ -265,9 +261,7 @@ class PlaybackGenerationService:
     ) -> ScorePlaybackAsset:
         audio = self.renderer.render(source)
         asset_uuid = str(uuid.uuid4())
-        stored = write_object(
-            db,
-            self.storage,
+        stored = self.writes.write_bytes(
             key=playback_audio_object_key(
                 score_uuid=score_uuid,
                 revision_uuid=revision_uuid,
@@ -300,7 +294,7 @@ class PlaybackGenerationService:
                 ScorePlaybackAsset.kind == asset_kind,
             )
         ).scalar_one_or_none()
-        storage_usage_service.committed_bytes(db, score.owner_user_id, lock=True)
+        self.usage.committed_bytes(db, score.owner_user_id, lock=True)
         previous_usage = playback_asset_usage(previous)
         try:
             manifest = get_or_create_execution_manifest(
@@ -320,7 +314,7 @@ class PlaybackGenerationService:
                 source_fingerprint=source_fingerprint,
             )
             db.add(asset)
-            storage_usage_service.record_allocation(
+            self.usage.record_allocation(
                 db,
                 user_id=score.owner_user_id,
                 category=StorageUsageCategory.DERIVED_AUDIO,
@@ -331,7 +325,7 @@ class PlaybackGenerationService:
                 storage_key=asset.stored_object.object_key,
             )
             if previous_usage is not None:
-                storage_usage_service.record_release(
+                self.usage.record_release(
                     db,
                     user_id=score.owner_user_id,
                     category=StorageUsageCategory.DERIVED_AUDIO,

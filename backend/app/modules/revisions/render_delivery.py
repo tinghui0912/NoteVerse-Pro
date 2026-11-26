@@ -8,10 +8,8 @@ from sqlmodel import col
 
 from app.core.config import settings
 from app.core.logger import logger
-from app.db.models import (
-    ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
-)
+from app.db.models import ScoreRevisionRenderOutbox
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
 from app.modules.durable_work.failure import (
     DurableFailure,
     set_failure_facts,

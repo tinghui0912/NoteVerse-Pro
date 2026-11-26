@@ -5,7 +5,7 @@ from datetime import timedelta
 from unittest.mock import patch
 from sqlalchemy import select
 from app.db.models import ObjectWriteIntent
-from app.modules.storage_objects.writes import write_cleanup_delivery
+from app.modules.media_storage.write_cleanup import write_cleanup_delivery
 from app.worker.execution import object_write_cleanup as worker
 from app.shared.time import utc_now
 

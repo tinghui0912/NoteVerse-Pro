@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import enum
+import app.modules.playback.domain as playback_states
+
 from datetime import datetime
 from typing import Optional
 
@@ -41,19 +42,6 @@ from .stored_object import StoredObject
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
-class PlaybackAssetKind(str, enum.Enum):
-    AUDIO = "AUDIO"
-
-
-class PlaybackOutboxStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    DISPATCHED = "DISPATCHED"
-    PROCESSING = "PROCESSING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    SUPERSEDED = "SUPERSEDED"
-
-
 class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_playback_assets"
     __table_args__ = (
@@ -78,8 +66,11 @@ class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    kind: PlaybackAssetKind = Field(
-        sa_column=Column(SAEnum(PlaybackAssetKind, name="playbackassetkind"), nullable=False)
+    kind: playback_states.PlaybackAssetKind = Field(
+        sa_column=Column(
+            SAEnum(playback_states.PlaybackAssetKind, name="playbackassetkind"),
+            nullable=False,
+        )
     )
 
     stored_object_id: int = Field(
@@ -116,7 +107,7 @@ class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         durable_failure_facts_constraint(name="ck_playback_outbox_failure_facts"),
         delivery_attempt_token_constraint(
             name="ck_playback_outbox_attempt_token",
-            processing_status=PlaybackOutboxStatus.PROCESSING,
+            processing_status=playback_states.PlaybackOutboxStatus.PROCESSING,
         ),
         delivery_attempt_count_constraint(name="ck_playback_outbox_attempt_count"),
         UniqueConstraint(
@@ -158,19 +149,19 @@ class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     traceparent: Optional[str] = Field(default=None, sa_column=Column(String(55)))
     tracestate: Optional[str] = Field(default=None, sa_column=Column(String(512)))
     source_fingerprint: str = Field(sa_column=Column(String(64), nullable=False))
-    asset_kind: PlaybackAssetKind = Field(
-        default=PlaybackAssetKind.AUDIO,
+    asset_kind: playback_states.PlaybackAssetKind = Field(
+        default=playback_states.PlaybackAssetKind.AUDIO,
         sa_column=Column(
-            SAEnum(PlaybackAssetKind, name="playbackassetkind"),
-            default=PlaybackAssetKind.AUDIO,
+            SAEnum(playback_states.PlaybackAssetKind, name="playbackassetkind"),
+            default=playback_states.PlaybackAssetKind.AUDIO,
             nullable=False,
         ),
     )
-    status: PlaybackOutboxStatus = Field(
-        default=PlaybackOutboxStatus.PENDING,
+    status: playback_states.PlaybackOutboxStatus = Field(
+        default=playback_states.PlaybackOutboxStatus.PENDING,
         sa_column=Column(
-            SAEnum(PlaybackOutboxStatus, name="playbackoutboxstatus"),
-            default=PlaybackOutboxStatus.PENDING,
+            SAEnum(playback_states.PlaybackOutboxStatus, name="playbackoutboxstatus"),
+            default=playback_states.PlaybackOutboxStatus.PENDING,
             nullable=False,
         ),
     )

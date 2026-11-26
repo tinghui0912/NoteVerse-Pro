@@ -172,9 +172,9 @@ records remain the only durable lifecycle authority.
 
 
 Lifecycle status vocabulary remains domain-specific. Revision metadata uses
-`app/db/models/revision_metadata_outbox.py::RevisionMetadataOutboxStatus`, physical
+`app/modules/metadata/delivery_states.py::RevisionMetadataOutboxStatus`, physical
 write/cleanup uses `ObjectWriteIntentStatus`, and retirement uses
-`StoredObjectRetirementStatus` from their respective model modules. Their ORM
+`StoredObjectRetirementStatus` from `app/modules/media_storage/domain.py`. Their ORM
 status fields and non-native SQLAlchemy Enum CHECKs project these same enums.
 Delivery policies, maintenance predicates and workers consume enum members.
 Attempt-token constraints take a domain enum member, including

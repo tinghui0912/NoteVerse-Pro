@@ -7,12 +7,48 @@ from app.modules.performance_takes.finalization import PerformanceTakeFinalizati
 
 
 class TakeLifecycleServices:
-    def __init__(self, **kwargs):
-        self.reservations = PerformanceTakeReservationService(**kwargs)
+    def __init__(
+        self,
+        *,
+        repository=None,
+        storage=None,
+        storage_usage_service=None,
+        score_access_policy=None,
+        practice_bundle_service=None,
+    ):
+        from app.composition import storage_resources as resources
+        from app.storage import object_storage as provider
+        from app.composition.media_resources import build_practice_bundle_service
+        from app.modules.storage_governance.quota.service import StorageQuotaService
+
+        storage = storage if storage is not None else provider
+        usage = (
+            storage_usage_service
+            if storage_usage_service is not None
+            else resources.storage_usage_service
+        )
+        quota = StorageQuotaService(usage)
+        delivery = resources.build_media_delivery_service(storage)
+        bundle = (
+            practice_bundle_service
+            if practice_bundle_service is not None
+            else build_practice_bundle_service(storage)
+        )
+        self.reservations = PerformanceTakeReservationService(
+            repository=repository,
+            storage=storage,
+            storage_usage_service=usage,
+            score_access_policy=score_access_policy,
+            practice_bundle_service=bundle,
+            quota=quota,
+            delivery=delivery,
+        )
         self.finalization = PerformanceTakeFinalizationService(
             repository=self.reservations.repository,
-            storage=self.reservations.storage,
-            storage_usage_service=self.reservations.storage_usage_service,
+            storage=storage,
+            storage_usage_service=usage,
+            quota=quota,
+            delivery=delivery,
         )
 
     @property

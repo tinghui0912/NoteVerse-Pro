@@ -1,3 +1,6 @@
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
 from app.modules.import_jobs.requested_options import encode_requested_options
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel, select
@@ -5,7 +8,8 @@ from sqlmodel import SQLModel, select
 from tests.support.import_execution import processing_lease
 
 from app.db.execution_manifests import manifest_sha256
-from app.db.models import ExecutionManifest, ImportJob, ImportJobState, User
+from app.db.models import ExecutionManifest, ImportJob, User
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs import execution_manifest
 from app.modules.import_jobs.service import ImportJobService
 
@@ -98,6 +102,11 @@ def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(
             session, processing_lease(session, job)
         )
 
-        detail = (ImportJobService().detail(session, job.job_uuid, 1)).model_dump()
+        detail = (
+            ImportJobService(
+                usage=_resource_wiring.storage_usage_service,
+                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            ).detail(session, job.job_uuid, 1)
+        ).model_dump()
         assert detail["execution_manifest_sha256"] == manifest_sha256(_manifest())
         assert "execution_manifest" not in detail

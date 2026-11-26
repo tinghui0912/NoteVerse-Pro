@@ -10,10 +10,10 @@ from app.core.exceptions import AuthenticationException
 from app.core.client_address import client_address
 from app.modules.auth.dependencies import (
     get_auth_service,
-    get_email_verification_service,
     get_password_reset_service,
     get_session_service,
 )
+from app.api.resource_dependencies import get_email_verification_service
 from app.modules.auth.email_verification_service import EmailVerificationService
 from app.modules.auth.password_reset_service import PasswordResetService
 from app.modules.auth.schemas import (

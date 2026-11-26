@@ -6,7 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.db.models.score import RenderAssetKind, RevisionSourceFormat
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.shared.api_model import ApiModel
 
 

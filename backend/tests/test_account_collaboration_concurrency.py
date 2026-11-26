@@ -1,5 +1,7 @@
 """Independent PostgreSQL transactions prove closure/invitation lock ordering."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from time import monotonic
@@ -28,7 +30,7 @@ from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.account.email_identity import lock_email_identity
 from app.modules.account.deletion_delivery import account_deletion_delivery as delivery
 from app.composition.account_deletion import AccountDeletionExecutor
-from app.modules.storage_inventory.composition import build_storage_inventory_registry
+from app.composition.storage_inventory import build_storage_inventory_registry
 from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.schemas import InviteCreateRequest
 from tests.test_account_collaboration_postgres import (
@@ -297,7 +299,9 @@ def test_unregistered_invitation_cannot_cross_an_identity_lifetime(
 
     engine = collaboration_accounts
     drain(engine, close_account(engine))
-    verification = EmailVerificationService()
+    verification = EmailVerificationService(
+        provision_storage=_resource_wiring.provision_storage_resources
+    )
     monkeypatch.setattr(verification, "_new_token", lambda: "registered-identity-token")
     ready = Queue()
     with Session(engine) as creator_db, ThreadPoolExecutor(1) as pool:

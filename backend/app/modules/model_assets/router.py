@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends
 from app.api.deps import get_current_user
 from app.db.models.user import User
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
-from app.modules.model_assets.service import ModelAssetService, get_model_asset_service
+from app.modules.model_assets.service import ModelAssetService
+from app.api.resource_dependencies import get_model_asset_service
 
 
 router = APIRouter()

@@ -146,13 +146,13 @@ covers all nine semantic StoredObject FKs, including both shared Bundle represen
 | `score_revision_render_outbox.requested_by_user_id` | revisions | history | SET NULL preserves foreign render work | No direct counted allocation | Minimal absent-actor context in surviving owner history |
 | `score_revisions.created_by_user_id` | revisions | history | SET NULL preserves foreign Score revision | No direct counted allocation | Minimal absent-actor context in surviving owner history |
 | `scores.owner_user_id` | scores | owned | ScoreLifecycleService and ScoreDeletionExecutor release graph and accounting | Revision Sources, input Uploads, render/playback; exact category releases and shared-reference retirement | Removed with its owned lifecycle |
-| `storage_quota_holds.user_id` | storage_quota | owned | release HELD; erase terminal holds after business lineage | Release remaining HELD; erase terminal history after business lineage | Removed with its owned lifecycle |
-| `storage_usage_accounts.user_id` | storage_usage | owned | assert zero then CASCADE | Aggregate must be zero | Removed with its owned lifecycle |
-| `storage_usage_counters.user_id` | storage_usage | owned | assert every category zero then CASCADE | Every category must be zero | Removed with its owned lifecycle |
-| `storage_usage_events.user_id` | storage_usage | owned | Bounded erasure after verified semantic release; events do not establish ownership | No direct counted allocation | Removed with its owned lifecycle |
+| `storage_quota_holds.user_id` | storage_governance.quota | owned | release HELD; erase terminal holds after business lineage | Release remaining HELD; erase terminal history after business lineage | Removed with its owned lifecycle |
+| `storage_usage_accounts.user_id` | storage_governance.usage | owned | assert zero then CASCADE | Aggregate must be zero | Removed with its owned lifecycle |
+| `storage_usage_counters.user_id` | storage_governance.usage | owned | assert every category zero then CASCADE | Every category must be zero | Removed with its owned lifecycle |
+| `storage_usage_events.user_id` | storage_governance.usage | owned | Bounded erasure after verified semantic release; events do not establish ownership | No direct counted allocation | Removed with its owned lifecycle |
 | `upload_creation_requests.user_id` | uploads | owned | erase command history after semantic Upload erasure | No direct counted allocation | Removed with its owned lifecycle |
 | `uploads.uploader_user_id` | uploads | owned | delete_upload releases standalone UPLOAD and retires only unreferenced object | Upload StoredObject; UPLOAD release exactly once | Removed with its owned lifecycle |
-| `user_storage_entitlements.user_id` | storage_quota | owned | CASCADE after holds released and usage verified zero | No direct counted allocation | Removed with its owned lifecycle |
+| `user_storage_entitlements.user_id` | storage_governance.quota | owned | CASCADE after holds released and usage verified zero | No direct counted allocation | Removed with its owned lifecycle |
 
 User profile and current avatar belong to Account. Avatar replacement/removal uses
 AvatarService, releases its reference and admits retirement in the same transaction;

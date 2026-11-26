@@ -1,6 +1,9 @@
 from __future__ import annotations
-from app.modules.storage_objects.reads import StoredObjectDelivery
-from app.storage import ObjectStorage
+
+from app.modules.media_storage.delivery import MediaDeliveryService
+
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.reads import StoredObjectDelivery
 
 
 from sqlalchemy.orm import Session
@@ -10,9 +13,9 @@ from app.core.exceptions import (
     UnauthorizedException,
 )
 from app.db.models.performance_take import PerformanceTake
-from app.db.models import StorageUsageCategory
-from app.modules.storage_usage.service import storage_usage_service
-from app.modules.storage_objects.retirement import retire_after_release
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+
+from app.modules.media_storage.retirement import retire_after_release
 from app.db.models.score import Score
 from app.modules.performance_takes.aggregate import performance_take_facts_from_row
 from app.modules.performance_takes.recording_media_admission import recording_extension
@@ -28,18 +31,21 @@ from app.modules.performance_takes.schemas import (
 from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.shared.error_codes import CustomerErrorCode
-from app.storage.factory import object_storage
 
 
 class PerformanceTakeService:
     def __init__(
         self,
         repository: PerformanceTakeRepository | None = None,
-        storage: ObjectStorage | None = None,
         score_access_policy: ScoreAccessPolicy | None = None,
+        *,
+        usage: StorageUsageService,
+        delivery: MediaDeliveryService,
     ) -> None:
+        self.delivery = delivery
+        self.usage = usage
         self.repository = repository or PerformanceTakeRepository()
-        self.storage = storage or object_storage
+        self.storage = delivery.storage
         self.score_access_policy = score_access_policy or ScoreAccessPolicy()
 
     def _to_read_dto(
@@ -120,22 +126,18 @@ class PerformanceTakeService:
 
         facts = performance_take_facts_from_row(take)
         manifest, recording = facts.manifest, facts.recording_object
-        playback_url = self.storage.download_url(
-            recording.object_key,
-            content_type=recording.content_type,
-        )
         ext = recording_extension(manifest.snapshot.capture.kind, recording.content_type)
-        download_url = self.storage.download_url(
-            recording.object_key,
-            filename=f"performance-{manifest.take_uuid}.{ext}",
-            content_type=recording.content_type,
+        target = StoredObjectDelivery.for_object(
+            take.recording_object, f"performance-{manifest.take_uuid}.{ext}"
         )
+        playback_url = self.delivery.signed_url(target)
+        download_url = self.delivery.signed_url(target, attachment=True)
 
         return PerformanceTakePlaybackRead(
             take_id=manifest.take_uuid,
             playback_url=playback_url,
             download_url=download_url,
-            expires_in=3600,
+            expires_in=self.delivery.policy.signed_url_ttl_seconds,
         )
 
     def get_media_delivery(
@@ -163,7 +165,7 @@ class PerformanceTakeService:
         user_id: int,
         take_id: str,
     ) -> list[str]:
-        storage_usage_service.committed_bytes(db, user_id, lock=True)
+        self.usage.committed_bytes(db, user_id, lock=True)
         take = self.repository.get_by_uuid(db, user_id, take_id, lock=True)
         if take is None:
             raise ResourceNotFoundException(
@@ -173,7 +175,7 @@ class PerformanceTakeService:
         facts = performance_take_facts_from_row(take)
         object_id = take.recording_object_id
         db.delete(take)
-        storage_usage_service.record_release(
+        self.usage.record_release(
             db,
             user_id=user_id,
             category=StorageUsageCategory.UPLOAD,

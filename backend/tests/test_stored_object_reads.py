@@ -1,5 +1,8 @@
 """Committed object facts govern semantic reads independently of physical observations."""
 
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 from app.storage.base import ObjectNotFoundError
 
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -18,16 +21,16 @@ from sqlalchemy import func, select
 from app.api.storage_streaming import stream_storage_object
 from app.core.exceptions import ExternalServiceException
 from app.db.models import ImportArtifact, ImportJob, ScoreRevisionSource, StoredObject
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RevisionSourceFormat
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.import_jobs.domain import ImportArtifactKind
 from app.modules.import_jobs.review.read_model import ImportReviewReadModel
 from app.modules.playback.delivery import PlaybackDeliveryReadModel
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.service import ScoreService
-from app.modules.storage_objects.persistence import object_from_bytes
-from app.modules.storage_objects.reads import (
+from app.modules.media_storage.persistence import object_from_bytes
+from app.modules.media_storage.reads import (
     StoredObjectDelivery,
     StoredObjectReadTarget,
     StoredObjectIntegrityError,
@@ -103,7 +106,7 @@ def admitted(preview_context, monkeypatch):
 
 def test_admitted_asset_lists_deliveries_and_review_use_database_facts(admitted):
     db, storage, score, source, page, guest = admitted
-    assets = ScoreAssetService(storage=storage)
+    assets = ScoreAssetService(delivery=_resource_wiring.build_media_delivery_service(storage))
     listed = assets.list_revision_assets(db, score.score_uuid, 1)
     assert listed.revision_sources[0].source_id == source.source_uuid
     assert listed.render_assets[0].render_asset_id == page.asset_uuid
@@ -153,7 +156,11 @@ def test_admitted_asset_lists_deliveries_and_review_use_database_facts(admitted)
     from app.modules.revisions.service import RevisionService
 
     assert (
-        RevisionService(storage=storage)
+        RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
         .content(db, score.score_uuid, "revision-a", 1)
         .content.startswith("<score-partwise")
     )
@@ -162,12 +169,21 @@ def test_admitted_asset_lists_deliveries_and_review_use_database_facts(admitted)
 def test_physical_loss_preserves_admitted_assets_and_product_readiness(admitted):
     db, storage, score, source, page, guest = admitted
     storage.objects.clear()
-    listed = ScoreAssetService(storage=storage).list_revision_assets(db, score.score_uuid, 1)
+    listed = ScoreAssetService(
+        delivery=_resource_wiring.build_media_delivery_service(storage)
+    ).list_revision_assets(db, score.score_uuid, 1)
     assert len(listed.revision_sources) == len(listed.render_assets) == 1
     token = guest.issue_credential(db, score.score_uuid, 1).token
     preview = guest.read(db, token)
     assert len(preview.render_assets) == 1 and preview.audio_available
-    state = ScoreService(storage=storage).get(db, score.score_uuid, 1).derived_assets
+    state = (
+        ScoreService(
+            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        )
+        .get(db, score.score_uuid, 1)
+        .derived_assets
+    )
     assert state.preview.status == state.audio.status == "ready"
     before = db.scalar(select(func.count()).select_from(StoredObject))
     with pytest.raises(StoredObjectIntegrityError):
@@ -228,7 +244,7 @@ def test_admitted_read_failures_have_safe_http_and_internal_diagnostics(
     monkeypatch, error, status, code
 ):
     from app.main import create_app
-    from app.modules.storage_objects import reads
+    from app.modules.media_storage import reads
 
     storage = Mock(read_bytes=Mock(side_effect=error))
     target = StoredObjectReadTarget(7, "private-key", 10, "application/xml")

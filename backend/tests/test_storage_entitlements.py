@@ -1,5 +1,7 @@
 """Current entitlement resolution, read-only projections and explicit provisioning."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from tests.support.quota import admit_hold
 from tests.support.quota import allocate_hold
 from app.composition.storage_resources import storage_quota_service
@@ -18,21 +20,21 @@ from app.core.exceptions import AppException, ValidationException
 from app.db.models import (
     StoragePlanPolicy,
     StorageUsageAccount,
-    StorageUsageCategory as Category,
     StorageUsageCounter,
     StorageUsageEvent,
     StorageQuotaHold,
-    StoragePlanCode,
     User,
     UserStorageEntitlement,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
+from app.modules.storage_governance.quota.states import StoragePlanCode
 from app.db.models.auth import PendingRegistration
 from app.main import app
 from app.modules.auth.email_verification_service import EmailVerificationService
 from app.modules.auth.schemas import VerifyEmailRequest
 from app.composition.storage_resources import provision_storage_resources
-from app.modules.storage_usage.dependencies import get_storage_usage_service
-from app.modules.storage_usage.service import StorageUsageService
+from app.api.resource_dependencies import get_storage_usage_service
+from app.modules.storage_governance.usage.service import StorageUsageService
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 
@@ -290,7 +292,9 @@ def test_aggregate_and_category_breakdown_remain_transactionally_consistent(prov
 def test_email_verification_provisions_user_storage_in_one_transaction(
     database, monkeypatch, outcome
 ):
-    service = EmailVerificationService()
+    service = EmailVerificationService(
+        provision_storage=_resource_wiring.provision_storage_resources
+    )
     token = "verification-token"
     with Session(database) as db:
         db.add(

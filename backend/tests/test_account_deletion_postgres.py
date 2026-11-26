@@ -1,5 +1,9 @@
 """Durable account erasure, authority cutoff and caller-owned cleanup transactions."""
 
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+
 import pytest
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
@@ -12,18 +16,18 @@ from app.db.models import (
     Upload,
     AccountDeletionOperation,
     AccountDeletionStatus,
-    StorageUsageCategory as Category,
     StorageUsageAccount,
     StoredObjectRetirement,
 )
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
 from app.db.models.score_access import InviteTerminalOutcome
 from app.modules.account.deletion_service import AccountDeletionService
 from app.modules.account.deletion_delivery import account_deletion_delivery as delivery
 from app.composition.account_deletion import AccountDeletionExecutor
-from app.modules.storage_inventory.composition import build_storage_inventory_registry
+from app.composition.storage_inventory import build_storage_inventory_registry
 from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.score_access.queries import active_score_predicate
-from app.modules.storage_usage.service import storage_usage_service as usage
+from app.composition.storage_resources import storage_usage_service as usage
 from tests.support.storage_state import provision_storage_users
 
 
@@ -112,7 +116,12 @@ def test_account_tombstone_cuts_guest_and_invite_authorities_before_graph_cleanu
     from app.shared.time import utc_now
 
     token = "invite-token"
-    guests, invitations = GuestPreviewService(), InvitationService()
+    guests, invitations = (
+        GuestPreviewService(
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider)
+        ),
+        InvitationService(),
+    )
     with Session(account_database) as db:
         score = add_active_score_with_head_revision(
             db,
@@ -494,7 +503,7 @@ def test_account_score_admission_serializes_with_pre_admitted_customer_deletion(
     from queue import Queue
     from time import monotonic
     from sqlalchemy import text
-    from app.modules.scores.lifecycle_service import score_lifecycle_service
+    from app.composition.media_resources import build_score_lifecycle_service
 
     with Session(account_database) as db:
         db.add(Score(score_uuid="closing-score", owner_user_id=1, display_title="Closing"))
@@ -502,7 +511,7 @@ def test_account_score_admission_serializes_with_pre_admitted_customer_deletion(
     ready = Queue()
     with Session(account_database) as customer, ThreadPoolExecutor(1) as pool:
         owner = customer.scalar(text("SELECT pg_backend_pid()"))
-        score_lifecycle_service.admit_deletions(customer, ["closing-score"], 1)
+        build_score_lifecycle_service().admit_deletions(customer, ["closing-score"], 1)
         uuid = request(account_database)
 
         def erase():
@@ -730,9 +739,9 @@ def test_foreign_revision_actor_is_anonymized_without_erasing_the_resource(accou
 def test_account_completion_precedes_independent_physical_retirement(account_database, monkeypatch):
     from sqlalchemy.orm import sessionmaker
     from app.worker.execution import stored_object_retirement as worker
-    from app.modules.storage_objects.persistence import object_from_bytes
+    from app.modules.media_storage.persistence import object_from_bytes
     from tests.support.object_storage import InMemoryObjectStorage
-    from app.db.models.stored_object_retirement import StoredObjectRetirementStatus
+    from app.modules.media_storage.domain import StoredObjectRetirementStatus
 
     storage = InMemoryObjectStorage()
     content = b"owned resource"

@@ -1,4 +1,7 @@
-from app.composition.storage_resources import storage_quota_service
+from app.modules.storage_governance.quota.service import StorageQuotaService
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
 from datetime import timedelta
 from app.shared.time import utc_now
 import json
@@ -10,8 +13,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.engine import Connection
 from app.core.logger import logger
 from app.modules.account.resource_admission import lock_active_resource_user
-from app.db.models import UploadCreationRequest, StorageQuotaHoldStatus, Upload
-from app.modules.storage_quota.contracts import StorageQuotaHoldReceipt
+from app.db.models import UploadCreationRequest, Upload
+from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
+from app.modules.storage_governance.quota.contracts import StorageQuotaHoldReceipt
 
 from app.core.exceptions import (
     ConflictException,
@@ -21,14 +25,15 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import StoredObject, StorageUsageCategory, User
+from app.db.models import StoredObject, User
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.uploads.repository import UploadRepository
-from app.modules.storage_objects.retirement import retire_after_release
-from app.modules.storage_objects.writes import write_object, adopt_written_object
+from app.modules.media_storage.retirement import retire_after_release
+
+from app.modules.media_storage.adoption import adopt_written_object
 from app.modules.uploads.schemas import UploadRead
-from app.modules.storage_usage.service import storage_usage_service
+
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage, ObjectStorage
 from app.modules.uploads.upload_admission import read_score_import_upload, admit_score_import_image
 
 
@@ -44,10 +49,18 @@ class UploadService:
     """Own uploaded processing inputs; score source and derived delivery live elsewhere."""
 
     def __init__(
-        self, repository: UploadRepository | None = None, storage: ObjectStorage | None = None
+        self,
+        repository: UploadRepository | None = None,
+        *,
+        quota: StorageQuotaService,
+        usage: StorageUsageService,
+        writes: ObjectWriteCoordinator,
     ) -> None:
+        self.quota = quota
+        self.usage = usage
+        self.writes = writes
         self.repository = repository or UploadRepository()
-        self.storage = storage or object_storage
+        self.storage = writes.storage
 
     def create_upload(
         self, db: Session, current_user: User, file: UploadFile, *, client_request_id: str
@@ -74,7 +87,7 @@ class UploadService:
             bind=bind.engine if isinstance(bind, Connection) else bind, expire_on_commit=False
         )
         lock_active_resource_user(db, user_id)
-        storage_quota_service.lock_user(db, user_id)
+        self.quota.lock_user(db, user_id)
         request = self.repository.creation_request(db, user_id, client_request_id, lock=True)
         if request is not None and request.request_fingerprint != fingerprint:
             raise ConflictException(
@@ -86,20 +99,20 @@ class UploadService:
             existing_result = self._creation_result(db, request)
         else:
             if request is not None:
-                reservation = storage_quota_service.lock_hold(db, request.quota_hold_id)
+                reservation = self.quota.lock_hold(db, request.quota_hold_id)
                 if reservation.status == StorageQuotaHoldStatus.CONSUMED:
                     raise RuntimeError("Consumed Upload hold has no completed semantic owner")
                 if (
                     reservation.status == StorageQuotaHoldStatus.HELD
                     and reservation.expires_at <= utc_now()
                 ):
-                    storage_quota_service.release_hold(db, reservation.hold_id)
+                    self.quota.release_hold(db, reservation.hold_id)
                     reservation = None
                 elif reservation.status != StorageQuotaHoldStatus.HELD:
                     reservation = None
             if reservation is None:
                 generation = 1 if request is None else request.generation + 1
-                reservation = storage_quota_service.create_hold(
+                reservation = self.quota.create_hold(
                     db,
                     user_id=user_id,
                     category=StorageUsageCategory.UPLOAD,
@@ -128,11 +141,11 @@ class UploadService:
                 return existing_result
             assert reservation is not None
             key = blob_object_key(digest, media.extension)
-            written = write_object(
-                db, self.storage, key=key, content=content, content_type=media.mime_type
+            written = self.writes.write_bytes(
+                key=key, content=content, content_type=media.mime_type
             )
             lock_active_resource_user(db, user_id)
-            storage_quota_service.lock_user(db, user_id)
+            self.quota.lock_user(db, user_id)
             request = self.repository.creation_request(db, user_id, client_request_id, lock=True)
             if request is None:
                 raise ResourceNotFoundException("upload_request", client_request_id)
@@ -144,14 +157,14 @@ class UploadService:
                 raise ConflictException(
                     CustomerErrorCode.VALIDATION_ERROR, {"reason": "upload_generation_lost"}
                 )
-            held = storage_quota_service.lock_hold(db, request.quota_hold_id)
+            held = self.quota.lock_hold(db, request.quota_hold_id)
             if (held.user_id, held.category, held.bytes_held) != (
                 user_id,
                 StorageUsageCategory.UPLOAD,
                 len(content),
             ):
                 raise RuntimeError("Upload quota lineage disagrees with admitted content")
-            if not storage_quota_service.consume_hold(db, held.hold_id):
+            if not self.quota.consume_hold(db, held.hold_id):
                 raise RuntimeError("New Upload requires unconsumed capacity")
             blob = adopt_written_object(db, written)
             upload = self.repository.create_upload(
@@ -162,7 +175,7 @@ class UploadService:
             )
             request.upload_id = require_persisted_id(upload.id, entity="upload")
             request.completed_at = request.updated_at = utc_now()
-            storage_usage_service.record_allocation(
+            self.usage.record_allocation(
                 db,
                 user_id=user_id,
                 category=StorageUsageCategory.UPLOAD,
@@ -189,7 +202,7 @@ class UploadService:
                 if current is not None and current.completed_at is not None:
                     return self._creation_result(recovery, current)
                 if current is not None and current.quota_hold_id == attempt_hold_id:
-                    storage_quota_service.release_hold(recovery, current.quota_hold_id)
+                    self.quota.release_hold(recovery, current.quota_hold_id)
                     recovery.commit()
             if isinstance(
                 error,
@@ -227,7 +240,7 @@ class UploadService:
             raise UnauthorizedException(
                 CustomerErrorCode.NO_DELETE_ACCESS, {"upload_id": upload_id}
             )
-        storage_usage_service.committed_bytes(
+        self.usage.committed_bytes(
             db, require_persisted_id(current_user.id, entity="user"), lock=True
         )
         upload = self.repository.get_upload_by_uuid(db, upload_id, lock=True)
@@ -245,7 +258,7 @@ class UploadService:
         storage_key = blob.object_key
         upload_uuid = upload.upload_uuid
         self.repository.delete_upload_by_id(db, require_persisted_id(upload.id, entity="upload"))
-        storage_usage_service.record_release(
+        self.usage.record_release(
             db,
             user_id=require_persisted_id(current_user.id, entity="user"),
             category=StorageUsageCategory.UPLOAD,
@@ -257,6 +270,3 @@ class UploadService:
         )
         retire_after_release(db, blob.id)
         return None
-
-
-upload_service = UploadService()

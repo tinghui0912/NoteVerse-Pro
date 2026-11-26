@@ -5,7 +5,7 @@ Every path locking both records locks ImportDispatch before ImportJob.
 
 from __future__ import annotations
 from app.modules.account.resource_admission import lock_active_resource_user
-from app.modules.storage_objects.reads import StoredObjectReadTarget
+from app.modules.media_storage.reads import StoredObjectReadTarget
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -23,7 +23,7 @@ from app.db.models import (
     StoredObject,
     Upload,
 )
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
     DeliveryAttemptLease,

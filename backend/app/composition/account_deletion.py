@@ -9,15 +9,20 @@ from app.db.models import (
     AccountDeletionPhase as Phase,
     User,
 )
-from app.modules.account.avatar_service import avatar_service
+from app.composition.media_resources import (
+    build_avatar_service,
+    build_upload_service,
+    build_take_service,
+    build_import_deletion_service,
+    build_score_lifecycle_service,
+)
 from app.modules.account.deletion_delivery import (
     AccountDeletionLease,
     account_deletion_delivery as delivery,
 )
 from app.modules.account.deletion_repository import AccountDeletionRepository
 from app.modules.account.email_identity import try_lock_email_identity
-from app.modules.import_jobs.deletion_service import ImportJobDeletionService
-from app.modules.scores.lifecycle_service import score_lifecycle_service
+
 from app.modules.performance_takes.account_cleanup import (
     cleanup_account_take,
     account_take_cleanup_pending,
@@ -32,14 +37,19 @@ from app.modules.scores.lifecycle_service import has_account_scores
 from app.modules.import_jobs.deletion_service import has_account_imports
 from app.modules.performance_takes.account_cleanup import has_account_takes
 from app.composition.storage_resources import storage_quota_service
-from app.modules.storage_usage.service import storage_usage_service
-from app.modules.storage_inventory.contracts import StorageInventoryReader
+from app.composition.storage_resources import storage_usage_service
+from app.modules.storage_governance.inventory.contracts import StorageInventoryReader
 from app.shared.time import utc_now
 
 
 class AccountDeletionExecutor:
     def __init__(self, inventory: StorageInventoryReader) -> None:
         self.inventory = inventory
+        self.avatar = build_avatar_service()
+        self.uploads = build_upload_service()
+        self.takes = build_take_service()
+        self.imports = build_import_deletion_service()
+        self.scores = build_score_lifecycle_service()
 
     def execute(self, db: Session, lease: AccountDeletionLease) -> bool:
         operation = delivery.require(db, lease)
@@ -49,23 +59,23 @@ class AccountDeletionExecutor:
                 "Account cleanup requires its tombstoned User lifecycle authority"
             )
         if operation.phase == Phase.SCORES:
-            result = score_lifecycle_service.cleanup_for_account(db, user_id)
+            result = self.scores.cleanup_for_account(db, user_id)
             if result == "empty":
                 operation.phase = Phase.IMPORTS
         elif operation.phase == Phase.IMPORTS:
-            result = (
-                "progress"
-                if ImportJobDeletionService().cleanup_for_account(db, user_id)
-                else "empty"
-            )
+            result = "progress" if self.imports.cleanup_for_account(db, user_id) else "empty"
             if result == "empty":
                 operation.phase = Phase.TAKES
         elif operation.phase == Phase.TAKES:
-            result = cleanup_account_take(db, user_id)
+            result = cleanup_account_take(
+                db, user_id, quota=storage_quota_service, takes=self.takes
+            )
             if result == "empty":
                 operation.phase = Phase.UPLOADS
         elif operation.phase == Phase.UPLOADS:
-            if not cleanup_account_upload(db, user_id):
+            if not cleanup_account_upload(
+                db, user_id, usage=storage_usage_service, uploads=self.uploads
+            ):
                 operation.phase = Phase.FINALIZE
             result = "progress"
         else:
@@ -149,7 +159,7 @@ class AccountDeletionExecutor:
             or storage_quota_service.erase_terminal_user_holds(db, user_id, limit=limit)
         ):
             return "progress"
-        avatar_service.clear_user_avatar(db, user)
+        self.avatar.clear_user_avatar(db, user)
         db.flush()
         AccountDeletionRepository().erase_closed_identity(db, user)
         return "completed"

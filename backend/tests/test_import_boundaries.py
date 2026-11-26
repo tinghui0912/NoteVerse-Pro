@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from app.api.deps import get_current_user, get_db
-from app.modules.import_jobs.review.dependencies import get_import_review_service
+from app.api.resource_dependencies import get_import_review_service
 from app.shared.time import utc_now
 
 from app.main import app

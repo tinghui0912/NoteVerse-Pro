@@ -1,5 +1,7 @@
 """Hash-only bearer credentials and current-head presentation boundaries."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from app.shared.time import utc_now
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
 
@@ -12,11 +14,12 @@ from app.db.models import (
     ScoreRevision,
     ScoreRenderAsset,
     ScorePlaybackAsset,
-    PlaybackAssetKind,
     ScoreLibraryOrganization,
     ScoreMembership,
 )
-from app.db.models.score import RevisionOrigin, RenderAssetKind
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.score_assets.domain import RenderAssetKind
 from app.db.models.score_access import MembershipRole
 from app.db.models import GuestPreviewCredential
 from app.modules.guest_previews.credentials import (
@@ -47,7 +50,7 @@ def preview_context(score_service_session):
         storage,
         score,
         session,
-        GuestPreviewService(storage=storage),
+        GuestPreviewService(delivery=_resource_wiring.build_media_delivery_service(storage)),
     )
 
 
@@ -254,7 +257,7 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
     from httpx import AsyncClient, ASGITransport
     from app.api.deps import get_db, get_current_user, get_optional_current_user
     from app.main import app
-    from app.modules.guest_previews.dependencies import get_guest_preview_service
+    from app.api.resource_dependencies import get_guest_preview_service
 
     session, storage, score, db, service = preview_context
     add_page(session, storage, 901, "page-a")
@@ -311,7 +314,7 @@ async def test_owner_settings_http_state_and_authorization(preview_context):
     from app.api.deps import get_db, get_current_user
     from app.db.models import User
     from app.main import app
-    from app.modules.guest_previews.dependencies import get_guest_preview_service
+    from app.api.resource_dependencies import get_guest_preview_service
 
     session, _, score, db, service = preview_context
     user = session.get(User, 1)
@@ -371,7 +374,7 @@ async def test_owner_settings_http_state_and_authorization(preview_context):
 def preview_http_app(preview_context):
     from app.api.deps import get_db
     from app.main import create_app
-    from app.modules.guest_previews.dependencies import get_guest_preview_service
+    from app.api.resource_dependencies import get_guest_preview_service
 
     _, _, _, db, service = preview_context
     application = create_app()
@@ -459,7 +462,7 @@ async def test_bearer_dependency_validation_response_is_not_cacheable(
     preview_context, preview_http_app
 ):
     from httpx import AsyncClient, ASGITransport
-    from app.modules.guest_previews.dependencies import get_guest_preview_service
+    from app.api.resource_dependencies import get_guest_preview_service
 
     _, _, score, _, service = preview_context
 

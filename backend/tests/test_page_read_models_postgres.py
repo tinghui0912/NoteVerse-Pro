@@ -1,5 +1,10 @@
 """Fresh-session SQL budgets and stable personal timeline continuations on PostgreSQL."""
 
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 import ast
 import base64
 import json
@@ -29,15 +34,19 @@ from app.db.models import (
     PerformanceTake,
     PracticeBundleRecord,
 )
-from app.db.models.score import RevisionOrigin, MetadataStatus, RenderAssetKind
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.metadata.domain import MetadataStatus
+from app.modules.score_assets.domain import RenderAssetKind
 from app.db.models.score_access import MembershipRole
-from app.db.models import PlaybackAssetKind, PlaybackOutboxStatus, ScoreRevisionRenderStatus
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.playback.domain import PlaybackOutboxStatus
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
 from app.modules.library.service import LibraryService
 from app.modules.library.schemas import LibrarySort, LibraryView
 from app.modules.revisions.service import RevisionService
 from app.modules.notifications.service import NotificationService
 from app.modules.performance_takes.service import PerformanceTakeService
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 from app.shared.time import utc_now
 from app.shared.feed_cursor import encode_cursor
 from app.api.deps import get_current_user, get_db
@@ -282,10 +291,25 @@ def load(db, kind, limit):
             page_size=limit,
         )[0]
     if kind == "revision":
-        return RevisionService().list(db, "history", 1, limit=limit).items
+        return (
+            RevisionService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+            )
+            .list(db, "history", 1, limit=limit)
+            .items
+        )
     if kind == "notifications":
         return NotificationService().list_for_user(db, 1, limit=limit).items
-    return PerformanceTakeService().list_takes(db, 1, limit=limit).items
+    return (
+        PerformanceTakeService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        )
+        .list_takes(db, 1, limit=limit)
+        .items
+    )
 
 
 @pytest.mark.parametrize("kind", ["library", "revision", "notifications", "takes"])
@@ -335,7 +359,14 @@ def test_page_statement_budget_is_independent_of_item_count(pages, kind):
 @pytest.mark.parametrize("kind", ["notifications", "takes"])
 def test_keyset_continuation_survives_equal_times_and_anchor_mutation(pages, kind):
     engine, now = pages
-    service = NotificationService() if kind == "notifications" else PerformanceTakeService()
+    service = (
+        NotificationService()
+        if kind == "notifications"
+        else PerformanceTakeService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        )
+    )
 
     def page(db, cursor=None):
         return (
@@ -514,7 +545,10 @@ def test_take_visibility_query_errors_propagate_instead_of_becoming_access_denia
             Session(engine) as db,
             pytest.raises(RuntimeError, match="visibility query unavailable"),
         ):
-            PerformanceTakeService().list_takes(db, 1)
+            PerformanceTakeService(
+                usage=_resource_wiring.storage_usage_service,
+                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            ).list_takes(db, 1)
     finally:
         event.remove(engine, "before_cursor_execute", fail_visibility)
 
@@ -548,9 +582,10 @@ def test_take_timeline_owns_its_seek_with_other_user_noise(pages, score_filter):
     cursor, seen = None, []
     while True:
         with Session(engine) as db:
-            page = PerformanceTakeService().list_takes(
-                db, 1, score_id=score_filter, limit=7, cursor=cursor
-            )
+            page = PerformanceTakeService(
+                usage=_resource_wiring.storage_usage_service,
+                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            ).list_takes(db, 1, score_id=score_filter, limit=7, cursor=cursor)
             seen.extend(row.take_id for row in page.items)
         if page.next_cursor is None:
             break
@@ -561,7 +596,10 @@ def test_take_timeline_owns_its_seek_with_other_user_noise(pages, score_filter):
     ]
     assert seen == expected
     with Session(engine) as db:
-        other = PerformanceTakeService().list_takes(db, 2, score_id=score_filter, limit=100)
+        other = PerformanceTakeService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).list_takes(db, 2, score_id=score_filter, limit=100)
         assert len(other.items) == 100
         assert all(row.take_id.startswith("other-") for row in other.items)
         assert other.next_cursor is not None
@@ -602,7 +640,11 @@ def test_take_detail_propagates_authorization_system_failures(pages, failure):
     policy = Mock(spec=ScoreAccessPolicy)
     policy.authorize_score.side_effect = failure
     with Session(engine) as db, pytest.raises(type(failure), match=str(failure)):
-        PerformanceTakeService(score_access_policy=policy).get_take(db, 1, "take-1")
+        PerformanceTakeService(
+            score_access_policy=policy,
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).get_take(db, 1, "take-1")
 
 
 @pytest.mark.parametrize("denial", ["unauthorized", "not_found"])
@@ -620,7 +662,11 @@ def test_take_detail_projects_explicit_access_denial(pages, denial):
         else ResourceNotFoundException("score", "score-1", CustomerErrorCode.SCORE_NOT_FOUND)
     )
     with Session(engine) as db:
-        result = PerformanceTakeService(score_access_policy=policy).get_take(db, 1, "take-1")
+        result = PerformanceTakeService(
+            score_access_policy=policy,
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).get_take(db, 1, "take-1")
         assert result.linked_score_id is None
         assert result.can_open_score is False
 
@@ -638,7 +684,10 @@ def test_take_detail_does_not_convert_driver_failure_to_a_successful_access_proj
     event.listen(engine, "before_cursor_execute", fail_authorization)
     try:
         with Session(engine) as db, pytest.raises(OperationalError) as raised:
-            PerformanceTakeService().get_take(db, 1, "take-1")
+            PerformanceTakeService(
+                usage=_resource_wiring.storage_usage_service,
+                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            ).get_take(db, 1, "take-1")
         assert raised.value is failure
     finally:
         event.remove(engine, "before_cursor_execute", fail_authorization)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.composition.media_resources import build_import_pipeline_runner
+
 import sys
 
 from app.db.session import SessionLocal
@@ -11,7 +13,6 @@ from app.modules.import_jobs.dispatch_service import (
     require_current_attempt,
     StaleImportDispatchAttempt,
 )
-from app.modules.import_jobs.pipeline_runner import import_pipeline_runner
 from app.task_queue.protocols import CeleryTaskLike
 from app.worker.task_runtime import (
     bind_task_context,
@@ -66,7 +67,7 @@ def execute_import_dispatch_task(
             upload_count=len(payload.inputs),
         ).info("import.started")
         try:
-            result = import_pipeline_runner.run_pipeline(
+            result = build_import_pipeline_runner().run_pipeline(
                 task,
                 payload.lease,
                 payload.inputs,

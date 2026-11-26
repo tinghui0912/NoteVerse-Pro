@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.modules.import_jobs.review.dependencies import get_import_review_service
+from app.api.resource_dependencies import get_import_review_service
 from app.modules.import_jobs.review.schemas import (
     ImportJobReviewRead,
     ReviewConfirmRead,

@@ -21,11 +21,11 @@ from app.db.models import (
     ScoreRevisionRenderOutbox,
     User,
     ImportJob,
-    ImportJobState,
     Score,
     ScoreRevision,
-    RevisionOrigin,
 )
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionOrigin
 from app.modules.revisions.presentation_demand import RevisionPresentationDemand
 
 NOW = datetime(2026, 11, 6, 12, tzinfo=UTC)

@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
-from app.shared.performance_take_upload import UploadReservationStatus
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
 
 ROOT = Path(__file__).resolve().parents[1] / "app"
 MODULE = ROOT / "modules/performance_takes"
@@ -18,16 +18,19 @@ def imports(path):
     }
 
 
-def test_lifecycle_domain_and_persistence_consume_shared_status_vocabulary():
+def test_lifecycle_domain_and_persistence_consume_domain_owned_status_vocabulary():
     assert imports(MODULE / "upload_reservation/domain.py") <= {
         "__future__",
         "dataclasses",
         "datetime",
-        "app.shared.performance_take_upload",
+        "app.modules.performance_takes.upload_reservation.states",
         "typing",
     }
-    assert UploadReservationStatus.__module__ == "app.shared.performance_take_upload"
-    assert imports(ROOT / "shared/performance_take_upload.py") == {"enum"}
+    assert (
+        UploadReservationStatus.__module__
+        == "app.modules.performance_takes.upload_reservation.states"
+    )
+    assert imports(MODULE / "upload_reservation/states.py") == {"enum"}
     model_imports = imports(ROOT / "db/models/performance_take_upload_reservation.py")
     assert UploadReservationStatus.__module__ in model_imports
 
@@ -59,7 +62,7 @@ def test_lifecycle_writes_belong_to_persistence_adapter():
     for name in ["reservation_service.py", "cleanup.py"]:
         dependencies = imports(MODULE / "upload_reservation" / name)
         assert "app.modules.performance_takes.upload_reservation.persistence" in dependencies
-        assert "app.shared.performance_take_upload" in dependencies
+        assert "app.modules.performance_takes.upload_reservation.states" in dependencies
 
 
 def test_archive_admission_and_physical_retirement_have_distinct_owners():
@@ -68,7 +71,7 @@ def test_archive_admission_and_physical_retirement_have_distinct_owners():
         PerformanceTakeReservationService,
     )
     from app.modules.performance_takes.finalization import PerformanceTakeFinalizationService
-    from app.modules.storage_objects.retirement import StoredObjectRetirementDelivery
+    from app.modules.media_storage.retirement import StoredObjectRetirementDelivery
 
     assert {"list_takes", "get_take", "get_playback_url", "delete_take"} <= set(
         vars(PerformanceTakeService)
@@ -122,7 +125,7 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
     assert "app.modules.performance_takes.manifest_persistence" in imports(
         MODULE / "upload_reservation/reservation_service.py"
     )
-    assert {"manifest_persistence", "app.modules.storage_objects.persistence"} <= imports(
+    assert {"manifest_persistence", "app.modules.media_storage.persistence"} <= imports(
         MODULE / "aggregate.py"
     )
     # The upload aggregate consumes lifecycle facts independently of admitted recording policy.
@@ -130,6 +133,6 @@ def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():
         "__future__",
         "dataclasses",
         "datetime",
-        "app.shared.performance_take_upload",
+        "app.modules.performance_takes.upload_reservation.states",
         "typing",
     }

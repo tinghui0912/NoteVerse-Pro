@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-import enum
+import app.modules.revisions.domain as revision_types
+import app.modules.score_assets.domain as asset_types
+import app.modules.scores.domain as score_types
+import app.modules.metadata.domain as metadata_states
+
 from datetime import datetime
 from typing import Optional
 
@@ -25,30 +29,6 @@ from sqlalchemy.orm import relationship
 from .stored_object import StoredObject
 
 from app.shared.time import utc_now
-
-
-class RevisionOrigin(str, enum.Enum):
-    OMR = "OMR"
-    EDIT = "EDIT"
-    IMPORT = "IMPORT"
-
-
-class RevisionSourceFormat(str, enum.Enum):
-    MUSICXML = "MUSICXML"
-
-
-class RenderAssetKind(str, enum.Enum):
-    RENDERED_PAGE = "RENDERED_PAGE"
-
-
-class ScoreInputAssetPurpose(str, enum.Enum):
-    ORIGINAL_UPLOAD = "ORIGINAL_UPLOAD"
-
-
-class MetadataStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    READY = "READY"
-    FAILED = "FAILED"
 
 
 metadata_json_type = JSON().with_variant(JSONB, "postgresql")
@@ -133,10 +113,12 @@ class ScoreInputAsset(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    purpose: ScoreInputAssetPurpose = Field(
-        default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
+    purpose: score_types.ScoreInputAssetPurpose = Field(
+        default=score_types.ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
         sa_column=Column(
-            String(32), default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD, nullable=False
+            String(32),
+            default=score_types.ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
+            nullable=False,
         ),
     )
     page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
@@ -180,8 +162,10 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
     revision_number: int = Field(sa_column=Column(Integer, nullable=False))
     content_hash: str = Field(sa_column=Column(String(64), nullable=False))
     idempotency_key: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    origin: RevisionOrigin = Field(
-        sa_column=Column(SAEnum(RevisionOrigin, name="revisionorigin"), nullable=False)
+    origin: revision_types.RevisionOrigin = Field(
+        sa_column=Column(
+            SAEnum(revision_types.RevisionOrigin, name="revisionorigin"), nullable=False
+        )
     )
     created_by_user_id: Optional[int] = Field(
         default=None,
@@ -213,8 +197,11 @@ class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    format: RevisionSourceFormat = Field(
-        sa_column=Column(SAEnum(RevisionSourceFormat, name="revisionsourceformat"), nullable=False)
+    format: revision_types.RevisionSourceFormat = Field(
+        sa_column=Column(
+            SAEnum(revision_types.RevisionSourceFormat, name="revisionsourceformat"),
+            nullable=False,
+        )
     )
 
     stored_object_id: int = Field(
@@ -260,8 +247,10 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    kind: RenderAssetKind = Field(
-        sa_column=Column(SAEnum(RenderAssetKind, name="renderassetkind"), nullable=False)
+    kind: asset_types.RenderAssetKind = Field(
+        sa_column=Column(
+            SAEnum(asset_types.RenderAssetKind, name="renderassetkind"), nullable=False
+        )
     )
 
     stored_object_id: int = Field(
@@ -314,11 +303,11 @@ class ScoreRevisionMetadata(SQLModel, table=True):  # type: ignore[call-arg]
             primary_key=True,
         )
     )
-    status: MetadataStatus = Field(
-        default=MetadataStatus.PENDING,
+    status: metadata_states.MetadataStatus = Field(
+        default=metadata_states.MetadataStatus.PENDING,
         sa_column=Column(
-            SAEnum(MetadataStatus, name="metadatastatus"),
-            default=MetadataStatus.PENDING,
+            SAEnum(metadata_states.MetadataStatus, name="metadatastatus"),
+            default=metadata_states.MetadataStatus.PENDING,
             nullable=False,
         ),
     )

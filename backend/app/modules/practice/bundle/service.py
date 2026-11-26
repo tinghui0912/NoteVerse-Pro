@@ -1,6 +1,7 @@
 from __future__ import annotations
-from app.modules.storage_objects.reads import StoredObjectReadTarget, read_admitted_bytes
-from app.storage import ObjectStorage
+
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+from app.modules.media_storage.reads import StoredObjectReadTarget, read_admitted_bytes
 
 from sqlalchemy.orm import Session
 from app.core.exceptions import (
@@ -14,7 +15,6 @@ from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import object_storage
 from .compiler import PracticeBundleCompiler
 from .domain import AuthorizedPracticeBundle
 from .repository import PracticeBundleRepository
@@ -37,17 +37,18 @@ class PracticeBundleService:
         *,
         access_policy=None,
         asset_repository=None,
-        storage: ObjectStorage | None = None,
         compiler: PracticeBundleCompiler | None = None,
         repository: PracticeBundleRepository | None = None,
         writer: PracticeBundleWriter | None = None,
-    ):
+        writes: ObjectWriteCoordinator,
+    ) -> None:
+        self.writes = writes
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or object_storage
+        self.storage = writes.storage
         self.compiler = compiler or PracticeBundleCompiler()
         self.repository = repository or PracticeBundleRepository()
-        self.writer = writer or PracticeBundleWriter(self.storage, repository=self.repository)
+        self.writer = writer or PracticeBundleWriter(writes=writes, repository=self.repository)
 
     def resolve_bundle(self, db: Session, score_uuid: str, user_id: int, revision_uuid: str):
         access = self.access_policy.authorize_revision(

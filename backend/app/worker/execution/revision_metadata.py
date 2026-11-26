@@ -1,6 +1,6 @@
 """Compute outside delivery locks; metadata/result/completion/realtime commit together."""
 
-from app.modules.storage_objects.reads import read_admitted_bytes
+from app.modules.media_storage.reads import read_admitted_bytes
 
 import sys
 from hashlib import sha256

@@ -1,5 +1,9 @@
 """Real PostgreSQL head-writer / final-admission serialization for both derivatives."""
 
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
+from app.composition import storage_resources as _resource_wiring
+
 from app.db.models import GuestPreviewCredential
 from app.modules.guest_previews.credentials import (
     issue_guest_preview_token,
@@ -27,15 +31,16 @@ from app.db.models import (
     ScoreRevision,
     ScoreRevisionSource,
     ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
     PlaybackOutbox,
-    PlaybackOutboxStatus,
     ScoreRenderAsset,
     ScorePlaybackAsset,
     ObjectWriteIntent,
     StorageUsageCounter,
 )
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.playback.domain import PlaybackOutboxStatus
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.score_assets import score_revision_rendering as render_service
 from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.playback import service as playback_service
@@ -135,8 +140,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
             seed.commit()
         physical_written, admit = Event(), Event()
         worker = score_revision_render_outbox if kind == "render" else playback_outbox
-        service_module = render_service if kind == "render" else playback_service
-        original_write = service_module.write_object
+        original_write = ObjectWriteCoordinator.write_batch
 
         def paused_write(*args, **kwargs):
             receipt = original_write(*args, **kwargs)
@@ -154,7 +158,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                     db.rollback()
                     raise
 
-        monkeypatch.setattr(service_module, "write_object", paused_write)
+        monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", paused_write)
         monkeypatch.setattr(worker, "SessionLocal", database)
         publish = Mock()
         if kind == "render":
@@ -171,8 +175,11 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
             )
             monkeypatch.setattr(
                 worker,
-                "ScoreRevisionRenderService",
-                lambda: render_service.ScoreRevisionRenderService(storage=storage),
+                "build_render_service",
+                lambda: render_service.ScoreRevisionRenderService(
+                    usage=_resource_wiring.storage_usage_service,
+                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                ),
             )
             monkeypatch.setattr(worker, "_publish_revision_render_change", publish)
             execute = worker.execute_score_revision_render_task
@@ -191,9 +198,11 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
             )
             monkeypatch.setattr(
                 worker,
-                "PlaybackGenerationService",
+                "build_playback_generation_service",
                 lambda: playback_service.PlaybackGenerationService(
-                    storage=storage, renderer=renderer
+                    renderer=renderer,
+                    usage=_resource_wiring.storage_usage_service,
+                    writes=_resource_wiring.build_object_write_coordinator(storage),
                 ),
             )
             monkeypatch.setattr(worker, "_publish_playback_change", publish)

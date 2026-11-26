@@ -1,4 +1,10 @@
 from __future__ import annotations
+
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
 import json
 import hashlib
 from uuid import uuid4
@@ -19,24 +25,24 @@ from app.core.exceptions import (
     UnauthorizedException,
 )
 from app.db.models.user import User
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.uploads.service import UploadService
 from app.modules.account.avatar_service import AvatarService
 from app.modules.account.avatar_presentation import avatar_url_for_user
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 from tests.test_score_revision_services import score_service_session as score_service_session
 from app.modules.account.profile_service import ProfileService
 from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.modules.import_jobs.maintenance_service import ImportJobMaintenanceService
 from app.modules.import_jobs.requested_options import encode_requested_options
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
-from app.modules.import_jobs.pipeline.artifact_recorder import _build_file_item
+
 from app.modules.import_jobs.object_keys import review_musicxml_object_key
 from app.shared.error_codes import CustomerErrorCode
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.storage.s3_compatible import S3CompatibleObjectStorage
-from app.modules.storage_objects.reads import materialize_admitted_object, StoredObjectReadTarget
+from app.modules.media_storage.reads import materialize_admitted_object, StoredObjectReadTarget
 from app.shared.time import utc_now
 
 
@@ -118,24 +124,16 @@ def test_object_storage_rejects_path_traversal_keys() -> None:
 def test_artifact_recorder_persists_intent_before_upload(
     score_service_session, monkeypatch, tmp_path, kind, extension, content, mime
 ):
-    from contextlib import contextmanager
     from app.db.models import ObjectWriteIntent
     from sqlalchemy import select
 
     db, storage = score_service_session
 
-    @contextmanager
-    def session():
-        yield db
-        db.commit()
-
-    monkeypatch.setattr("app.modules.import_jobs.pipeline.artifact_recorder.SessionLocal", session)
-    monkeypatch.setattr(
-        "app.modules.import_jobs.pipeline.artifact_recorder.object_storage", storage
-    )
     path = tmp_path / f"output.{extension}"
     path.write_bytes(content)
-    item = _build_file_item("task-1", kind, str(path), page=1)
+    item = _media_wiring.build_import_artifact_recorder(storage).prepare_file_item(
+        "task-1", kind, str(path), page=1
+    )
     row = db.scalar(select(ObjectWriteIntent))
     assert set(item) == {"write_intent_uuid", "write_token", "filename", "page_number"}
     assert item["write_intent_uuid"] == row.intent_uuid and item["write_token"] == row.write_token
@@ -150,7 +148,10 @@ def test_artifact_recorder_persists_intent_before_upload(
 def test_avatar_service_stores_processed_image_through_storage(mode: str) -> None:
     with tempfile.TemporaryDirectory():
         storage = InMemoryObjectStorage()
-        service = AvatarService(storage=storage)
+        service = AvatarService(
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        )
         put = Mock(wraps=storage.put_bytes)
         storage.put_bytes = put
         image = Image.new(mode, (400, 100), 128 if mode == "L" else "red")
@@ -204,7 +205,10 @@ def test_avatar_service_replaces_user_avatar_and_queues_old_object(
 ) -> None:
     with tempfile.TemporaryDirectory():
         session, storage = score_service_session
-        service = AvatarService(storage=storage)
+        service = AvatarService(
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        )
         storage.put_bytes(key="avatars/old.jpg", content=b"old", content_type="image/jpeg")
         user = User(
             id=7,
@@ -268,7 +272,9 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
     repository = Mock()
     storage = Mock()
     storage.delete.return_value = True
-    service = ImportJobMaintenanceService(repository=repository)
+    service = ImportJobMaintenanceService(
+        repository=repository, usage=_resource_wiring.storage_usage_service
+    )
     db = MagicMock()
 
     upload = SimpleNamespace(
@@ -290,9 +296,7 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
             "app.modules.import_jobs.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
             86400,
         ),
-        patch(
-            "app.modules.import_jobs.maintenance_service.storage_usage_service.record_release"
-        ) as release_usage,
+        patch.object(service.usage, "record_release") as release_usage,
         patch(
             "app.modules.import_jobs.maintenance_service.retire_after_release",
             return_value=["retirement"],
@@ -319,7 +323,9 @@ def test_import_job_submission_persists_without_contacting_celery() -> None:
             {"id": 3, "upload_uuid": "abc", "uploader_user_id": 5},
         ]
     )
-    service = ImportJobSubmissionService(repository=repository)
+    service = ImportJobSubmissionService(
+        repository=repository, usage=_resource_wiring.storage_usage_service
+    )
     request = SimpleNamespace(upload_ids=["abc"], options={}, idempotency_key=None)
     current_user = SimpleNamespace(id=5)
     db = Mock(commit=Mock(), rollback=Mock())
@@ -352,7 +358,9 @@ def test_import_job_submission_reuses_existing_idempotency_key() -> None:
         )
     )
     repository.submission_uploads = Mock()
-    service = ImportJobSubmissionService(repository=repository)
+    service = ImportJobSubmissionService(
+        repository=repository, usage=_resource_wiring.storage_usage_service
+    )
     request = SimpleNamespace(upload_ids=["abc"], options={}, idempotency_key="submission-key-1")
     current_user = SimpleNamespace(id=5)
     db = Mock(commit=Mock())
@@ -379,7 +387,7 @@ def test_import_job_submission_serializes_genres_for_json_storage() -> None:
 
 
 def test_import_worker_materializes_admitted_input_bytes(tmp_path, monkeypatch) -> None:
-    from app.modules.storage_objects.reads import StoredObjectReadTarget
+    from app.modules.media_storage.reads import StoredObjectReadTarget
 
     target = StoredObjectReadTarget(1, "blobs/input.png", 5, "image/png")
     destination = tmp_path / "input.png"
@@ -387,7 +395,11 @@ def test_import_worker_materializes_admitted_input_bytes(tmp_path, monkeypatch) 
     monkeypatch.setattr(
         "app.modules.import_jobs.pipeline_runner.object_work_path", lambda _: str(destination)
     )
-    service = ImportPipelineRunner(storage=storage)
+    service = ImportPipelineRunner(
+        recorder=_media_wiring.build_import_artifact_recorder().recorder,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+        sessions=_resource_wiring.write_sessions,
+    )
     assert service._resolve_input_paths([target]) == [str(destination)]
     assert destination.read_bytes() == b"input"
     storage.iter_bytes.assert_called_once_with(target.storage_key)
@@ -401,7 +413,9 @@ def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
             ]
         )
     )
-    service = ImportJobSubmissionService(repository=repository)
+    service = ImportJobSubmissionService(
+        repository=repository, usage=_resource_wiring.storage_usage_service
+    )
     db = Mock(rollback=Mock(), commit=Mock())
     with pytest.raises(ResourceNotFoundException) as context:
         service.submit(
@@ -420,7 +434,11 @@ def test_upload_reuses_committed_exact_object_without_rewriting(score_service_se
     from app.db.models import Upload
 
     session, storage = score_service_session
-    service = UploadService(storage=storage)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     user = session.get(User, 1)
     service.create_upload(
         session,
@@ -446,7 +464,12 @@ def test_delete_upload_rejects_non_owner() -> None:
             id=1, upload_uuid="upload-1", stored_object_id=5, uploader_user_id=99
         )
     )
-    service = UploadService(repository=repository)
+    service = UploadService(
+        repository=repository,
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+    )
     db = Mock()
     current_user = SimpleNamespace(id=1)
 
@@ -466,7 +489,12 @@ def test_delete_upload_removes_owned_upload_and_reference() -> None:
     )
     repository.upload_reference_count = Mock(return_value=0)
     repository.delete_upload_by_id = Mock()
-    service = UploadService(repository=repository)
+    service = UploadService(
+        repository=repository,
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+    )
     db = Mock()
     db.get.return_value = SimpleNamespace(
         id=5,
@@ -483,11 +511,14 @@ def test_delete_upload_removes_owned_upload_and_reference() -> None:
             file_handle.write(b"png")
 
         storage = InMemoryObjectStorage()
-        service = UploadService(repository=repository, storage=storage)
+        service = UploadService(
+            repository=repository,
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
         with (
-            patch(
-                "app.modules.uploads.service.storage_usage_service.record_release"
-            ) as release_usage,
+            patch.object(service.usage, "record_release") as release_usage,
             patch(
                 "app.modules.uploads.service.retire_after_release", return_value=["retirement"]
             ) as retire,
@@ -510,12 +541,15 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
     from httpx import ASGITransport, AsyncClient
     from app.api.deps import get_current_user, get_db
     from app.main import create_app
-    from app.modules.account.dependencies import get_avatar_service
+    from app.api.resource_dependencies import get_avatar_service
 
     session, storage = score_service_session
     db = session
     user = session.get(User, 1)
-    service = AvatarService(storage=storage)
+    service = AvatarService(
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
     image = io.BytesIO()
     Image.new("RGB", (2, 2), "red").save(image, format="PNG")
     # Establish a real current avatar object, using the same service as HTTP upload.
@@ -553,7 +587,10 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
             assert redirect.status_code == 307
             assert redirect.content == b""
             assert redirect.headers["location"] == capability
-        assert storage.download_url.call_args_list == [call(key, content_type="image/jpeg")] * 2
+        assert (
+            storage.download_url.call_args_list
+            == [call(key, filename=None, content_type="image/jpeg", expires_seconds=900)] * 2
+        )
         storage.delete(key)
         storage.exists = Mock(
             side_effect=AssertionError("Admitted avatar resolution needs no HEAD")

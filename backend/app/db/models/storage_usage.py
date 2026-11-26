@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import enum
+import app.modules.storage_governance.usage.domain as usage_types
+
 from datetime import datetime
 from typing import Optional
 
@@ -23,15 +24,6 @@ from app.shared.time import utc_now
 
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
-
-
-class StorageUsageCategory(str, enum.Enum):
-    SOURCE = "SOURCE"
-    UPLOAD = "UPLOAD"
-    INPUT_ASSET = "INPUT_ASSET"
-    DERIVED_RENDER = "DERIVED_RENDER"
-    DERIVED_AUDIO = "DERIVED_AUDIO"
-    TEMP_IMPORT = "TEMP_IMPORT"
 
 
 class StorageUsageAccount(SQLModel, table=True):  # type: ignore[call-arg]
@@ -75,8 +67,11 @@ class StorageUsageCounter(SQLModel, table=True):  # type: ignore[call-arg]
     user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     )
-    category: StorageUsageCategory = Field(
-        sa_column=Column(SAEnum(StorageUsageCategory, name="storageusagecategory"), nullable=False)
+    category: usage_types.StorageUsageCategory = Field(
+        sa_column=Column(
+            SAEnum(usage_types.StorageUsageCategory, name="storageusagecategory"),
+            nullable=False,
+        )
     )
     used_bytes: int = Field(default=0, sa_column=Column(BigInteger, default=0, nullable=False))
     updated_at: datetime = Field(
@@ -101,8 +96,11 @@ class StorageUsageEvent(SQLModel, table=True):  # type: ignore[call-arg]
     user_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     )
-    category: StorageUsageCategory = Field(
-        sa_column=Column(SAEnum(StorageUsageCategory, name="storageusagecategory"), nullable=False)
+    category: usage_types.StorageUsageCategory = Field(
+        sa_column=Column(
+            SAEnum(usage_types.StorageUsageCategory, name="storageusagecategory"),
+            nullable=False,
+        )
     )
     delta_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
     counts_toward_quota_snapshot: bool = Field(sa_column=Column(Boolean, nullable=False))

@@ -7,9 +7,9 @@ from typing import cast
 import pytest
 from sqlalchemy.orm import Session
 
-from app.db.models.storage_usage import StorageUsageCategory as Category
-from app.modules.storage_inventory.contracts import StorageInventorySnapshot
-from app.modules.storage_inventory.registry import StorageInventoryRegistry
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
+from app.modules.storage_governance.inventory.contracts import StorageInventorySnapshot
+from app.modules.storage_governance.inventory.registry import StorageInventoryRegistry
 
 
 @dataclass(frozen=True)

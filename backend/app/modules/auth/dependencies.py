@@ -2,7 +2,6 @@
 
 from app.modules.auth.service import AuthService
 from app.modules.auth.email_change_service import EmailChangeService
-from app.modules.auth.email_verification_service import EmailVerificationService
 from app.modules.auth.password_reset_service import PasswordResetService
 from app.modules.auth.password_service import PasswordService
 from app.modules.auth.security_service import SecurityService
@@ -13,12 +12,6 @@ def get_auth_service() -> AuthService:
     """Provide the auth service from the auth module boundary."""
 
     return AuthService()
-
-
-def get_email_verification_service() -> EmailVerificationService:
-    """Provide the email verification service from the auth module boundary."""
-
-    return EmailVerificationService()
 
 
 def get_email_change_service() -> EmailChangeService:

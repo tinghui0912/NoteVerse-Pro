@@ -1,19 +1,28 @@
 """Explicit application wiring of independent usage and quota authorities."""
 
+from app.core.config import settings
+from app.modules.media_storage.delivery import MediaDeliveryService, DeliveryPolicy
 from sqlalchemy.orm import Session
-from app.modules.storage_quota.schemas import (
+from app.modules.storage_governance.quota.schemas import (
     StorageUsageRead,
     StorageUsageQuotaRead,
     StorageUsageBreakdownRead,
 )
-from app.modules.storage_usage.contracts import counts_toward_quota
-from app.db.models.storage_usage import StorageUsageCategory
-from app.modules.storage_usage.service import storage_usage_service
-from app.modules.storage_usage.provisioning import provision_usage_account
-from app.modules.storage_quota.service import StorageQuotaService
-from app.modules.storage_quota.contracts import StorageQuotaReader
-from app.modules.storage_usage.contracts import StorageUsageReader
-from app.modules.storage_quota.expiry import StorageQuotaExpiry
+from app.modules.storage_governance.usage.contracts import counts_toward_quota
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.storage_governance.usage.provisioning import provision_usage_account
+from app.modules.storage_governance.quota.service import StorageQuotaService
+from app.modules.storage_governance.quota.contracts import StorageQuotaReader
+from app.modules.storage_governance.usage.contracts import StorageUsageReader
+from app.modules.storage_governance.quota.expiry import StorageQuotaExpiry
+
+
+from app.db.session import SessionLocal
+from app.storage import ObjectStorage
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator, SessionFactory
+
+storage_usage_service = StorageUsageService()
 
 storage_quota_service = StorageQuotaService(storage_usage_service)
 storage_quota_expiry = StorageQuotaExpiry(storage_quota_service)
@@ -51,4 +60,22 @@ def read_storage_usage(
             )
             for category in StorageUsageCategory
         ],
+    )
+
+
+write_sessions: SessionFactory = SessionLocal
+
+
+def build_object_write_coordinator(storage: ObjectStorage) -> ObjectWriteCoordinator:
+    return ObjectWriteCoordinator(storage, write_sessions)
+
+
+def build_media_delivery_service(storage: ObjectStorage) -> MediaDeliveryService:
+    return MediaDeliveryService(
+        storage,
+        DeliveryPolicy(
+            settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS,
+            settings.MEDIA_DELIVERY_CACHE_SECONDS,
+            settings.MEDIA_DELIVERY_MAX_STREAM_MEDIA_BYTES,
+        ),
     )

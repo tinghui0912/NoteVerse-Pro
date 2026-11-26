@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from threading import Barrier
 from uuid import uuid4
-from pathlib import Path
 import pytest
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
@@ -19,14 +18,14 @@ from app.db.models import (
     StoragePlanPolicy,
     UserStorageEntitlement,
     StorageQuotaHold,
-    StorageQuotaHoldStatus as Status,
-    StoragePlanCode as Plan,
     StorageUsageAccount,
     StorageUsageEvent,
-    StorageUsageCategory as Category,
 )
-from app.modules.storage_usage.service import storage_usage_service as usage
-from app.modules.storage_quota.domain import hold_transition
+from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus as Status
+from app.modules.storage_governance.quota.states import StoragePlanCode as Plan
+from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
+from app.composition.storage_resources import storage_usage_service as usage
+from app.modules.storage_governance.quota.domain import hold_transition
 from app.shared.time import utc_now
 from tests.support.storage_state import provision_storage_users
 
@@ -338,46 +337,10 @@ def test_http_quota_and_category_holds(database, client, plan, limit):
         assert breakdown["INPUT_ASSET"]["used_bytes"] == 3
 
 
-def test_inventory_usage_quota_dependency_boundaries():
-    from tests.support.python_imports import imported_modules
-
-    root = Path(__file__).parents[1]
-    for module in ("storage_usage", "storage_quota", "storage_inventory", "storage_objects"):
-        for path in (root / "app/modules" / module).rglob("*.py"):
-            for imported in imported_modules(path, root):
-                if imported.startswith("app.modules."):
-                    owner = imported.split(".")[2]
-                    if module == "storage_usage":
-                        assert owner in {"storage_usage", "storage_inventory"}, (path, imported)
-                    elif module == "storage_quota":
-                        assert owner in {"storage_quota", "storage_usage"}, (path, imported)
-                        if owner == "storage_usage":
-                            assert imported.startswith("app.modules.storage_usage.contracts"), (
-                                path,
-                                imported,
-                            )
-                    elif module == "storage_objects":
-                        assert owner in {"storage_objects", "durable_work"}, (path, imported)
-                    else:
-                        assert owner != "storage_quota", (path, imported)
-                if imported.startswith("app.db.models") and module in {
-                    "storage_usage",
-                    "storage_quota",
-                }:
-                    allowed = {"app.db.models.storage_usage"}
-                    if module == "storage_quota":
-                        allowed.add("app.db.models.storage_quota")
-                    if module == "storage_quota" and path.name == "router.py":
-                        allowed.add("app.db.models.user")
-                    assert any(
-                        imported == name or imported.startswith(name + ".") for name in allowed
-                    ), (path, imported)
-
-
 @pytest.mark.parametrize("value", [True, False, 1.0, 1.5, 0.0, 0, -1, "1", None])
 def test_capacity_requires_exact_positive_integer(database, value):
-    from app.modules.storage_quota.domain import admit_capacity
-    from app.modules.storage_quota.contracts import EffectiveStorageQuota
+    from app.modules.storage_governance.quota.domain import admit_capacity
+    from app.modules.storage_governance.quota.contracts import EffectiveStorageQuota
 
     with Session(database) as db:
         for limit in [0, 100]:
@@ -391,20 +354,24 @@ def test_capacity_requires_exact_positive_integer(database, value):
 @pytest.mark.parametrize(
     "syntax",
     [
-        "import app.modules.storage_quota.service as quota",
-        "from app.modules.storage_quota import service",
-        "from ..storage_quota import service",
-        "from ...storage_quota import service",
+        "import app.modules.storage_governance.quota.service as quota",
+        "from app.modules.storage_governance.quota import service",
+        "from ..quota import service",
+        "from ...quota import service",
     ],
 )
 def test_boundary_import_resolution_covers_import_forms_and_nested_files(tmp_path, syntax):
     from tests.support.python_imports import imported_modules
 
-    nested = "...storage_quota" in syntax
-    path = tmp_path / "app/modules/storage_usage" / ("nested/check.py" if nested else "check.py")
+    nested = "...quota" in syntax
+    path = (
+        tmp_path
+        / "app/modules/storage_governance/usage"
+        / ("nested/check.py" if nested else "check.py")
+    )
     path.parent.mkdir(parents=True)
     path.write_text(syntax, encoding="utf-8")
-    assert "app.modules.storage_quota.service" in imported_modules(path, tmp_path)
+    assert "app.modules.storage_governance.quota.service" in imported_modules(path, tmp_path)
 
 
 def test_concurrent_command_retry_reuses_one_hold(database):
@@ -459,7 +426,7 @@ def test_consumption_rechecks_clock_after_waiting_for_user_fence(database, monke
     from threading import Event
     from sqlalchemy import text
     from tests.test_stored_object_retirement_postgres import assert_blocked
-    import app.modules.storage_quota.service as service_module
+    import app.modules.storage_governance.quota.service as service_module
 
     now = utc_now()
     expiry = now + timedelta(hours=1)

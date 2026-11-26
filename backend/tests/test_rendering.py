@@ -7,10 +7,8 @@ from unittest.mock import Mock
 import pytest
 from sqlalchemy import select
 
-from app.db.models import (
-    ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
-)
+from app.db.models import ScoreRevisionRenderOutbox
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
 from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.rendering import renderer
 from app.modules.revisions.render_admission import admit_revision_render
@@ -157,7 +155,7 @@ def test_worker_uses_revision_asset_owner_and_exact_attempt(monkeypatch):
     from app.worker.execution import score_revision_render_outbox as worker
 
     score = Mock()
-    monkeypatch.setattr(worker, "ScoreRevisionRenderService", lambda: score)
+    monkeypatch.setattr(worker, "build_render_service", lambda *_: score)
     target = revision_target()
     lease = DeliveryAttemptLease(attempt=1, token="token")
     db = Mock()

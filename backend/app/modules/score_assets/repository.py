@@ -7,18 +7,19 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import (
-    PlaybackAssetKind,
     PlaybackOutbox,
-    PlaybackOutboxStatus,
     ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
     Score,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionSource,
 )
-from app.db.models.score import RenderAssetKind, RevisionSourceFormat
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.playback.domain import PlaybackOutboxStatus
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionSourceFormat
 
 ScoreAssetRecord: TypeAlias = ScoreRevisionSource | ScoreRenderAsset
 

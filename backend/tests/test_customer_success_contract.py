@@ -15,8 +15,8 @@ from app.api.deps import get_current_user, get_db
 from app.main import create_app
 from app.modules.account.dependencies import get_profile_service
 from app.modules.account.schemas import ProfileRead, ProfileUserRead
-from app.modules.uploads.dependencies import get_upload_service
-from app.modules.import_jobs.dependencies import get_import_job_service
+from app.api.resource_dependencies import get_upload_service
+from app.api.resource_dependencies import get_import_job_service
 from app.modules.import_jobs.schemas import ImportJobSubmitRead
 from app.modules.library.dependencies import get_library_service
 from app.modules.library.schemas import LibraryFolderRead

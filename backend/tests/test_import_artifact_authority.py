@@ -1,5 +1,7 @@
 """Import artifact mutation requires typed authority before any side effect."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from enum import StrEnum
 from unittest.mock import Mock
 
@@ -9,11 +11,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import DBAPIError
 from sqlmodel import SQLModel
 
-from app.db.models import ImportArtifact, ImportArtifactKind, ImportJob, ImportJobState, User
+from app.db.models import ImportArtifact, ImportJob, User
+from app.modules.import_jobs.domain import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.pipeline import artifact_recorder
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.import_jobs.requested_options import encode_requested_options
-from app.modules.storage_objects.persistence import object_from_bytes
+from app.modules.media_storage.persistence import object_from_bytes
 
 
 class ForeignKind(StrEnum):
@@ -23,17 +27,18 @@ class ForeignKind(StrEnum):
 @pytest.mark.parametrize("kind", ["review_musicxml", ForeignKind.MUSICXML, object(), None])
 def test_artifact_mutation_requires_import_kind_before_io_or_adoption(monkeypatch, tmp_path, kind):
     sessions, writes = Mock(), Mock()
-    monkeypatch.setattr(artifact_recorder, "SessionLocal", sessions)
-    monkeypatch.setattr(artifact_recorder, "write_object", writes)
+    artifacts = artifact_recorder.ImportArtifactRecorder(writes, sessions, Mock())
     path = tmp_path / "review.musicxml"
     path.write_bytes(b"<score-partwise/>")
     with pytest.raises(TypeError):
-        artifact_recorder.replace_files(Mock(), kind, [str(path)])
+        artifacts.replace_files(Mock(), kind, [str(path)])
     with pytest.raises(TypeError):
-        artifact_recorder._build_file_item("job", kind, str(path), 1)
+        artifacts.prepare_file_item("job", kind, str(path), 1)
     repository, db = Mock(), Mock()
     with pytest.raises(TypeError):
-        ImportExecutionRecorder(repository=repository).replace_artifacts(db, Mock(), kind, [])
+        ImportExecutionRecorder(
+            repository=repository, usage=_resource_wiring.storage_usage_service
+        ).replace_artifacts(db, Mock(), kind, [])
     sessions.assert_not_called()
     writes.assert_not_called()
     assert db.mock_calls == repository.mock_calls == []
@@ -122,9 +127,8 @@ def test_sqlite_artifact_enum_round_trip_is_typed(kind):
 @pytest.mark.parametrize("paths", [[], ["one.xml", "two.xml"]])
 def test_review_recording_admits_one_current_musicxml_before_io(monkeypatch, paths):
     sessions, writes = Mock(), Mock()
-    monkeypatch.setattr(artifact_recorder, "SessionLocal", sessions)
-    monkeypatch.setattr(artifact_recorder, "write_object", writes)
+    artifacts = artifact_recorder.ImportArtifactRecorder(writes, sessions, Mock())
     with pytest.raises(ValueError, match="exactly one file"):
-        artifact_recorder.replace_files(Mock(), ImportArtifactKind.REVIEW_MUSICXML, paths)
+        artifacts.replace_files(Mock(), ImportArtifactKind.REVIEW_MUSICXML, paths)
     sessions.assert_not_called()
     writes.assert_not_called()

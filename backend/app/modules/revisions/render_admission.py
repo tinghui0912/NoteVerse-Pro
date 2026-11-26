@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.core.async_trace_context import get_async_trace_context
 from app.core.request_correlation import get_request_id
 from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
-from app.db.models import ScoreRevisionRenderOutbox, ScoreRevisionRenderStatus
+from app.db.models import ScoreRevisionRenderOutbox
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
 from app.modules.revisions.render_delivery import rearm_revision_outbox
 
 

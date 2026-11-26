@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from app.api.resource_dependencies import get_practice_bundle_service
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -13,11 +14,6 @@ from app.modules.practice.bundle.service import PracticeBundleService
 
 
 router = APIRouter()
-
-
-def get_practice_bundle_service() -> PracticeBundleService:
-    """Provide revision-bound source data without importing server practice runtime."""
-    return PracticeBundleService()
 
 
 @router.get(

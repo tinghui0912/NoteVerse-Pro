@@ -1,5 +1,9 @@
 """Physical prewrite may race; semantic adoption and completion have one fenced commit."""
 
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
+from app.composition import storage_resources as _resource_wiring
+
 from tests.support.storage_state import provision_storage_users
 
 from concurrent.futures import ThreadPoolExecutor
@@ -7,6 +11,7 @@ from contextlib import contextmanager
 from datetime import timedelta
 from hashlib import sha256
 from threading import Event
+from time import monotonic
 from unittest.mock import Mock
 
 import pytest
@@ -31,7 +36,8 @@ from app.db.models import (
     User,
     RealtimeChange,
 )
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.score_assets import score_revision_rendering as render_service
 from app.modules.playback import service as playback_service
 from app.modules.revisions.render_delivery import (
@@ -147,12 +153,17 @@ def generation(request, monkeypatch, tmp_path):
             generator_version="1",
             soundfont_sha256="a" * 64,
         )
-        render = render_service.ScoreRevisionRenderService(storage=storage)
-        playback = playback_service.PlaybackGenerationService(storage=storage, renderer=audio)
-        monkeypatch.setattr(
-            score_revision_render_outbox, "ScoreRevisionRenderService", lambda: render
+        render = render_service.ScoreRevisionRenderService(
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
         )
-        monkeypatch.setattr(playback_outbox, "PlaybackGenerationService", lambda: playback)
+        playback = playback_service.PlaybackGenerationService(
+            renderer=audio,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        )
+        monkeypatch.setattr(score_revision_render_outbox, "build_render_service", lambda: render)
+        monkeypatch.setattr(playback_outbox, "build_playback_generation_service", lambda: playback)
         worker = playback_outbox if kind == "playback" else score_revision_render_outbox
         monkeypatch.setattr(worker, "SessionLocal", transaction)
         service = playback_outbox_service if kind == "playback" else revision_render_delivery
@@ -229,17 +240,17 @@ def test_mid_generation_takeover_cannot_adopt_or_replace(generation, monkeypatch
     with Session(engine) as db:
         before = semantic_snapshot(db)
     physical_written, admit = Event(), Event()
-    original_write = module.write_object
+    original_write = ObjectWriteCoordinator.write_batch
     abandoned = []
 
     def paused_write(*args, **kwargs):
         receipt = original_write(*args, **kwargs)
-        abandoned.append(receipt.object_key)
+        abandoned.extend(item.object_key for item in receipt)
         physical_written.set()
         assert admit.wait(20)
         return receipt
 
-    monkeypatch.setattr(module, "write_object", paused_write)
+    monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", paused_write)
     with ThreadPoolExecutor(max_workers=1) as pool:
         old_worker = pool.submit(execute, None, "delivery")
         try:
@@ -267,7 +278,7 @@ def test_mid_generation_takeover_cannot_adopt_or_replace(generation, monkeypatch
         assert intent.status == "WRITTEN" and storage.exists(abandoned[0])
         assert drain_write_cleanup(db, storage)[0]["status"] == "cleaned"
         assert not storage.exists(abandoned[0])
-    monkeypatch.setattr(module, "write_object", original_write)
+    monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", original_write)
     with Session(engine) as db:
         generate(db, second)
         db.commit()
@@ -316,7 +327,7 @@ def test_semantic_adoption_and_completion_roll_back_together(generation, monkeyp
 def test_final_admission_locks_aggregate_before_delivery_and_subordinates(generation, monkeypatch):
     kind, engine, storage, service, model, module, lifecycle, execute, generate = generation
     locks = []
-    original_write = module.write_object
+    original_write = ObjectWriteCoordinator.write_batch
 
     def prewrite(*args, **kwargs):
         receipt = original_write(*args, **kwargs)
@@ -327,7 +338,7 @@ def test_final_admission_locks_aggregate_before_delivery_and_subordinates(genera
         if "FOR UPDATE" in statement:
             locks.append(statement.lower())
 
-    monkeypatch.setattr(module, "write_object", prewrite)
+    monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", prewrite)
     sa.event.listen(engine, "before_cursor_execute", observe)
     try:
         assert execute(None, "delivery")["status"] in ("rendered", "generated")
@@ -359,7 +370,7 @@ def test_execution_target_identity_is_checked_before_adoption(generation):
 
 def test_source_change_after_prewrite_is_domain_invalidation(generation, monkeypatch):
     kind, engine, storage, service, model, module, lifecycle, execute, generate = generation
-    original_write = module.write_object
+    original_write = ObjectWriteCoordinator.write_batch
     with Session(engine) as db:
         before = semantic_snapshot(db)
 
@@ -373,7 +384,7 @@ def test_source_change_after_prewrite_is_domain_invalidation(generation, monkeyp
             editor.commit()
         return receipt
 
-    monkeypatch.setattr(module, "write_object", change_source)
+    monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", change_source)
     assert execute(None, "delivery")["status"] == "failed"
     with Session(engine) as db:
         after = semantic_snapshot(db)
@@ -397,7 +408,7 @@ def test_source_change_after_prewrite_is_domain_invalidation(generation, monkeyp
 def test_asset_replacement_does_not_hold_released_object_while_waiting_for_write_intent(
     generation, monkeypatch
 ):
-    from app.modules.storage_objects.writes import lock_intent
+    from app.modules.media_storage.write_intents import lock_intent
     from tests.test_stored_object_retirement_postgres import assert_blocked
 
     kind, engine, storage, service, model, module, lifecycle, execute, generate = generation
@@ -410,17 +421,22 @@ def test_asset_replacement_does_not_hold_released_object_while_waiting_for_write
     written, proceed = Event(), Event()
     receipts = []
     pids = []
-    write = module.write_object
+    write = ObjectWriteCoordinator.write_batch
 
-    def prewrite(db, *args, **kwargs):
-        receipt = write(db, *args, **kwargs)
-        receipts.append(receipt)
-        pids.append(db.scalar(sa.text("SELECT pg_backend_pid()")))
+    def prewrite(coordinator, *args, **kwargs):
+        receipt = write(coordinator, *args, **kwargs)
+        receipts.extend(receipt)
         written.set()
         assert proceed.wait(15)
         return receipt
 
-    monkeypatch.setattr(module, "write_object", prewrite)
+    monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", prewrite)
+
+    def observe_lock(connection, cursor, statement, parameters, context, executemany):
+        if "object_write_intents" in statement and "FOR UPDATE" in statement and proceed.is_set():
+            pids.append(connection.connection.driver_connection.info.backend_pid)
+
+    sa.event.listen(engine, "before_cursor_execute", observe_lock)
     with ThreadPoolExecutor(1) as pool:
         pending = pool.submit(execute, None, "delivery")
         try:
@@ -428,6 +444,9 @@ def test_asset_replacement_does_not_hold_released_object_while_waiting_for_write
             with Session(engine) as predecessor:
                 lock_intent(predecessor, receipts[0].intent_uuid)
                 proceed.set()
+                deadline = monotonic() + 5
+                while not pids:
+                    assert monotonic() < deadline
                 assert_blocked(engine, pids[0])
                 predecessor.scalar(
                     sa.select(StoredObject)
@@ -438,6 +457,7 @@ def test_asset_replacement_does_not_hold_released_object_while_waiting_for_write
             assert pending.result(15)["status"] in ("rendered", "generated")
         finally:
             proceed.set()
+            sa.event.remove(engine, "before_cursor_execute", observe_lock)
     with Session(engine) as db:
         assert db.scalar(sa.select(asset_model)).stored_object_id != old_object
         operation = db.scalar(

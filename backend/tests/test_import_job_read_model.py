@@ -8,7 +8,8 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 
-from app.db.models import ImportJob, ImportJobState
+from app.db.models import ImportJob
+from app.modules.import_jobs.domain import ImportJobState
 from app.main import app
 from app.modules.import_jobs.read_model import ImportJobReadModel
 from app.modules.import_jobs.repository import ImportJobRepository

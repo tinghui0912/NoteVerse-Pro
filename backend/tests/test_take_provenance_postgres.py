@@ -1,5 +1,7 @@
 """Durable save admission ordering and source-independent media on PostgreSQL."""
 
+from app.composition import media_resources as _media_wiring
+
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from time import monotonic, sleep
@@ -56,7 +58,9 @@ def test_save_admission_commits_before_waiting_score_deletion(postgres_bundle):
     def delete_score():
         with sessions() as db:
             pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-            ScoreLifecycleService().delete_score(db, postgres_bundle[1].test_score_uuid, 1)
+            ScoreLifecycleService(
+                deletion_executor=_media_wiring.build_score_deletion_executor()
+            ).delete_score(db, postgres_bundle[1].test_score_uuid, 1)
 
     with (
         patch.object(source, "authorize_bundle_for_save", side_effect=hold_admission),
@@ -102,7 +106,9 @@ def test_score_deletion_commit_denies_waiting_new_save(postgres_bundle):
 
     def delete_score():
         with DeletionSession(postgres_bundle[0], expire_on_commit=False) as db:
-            ScoreLifecycleService().delete_score(db, postgres_bundle[1].test_score_uuid, 1)
+            ScoreLifecycleService(
+                deletion_executor=_media_wiring.build_score_deletion_executor()
+            ).delete_score(db, postgres_bundle[1].test_score_uuid, 1)
 
     def reserve():
         with sessions() as db:
@@ -149,7 +155,9 @@ def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bund
         score = db.scalar(select(Score))
         score.display_title = "Title after admission"
         db.commit()
-        ScoreLifecycleService().delete_score(db, score.score_uuid, 1)
+        ScoreLifecycleService(
+            deletion_executor=_media_wiring.build_score_deletion_executor()
+        ).delete_score(db, score.score_uuid, 1)
         score.head_revision_id = None
         db.flush()
         db.execute(delete(ScoreRevision))

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.modules.storage_usage.service import storage_usage_service
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+from app.composition.storage_resources import storage_usage_service
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -38,9 +43,7 @@ from app.db.models import (
     MailOutbox,
     MailOutboxStatus,
     Notification,
-    PlaybackAssetKind,
     PlaybackOutbox,
-    PlaybackOutboxStatus,
     RealtimeChange,
     Score,
     ScorePlaybackAsset,
@@ -53,18 +56,22 @@ from app.db.models import (
     StoredObject,
     StoragePlanPolicy,
     StorageUsageCounter,
-    StorageUsageCategory,
     ScoreLibraryOrganization,
     ScoreInvite,
     ScoreMembership,
     ScoreRevisionRenderOutbox,
-    ScoreRevisionRenderStatus,
     User,
     Upload,
 )
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RenderAssetKind, RevisionOrigin, RevisionSourceFormat
-from app.db.models.score import MetadataStatus
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.playback.domain import PlaybackOutboxStatus
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.metadata.domain import MetadataStatus
 from app.db.models.score_access import (
     MembershipRole,
 )
@@ -97,7 +104,7 @@ from app.modules.notifications.service import NotificationService
 from app.db.models import NotificationKind
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 from app.shared.error_codes import CustomerErrorCode
-from app.db.models.import_job import ImportArtifactKind
+from app.modules.import_jobs.domain import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.shared.time import utc_now
 from tests.support.storage_state import provision_storage_users
@@ -315,7 +322,11 @@ def test_collaborator_revision_source_usage_counts_against_score_owner(
         )
     )
     session.commit()
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
     result = service.create(
         session,  # type: ignore[arg-type]
@@ -376,7 +387,7 @@ def test_processing_success_notifies_owner_when_ready_for_review(
         )
     )
     session.commit()
-    job_service = ImportExecutionRecorder()
+    job_service = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
 
     job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
     job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
@@ -411,7 +422,7 @@ def test_failed_job_notifies_owner_once(
         )
     )
     session.commit()
-    job_service = ImportExecutionRecorder()
+    job_service = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
 
     job_service.finalize_failure(
         session,
@@ -504,7 +515,13 @@ def test_review_detail_reads_review_ready_artifacts(
     session.commit()
     session.add(ImportJobUpload(job_id=13, upload_id=130, page_number=1, sort_order=1))
     session.commit()
-    service = ImportReviewService(storage=storage)
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
     detail = service.detail(
         session,  # type: ignore[arg-type]
@@ -548,7 +565,12 @@ def test_import_job_detail_hides_original_upload_storage_details(score_service_s
     session.add(ImportJobUpload(job_id=60, upload_id=upload.id, sort_order=1, page_number=1))
     session.commit()
     detail = (
-        ImportJobService(storage=storage).detail(session, "private-job", 1).model_dump(mode="json")
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(storage),
+        )
+        .detail(session, "private-job", 1)
+        .model_dump(mode="json")
     )
     image = detail["original_images"][0]
     assert image["upload_id"] == "private-upload"
@@ -607,14 +629,23 @@ def test_import_job_detail_exposes_public_failure_fields_only(
     )
     session.commit()
 
-    detail = (ImportJobService().detail(session, "job-public-failure", 1)).model_dump(
-        exclude_unset=True
-    )
-    raw_detail = (ImportJobService().detail(session, "job-raw-failure", 1)).model_dump(
-        exclude_unset=True
-    )
+    detail = (
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).detail(session, "job-public-failure", 1)
+    ).model_dump(exclude_unset=True)
+    raw_detail = (
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).detail(session, "job-raw-failure", 1)
+    ).model_dump(exclude_unset=True)
     unsafe_code_detail = (
-        ImportJobService().detail(session, "job-unsafe-code-failure", 1)
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).detail(session, "job-unsafe-code-failure", 1)
     ).model_dump(exclude_unset=True)
 
     assert detail["public_code"] == CustomerErrorCode.SCORE_RECOGNITION_FAILED
@@ -670,7 +701,13 @@ def test_review_update_replaces_review_musicxml(
         reason="fixture",
     )
     session.commit()
-    service = ImportReviewService(storage=storage)
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
     detail = service.update(
         session,  # type: ignore[arg-type]
@@ -712,7 +749,13 @@ def test_review_confirm_creates_active_score_once(
     session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
     session.commit()
     session.commit()
-    service = ImportReviewService(storage=storage)
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     db = session
 
     first = service.confirm(
@@ -828,7 +871,10 @@ def test_score_detail_describes_only_head_presentation(
     )
     session.commit()
 
-    detail = ScoreService(storage=storage).get(
+    detail = ScoreService(
+        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    ).get(
         session,  # type: ignore[arg-type]
         "score-fallback",
         1,
@@ -886,7 +932,11 @@ def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
         )
     )
     session.commit()
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
     created = service.create(
         session,  # type: ignore[arg-type]
@@ -1071,7 +1121,11 @@ def test_revision_restore_creates_new_head_from_target_revision(
         ]
     )
     session.commit()
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
     third = service.create(
         session,
@@ -1150,7 +1204,11 @@ def test_revision_note_can_be_added_updated_and_cleared(
         revision_uuid="revision-note",
         title="Revision Note Score",
     )
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
     created = service.update_note(  # type: ignore[arg-type]
         session,
@@ -1289,7 +1347,7 @@ def test_derived_asset_retention_protects_current_head_only(
                 session, user_id=1, category=category, bytes_count=size, reason="fixture"
             )
     session.commit()
-    service = DerivedAssetRetentionService()
+    service = DerivedAssetRetentionService(usage=_resource_wiring.storage_usage_service)
 
     result = service.cleanup_for_score(  # type: ignore[arg-type]
         session,
@@ -1345,7 +1403,11 @@ def test_revision_list_uses_cursor_pagination(
     score.head_revision_id = revisions[-1].id
     session.add(score)
     session.commit()
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
     first_page = service.list(  # type: ignore[arg-type]
         session,
@@ -1687,7 +1749,11 @@ def test_collaborator_revision_save_notifies_score_owner(
     )
     session.commit()
     db = session
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
     created = service.create(
         db,  # type: ignore[arg-type]
@@ -2148,7 +2214,11 @@ def test_expected_head_must_resolve_within_the_score(score_service_session, expe
         title="Other",
     )
     with pytest.raises(ResourceNotFoundException) as rejected:
-        RevisionService(storage=storage).create(
+        RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).create(
             session,
             "expected-score",
             1,
@@ -2187,7 +2257,11 @@ def test_two_editors_cannot_branch_the_same_expected_head(score_service_session)
         ]
     )
     session.commit()
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     db = session
     created = service.create(
         db,
@@ -2240,12 +2314,14 @@ def test_revision_semantic_admission_precedes_reservation_and_durable_put(
         revision_uuid="admission-head",
         title="Admission",
     )
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     with (
         patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
-        patch(
-            "app.modules.revisions.service.storage_quota_service.create_hold", new_callable=Mock
-        ) as reserve,
+        patch.object(service.quota, "create_hold", new_callable=Mock) as reserve,
     ):
         with pytest.raises(ValidationException) as caught:
             service.create(
@@ -2300,13 +2376,16 @@ def test_review_semantic_admission_precedes_storage(score_service_session, opera
     )
     session.add(artifact)
     session.commit()
-    service = ImportReviewService(storage=storage)
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
     with (
         patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
-        patch(
-            "app.modules.import_jobs.review.service.storage_quota_service.create_hold",
-            new_callable=Mock,
-        ) as reserve,
+        patch.object(service.quota, "create_hold", new_callable=Mock) as reserve,
     ):
         with pytest.raises(ValidationException) as caught:
             if operation == "confirm":
@@ -2366,7 +2445,11 @@ def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_session
         session.commit()
     with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put:
         if operation == "revision":
-            result = RevisionService(storage=storage).create(
+            result = RevisionService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).create(
                 session,
                 "admission-score",
                 1,
@@ -2376,7 +2459,13 @@ def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_session
             )
             revision = one_row(session, ScoreRevision, revision_uuid=result.revision_id)
         else:
-            result = ImportReviewService(storage=storage).confirm(
+            result = ImportReviewService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).confirm(
                 session,
                 "admission-review",
                 1,
@@ -2420,9 +2509,13 @@ def test_admitted_revision_survives_unsupported_metadata_projection(score_servic
     )
     admitted = admit_musicxml_document(content.encode())
     assert parse_score_semantics(admitted).keys[0].fifths is None
-    result = ImportReviewService(storage=storage).confirm(
-        session, "admission-review", 1, ReviewConfirmRequest(content=content)
-    )
+    result = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    ).confirm(session, "admission-review", 1, ReviewConfirmRequest(content=content))
     score = one_row(session, Score, score_uuid=result.score_id)
     revision = session.get(ScoreRevision, score.head_revision_id)
     source = one_row(session, ScoreRevisionSource, revision_id=revision.id)

@@ -1,5 +1,7 @@
 """Stable Upload command identity closes duplicate and uncertain-COMMIT allocations."""
 
+from app.composition import storage_resources as _resource_wiring
+
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from threading import Barrier
@@ -8,14 +10,8 @@ from fastapi import UploadFile
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.core.exceptions import ConflictException, FileException, ResourceNotFoundException
-from app.db.models import (
-    User,
-    Upload,
-    UploadCreationRequest,
-    StorageQuotaHold,
-    StorageQuotaHoldStatus,
-    StorageUsageAccount,
-)
+from app.db.models import User, Upload, UploadCreationRequest, StorageQuotaHold, StorageUsageAccount
+from app.modules.storage_governance.quota.states import StorageQuotaHoldStatus
 from app.modules.uploads.service import UploadService
 from tests.support.images import image_bytes
 from tests.support.object_storage import InMemoryObjectStorage
@@ -33,7 +29,11 @@ def uploads(postgres_engine):
 
 
 def upload(db, storage, key="stable", name="image.png"):
-    return UploadService(storage=storage).create_upload(
+    return UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    ).create_upload(
         db,
         db.get(User, 1),
         UploadFile(filename=name, file=BytesIO(image_bytes())),
@@ -112,7 +112,11 @@ def test_replay_after_semantic_delete_never_recreates_resource(uploads):
     engine, storage = uploads
     with Session(engine) as db:
         first = upload(db, storage)
-        UploadService(storage=storage).delete_upload(db, db.get(User, 1), first.upload_id)
+        UploadService(
+            quota=_resource_wiring.storage_quota_service,
+            usage=_resource_wiring.storage_usage_service,
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).delete_upload(db, db.get(User, 1), first.upload_id)
         db.commit()
         with pytest.raises(ResourceNotFoundException):
             upload(db, storage)

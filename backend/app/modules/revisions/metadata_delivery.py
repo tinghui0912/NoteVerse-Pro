@@ -1,8 +1,8 @@
 """Fenced revision metadata delivery; source reads and computation occur outside locks."""
 
-from app.db.models.revision_metadata_outbox import RevisionMetadataOutboxStatus
+from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
 
-from app.modules.storage_objects.reads import StoredObjectReadTarget
+from app.modules.media_storage.reads import StoredObjectReadTarget
 
 from dataclasses import dataclass
 from uuid import uuid4
@@ -16,7 +16,7 @@ from app.db.models import (
     Score,
     StoredObject,
 )
-from app.db.models.score import RevisionSourceFormat
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
     DeliveryStatuses,

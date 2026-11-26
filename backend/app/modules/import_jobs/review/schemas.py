@@ -5,7 +5,7 @@ from app.shared.time import Instant
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db.models.import_job import ImportJobState
+from app.modules.import_jobs.domain import ImportJobState
 from app.modules.scores.genres import Genres
 from app.shared.api_model import ApiModel
 

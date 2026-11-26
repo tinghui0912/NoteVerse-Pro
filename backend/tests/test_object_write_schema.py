@@ -1,6 +1,6 @@
 """Current PostgreSQL write-intent evidence and fencing schema."""
 
-from app.db.models.object_write_intent import ObjectWriteIntentStatus
+from app.modules.media_storage.domain import ObjectWriteIntentStatus
 
 from datetime import timedelta
 import pytest

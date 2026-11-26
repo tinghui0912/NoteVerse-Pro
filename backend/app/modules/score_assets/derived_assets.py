@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.db.models import PlaybackOutboxStatus, ScoreRevisionRenderStatus
+from app.modules.playback.domain import PlaybackOutboxStatus
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
 from app.score_semantics.render_profile import SCORE_PRESENTATION_RENDER_PROFILE
 from app.db.model_utils import require_persisted_id
 from app.db.models import ScoreRevision

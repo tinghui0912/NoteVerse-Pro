@@ -8,7 +8,7 @@ from fastapi import Request, status
 from fastapi.responses import Response, StreamingResponse
 
 from app.storage import ObjectStorage
-from app.modules.storage_objects.reads import StoredObjectDelivery, iterate_admitted_bytes
+from app.modules.media_storage.reads import StoredObjectDelivery, iterate_admitted_bytes
 
 DEFAULT_STREAM_CHUNK_SIZE = 1024 * 1024
 
