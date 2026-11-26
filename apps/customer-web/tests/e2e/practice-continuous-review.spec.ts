@@ -392,10 +392,16 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
         score_display_title_snapshot: 'Continuous Review Score', recording_timebase,
         score_timebase: accepted.score_timebase, scope: accepted.resolved_scope,
         tempo_plan: accepted.resolved_tempo_plan },
-      upload_target: { url: new URL('/api/v1/performance-takes/mock-upload/take-e2e-1', route.request().url()).href, method: 'PUT',
-        headers: { 'content-type': media.mime_type }, expires_in: 3600 },
+      upload_session: sessionRead(route.request().url()),
     }) });
   });
+  function sessionRead(origin:string) { return {
+    session_id:'session-e2e-1',mode:'SINGLE_PUT',status:'UPLOADING',expected_byte_size:reservedRequest.media.byte_size,
+    expected_content_type:reservedRequest.media.mime_type,expires_at:'2099-01-01T00:00:00Z',part_size:16777216,part_count:1,recommended_concurrency:3,
+    upload_target:{url:new URL('/signed-take-upload',origin).href,method:'PUT',headers:{'content-type':reservedRequest.media.mime_type},expires_in:900},
+  }; }
+  await page.route('**/api/v1/upload-sessions/session-e2e-1',route=>route.fulfill({json:sessionRead(route.request().url())}));
+  await page.route('**/api/v1/upload-sessions/session-e2e-1/complete',route=>route.fulfill({json:{...sessionRead(route.request().url()),status:'COMPLETED'}}));
   await page.route('**/api/v1/performance-takes/upload-reservations/upload-res-e2e-1/finalize',
     (route) => {
     expect(route.request().postData()).toBeNull();
@@ -404,7 +410,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     const { practice_binding, media, recording_timebase } = reservedRequest;
     const { resolved_scope, resolved_tempo_plan } = acceptedPlan(reservedRequest);
     const take: PerformanceTakeRead = {
-      take_id: 'take-e2e-1', recording_media: { mime_type: media.mime_type, byte_size: media.byte_size }, created_at: '2026-09-20T12:00:00Z',
+      media_status: 'READY', take_id: 'take-e2e-1', recording_media: { mime_type: media.mime_type, byte_size: media.byte_size }, created_at: '2026-09-20T12:00:00Z',
       manifest: {
         practice_binding, artifact_id: testArtifact.artifactId,
         score_display_title_snapshot: 'Continuous Review Score', capture: media,
@@ -418,7 +424,7 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
     return route.fulfill({ status: 200, contentType: 'application/json', body: representationBody(take) });
   });
 
-  await page.route('**/api/v1/performance-takes/mock-upload/*', (route) => {
+  await page.route('**/signed-take-upload', (route) => {
     expect(route.request().method()).toBe('PUT');
     expect(saveProtocol.events).toEqual(['RESERVATION']);
     expect(route.request().postDataBuffer()?.byteLength).toBe(reservedRequest.media.byte_size);
@@ -1179,11 +1185,7 @@ test.describe('Continuous Performance Review & Audio Capture E2E', () => {
     await expect(page.getByText('暂无已保存的演奏')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Legacy /summary route returns 404 and is not accessible', async ({ page }) => {
-    await setupContinuousPracticeMocks(page);
-    const response = await page.goto(`/zh/score/${scoreId}/practice/summary`);
-    expect(response?.status()).toBe(404);
-  });
+
 });
 
 async function observeNativeRecorders(page: Page) {

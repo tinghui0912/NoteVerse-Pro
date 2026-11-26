@@ -1,15 +1,8 @@
 import { customerRoutes } from '@/generated/customer-routes';
-import type { GuestPreviewPageViewData, GuestPreviewPlaybackStreamData, ScoreRevisionPlaybackStreamData, ScoreRenderAssetViewData, RealtimeEventsStreamData } from '@/generated/api';
+import type { GuestPreviewPageViewData, ScoreRenderAssetViewData, RealtimeEventsStreamData } from '@/generated/api';
 import { customerTransport } from '@/lib/http/customer-browser-transport';
 
 // Browser-native transports consume OpenAPI metadata and the official generated serializer.
-export function scorePlaybackUrl(scoreId: string, revisionId: string) {
-  const request = {
-    ...customerRoutes.scoreRevisionPlaybackStream,
-    path: { score_id: scoreId, revision_id: revisionId },
-  } satisfies Pick<ScoreRevisionPlaybackStreamData, 'url' | 'path'> & { method: 'GET' };
-  return customerTransport.authenticated.client.buildUrl({ ...request, baseUrl: '' });
-}
 export function guestPageUrl(token: string, assetId: string) {
   const request = {
     ...customerRoutes.guestPreviewPageView,
@@ -17,14 +10,6 @@ export function guestPageUrl(token: string, assetId: string) {
   } satisfies Pick<GuestPreviewPageViewData, 'url' | 'path'> & { method: 'GET' };
   return customerTransport.public.client.buildUrl({ ...request, baseUrl: '' });
 }
-export function guestPlaybackUrl(token: string) {
-  const request = {
-    ...customerRoutes.guestPreviewPlaybackStream,
-    path: { token },
-  } satisfies Pick<GuestPreviewPlaybackStreamData, 'url' | 'path'> & { method: 'GET' };
-  return customerTransport.public.client.buildUrl({ ...request, baseUrl: '' });
-}
-
 export function renderAssetViewUrl(renderAssetId: string) {
   const request = {
     ...customerRoutes.scoreRenderAssetView,

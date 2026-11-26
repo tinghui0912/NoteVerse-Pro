@@ -20,6 +20,7 @@ const recordingTimebase: RecordingTimebase = {
   ],
 };
 export const take: PerformanceTakeRead = {
+  media_status: 'READY',
   recording_media: { mime_type: "video/webm", byte_size: 10 },
   take_id: "take-1",
 

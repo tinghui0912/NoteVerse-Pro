@@ -82,7 +82,7 @@ export default function PerformanceTakeCompositeVideoPage() {
   const takeId = takeIdFromParams(params);
   const takeQuery = usePerformanceTakeDetail(takeId);
   const take = takeQuery.data ?? null;
-  const isBaseEligible = Boolean(take && isPerformanceTakeCompositeVideoCandidate(take));
+  const isBaseEligible = Boolean(take?.media_status === 'READY' && isPerformanceTakeCompositeVideoCandidate(take));
 
   const bundle = usePerformanceTakeExportBundle(
     {
@@ -228,6 +228,9 @@ export default function PerformanceTakeCompositeVideoPage() {
         onBack={() => router.push("/my-performances")}
       />
     );
+  }
+  if (take.media_status !== "READY") {
+    return <PerformanceTakeExportUnavailable message={t(take.media_status === "FAILED" ? "mediaVerificationFailed" : "mediaProcessing")} backLabel={t("performanceTakeCompositeVideoBack")} onBack={() => router.push("/my-performances")} retryLabel={t("performanceTakeCompositeVideoRetry")} onRetry={() => void takeQuery.refetch()} />;
   }
   if (!isPerformanceTakeCompositeVideoCandidate(take)) {
     return (

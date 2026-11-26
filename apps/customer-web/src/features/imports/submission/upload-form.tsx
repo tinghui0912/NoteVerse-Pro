@@ -9,7 +9,6 @@ import { PlusSquare, UploadCloud, XCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { UploadPreviewDialog } from './upload-preview-dialog';
 import { InlineLoading } from '@/components/loading';
-import { LoadingSpinner } from '@/components/loading';
 import { RECOMMENDED_SCORE_IMAGE_ACCEPT } from '@/lib/upload/recommended-score-images';
 import type { UploadableFile } from '@/features/imports/submission/upload-types';
 import {
@@ -46,6 +45,7 @@ interface UploadFormProps {
   onScoreNameChange: (name: string) => void;
   onGenresChange: (tags: ScoreGenre[]) => void;
   onSubmit: () => void;
+  onCancelUpload?: () => void;
 }
 
 function DropzoneContent() {
@@ -193,7 +193,7 @@ export function UploadForm(props: UploadFormProps) {
                     />
                     {item.status === 'uploading' && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <LoadingSpinner size="md" className="text-white" />
+                        <span className="text-white" role="status">{t('transferProgress',{percent:item.progress ?? 0})}</span>
                       </div>
                     )}
                     {item.status === 'uploaded' && (
@@ -245,6 +245,7 @@ export function UploadForm(props: UploadFormProps) {
           )}
 
           <div className="text-center space-y-4">
+            {props.isUploading ? <Button variant="outline" onClick={props.onCancelUpload}>{t('cancelUpload')}</Button> : null}
             <Button
               onClick={props.onSubmit}
               size="lg"

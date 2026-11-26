@@ -1,5 +1,5 @@
 'use client';
-import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
+import { uploadSession, type UploadSessionOptions } from '@/lib/upload/upload-session-client';
 import { PerformanceTakeSaveCommand } from '@/lib/practice/performance-take/save-command';
 import type { SavePerformanceTakeInput } from '@/lib/practice/performance-take/save';
 
@@ -21,6 +21,7 @@ export function usePerformanceTakes(
     initialPageParam: undefined as string | undefined,
     queryFn: ({ signal, pageParam }) => performanceTakesApi.listTakes({ ...params, cursor: pageParam }, signal),
     getNextPageParam: (page) => page.next_cursor ?? undefined,
+    refetchInterval: query => query.state.data?.pages.some(page => page.items.some(take => take.media_status === 'UPLOADED' || take.media_status === 'PROCESSING')) ? 2000 : false,
     enabled,
   });
 }
@@ -30,6 +31,7 @@ export function usePerformanceTakeDetail(takeId: string, enabled = true) {
     queryKey: queryKeys.performanceTakes.detail(takeId),
     queryFn: ({ signal }) => performanceTakesApi.getTake(takeId, signal),
     enabled: enabled && Boolean(takeId),
+    refetchInterval: query => query.state.data?.media_status === 'UPLOADED' || query.state.data?.media_status === 'PROCESSING' ? 2000 : false,
   });
 }
 
@@ -38,6 +40,9 @@ export function usePerformanceTakePlayback(takeId: string, enabled = true) {
     queryKey: queryKeys.performanceTakes.playbackUrl(takeId),
     queryFn: ({ signal }) => performanceTakesApi.getPlaybackUrl(takeId, signal),
     enabled: enabled && Boolean(takeId),
+    gcTime: 0,
+    staleTime: 0,
+    refetchInterval: query => query.state.data ? Math.max(1000,(query.state.data.expires_in-30)*1000) : false,
   });
 }
 
@@ -57,8 +62,8 @@ export function useSavePerformanceTake() {
     onSuccess: () => performanceTakeSaved(queryClient),
   });
   return {
-    async mutateAsync(input: SavePerformanceTakeInput) {
-      const command = new PerformanceTakeSaveCommand(input, performanceTakesApi, uploadMediaToSignedUrl);
+    async mutateAsync(input: SavePerformanceTakeInput, options?: Pick<UploadSessionOptions, 'signal' | 'onProgress'>) {
+      const command = new PerformanceTakeSaveCommand(input, performanceTakesApi, uploadSession, options);
       try {
         return await mutation.mutateAsync(command);
       } finally {

@@ -7,12 +7,6 @@ x-backend-common: &backend-common
   environment:
     PYTHONPATH: /app
     UVICORN_RELOAD: "true"
-    S3_ENDPOINT_URL: http://object-store:9000
-    S3_SIGNED_ENDPOINT_URL: http://localhost:9010
-    S3_BUCKET: noteverse-dev
-    S3_ACCESS_KEY_ID: noteverse-dev
-    S3_SECRET_ACCESS_KEY: noteverse-dev-secret
-    S3_FORCE_PATH_STYLE: "true"
   entrypoint:
     - /usr/bin/tini
     - --
@@ -26,12 +20,10 @@ x-backend-common: &backend-common
   extra_hosts:
     - "host.docker.internal:host-gateway"
   restart: unless-stopped
-  depends_on:
-    object-store-init:
-      condition: service_completed_successfully
 
 services:
   object-store:
+    profiles: [object-storage]
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     command: server /data
     environment:
@@ -42,6 +34,7 @@ services:
     volumes:
       - durable_objects:/data
   object-store-init:
+    profiles: [object-storage]
     image: minio/mc:RELEASE.2025-04-16T18-13-26Z
     depends_on:
       - object-store

@@ -1,5 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { GuestPreviewPage } from './public-page';
@@ -8,15 +9,16 @@ import guestPreview from '@/../messages/en/guestPreview.json';
 const query = vi.hoisted(() => ({read: vi.fn()}));
 vi.mock('@/i18n/routing', () => ({Link: ({href, children}: {href: string; children: React.ReactNode}) => <a href={href}>{children}</a>}));
 vi.mock('./queries', () => ({useGuestPreview: query.read}));
-const wrapper = ({children}: {children: React.ReactNode}) => <NextIntlClientProvider locale="en" messages={{guestPreview}}>{children}</NextIntlClientProvider>;
-beforeEach(() => vi.resetAllMocks());
-it('presents current Score images and listening audio from the bearer resource', () => {
+vi.mock('./api', async importOriginal => {const original=await importOriginal<typeof import('./api')>();return {...original, guestPreviewApi: {...original.guestPreviewApi, playbackAccess: vi.fn()}};});
+const wrapper = ({children}: {children: React.ReactNode}) => <QueryClientProvider client={new QueryClient()}><NextIntlClientProvider locale="en" messages={{guestPreview}}>{children}</NextIntlClientProvider></QueryClientProvider>;
+beforeEach(() => {vi.resetAllMocks();vi.mocked(guestPreviewApi.playbackAccess).mockResolvedValue({playback_url:'https://storage.test/listen',download_url:'https://storage.test/download',expires_in:300});});
+it('presents current Score images and listening audio from the bearer resource', async () => {
   query.read.mockReturnValue({data: {display_title: 'Etude', shared_by: 'Owner', audio_available: true, render_assets: [{asset_id: 'page', page_number: 1}]}, isLoading: false});
   render(<GuestPreviewPage token="bearer" />, {wrapper});
   expect(screen.getByRole('heading', {name: 'Etude'})).toBeVisible();
   expect(screen.getByRole('img', {name: guestPreview.page.replace('{number}', '1')})).toHaveAttribute('src', guestPreviewApi.pageUrl('bearer', 'page'));
-  const audio = screen.getByLabelText(guestPreview.audio);
-  expect(audio).toHaveAttribute('src', guestPreviewApi.playbackUrl('bearer'));
+  const audio = await screen.findByLabelText(guestPreview.audio);
+  await waitFor(() => expect(audio).toHaveAttribute('src', 'https://storage.test/listen'));
   expect(audio).toHaveAttribute('controls');
   expect(audio).toHaveAttribute('controlslist', 'nodownload');
 });

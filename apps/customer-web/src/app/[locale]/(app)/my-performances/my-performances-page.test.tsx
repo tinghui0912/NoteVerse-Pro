@@ -157,6 +157,7 @@ const recordingTimebase: RecordingTimebase = {
 const fixture121Takes: PerformanceTakeRead[] = Array.from(
   { length: 121 },
   (_, i) => ({
+    media_status: 'READY',
     recording_media: { mime_type: 'audio/webm', byte_size: 1024 * (i + 1) },
 
     take_id: `take-${i + 1}`,
@@ -301,6 +302,14 @@ describe('MyPerformancesPage', () => {
     mockPlaybackQuery.isError = false;
     mockDeleteTakeMutation.isPending = false;
   });
+  it.each(['UPLOADED','PROCESSING','FAILED'] as const)('disables media access while server readiness is %s',media_status=>{
+    mockQueryOverride={data:{pages:[{items:[{...fixture121Takes[0],media_status}],next_cursor:null}],pageParams:[undefined]},isLoading:false,isError:false,isSuccess:true,refetch:vi.fn()};
+    render(<MyPerformancesPage />);
+    expect(screen.getByRole('status')).toHaveTextContent(media_status==='FAILED'?'mediaVerificationFailed':'mediaProcessing');
+    expect(screen.getByTestId('play-take-take-1')).toBeDisabled();
+    expect(screen.getByRole('button',{name:'下载录音'})).toBeDisabled();
+    expect(mockApi.getPlaybackUrl).not.toHaveBeenCalled();
+  });
   it('renders loading state', () => {
     mockQueryOverride = {
       data: null,
@@ -347,6 +356,7 @@ describe('MyPerformancesPage', () => {
     mockQueryOverride = {
       data: { pages: [{ items: [
             {
+              media_status: 'READY',
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-deleted-score',
               linked_score_id: 'score-retained-source',
@@ -391,6 +401,7 @@ describe('MyPerformancesPage', () => {
     mockQueryOverride = {
       data: { pages: [{ items: [
             {
+              media_status: 'READY',
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-deleted-score',
               linked_score_id: null,
@@ -435,6 +446,7 @@ describe('MyPerformancesPage', () => {
     mockQueryOverride = {
       data: { pages: [{ items: [
             {
+              media_status: 'READY',
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),
@@ -488,6 +500,7 @@ describe('MyPerformancesPage', () => {
       mockQueryOverride = {
         data: { pages: [{ items: [
               {
+                media_status: 'READY',
                 recording_media: { mime_type: mimeType, byte_size: 2048 },
                 take_id: 'take-video-1',
                 created_at: new Date().toISOString(),
@@ -555,6 +568,7 @@ describe('MyPerformancesPage', () => {
     mockQueryOverride = {
       data: { pages: [{ items: [
             {
+              media_status: 'READY',
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),
@@ -616,6 +630,7 @@ describe('MyPerformancesPage', () => {
     mockQueryOverride = {
       data: { pages: [{ items: [
             {
+              media_status: 'READY',
               recording_media: { mime_type: 'audio/webm', byte_size: 1024 },
               take_id: 'take-1',
               created_at: new Date().toISOString(),

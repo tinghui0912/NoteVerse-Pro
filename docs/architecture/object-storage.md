@@ -76,7 +76,7 @@ Periodic upload maintenance uses bounded scans. It preserves uncertain create/co
 responsibility, waits for issued capability expiry, aborts exact multipart handles,
 deletes temporary input and verifies absence before acknowledging cleanup. A
 CONSUMED multipart object is never deleted by session maintenance. Unknown provider
-IO and previously started signed requests require deployment-specific settlement
+IO and already started signed requests require deployment-specific settlement
 assurance: capability expiry alone does not prove every in-flight request has ended.
 No cleanup acknowledgment is a claim about backups or retained object versions.
 

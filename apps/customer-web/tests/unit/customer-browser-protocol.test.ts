@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { afterEach, expect, it, vi } from 'vitest';
 import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, CUSTOMER_API_PREFIX } from '@/generated/browser-protocol';
 import { customerRoutes } from '@/generated/customer-routes';
-import { guestPageUrl, guestPlaybackUrl, realtimeEventsUrl, scorePlaybackUrl } from '@/lib/api/native-resource-urls';
+import { guestPageUrl, realtimeEventsUrl } from '@/lib/api/native-resource-urls';
 import { scoreThumbnailUrl } from '@/features/scores/core/detail/thumbnail';
 import { createRealtimeEventSource } from '@/lib/realtime/event-source';
 import proxy from '@/proxy';
@@ -43,8 +43,6 @@ it('projects native route method and URL metadata directly from Customer OpenAPI
 });
 
 const cases: Array<{ operation: keyof typeof customerRoutes; build: () => string | null; path: Record<string, string> }> = [
-  { operation: 'scoreRevisionPlaybackStream', build: () => scorePlaybackUrl('score/a', 'rev?#'), path: { score_id: 'score/a', revision_id: 'rev?#' } },
-  { operation: 'guestPreviewPlaybackStream', build: () => guestPlaybackUrl('bearer/a?#'), path: { token: 'bearer/a?#' } },
   { operation: 'guestPreviewPageView', build: () => guestPageUrl('bearer/a?#', 'page/a'), path: { token: 'bearer/a?#', asset_id: 'page/a' } },
   { operation: 'scoreRenderAssetView', build: () => scoreThumbnailUrl('page/a?#'), path: { render_asset_id: 'page/a?#' } },
   { operation: 'realtimeEventsStream', build: realtimeEventsUrl, path: {} },

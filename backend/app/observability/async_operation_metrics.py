@@ -18,6 +18,9 @@ from app.db.models import (
     SchedulerHeartbeat,
     SchedulerLeaderStatus,
     ScoreDeletionOperation,
+    ObjectWriteIntent,
+    UploadSession,
+    TakeProcessingOutbox,
 )
 from app.modules.ops.operation_projection import operation_projection
 from app.modules.ops.schemas import AsyncOperationKind
@@ -134,6 +137,7 @@ def async_operation_metrics_text(db: Session) -> str:
         "# HELP noteverse_scheduler_lag_seconds Oldest due record delay before scheduler dispatch by async operation kind.",
         "# TYPE noteverse_scheduler_lag_seconds gauge",
         *_scheduler_lag_lines(db),
+        *_media_resource_lines(db),
     ]
     return "\n".join(lines) + "\n"
 
@@ -465,3 +469,78 @@ def _duration_seconds(start_column, end_column):
     if settings.DATABASE_URL.startswith("sqlite"):
         return (func.julianday(end_column) - func.julianday(start_column)) * 86400
     return func.extract("epoch", end_column - start_column)
+
+
+def _media_resource_lines(db: Session) -> list[str]:
+    """Aggregate physical responsibility without exporting identities or locators."""
+    from app.modules.media_storage.domain import ObjectWriteIntentStatus as Write
+    from app.modules.media_storage.upload_sessions.domain import ACTIVE_STATUSES
+    from app.modules.performance_takes.processing_states import TakeProcessingStatus as Take
+
+    now = utc_now()
+    populations = (
+        (
+            "write_unknown",
+            ObjectWriteIntent.created_at,
+            ObjectWriteIntent.status == Write.WRITE_UNKNOWN,
+        ),
+        ("upload_unknown", UploadSession.created_at, UploadSession.operation_unknown.is_(True)),
+        (
+            "upload_expired_uncleaned",
+            UploadSession.created_at,
+            (UploadSession.expires_at <= now)
+            & UploadSession.cleanup_completed_at.is_(None)
+            & ~((UploadSession.mode == "MULTIPART") & (UploadSession.status == "CONSUMED")),
+        ),
+        (
+            "take_processing_failed",
+            TakeProcessingOutbox.created_at,
+            TakeProcessingOutbox.status == Take.FAILED,
+        ),
+        (
+            "take_processing_pending",
+            TakeProcessingOutbox.created_at,
+            TakeProcessingOutbox.status.in_((Take.PENDING, Take.DISPATCHED, Take.PROCESSING)),
+        ),
+        (
+            "take_processing_lease_expired",
+            TakeProcessingOutbox.created_at,
+            (TakeProcessingOutbox.status == Take.PROCESSING)
+            & (
+                TakeProcessingOutbox.started_at
+                <= now - timedelta(seconds=settings.TAKE_PROCESSING_LEASE_SECONDS)
+            ),
+        ),
+        ("upload_active", UploadSession.created_at, UploadSession.status.in_(ACTIVE_STATUSES)),
+    )
+    lines = [
+        "# HELP noteverse_media_resource_backlog Current physical responsibility and media work.",
+        "# TYPE noteverse_media_resource_backlog gauge",
+        "# HELP noteverse_media_resource_oldest_age_seconds Oldest outstanding media responsibility.",
+        "# TYPE noteverse_media_resource_oldest_age_seconds gauge",
+    ]
+    for kind, created_at, predicate in populations:
+        count, oldest = db.execute(
+            select(func.count(), func.min(created_at)).where(predicate)
+        ).one()
+        lines.append(_metric_line("noteverse_media_resource_backlog", ("kind",), (kind,), count))
+        lines.append(
+            _metric_line(
+                "noteverse_media_resource_oldest_age_seconds",
+                ("kind",),
+                (kind,),
+                max(0, int((now - oldest).total_seconds())) if oldest else 0,
+            )
+        )
+    lines.extend(
+        _enum_count_lines(
+            db,
+            statement=select(TakeProcessingOutbox.status, func.count()).group_by(
+                TakeProcessingOutbox.status
+            ),
+            metric_name="noteverse_outbox_records_by_status",
+            label_names=("kind", "status"),
+            fixed_labels=("take_media_processing",),
+        )
+    )
+    return lines

@@ -8,7 +8,7 @@ describe('Save lifecycle ownership', () => {
     const command = source('lib/practice/performance-take/save-command.ts');
     expect(hook).toContain('new PerformanceTakeSaveCommand(input,');
     expect(hook).toContain('command.execute()');
-    for (const method of ['reserveUpload(', 'finalizeTake(', 'uploadMediaToSignedUrl(', 'cancelUploadReservation(']) expect(hook).not.toContain(method);
+    for (const method of ['reserveUpload(', 'finalizeTake(', 'uploadSession(', 'cancelUploadReservation(']) expect(hook).not.toContain(method);
     expect(command).toContain('this.transport.reserveUpload(');
     expect(command).toContain('this.transport.finalizeTake(');
     expect(command).toContain('.retain()');

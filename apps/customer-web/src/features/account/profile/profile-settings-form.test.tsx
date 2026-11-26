@@ -55,3 +55,18 @@ it.each([true, false])('updates the avatar immediately only for a successful upl
   }
   expect(fake.api.getProfile).toHaveBeenCalledOnce();
 });
+
+it.each([{status:413,expected:'avatarTooLarge'},{code:'file_error',expected:'avatarInvalid'}])('localizes avatar admission failure $expected without changing principal',async error=>{
+ fake.api.uploadAvatar.mockRejectedValue(error);
+ const view=render(<ProfileSettingsForm />,{wrapper});
+ await waitFor(()=>expect(screen.getByLabelText('principal-name')).toHaveTextContent('Original'));
+ await userEvent.upload(view.container.querySelector<HTMLInputElement>('input[type=file]')!,new File(['image'],'source.png',{type:'image/png'}));
+ await userEvent.click(await screen.findByRole('button',{name:'Save crop'}));
+ await waitFor(()=>expect(fake.toast).toHaveBeenCalledWith(expect.objectContaining({description:error.expected})));
+ expect(screen.getByLabelText('principal-avatar')).toHaveTextContent('/api/v1/me/avatars/first.jpg');
+});
+it('rejects an oversized avatar before FileReader allocates a data URL',async()=>{
+ const view=render(<ProfileSettingsForm />,{wrapper}),read=vi.spyOn(FileReader.prototype,'readAsDataURL');
+ await userEvent.upload(view.container.querySelector<HTMLInputElement>('input[type=file]')!,new File([new Uint8Array(5*1024**2+1)],'large.png',{type:'image/png'}));
+ expect(read).not.toHaveBeenCalled();expect(fake.toast).toHaveBeenCalledWith(expect.objectContaining({description:'avatarTooLarge'}));expect(fake.api.uploadAvatar).not.toHaveBeenCalled();read.mockRestore();
+});

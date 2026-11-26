@@ -1,6 +1,6 @@
-import { guestPreviewGet, scoreGuestPreviewSettingsGet, scoreGuestPreviewCredentialIssue, scoreGuestPreviewCredentialRevoke, scoreGuestPreviewCredentialRotate } from '@/generated/api';
+import { guestPreviewPlaybackAccessGet, guestPreviewGet, scoreGuestPreviewSettingsGet, scoreGuestPreviewCredentialIssue, scoreGuestPreviewCredentialRevoke, scoreGuestPreviewCredentialRotate } from '@/generated/api';
 import { customerTransport, responseBody } from '@/lib/http/customer-browser-transport';
-import { guestPageUrl, guestPlaybackUrl } from '@/lib/api/native-resource-urls';
+import { guestPageUrl } from '@/lib/api/native-resource-urls';
 
 export const guestPreviewApi = {
   getSettings: (scoreId: string, signal?: AbortSignal) =>
@@ -14,5 +14,5 @@ export const guestPreviewApi = {
   read: (token: string, signal?: AbortSignal) =>
     responseBody(guestPreviewGet({ ...customerTransport.public, path: { token: token }, signal })),
   pageUrl: guestPageUrl,
-  playbackUrl: guestPlaybackUrl,
+  playbackAccess: (token: string, signal?: AbortSignal) => responseBody(guestPreviewPlaybackAccessGet({ ...customerTransport.public, path: { token }, signal })),
 };

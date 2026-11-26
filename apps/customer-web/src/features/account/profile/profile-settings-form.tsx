@@ -33,8 +33,14 @@ export function ProfileSettingsForm() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
+    if (file && file.size > 5 * 1024 * 1024) {
+      toast({title:t('uploadFailed'),description:t('avatarTooLarge'),variant:'destructive'});
+      event.target.value = '';
+      return;
+    }
     if (file) {
       const reader = new FileReader();
+      reader.onerror = () => toast({title:t('uploadFailed'),description:t('avatarInvalid'),variant:'destructive'});
       reader.onload = () => {
         setUploadedImage(reader.result as string);
         setIsCropperOpen(true);
@@ -45,6 +51,14 @@ export function ProfileSettingsForm() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const avatarErrorMessage = (error: unknown) => {
+    if (typeof error === 'object' && error !== null) {
+      if ('status' in error && error.status === 413) return t('avatarTooLarge');
+      if ('code' in error && ['validation_error', 'file_type_not_allowed', 'file_error'].includes(String(error.code))) return t('avatarInvalid');
+    }
+    return userFacingErrorMessage(tErrors, error, t('uploadFailedDesc'));
   };
 
   const handleCroppedImage = (file: File) => {
@@ -66,7 +80,7 @@ export function ProfileSettingsForm() {
       onError: (error) => {
         toast({
           title: t('uploadFailed'),
-          description: userFacingErrorMessage(tErrors, error, t('uploadFailedDesc')),
+          description: avatarErrorMessage(error),
           variant: 'destructive',
         });
       },

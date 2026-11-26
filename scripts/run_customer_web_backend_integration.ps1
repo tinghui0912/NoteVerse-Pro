@@ -12,7 +12,7 @@ function Invoke-Compose([string[]] $Arguments) {
 }
 
 try {
-    Invoke-Compose @("up", "--build", "-d", "postgres", "redis", "migrate", "seed", "api", "practice", "customer-web")
+    Invoke-Compose @("up", "--build", "-d", "object-store", "object-store-init", "migrate", "seed", "api", "customer-web")
     $deadline = (Get-Date).AddMinutes(3)
     do {
         try {

@@ -1556,3 +1556,50 @@ def test_erasure_details_require_operator_read_authority(client, ops_session, ki
     finally:
         _clear_ops_dependency_overrides()
     assert client.get(f"/api/v1/ops/async-operations/{kind}/internal-operation").status_code == 401
+
+
+def test_media_resource_metrics_expose_unsettled_responsibility_without_locators(ops_session):
+    from app.db.models import ObjectWriteIntent, UploadSession
+    from app.modules.media_storage.domain import ObjectWriteIntentStatus
+    from app.modules.media_storage.upload_sessions.domain import (
+        UploadMode,
+        UploadPurpose,
+        UploadStatus,
+    )
+    from app.observability.async_operation_metrics import _media_resource_lines
+
+    now = utc_now()
+    ops_session.add(
+        ObjectWriteIntent(
+            object_key="private/secret-locator",
+            byte_size=3,
+            sha256="a" * 64,
+            content_type="audio/webm",
+            status=ObjectWriteIntentStatus.WRITE_UNKNOWN,
+            write_token="claim",
+            write_expires_at=now,
+            created_at=now - timedelta(hours=2),
+        )
+    )
+    ops_session.add(
+        UploadSession(
+            user_id=1,
+            purpose=UploadPurpose.SCORE_IMPORT,
+            mode=UploadMode.SINGLE_PUT,
+            status=UploadStatus.EXPIRED,
+            object_key="transfers/private/input",
+            final_object_key="private/final",
+            expected_byte_size=3,
+            expected_content_type="image/png",
+            part_bytes=16777216,
+            expires_at=now - timedelta(hours=1),
+            operation_unknown=True,
+            created_at=now - timedelta(hours=2),
+        )
+    )
+    ops_session.commit()
+    result = "\n".join(_media_resource_lines(ops_session))
+    for kind in ("write_unknown", "upload_unknown", "upload_expired_uncleaned"):
+        assert f'noteverse_media_resource_backlog{{kind="{kind}"}} 1' in result
+    assert 'noteverse_media_resource_backlog{kind="take_processing_failed"} 0' in result
+    assert "private" not in result and "claim" not in result

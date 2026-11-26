@@ -123,20 +123,6 @@ export type BodyAuthLogin = {
 };
 
 /**
- * Body_uploadsCreate
- */
-export type BodyUploadsCreate = {
-    /**
-     * Client Request Id
-     */
-    client_request_id: string;
-    /**
-     * File
-     */
-    file: Blob | File;
-};
-
-/**
  * ChangePasswordRequest
  */
 export type ChangePasswordRequest = {
@@ -970,6 +956,24 @@ export type LivenessRead = {
 };
 
 /**
+ * MediaAccessRead
+ */
+export type MediaAccessRead = {
+    /**
+     * Download Url
+     */
+    download_url: string;
+    /**
+     * Expires In
+     */
+    expires_in: number;
+    /**
+     * Playback Url
+     */
+    playback_url: string;
+};
+
+/**
  * MemberListRead
  */
 export type MemberListRead = {
@@ -1423,6 +1427,10 @@ export type PerformanceTakeRead = {
      */
     linked_score_id?: string | null;
     manifest: PerformanceTakeManifestRead;
+    /**
+     * Media Status
+     */
+    media_status: 'UPLOADED' | 'PROCESSING' | 'READY' | 'FAILED';
     recording_media: PerformanceTakeRecordingMediaRead;
     /**
      * Take Id
@@ -1554,7 +1562,7 @@ export type PerformanceTakeUploadReservationRead = {
      * Take Id
      */
     take_id: string;
-    upload_target?: PerformanceTakeUploadTarget | null;
+    upload_session?: UploadSessionRead | null;
 };
 
 /**
@@ -1584,30 +1592,6 @@ export type PerformanceTakeUploadReservationRequest = {
     } & ScoreTempoPlanSelection) | ({
         mode: 'CUSTOM_FIXED_BPM';
     } & CustomFixedBpmTempoPlanSelection);
-};
-
-/**
- * PerformanceTakeUploadTarget
- */
-export type PerformanceTakeUploadTarget = {
-    /**
-     * Expires In
-     */
-    expires_in: number;
-    /**
-     * Headers
-     */
-    headers: {
-        [key: string]: string;
-    };
-    /**
-     * Method
-     */
-    method: string;
-    /**
-     * Url
-     */
-    url: string;
 };
 
 /**
@@ -2994,6 +2978,63 @@ export type UpdateProfileRequest = {
 };
 
 /**
+ * UploadAdmissionRead
+ */
+export type UploadAdmissionRead = {
+    /**
+     * Client Request Id
+     */
+    client_request_id: string;
+    upload?: UploadRead | null;
+    upload_session: UploadSessionRead;
+};
+
+/**
+ * UploadCreateRequest
+ */
+export type UploadCreateRequest = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Client Request Id
+     */
+    client_request_id: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Filename
+     */
+    filename: string;
+};
+
+/**
+ * UploadMode
+ */
+export type UploadMode = 'SINGLE_PUT' | 'MULTIPART';
+
+/**
+ * UploadPartRead
+ */
+export type UploadPartRead = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Etag
+     */
+    etag: string;
+    /**
+     * Part Number
+     */
+    part_number: number;
+};
+
+/**
  * UploadRead
  */
 export type UploadRead = {
@@ -3009,6 +3050,72 @@ export type UploadRead = {
      * Upload Id
      */
     upload_id: string;
+};
+
+/**
+ * UploadSessionRead
+ */
+export type UploadSessionRead = {
+    /**
+     * Expected Byte Size
+     */
+    expected_byte_size: number;
+    /**
+     * Expected Content Type
+     */
+    expected_content_type: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    mode: UploadMode;
+    /**
+     * Part Count
+     */
+    part_count: number;
+    /**
+     * Part Size
+     */
+    part_size: number;
+    /**
+     * Recommended Concurrency
+     */
+    recommended_concurrency: number;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    status: UploadStatus;
+    upload_target?: UploadTargetRead | null;
+};
+
+/**
+ * UploadStatus
+ */
+export type UploadStatus = 'CREATING' | 'UPLOADING' | 'COMPLETING' | 'COMPLETED' | 'CONSUMED' | 'CANCELLED' | 'EXPIRED' | 'FAILED';
+
+/**
+ * UploadTargetRead
+ */
+export type UploadTargetRead = {
+    /**
+     * Expires In
+     */
+    expires_in: number;
+    /**
+     * Headers
+     */
+    headers: {
+        [key: string]: string;
+    };
+    /**
+     * Method
+     */
+    method: string;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -3392,7 +3499,7 @@ export type GuestPreviewGetResponses = {
 
 export type GuestPreviewGetResponse = GuestPreviewGetResponses[keyof GuestPreviewGetResponses];
 
-export type GuestPreviewPlaybackStreamData = {
+export type GuestPreviewPlaybackAccessGetData = {
     body?: never;
     path: {
         /**
@@ -3404,11 +3511,7 @@ export type GuestPreviewPlaybackStreamData = {
     url: '/api/v1/guest-previews/{token}/playback';
 };
 
-export type GuestPreviewPlaybackStreamErrors = {
-    /**
-     * Unsatisfiable byte range; no response body.
-     */
-    416: unknown;
+export type GuestPreviewPlaybackAccessGetErrors = {
     /**
      * Request or application validation failure.
      */
@@ -3419,20 +3522,16 @@ export type GuestPreviewPlaybackStreamErrors = {
     default: ApiErrorResponse;
 };
 
-export type GuestPreviewPlaybackStreamError = GuestPreviewPlaybackStreamErrors[keyof GuestPreviewPlaybackStreamErrors];
+export type GuestPreviewPlaybackAccessGetError = GuestPreviewPlaybackAccessGetErrors[keyof GuestPreviewPlaybackAccessGetErrors];
 
-export type GuestPreviewPlaybackStreamResponses = {
+export type GuestPreviewPlaybackAccessGetResponses = {
     /**
-     * Stored bytes; Content-Type identifies the selected resource format.
+     * Successful Response
      */
-    200: Blob | File;
-    /**
-     * Requested byte range of the stored media.
-     */
-    206: Blob | File;
+    200: MediaAccessRead;
 };
 
-export type GuestPreviewPlaybackStreamResponse = GuestPreviewPlaybackStreamResponses[keyof GuestPreviewPlaybackStreamResponses];
+export type GuestPreviewPlaybackAccessGetResponse = GuestPreviewPlaybackAccessGetResponses[keyof GuestPreviewPlaybackAccessGetResponses];
 
 export type GuestPreviewPageViewData = {
     body?: never;
@@ -5008,48 +5107,6 @@ export type PerformanceTakeGetResponses = {
 
 export type PerformanceTakeGetResponse = PerformanceTakeGetResponses[keyof PerformanceTakeGetResponses];
 
-export type PerformanceTakeMediaStreamData = {
-    body?: never;
-    path: {
-        /**
-         * Take Id
-         */
-        take_id: string;
-    };
-    query?: never;
-    url: '/api/v1/performance-takes/{take_id}/media';
-};
-
-export type PerformanceTakeMediaStreamErrors = {
-    /**
-     * Unsatisfiable byte range; no response body.
-     */
-    416: unknown;
-    /**
-     * Request or application validation failure.
-     */
-    422: ApiErrorResponse;
-    /**
-     * Application failure.
-     */
-    default: ApiErrorResponse;
-};
-
-export type PerformanceTakeMediaStreamError = PerformanceTakeMediaStreamErrors[keyof PerformanceTakeMediaStreamErrors];
-
-export type PerformanceTakeMediaStreamResponses = {
-    /**
-     * Stored bytes; Content-Type identifies the selected resource format.
-     */
-    200: Blob | File;
-    /**
-     * Requested byte range of the stored media.
-     */
-    206: Blob | File;
-};
-
-export type PerformanceTakeMediaStreamResponse = PerformanceTakeMediaStreamResponses[keyof PerformanceTakeMediaStreamResponses];
-
 export type PerformanceTakePlaybackUrlGetData = {
     body?: never;
     path: {
@@ -6165,7 +6222,7 @@ export type ScoreRevisionNoteUpdateResponses = {
 
 export type ScoreRevisionNoteUpdateResponse = ScoreRevisionNoteUpdateResponses[keyof ScoreRevisionNoteUpdateResponses];
 
-export type ScoreRevisionPlaybackStreamData = {
+export type ScoreRevisionPlaybackAccessGetData = {
     body?: never;
     path: {
         /**
@@ -6181,11 +6238,7 @@ export type ScoreRevisionPlaybackStreamData = {
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/playback';
 };
 
-export type ScoreRevisionPlaybackStreamErrors = {
-    /**
-     * Unsatisfiable byte range; no response body.
-     */
-    416: unknown;
+export type ScoreRevisionPlaybackAccessGetErrors = {
     /**
      * Request or application validation failure.
      */
@@ -6196,20 +6249,16 @@ export type ScoreRevisionPlaybackStreamErrors = {
     default: ApiErrorResponse;
 };
 
-export type ScoreRevisionPlaybackStreamError = ScoreRevisionPlaybackStreamErrors[keyof ScoreRevisionPlaybackStreamErrors];
+export type ScoreRevisionPlaybackAccessGetError = ScoreRevisionPlaybackAccessGetErrors[keyof ScoreRevisionPlaybackAccessGetErrors];
 
-export type ScoreRevisionPlaybackStreamResponses = {
+export type ScoreRevisionPlaybackAccessGetResponses = {
     /**
-     * Stored bytes; Content-Type identifies the selected resource format.
+     * Successful Response
      */
-    200: Blob | File;
-    /**
-     * Requested byte range of the stored media.
-     */
-    206: Blob | File;
+    200: MediaAccessRead;
 };
 
-export type ScoreRevisionPlaybackStreamResponse = ScoreRevisionPlaybackStreamResponses[keyof ScoreRevisionPlaybackStreamResponses];
+export type ScoreRevisionPlaybackAccessGetResponse = ScoreRevisionPlaybackAccessGetResponses[keyof ScoreRevisionPlaybackAccessGetResponses];
 
 export type ScoreRevisionRestoreData = {
     body: RevisionRestoreRequest;
@@ -6249,14 +6298,19 @@ export type ScoreRevisionRestoreResponses = {
 
 export type ScoreRevisionRestoreResponse = ScoreRevisionRestoreResponses[keyof ScoreRevisionRestoreResponses];
 
-export type UploadsCreateData = {
-    body: BodyUploadsCreate;
-    path?: never;
+export type UploadSessionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
     query?: never;
-    url: '/api/v1/uploads';
+    url: '/api/v1/upload-sessions/{session_id}';
 };
 
-export type UploadsCreateErrors = {
+export type UploadSessionsGetErrors = {
     /**
      * Request or application validation failure.
      */
@@ -6267,16 +6321,221 @@ export type UploadsCreateErrors = {
     default: ApiErrorResponse;
 };
 
-export type UploadsCreateError = UploadsCreateErrors[keyof UploadsCreateErrors];
+export type UploadSessionsGetError = UploadSessionsGetErrors[keyof UploadSessionsGetErrors];
 
-export type UploadsCreateResponses = {
+export type UploadSessionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadSessionRead;
+};
+
+export type UploadSessionsGetResponse = UploadSessionsGetResponses[keyof UploadSessionsGetResponses];
+
+export type UploadSessionCompleteData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/upload-sessions/{session_id}/complete';
+};
+
+export type UploadSessionCompleteErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadSessionCompleteError = UploadSessionCompleteErrors[keyof UploadSessionCompleteErrors];
+
+export type UploadSessionCompleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadSessionRead;
+};
+
+export type UploadSessionCompleteResponse = UploadSessionCompleteResponses[keyof UploadSessionCompleteResponses];
+
+export type UploadSessionPartsListData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/upload-sessions/{session_id}/parts';
+};
+
+export type UploadSessionPartsListErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadSessionPartsListError = UploadSessionPartsListErrors[keyof UploadSessionPartsListErrors];
+
+export type UploadSessionPartsListResponses = {
+    /**
+     * Response Uploadsessionpartslist
+     *
+     * Successful Response
+     */
+    200: Array<UploadPartRead>;
+};
+
+export type UploadSessionPartsListResponse = UploadSessionPartsListResponses[keyof UploadSessionPartsListResponses];
+
+export type UploadSessionPartUploadUrlCreateData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+        /**
+         * Part Number
+         */
+        part_number: number;
+    };
+    query?: never;
+    url: '/api/v1/upload-sessions/{session_id}/parts/{part_number}/upload-url';
+};
+
+export type UploadSessionPartUploadUrlCreateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadSessionPartUploadUrlCreateError = UploadSessionPartUploadUrlCreateErrors[keyof UploadSessionPartUploadUrlCreateErrors];
+
+export type UploadSessionPartUploadUrlCreateResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadTargetRead;
+};
+
+export type UploadSessionPartUploadUrlCreateResponse = UploadSessionPartUploadUrlCreateResponses[keyof UploadSessionPartUploadUrlCreateResponses];
+
+export type UploadRequestsCreateData = {
+    body: UploadCreateRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/uploads';
+};
+
+export type UploadRequestsCreateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadRequestsCreateError = UploadRequestsCreateErrors[keyof UploadRequestsCreateErrors];
+
+export type UploadRequestsCreateResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadAdmissionRead;
+};
+
+export type UploadRequestsCreateResponse = UploadRequestsCreateResponses[keyof UploadRequestsCreateResponses];
+
+export type UploadRequestCancelData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/uploads/{session_id}/cancel';
+};
+
+export type UploadRequestCancelErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadRequestCancelError = UploadRequestCancelErrors[keyof UploadRequestCancelErrors];
+
+export type UploadRequestCancelResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type UploadRequestCancelResponse = UploadRequestCancelResponses[keyof UploadRequestCancelResponses];
+
+export type UploadFinalizeData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/uploads/{session_id}/finalize';
+};
+
+export type UploadFinalizeErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadFinalizeError = UploadFinalizeErrors[keyof UploadFinalizeErrors];
+
+export type UploadFinalizeResponses = {
     /**
      * Successful Response
      */
     200: UploadRead;
 };
 
-export type UploadsCreateResponse = UploadsCreateResponses[keyof UploadsCreateResponses];
+export type UploadFinalizeResponse = UploadFinalizeResponses[keyof UploadFinalizeResponses];
 
 export type UploadDeleteData = {
     body?: never;

@@ -86,3 +86,12 @@ python scripts/reconcile_storage_usage.py repair 123
 
 Output contains user/category actual/expected used totals and drift, without filenames,
 keys or credentials. Repair commits one user's explicit maintenance transaction.
+
+
+## Transfer integration
+
+UploadSession transport belongs to media_storage. Parts and temporary staging objects
+carry no logical allocation. Import finalization and Take finalization consume their
+Hold and record UPLOAD exactly once in the same transaction as business creation and
+Session consumption. Take verification changes media readiness, not occupancy. Domain
+Inventory aggregates the admitted recording while its processing Outbox runs.

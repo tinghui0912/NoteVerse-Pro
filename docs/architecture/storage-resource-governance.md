@@ -18,7 +18,11 @@ is introduced. Logical usage and physical storage costs are independent: shared 
 bytes can represent several logical allocations, while staging bytes can exist without
 an admitted logical allocation. Provider billing metrics are not user quota counters.
 
-`StoredObject` is the sole admitted physical-object fact: key, size, SHA and content type.
+`media_storage` owns physical lifecycle, transfer, verification and delivery.
+`storage_governance` contains separate quota, usage and inventory boundaries.
+
+`StoredObject` is the sole admitted physical-object fact: immutable key, size, content
+type, provider ETag and transport checksum, with optional full-object SHA-256.
 A business reference grants semantic ownership; the physical row alone does not grant
 access or establish a completed business resource. See [Object storage](object-storage.md)
 for exact locks, write generations and retirement delivery.
@@ -36,8 +40,8 @@ The policy table is the only capacity configuration; no unlimited mode or arbitr
 user override exists. See [Quota](storage-quota.md) for the canonical contract.
 
 PerformanceTakeUploadReservation references its distinct hold through `quota_hold_id`.
-Its finalization lease, candidate cleanup and unknown-COMMIT recovery remain business
-lifecycle facts. See the [Take reservation contract](performance-take-reservations.md).
+Its finalization lease, Manifest and unknown-COMMIT recovery remain business
+lifecycle facts. UploadSession owns the physical transfer and cleanup responsibility. See the [Take reservation contract](performance-take-reservations.md).
 
 ## Logical resource categories
 
@@ -170,3 +174,14 @@ physical object facts, independent write transactions, adoption, references,
 retirement and delivery policy. Models import their pure domain enums; domain
 services do not retrieve state taxonomy from ORM modules. Namespace placement
 changes neither quota classification nor database schema semantics.
+
+
+## Transfer and media readiness
+
+UploadSession admission has independent active-session and temporary-byte limits.
+Those transport budgets do not replace capacity Holds. No staging or part upload
+creates Usage. Consumption atomically adopts StoredObject, consumes Hold and records
+the domain allocation. Single PUT staging cleanup survives consumption; consumed
+Multipart final objects belong exclusively to StoredObject retirement. Take media
+verification has its own durable Outbox and readiness state. Signed playback requires
+READY, while already committed logical recording usage remains counted during processing.

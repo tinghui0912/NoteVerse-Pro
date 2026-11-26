@@ -27,5 +27,8 @@
   "uploadedStatus": "已上传",
   "removeImage": "移除 {name}",
   "closePreview": "关闭预览",
-  "fileUnavailable": "文件 {name} 为空，请重新选择非空图片。"
+  "fileUnavailable": "文件 {name} 为空，请重新选择非空图片。",
+  "cancelUpload": "取消上传",
+  "uploadCancelled": "上传已取消。",
+  "transferProgress": "上传中：{percent}%"
 }

@@ -145,7 +145,7 @@ function PerformanceTakeCard({
   // Playback URL query - only active when playing this card and not being deleted.
   const playbackQuery = usePerformanceTakePlayback(
     take.take_id,
-    isPlaying && !isDeletePending,
+    isPlaying && !isDeletePending && take.media_status === 'READY',
   );
 
   const handleDownload = async () => {
@@ -195,6 +195,8 @@ function PerformanceTakeCard({
   return (
     <Card className="overflow-hidden border border-gray-200 transition-all hover:border-gray-300">
       <CardContent className="p-5 sm:p-6">
+        {take.media_status !== 'READY' ? <p role="status">{t(take.media_status === 'FAILED' ? 'mediaVerificationFailed' : 'mediaProcessing')}</p> : null}
+        {isPlaying && take.media_status === 'READY' ? <Button variant="outline" onClick={() => void playbackQuery.refetch()}>{t('refreshPlaybackLink')}</Button> : null}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -238,7 +240,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="gap-1.5"
                 onClick={onPlay}
-                disabled={isDeletePending}
+                disabled={isDeletePending || take.media_status !== 'READY'}
                 data-testid={`play-take-${take.take_id}`}
               >
                 <Play className="h-4 w-4" />
@@ -250,7 +252,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="gap-1.5"
                 onClick={handleDownload}
-                disabled={downloading || isDeletePending}
+                disabled={downloading || isDeletePending || take.media_status !== 'READY'}
                 data-testid={`download-take-${take.take_id}`}
               >
                 <Download className="h-4 w-4" />
@@ -261,7 +263,7 @@ function PerformanceTakeCard({
                     : t('downloadRecording')}
               </Button>
 
-              {isPerformanceTakeCompositeVideoCandidate(take) ? (
+              {take.media_status === 'READY' && isPerformanceTakeCompositeVideoCandidate(take) ? (
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <Link
                     href={`/my-performances/${take.take_id}/score-video`}

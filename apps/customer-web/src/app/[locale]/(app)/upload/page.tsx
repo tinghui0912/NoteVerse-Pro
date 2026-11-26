@@ -31,6 +31,7 @@ function UploadPageContent() {
         onScoreNameChange={workflow.setScoreName}
         onGenresChange={workflow.setGenres}
         onSubmit={workflow.startRecognition}
+        onCancelUpload={workflow.cancelUploads}
       />
       <ImportActivity />
     </div>

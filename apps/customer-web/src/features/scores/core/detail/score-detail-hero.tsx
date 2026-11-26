@@ -15,7 +15,8 @@ interface ScoreDetailHeroProps {
   thumbnailLoading?: boolean;
   meta?: ReactNode;
   actions?: ReactNode;
-  playbackAudioSrc?: string;
+  loadPlayback?: () => Promise<{ playback_url: string; expires_in: number }>;
+  playbackIdentity?: string;
   playbackEnabled?: boolean;
   playbackLoading?: boolean;
   playbackVisible?: boolean;
@@ -24,7 +25,8 @@ interface ScoreDetailHeroProps {
 export function ScoreDetailHero({
   actions,
   meta,
-  playbackAudioSrc,
+  loadPlayback,
+  playbackIdentity,
   playbackEnabled = true,
   playbackLoading = false,
   playbackVisible,
@@ -61,9 +63,9 @@ export function ScoreDetailHero({
           )}
           {showPlaybackButton ? (
             <ScoreCoverPlaybackButton
-              key={playbackAudioSrc ?? 'no-audio'}
-              audioSrc={playbackAudioSrc}
-              disabled={!playbackEnabled || !playbackAudioSrc}
+              key={playbackIdentity}
+              loadPlayback={loadPlayback}
+              disabled={!playbackEnabled || !loadPlayback}
               loading={playbackLoading}
               className="absolute bottom-3 left-3"
             />

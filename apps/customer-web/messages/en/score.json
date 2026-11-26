@@ -106,5 +106,6 @@
   "leaveScore": "Leave score",
   "leaveScoreTitle": "Leave “{title}”?",
   "leaveScoreDescription": "You will lose access to this score. The score and other collaborators will not be affected. The owner can invite you again later.",
-  "leaveFailed": "Could not leave score"
+  "leaveFailed": "Could not leave score",
+  "playbackRefreshHint": "Playback is unavailable. Try Play again to refresh the link."
 }

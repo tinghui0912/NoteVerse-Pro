@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LifecycleConfiguration>
+  <Rule>
+    <ID>incomplete-transfers</ID>
+    <Prefix></Prefix>
+    <Status>Enabled</Status>
+    <AbortMultipartUpload><Days>3</Days></AbortMultipartUpload>
+  </Rule>
+  <Rule>
+    <ID>unconsumed-single-put-inputs</ID>
+    <Prefix>transfers/</Prefix>
+    <Status>Enabled</Status>
+    <Expiration><Days>3</Days></Expiration>
+    <NoncurrentVersionExpiration><NoncurrentDays>3</NoncurrentDays></NoncurrentVersionExpiration>
+  </Rule>
+</LifecycleConfiguration>

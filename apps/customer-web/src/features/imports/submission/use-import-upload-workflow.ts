@@ -135,6 +135,7 @@ export function useImportUploadWorkflow() {
   const submitJobMutation = useSubmitImportJob();
   const [files, setFiles] = useState<UploadableFile[]>([]);
   const filesRef = useRef<UploadableFile[]>([]);
+  const uploadController = useRef<AbortController | null>(null);
   const submissionKeyRef = useRef<string | null>(null);
   const [scoreName, setScoreName] = useState('');
   const [genres, setGenres] = useState<ScoreGenre[]>([]);
@@ -258,6 +259,7 @@ export function useImportUploadWorkflow() {
 
   useEffect(
     () => () => {
+      uploadController.current?.abort();
       filesRef.current.forEach(({ preview }) => revokePreview(preview));
     },
     [],
@@ -267,6 +269,8 @@ export function useImportUploadWorkflow() {
     if (filesRef.current.length === 0) return;
     dispatchTask({ type: 'reset' });
     setIsUploading(true);
+    const controller = new AbortController();
+    uploadController.current = controller;
 
     try {
       const uploadIds: string[] = [];
@@ -294,7 +298,7 @@ export function useImportUploadWorkflow() {
           ),
         );
         try {
-          const response = await uploadsApi.createUpload(currentFile.file, currentFile.clientRequestId);
+          const response = await uploadsApi.createUpload(currentFile.file, currentFile.clientRequestId, {signal:controller.signal,onProgress:({uploadedBytes,totalBytes}) => setTrackedFiles(current => current.map((item,itemIndex) => itemIndex === index ? {...item,progress:Math.floor(uploadedBytes/totalBytes*100)} : item))});
           const uploadId = response?.upload_id;
           if (!uploadId) throw new Error(tCommon('operationFailed'));
           uploadIds.push(uploadId);
@@ -307,6 +311,7 @@ export function useImportUploadWorkflow() {
             ),
           );
         } catch (error) {
+          if (controller.signal.aborted) throw error;
           reportUnexpectedClientError(error, {
             area: 'upload',
             action: 'create_upload',
@@ -346,6 +351,13 @@ export function useImportUploadWorkflow() {
       dispatchTask({ type: 'track_job', jobId, pollStartTime: Date.now() });
       toast({ title: t('taskStarted'), description: t('taskStartedDesc') });
     } catch (error) {
+      if (controller.signal.aborted) {
+        setIsUploading(false);
+        setTrackedFiles(current => current.map(item => item.status === 'uploading' ? {...item,status:'error',progress:0,error:t('uploadCancelled')} : item));
+        toast({title:t('uploadCancelled')});
+        dispatchTask({type:'submit_failed'});
+        return;
+      }
       reportUnexpectedClientError(error, {
         area: 'upload',
         action: 'start_recognition',
@@ -362,6 +374,8 @@ export function useImportUploadWorkflow() {
       });
       setIsUploading(false);
       dispatchTask({ type: 'submit_failed' });
+    } finally {
+      if (uploadController.current === controller) uploadController.current = null;
     }
   }, [
     errors,
@@ -389,6 +403,7 @@ export function useImportUploadWorkflow() {
     startRecognition,
     taskError,
     taskErrorMessage: taskError ?? '',
+    cancelUploads: () => uploadController.current?.abort(),
     taskProgress,
     genres,
   };

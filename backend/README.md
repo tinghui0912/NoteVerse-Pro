@@ -29,21 +29,40 @@ Canonical structure:
 tests. [Research](research/README.md) owns experiments, qualification, datasets and
 scientific tests, independently of the core quality image.
 
-Main feature modules:
+Application modules:
 
 - `account`
+- `async_operations`
 - `auth`
-- `files`
+- `collaboration`
+- `durable_work`
+- `fingering`
+- `guest_previews`
 - `import_jobs`
 - `library`
+- `mail`
+- `media_storage`
+- `metadata`
+- `model_assets`
 - `notifications`
+- `ops`
+- `performance_takes`
+- `platform_operators`
+- `playback`
 - `practice`
+- `publications`
+- `realtime`
+- `rendering`
+- `review`
 - `revisions`
+- `scheduler_lock`
+- `scheduler_observability`
+- `score_access`
 - `score_assets`
-- `score_invites`
-- `guest_previews`
+- `score_sharing`
 - `scores`
-- `storage_usage`
+- `storage_governance`
+- `uploads`
 
 ## Quick Start
 
@@ -75,8 +94,7 @@ docker compose -f docker-compose.backend-dev.yml up api worker beat
 ```
 
 The database uses one standalone [current-schema baseline](alembic/versions/0001_initial_schema.py).
-Run `alembic upgrade head` against an empty application schema. Pre-release environments
-with a revision outside this baseline require recreation. The baseline installs the
+Run `alembic upgrade head` against an empty application schema. Development initialization uses an empty database. The baseline installs the
 current FREE quota policy; it does not install users or history.
 [PostgreSQL schema tests](tests/test_database_schema.py) compare the complete fresh
 schema with ORM metadata and verify bootstrap, teardown and re-creation. Backend CI
@@ -138,32 +156,23 @@ docker compose -f docker-compose.backend-dev.yml build worker
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
-## Object Storage Direct Uploads
+## Object storage transfers
 
-Practice performance replay saves use browser-to-object-storage direct upload.
-The backend returns a presigned `PUT` URL plus the required upload headers, then
-finalizes the durable replay artifact only after the object already exists.
+Score Import and Performance Takes use JSON admission followed by a user-bound
+UploadSession. Inputs up to 20 MiB use a signed staging PUT, bounded verification
+and coordinator copy to an immutable final key. Larger Take inputs use Multipart
+with exact signed part lengths and in-place adoption. The browser controls transfer
+progress, bounded concurrency, resumable part queries and explicit cancellation.
+Avatar uses bounded API upload with JPEG normalization and a 5 MiB limit.
 
-The concrete adapter uses the deployment S3-compatible namespace. Configure
-bucket CORS for each Customer Web origin that can save replays. Local development with Customer Web on `http://localhost:3000` needs a
-rule equivalent to:
+Playback endpoints return short-lived signed JSON capabilities. Large-media Range
+requests terminate at storage/CDN. Media processing readiness controls Take playback.
 
-```json
-[
-  {
-    "AllowedOrigin": ["http://localhost:3000"],
-    "AllowedMethod": ["PUT", "GET", "HEAD"],
-    "AllowedHeader": ["content-type", "x-amz-meta-sha256"],
-    "ExposeHeader": ["ETag"],
-    "MaxAgeSeconds": 300
-  }
-]
-```
-
-Production should list the production Customer Web origins instead of using a
-wildcard. The presigned replay upload currently signs `content-type` and
-`x-amz-meta-sha256`; if the upload header contract changes, update the bucket
-CORS rule at the same time.
+Development runtime uses the bucket configured in `backend/.env.docker`; Compose
+does not override it. Optional local MinIO services require `--profile object-storage`
+and explicit matching endpoint/credential settings. Provider policy examples and
+requirements are in [object-storage deployment](../deploy/object-storage/README.md).
+Recovery and operational metrics are in [media recovery](../docs/operations/runbooks/media-storage-recovery.md).
 
 ## Local Quality Checks
 

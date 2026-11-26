@@ -74,3 +74,9 @@ launch the deployment owner must define them and verify recovery retains authori
 AccountDeletionOperation evidence newer than a business backup. Do not expose a restored
 system to traffic if it can reactivate a closed subject. See the
 [business lifecycle contract](../../../architecture/business-resource-lifecycle.md#backup-and-retained-data-boundary).
+
+
+Physical transfer and media verification work also appears in the exporter through
+`noteverse_media_resource_backlog` and `noteverse_media_resource_oldest_age_seconds`.
+Unknown writes, unknown completion, expired uncleaned sessions and failed Take media
+processing follow the [media recovery runbook](../media-storage-recovery.md).

@@ -28,7 +28,7 @@ guestPreviewApi: {
     read: (...args: unknown[]) => api.read(...args),
     pageUrl: (token: string, asset: string) =>
       `/guest-previews/${token}/render-assets/${asset}/view`,
-    playbackUrl: (token: string) => `/guest-previews/${token}/playback`,
+    playbackAccess: async () => ({playback_url:'https://objects.test/audio',expires_in:900}),
   }
 }));
 vi.mock('@/i18n/routing', () => ({
@@ -139,7 +139,7 @@ it('refreshes current-head pages without changing the bearer token', async () =>
   await waitFor(() =>
     expect(screen.getByRole('img')).toHaveAttribute('src', expect.stringContaining('head-b'))
   );
-  expect(screen.queryAllByRole('button')).toHaveLength(0);
+  expect(screen.getByRole('button',{name:guestPreview.refreshPlayback})).toBeVisible();
   expect(screen.queryAllByRole('link')).toHaveLength(0);
   view.client.clear();
 });

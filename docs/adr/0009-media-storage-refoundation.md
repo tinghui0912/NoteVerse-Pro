@@ -160,7 +160,7 @@ alone never settles an unknown side effect.
 Cleanup commits a terminal session claim before external abort/delete. Results
 publish only against the current token. It verifies exact-key MPU inventory and
 object absence. Failures retain the locator and pending responsibility. Signed
-capability expiration bounds new requests; it does not prove that all previously
+capability expiration bounds new requests; it does not prove that all already
 started provider IO has ended. Permanent provider-side settlement, version cleanup,
 IAM, lifecycle policies and backups require deployment qualification. Unknown IO
 without sufficient provider evidence remains fail-closed and operationally visible.
@@ -218,3 +218,20 @@ Tests use real independent PostgreSQL transactions for admission, consumption,
 reference/retirement fences, unknown commit, cleanup and account erasure.
 Provider doubles establish adapter/application behavior; they do not qualify
 external provider permanent-IO settlement or deployment retention policies.
+
+
+## Browser and operations
+
+The generated Customer SDK owns API schemas and operation paths. The shared
+`upload-session-client.ts` owns credential-free Blob transfer, exact part slicing,
+bounded concurrency, target renewal, resumable part discovery, progress and abort.
+Domain adapters own Import/Take admission, completion and cancellation. Avatar
+uses bounded direct API upload. Pending Take verification is visible and polled;
+playback and score-video export require READY. Score, Guest Preview and Take audio
+use signed JSON access; provider/CDN terminates Range delivery.
+
+Runtime and deployment policy are described in [object-storage deployment](../../deploy/object-storage/README.md)
+and [media recovery](../operations/runbooks/media-storage-recovery.md). Persistent
+unknown work and processing failures remain observable without identity-bearing
+metric labels. CORS/Lifecycle examples are operator inputs, not applied settings
+or proof that in-flight provider requests have permanently stopped.

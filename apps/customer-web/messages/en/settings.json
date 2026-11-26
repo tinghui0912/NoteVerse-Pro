@@ -111,5 +111,7 @@
     "submit": "Delete my account",
     "pending": "Closing account…",
     "retention": "Records retained under applicable policy, backups and storage versions follow their respective retention policies; physical erasure is not immediate."
-  }
+  },
+  "avatarTooLarge": "Choose an avatar no larger than 5 MiB.",
+  "avatarInvalid": "This image cannot be used. Choose a valid PNG, JPEG or WebP image."
 }

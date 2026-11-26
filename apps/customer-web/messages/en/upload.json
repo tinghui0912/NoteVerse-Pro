@@ -27,5 +27,8 @@
   "uploadedStatus": "Uploaded",
   "removeImage": "Remove {name}",
   "closePreview": "Close preview",
-  "fileUnavailable": "The file {name} is empty. Please select a non-empty image."
+  "fileUnavailable": "The file {name} is empty. Please select a non-empty image.",
+  "cancelUpload": "Cancel upload",
+  "uploadCancelled": "Upload cancelled.",
+  "transferProgress": "Uploading: {percent}%"
 }

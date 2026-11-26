@@ -1,4 +1,4 @@
-import { openPerformanceTakeMedia } from "@/lib/api/performance-takes";
+import { performanceTakesApi } from "@/lib/api/performance-takes";
 import {
   openOpfsMediaFile,
   type OpfsMediaStoragePlatform,
@@ -40,7 +40,14 @@ export async function materializePerformanceTakeMedia(
   signal.throwIfAborted();
   if (!Number.isSafeInteger(expectedByteSize) || expectedByteSize <= 0)
     throw new PerformanceTakeMediaError("media_size_mismatch");
-  const response = await openPerformanceTakeMedia(options.takeId, signal);
+  let access = await performanceTakesApi.getPlaybackUrl(options.takeId, signal);
+  let response = await fetch(access.download_url, { signal, credentials: "omit" });
+  if (response.status === 403) {
+    await response.body?.cancel();
+    access = await performanceTakesApi.getPlaybackUrl(options.takeId, signal);
+    response = await fetch(access.download_url, { signal, credentials: "omit" });
+  }
+  if (!response.ok) { await response.body?.cancel(); throw new PerformanceTakeMediaError("download_failed"); }
   const reader = response.body?.getReader();
   if (!reader) throw new PerformanceTakeMediaError("stream_unavailable");
   let file: Awaited<ReturnType<typeof openOpfsMediaFile>> | undefined;

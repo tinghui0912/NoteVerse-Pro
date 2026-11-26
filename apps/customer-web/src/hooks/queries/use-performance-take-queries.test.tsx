@@ -31,6 +31,7 @@ const recordingTimebase: RecordingTimebase = {
   ],
 };
 const performanceTake: PerformanceTakeRead = {
+  media_status: 'READY',
   recording_media: { mime_type: 'audio/wav', byte_size: 12 },
   take_id: 'take-1',
 

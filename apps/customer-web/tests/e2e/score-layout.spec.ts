@@ -161,8 +161,9 @@ test('Score head presentation progresses neutrally to exact READY assets through
   wav.writeUInt32LE(16000, 40);
   await page.route('**/api/v1/scores/exact-score/revisions/*/playback', (route) => {
     mediaReads.push(route.request().url());
-    return route.fulfill({ contentType: 'audio/wav', body: wav });
+    return route.fulfill({json:{playback_url:'http://localhost:3000/signed-score-playback',download_url:'http://localhost:3000/signed-score-playback',expires_in:900}});
   });
+  await page.route('**/signed-score-playback',route=>route.fulfill({contentType:'audio/wav',body:wav}));
   await page.goto('/en/score/exact-score');
   await expect(page.getByRole('heading', { name: score.display_title })).toBeVisible();
   await expect

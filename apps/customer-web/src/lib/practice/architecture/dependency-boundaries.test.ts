@@ -187,7 +187,7 @@ function dependencyAllowed(file: string, edge: Edge): boolean {
           'media/',
         ].some((owner) => target.startsWith(owner))) ||
         (edge.typeOnly &&
-          (edge.target?.startsWith(apiRoot) ||
+          (edge.target === normalize(path.join(sourceRoot, 'lib/upload/upload-session-client.ts')) || edge.target?.startsWith(apiRoot) ||
             edge.target?.startsWith(
               normalize(path.join(sourceRoot, 'generated/api')) + '/',
             ))),
@@ -584,7 +584,7 @@ describe('Practice bounded domain dependencies', () => {
       dependencyAllowed(transport, imports(transport, localAsset)[0]),
     ).toBe(false);
     const api =
-      "import { openPerformanceTakeMedia } from '@/lib/api/performance-takes';";
+      "import { performanceTakesApi } from '@/lib/api/performance-takes';";
     expect(dependencyAllowed(core, imports(core, api)[0])).toBe(false);
     expect(dependencyAllowed(takeMedia, imports(takeMedia, api)[0])).toBe(true);
     const integration =

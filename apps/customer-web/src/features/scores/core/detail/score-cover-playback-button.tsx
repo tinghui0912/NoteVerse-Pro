@@ -7,14 +7,14 @@ import { reportUnexpectedClientError } from '@/lib/observability';
 import { cn } from '@/lib/utils';
 
 interface ScoreCoverPlaybackButtonProps {
-  audioSrc?: string | null;
+  loadPlayback?: () => Promise<{ playback_url: string; expires_in: number }>;
   className?: string;
   disabled?: boolean;
   loading?: boolean;
 }
 
 export function ScoreCoverPlaybackButton({
-  audioSrc,
+  loadPlayback,
   className,
   disabled = false,
   loading = false,
@@ -24,31 +24,38 @@ export function ScoreCoverPlaybackButton({
   const [audioBusy, setAudioBusy] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const busy = audioBusy;
-  const unavailable = disabled || !audioSrc;
+  const [failed, setFailed] = useState(false);
+  const expiry = useRef(0);
+  const mounted = useRef(false);
+  const unavailable = disabled || !loadPlayback;
 
   const togglePlayback = async () => {
-    if (unavailable || loading || !audioSrc) return;
-    let audio = audioRef.current;
-    if (!audio) {
-      audio = new Audio(audioSrc);
-      audio.preload = 'metadata';
-      audio.addEventListener('ended', () => setAudioPlaying(false));
-      audio.addEventListener('pause', () => setAudioPlaying(false));
-      audio.addEventListener('play', () => setAudioPlaying(true));
-      audioRef.current = audio;
-    }
-    if (audioPlaying) {
-      audio.pause();
-      return;
-    }
+    if (unavailable || loading || !loadPlayback) return;
+    if (audioPlaying && audioRef.current) { audioRef.current.pause(); return; }
     setAudioBusy(true);
+    setFailed(false);
     try {
+      let audio = audioRef.current;
+      if (!audio || Date.now() >= expiry.current) {
+        audio?.pause();
+        const access = await loadPlayback();
+        if (!mounted.current) return;
+        audio = new Audio(access.playback_url);
+        expiry.current = Date.now() + Math.max(0, access.expires_in - 5) * 1000;
+        audio.preload = 'metadata';
+        audio.addEventListener('ended', () => setAudioPlaying(false));
+        audio.addEventListener('pause', () => setAudioPlaying(false));
+        audio.addEventListener('play', () => setAudioPlaying(true));
+        audio.addEventListener('error', () => { expiry.current = 0; setFailed(true); setAudioPlaying(false); });
+        audioRef.current = audio;
+      }
       await audio.play();
     } catch (error) {
       reportUnexpectedClientError(error, {
         area: 'score_cover_playback',
         action: 'play_audio_asset',
       });
+      setFailed(true);
       audioRef.current = null;
       setAudioPlaying(false);
     } finally {
@@ -56,13 +63,15 @@ export function ScoreCoverPlaybackButton({
     }
   };
 
-  useEffect(() => () => {
+  useEffect(() => { mounted.current = true; return () => {
+    mounted.current = false;
     audioRef.current?.pause();
     audioRef.current = null;
-  }, []);
+  }; }, []);
 
   return (
     <>
+      {failed ? <span role="alert">{t('playbackRefreshHint')}</span> : null}
       <button
         type="button"
         aria-label={loading ? t('playbackPreparing') : unavailable ? t('playbackUnavailable') : audioPlaying ? t('pauseScore') : t('playScore')}

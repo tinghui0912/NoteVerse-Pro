@@ -22,5 +22,6 @@
   "rotateWarning": "轮换后，之前的链接将立即失效。",
   "rotate": "轮换访客预览链接",
   "newLink": "新的访客预览链接",
-  "oneTimeReveal": "出于安全考虑，此链接仅在此刻显示。如果丢失，请轮换链接。"
+  "oneTimeReveal": "出于安全考虑，此链接仅在此刻显示。如果丢失，请轮换链接。",
+  "refreshPlayback": "更新播放链接"
 }

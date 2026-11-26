@@ -382,5 +382,8 @@
   "compositeVideoPreviewSeek": "Composite preview position",
   "compositeVideoScoreOnlyDesc": "Clean score video with your original audio.",
   "deletePerformanceTakeSuccessTitle": "Performance Deleted",
-  "deletePerformanceTakeSuccessDesc": "The performance was deleted and its storage quota was released."
+  "deletePerformanceTakeSuccessDesc": "The performance was deleted and its storage quota was released.",
+  "mediaProcessing": "Your recording is being verified. It will be available when processing finishes.",
+  "mediaVerificationFailed": "Recording verification failed. You can delete it and save a new recording.",
+  "refreshPlaybackLink": "Refresh playback link"
 }

@@ -312,14 +312,16 @@ generic envelope; localized success presentation belongs to frontend i18n.
 Application errors retain `{ code, request_id }`. Public/auth bootstrap and silent session probes choose
 policy explicitly; transport does not classify authentication URLs.
 
-Browser-native EventSource, image/audio and avatar URLs are separate transports.
+Browser-native EventSource, image and avatar URLs are separate transports.
 `src/lib/api/native-resource-urls.ts` adapts generated OpenAPI route metadata and
-operation input types through the generated Fetch URL serializer. Score and Guest
-Preview media, render thumbnails and EventSource consume those native URLs.
+operation input types through the generated Fetch URL serializer. Render thumbnails and EventSource consume those native URLs. Score, Guest Preview
+and Take playback request signed JSON capabilities through generated SDK operations.
 Profile presentation uses server-provided API-rooted avatar URLs directly.
 Signed storage upload uses
-`src/lib/http/direct-object-upload.ts`, omits credentials and uses the exact
-server-provided target and headers. Static FIR assets and local Blob snapshots
+`src/lib/upload/upload-session-client.ts`, omits credentials and uses the exact
+server-provided plan. SINGLE_PUT sends a Blob; Multipart uses bounded concurrency,
+per-part URL renewal/retry and server part discovery for resume. Cancellation
+passes through the domain command. The browser owns Content-Length. Static FIR assets and local Blob snapshots
 are resource reads outside Customer HTTP operations.
 
 `contracts/http/customer-browser-protocol.json` owns the fixed Customer API prefix
@@ -343,3 +345,10 @@ cleared by the accepted backend response; browser storage contains no auth token
 The UI does not query erasure progress or wait for workers. Rejected deletion preserves
 the authenticated session. Copy distinguishes immediate closure, asynchronous resource
 erasure and policy-governed retention of backups/provider versions.
+
+
+Take media readiness is server-owned: UPLOADED/PROCESSING queries poll while work
+is pending; READY enables signed playback and score-video materialization. FAILED
+presents a verification message. Playback capabilities refresh before expiry and
+provide an explicit renewal action after a media error. Signed download bytes stream
+to bounded OPFS realization for export, with a single renewal after HTTP 403.

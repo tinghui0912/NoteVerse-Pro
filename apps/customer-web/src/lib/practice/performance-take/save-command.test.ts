@@ -1,5 +1,5 @@
 import type { SavePerformanceTakeInput } from './save';
-function execute(input: SavePerformanceTakeInput) { return new PerformanceTakeSaveCommand(input, performanceTakesApi, uploadMediaToSignedUrl).execute(); }
+function execute(input: SavePerformanceTakeInput) { return new PerformanceTakeSaveCommand(input, performanceTakesApi, uploadSession).execute(); }
 function run<T>(callback: () => T): T { return callback(); }
 import { recordedPerformanceFixture } from '@/lib/practice/__fixtures__/recorded-performance';
 import { artifact as videoArtifact } from '@/lib/practice/composite-video/__fixtures__/performance-take';
@@ -15,11 +15,12 @@ type PerformanceTakeTempoPlan,
 type PerformanceTakeUploadReservationRead,
 type RecordingTimebase,
 } from '@/lib/api/performance-takes';
-import { uploadMediaToSignedUrl } from '@/lib/http/direct-object-upload';
+import { uploadSession } from '@/lib/upload/upload-session-client';
+import { uploadSessionFixture } from '../../../../tests/helpers/upload-session';
 import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
 import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-vi.mock('@/lib/http/direct-object-upload', () => ({ uploadMediaToSignedUrl: vi.fn() }));
+vi.mock('@/lib/upload/upload-session-client', () => ({ uploadSession: vi.fn() }));
 vi.mock('@/lib/api/performance-takes', () => ({
   performanceTakesApi: {
     reserveUpload: vi.fn(),
@@ -96,6 +97,7 @@ function createInput(
   };
 }
 const performanceTake: PerformanceTakeRead = {
+  media_status: 'READY',
   recording_media: { mime_type: 'audio/wav', byte_size: 12 },
   take_id: 'take-1',
 
@@ -131,22 +133,14 @@ function reservation(
     take_id: performanceTake.take_id,
     status,
     manifest: structuredClone(performanceTake.manifest),
-    upload_target:
-      status === 'RESERVED'
-        ? {
-            url: 'https://objects.example/staging.wav',
-            method: 'PUT',
-            headers: { 'content-type': 'audio/wav' },
-            expires_in: 3600,
-          }
-        : null,
+    upload_session: status === 'RESERVED' ? uploadSessionFixture() : null,
     take: status === 'COMPLETED' ? performanceTake : null,
   };
 }
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(reservation() as never);
-  vi.mocked(uploadMediaToSignedUrl).mockResolvedValue();
+  vi.mocked(uploadSession).mockResolvedValue(uploadSessionFixture({status:'COMPLETED'}));
   vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue(performanceTake as never);
 });
 async function save() {
@@ -169,16 +163,17 @@ describe('PerformanceTakeSaveCommand', () => {
       vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
           ...performanceTake,
           manifest: accepted.manifest,
+          media_status: 'READY',
           recording_media: {
             mime_type: accepted.manifest.capture.mime_type,
             byte_size: accepted.manifest.capture.byte_size,
           },
         } as never);
       let finish!: () => void, fail!: (error: Error) => void;
-      vi.mocked(uploadMediaToSignedUrl).mockImplementation(
+      vi.mocked(uploadSession).mockImplementation(
         () =>
-          new Promise<void>((resolve, reject) => {
-            finish = resolve;
+          new Promise<ReturnType<typeof uploadSessionFixture>>((resolve, reject) => {
+            finish = () => resolve(uploadSessionFixture({status:'COMPLETED'}));
             fail = reject;
           }),
       );
@@ -194,7 +189,7 @@ describe('PerformanceTakeSaveCommand', () => {
       });
       await media.release();
       expect(capture.exists()).toBe(true);
-      await vi.waitFor(() => expect(uploadMediaToSignedUrl).toHaveBeenCalled());
+      await vi.waitFor(() => expect(uploadSession).toHaveBeenCalled());
       await run(async () => {
         if (outcome === 'upload-error') fail(new Error('upload failed'));
         else finish();
@@ -219,11 +214,10 @@ describe('PerformanceTakeSaveCommand', () => {
       tempo_selection: tempoPlan.selection,
       recording_timebase: recordingTimebase,
     });
-    expect(uploadMediaToSignedUrl).toHaveBeenCalledExactlyOnceWith(
-      'https://objects.example/staging.wav',
-      'PUT',
-      { 'content-type': 'audio/wav' },
+    expect(uploadSession).toHaveBeenCalledExactlyOnceWith(
+      'session-1',
       createInput().recordedPerformance.recording.media.blob,
+      expect.objectContaining({cancel:expect.any(Function)}),
     );
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith(
       'upload-reservation-1',
@@ -248,15 +242,11 @@ describe('PerformanceTakeSaveCommand', () => {
       byte_size: raw.size,
       mime_type: 'video/mp4',
     };
-    reserved.upload_target = {
-      url: 'https://objects.example/staging.mp4',
-      method: 'PUT',
-      headers: { 'content-type': 'video/mp4' },
-      expires_in: 3600,
-    };
+    reserved.upload_session = uploadSessionFixture({expected_content_type:'video/mp4',expected_byte_size:raw.size});
     vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(reserved as never);
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
         ...performanceTake,
+        media_status: 'READY',
         recording_media: { mime_type: 'video/mp4', byte_size: raw.size },
         manifest: {
           ...performanceTake.manifest,
@@ -274,36 +264,31 @@ describe('PerformanceTakeSaveCommand', () => {
     expect(performanceTakesApi.reserveUpload).toHaveBeenCalledWith(
       expect.objectContaining({ media: reserved.manifest.capture }),
     );
-    expect(vi.mocked(uploadMediaToSignedUrl).mock.calls[0][3]).toBe(raw);
-    expect(uploadMediaToSignedUrl).toHaveBeenCalledWith(
-      'https://objects.example/staging.mp4',
-      'PUT',
-      { 'content-type': 'video/mp4' },
-      raw,
-    );
+    expect(vi.mocked(uploadSession).mock.calls[0][1]).toBe(raw);
+    expect(uploadSession).toHaveBeenCalledWith('session-1',raw,expect.objectContaining({cancel:expect.any(Function)}));
   });
   it('returns COMPLETED without another upload or finalize', async () => {
     vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(reservation('COMPLETED') as never);
     expect(await save()).toEqual(performanceTake);
-    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+    expect(uploadSession).not.toHaveBeenCalled();
     expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
   });
   it('retries FINALIZING by identity without uploading', async () => {
     vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(reservation('FINALIZING') as never);
     expect(await save()).toEqual(performanceTake);
-    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+    expect(uploadSession).not.toHaveBeenCalled();
     expect(performanceTakesApi.finalizeTake).toHaveBeenCalledExactlyOnceWith(
       'upload-reservation-1',
     );
   });
-  it('cancels the public reservation after a failed binary upload', async () => {
-    vi.mocked(uploadMediaToSignedUrl).mockRejectedValue(
+  it('retains the reservation for a resumable transfer after a network failure', async () => {
+    vi.mocked(uploadSession).mockRejectedValue(
       new Error('upload failed'),
     );
     await expect(save()).rejects.toThrow('upload failed');
     expect(
       performanceTakesApi.cancelUploadReservation,
-    ).toHaveBeenCalledExactlyOnceWith('upload-reservation-1');
+    ).not.toHaveBeenCalled();
     expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
   });
   it.each([new Error('network lost'), { response: { status: 422 } }])(
@@ -311,7 +296,7 @@ describe('PerformanceTakeSaveCommand', () => {
     async (error) => {
       vi.mocked(performanceTakesApi.finalizeTake).mockRejectedValue(error);
       await expect(save()).rejects.toBe(error);
-      expect(uploadMediaToSignedUrl).toHaveBeenCalledOnce();
+      expect(uploadSession).toHaveBeenCalledOnce();
       expect(
         performanceTakesApi.cancelUploadReservation,
       ).not.toHaveBeenCalled();
@@ -353,6 +338,7 @@ describe('PerformanceTakeSaveCommand', () => {
     vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
     vi.mocked(performanceTakesApi.finalizeTake).mockResolvedValue({
         ...performanceTake,
+        media_status: 'READY',
         recording_media: {
           ...performanceTake.recording_media,
           mime_type: 'video/webm',
@@ -490,7 +476,7 @@ describe('server canonical plan agreement before media upload', () => {
       expect(
         performanceTakesApi.cancelUploadReservation,
       ).toHaveBeenCalledExactlyOnceWith(accepted.reservation_id);
-      expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+      expect(uploadSession).not.toHaveBeenCalled();
       expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
     },
   );
@@ -502,7 +488,7 @@ describe('server canonical plan agreement before media upload', () => {
       new Error('offline'),
     );
     await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
-    expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+    expect(uploadSession).not.toHaveBeenCalled();
   });
   it('does not finalize or cancel a mismatched FINALIZING reservation', async () => {
     const accepted = structuredClone(reservation('FINALIZING'));
@@ -525,7 +511,7 @@ describe('server canonical plan agreement before media upload', () => {
         accepted.take!.manifest.tempo_plan.segments[0].bpm = 121;
       vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValue(accepted as never);
       await expect(save()).rejects.toThrow('PERFORMANCE_TAKE_PLAN_MISMATCH');
-      expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+      expect(uploadSession).not.toHaveBeenCalled();
       expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
     },
   );
@@ -564,7 +550,7 @@ it('requires exact fractional custom selection agreement', async () => {
       'PERFORMANCE_TAKE_PLAN_MISMATCH',
     );
   });
-  expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+  expect(uploadSession).not.toHaveBeenCalled();
 });
 it('requires exact RANGE group identities even when beats match', async () => {
   const input = createInput({
@@ -597,7 +583,7 @@ it('requires exact RANGE group identities even when beats match', async () => {
       'PERFORMANCE_TAKE_PLAN_MISMATCH',
     );
   });
-  expect(uploadMediaToSignedUrl).not.toHaveBeenCalled();
+  expect(uploadSession).not.toHaveBeenCalled();
 });
 it('validates the executed grid locally without submitting it as reservation authority', async () => {
   const input = createInput();
@@ -687,11 +673,11 @@ it('keeps request identity on retry without cancelling an unknown finalize outco
   vi.mocked(performanceTakesApi.reserveUpload).mockResolvedValueOnce(reservation('FINALIZING'));
   expect(await execute(input)).toEqual(performanceTake);
   expect(vi.mocked(performanceTakesApi.reserveUpload).mock.calls.map(([request]) => request.client_request_id)).toEqual(['request-1', 'request-1']);
-  expect(uploadMediaToSignedUrl).toHaveBeenCalledOnce();
+  expect(uploadSession).toHaveBeenCalledOnce();
 });
 it('preserves the PUT error when cancellation fails', async () => {
   const error = new Error('PUT failed');
-  vi.mocked(uploadMediaToSignedUrl).mockRejectedValueOnce(error);
+  vi.mocked(uploadSession).mockRejectedValueOnce(error);
   vi.mocked(performanceTakesApi.cancelUploadReservation).mockRejectedValueOnce(new Error('cancel failed'));
   await expect(save()).rejects.toBe(error);
   expect(performanceTakesApi.finalizeTake).not.toHaveBeenCalled();
@@ -701,11 +687,16 @@ it('retains on construction and executes one command once', async () => {
   const original = input.recordedPerformance.recording.media;
   const retain = vi.fn(() => original.retain());
   input.recordedPerformance = recordedPerformance(input.recordedPerformance.executed, Object.freeze({...input.recordedPerformance.recording, media: {...original, retain}}));
-  const command = new PerformanceTakeSaveCommand(input, performanceTakesApi, uploadMediaToSignedUrl);
+  const command = new PerformanceTakeSaveCommand(input, performanceTakesApi, uploadSession);
   expect(retain).toHaveBeenCalledOnce();
   const result = command.execute();
   expect(command.execute()).toBe(result);
   await result;
   await command.release();
   expect(performanceTakesApi.reserveUpload).toHaveBeenCalledOnce();
+});
+
+it('routes explicit cancellation to the reservation authority',async()=>{
+ await save();const options=vi.mocked(uploadSession).mock.calls[0][2];await options?.cancel?.();
+ expect(performanceTakesApi.cancelUploadReservation).toHaveBeenCalledExactlyOnceWith('upload-reservation-1');
 });

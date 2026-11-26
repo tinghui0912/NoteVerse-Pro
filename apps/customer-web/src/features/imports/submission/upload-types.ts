@@ -7,4 +7,5 @@ export interface UploadableFile {
   uploadId?: string;
   status: UploadFileStatus;
   error?: string;
+  progress?: number;
 }

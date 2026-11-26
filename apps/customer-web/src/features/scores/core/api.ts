@@ -1,7 +1,6 @@
 import type { FingeringRequest, RevisionCreateRequest, RevisionNoteUpdateRequest, RevisionRestoreRequest, ScoreRenderAssetsArchiveData, ScoreRevisionAssetsListData, ScoreRevisionsListData, ScoreUpdateRequest } from '@/generated/api';
-import { scoreFingeringGenerate, scoreInputAssetDownload, scoreRenderAssetDownload, scoreRenderAssetsArchive, scoreRevisionAssetsList, scoreRevisionContentGet, scoreRevisionNoteUpdate, scoreRevisionRestore, scoreRevisionSourceDownload, scoreRevisionsCreate, scoreRevisionsList, scoresBatchDelete, scoresGet, scoresUpdate } from '@/generated/api';
+import { scoreRevisionPlaybackAccessGet, scoreFingeringGenerate, scoreInputAssetDownload, scoreRenderAssetDownload, scoreRenderAssetsArchive, scoreRevisionAssetsList, scoreRevisionContentGet, scoreRevisionNoteUpdate, scoreRevisionRestore, scoreRevisionSourceDownload, scoreRevisionsCreate, scoreRevisionsList, scoresBatchDelete, scoresGet, scoresUpdate } from '@/generated/api';
 import { customerTransport, responseBody } from '@/lib/http/customer-browser-transport';
-import { scorePlaybackUrl } from '@/lib/api/native-resource-urls';
 
 export const scoresApi = {
   detail: (scoreId: string, signal?: AbortSignal) =>
@@ -46,5 +45,5 @@ export const scoresApi = {
     responseBody(scoreRenderAssetDownload({ ...customerTransport.authenticated, path: { render_asset_id: renderAssetId }, parseAs: 'blob' })),
   downloadRenderAssetArchive: (scoreId: string, revisionId: string, kind: NonNullable<ScoreRenderAssetsArchiveData['query']>['kind'], renderProfile: string) =>
     responseBody(scoreRenderAssetsArchive({ ...customerTransport.authenticated, path: { score_id: scoreId }, query: { revision_id: revisionId, kind, render_profile: renderProfile }, parseAs: 'blob' })),
-  playbackUrl: scorePlaybackUrl,
+  playbackAccess: (scoreId: string, revisionId: string, signal?: AbortSignal) => responseBody(scoreRevisionPlaybackAccessGet({ ...customerTransport.authenticated, path: { score_id: scoreId, revision_id: revisionId }, signal })),
 };

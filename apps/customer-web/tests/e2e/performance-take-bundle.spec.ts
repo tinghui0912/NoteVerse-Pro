@@ -60,7 +60,8 @@ for (const [sourceState, sourceKind] of [['LIVE', 'VIDEO'], ['DELETED', 'VIDEO']
     await page.route('**/api/v1/performance-takes/take-1', (route) => route.fulfill({
       status: 200, contentType: 'application/json', body: JSON.stringify({ ...take, recording_media: { ...take.recording_media, mime_type: mimeType, byte_size: media.length }, manifest: { ...take.manifest, capture: { ...take.manifest.capture, kind: sourceKind, mime_type: mimeType, byte_size: media.length } } }),
     }));
-    await page.route('**/api/v1/performance-takes/take-1/media', (route) => route.fulfill({ status: 200, contentType: mimeType, body: media }));
+    await page.route('**/api/v1/performance-takes/take-1/playback-url',route=>route.fulfill({json:{take_id:'take-1',playback_url:'http://localhost:3000/signed-recording',download_url:'http://localhost:3000/signed-recording',expires_in:900}}));
+    await page.route('**/signed-recording', (route) => route.fulfill({ status: 200, contentType: mimeType, body: media }));
     const sourceRequests: string[] = [];
     const exportWrites: string[] = [];
     page.on('request', (request) => {
@@ -155,7 +156,8 @@ test('route exit during saved-media streaming aborts the writer and removes its 
   });
   const bytes=Buffer.from('pending temporary bytes');
   await page.route('**/api/v1/performance-takes/take-1', (route) =>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...take,recording_media:{...take.recording_media,byte_size:bytes.length},manifest:{...take.manifest,capture:{...take.manifest.capture,byte_size:bytes.length}}})}));
-  await page.route('**/api/v1/performance-takes/take-1/media', (route) =>route.fulfill({status:200,contentType:'video/webm',body:bytes}));
+  await page.route('**/api/v1/performance-takes/take-1/playback-url',route=>route.fulfill({json:{take_id:'take-1',playback_url:'http://localhost:3000/signed-recording',download_url:'http://localhost:3000/signed-recording',expires_in:900}}));
+  await page.route('**/signed-recording', (route) =>route.fulfill({status:200,contentType:'video/webm',body:bytes}));
   await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*', (route) =>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({binding:{score_id:take.manifest.practice_binding.score_id,revision_id:take.manifest.practice_binding.revision_id,bundle_id:take.manifest.practice_binding.bundle_id},artifact,notation:{musicxml:musicXml,mime_type:'application/vnd.recordare.musicxml+xml'}})}));
   await page.goto("/en/my-performances/take-1/score-video");
   await expect.poll(()=>page.evaluate(()=>(window as unknown as {__savedMediaWrite:{pending:boolean}}).__savedMediaWrite.pending)).toBe(true);

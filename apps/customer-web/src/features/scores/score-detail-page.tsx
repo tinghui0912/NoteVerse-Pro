@@ -92,8 +92,8 @@ function ScorePageContent({ id }: { id: string }) {
   );
   const audioPreparing = isDerivedAssetPreparing(audioAsset.status);
   const imagePreparing = isDerivedAssetPreparing(previewAsset.status);
-  const playbackAudioSrc = audioRevisionId
-    ? scoresApi.playbackUrl(score.score_id, audioRevisionId)
+  const loadPlayback = audioRevisionId
+    ? () => scoresApi.playbackAccess(score.score_id, audioRevisionId)
     : undefined;
   const tabs = [
     {
@@ -180,8 +180,9 @@ function ScorePageContent({ id }: { id: string }) {
                 : null
             }
             thumbnailLoading={imagePreparing}
-            playbackAudioSrc={playbackAudioSrc}
-            playbackEnabled={Boolean(playbackAudioSrc)}
+            loadPlayback={loadPlayback}
+            playbackIdentity={`${score.score_id}:${audioRevisionId}`}
+            playbackEnabled={Boolean(loadPlayback)}
             playbackLoading={audioPreparing}
             playbackVisible={score.capabilities.can_practice}
             actions={

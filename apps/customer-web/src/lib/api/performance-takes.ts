@@ -1,4 +1,4 @@
-import { performanceTakeDelete, performanceTakeGet, performanceTakeMediaStream, performanceTakePlaybackUrlGet, performanceTakeUploadCancel, performanceTakeUploadFinalize, performanceTakeUploadsReserve, performanceTakesList } from '@/generated/api';
+import { performanceTakeDelete, performanceTakeGet, performanceTakePlaybackUrlGet, performanceTakeUploadCancel, performanceTakeUploadFinalize, performanceTakeUploadsReserve, performanceTakesList } from '@/generated/api';
 import type { PerformanceTakeUploadReservationRequest, PerformanceTakesListData } from '@/generated/api';
 import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
 export type { PerformanceTakeManifestRead, PerformanceTakeRead, PerformanceTakeTempoPlan, PerformanceTakeUploadReservationRead, PerformanceTakeUploadReservationRequest, RecordingTimebase } from '@/generated/api';
@@ -30,11 +30,3 @@ export const performanceTakesApi = {
   deleteTake: (takeId: string) =>
     responseComplete(performanceTakeDelete({ ...customerTransport.authenticated, path: { take_id: takeId } })),
 };
-
-/** Authenticated transport only; byte materialization belongs to the consumer. */
-export function openPerformanceTakeMedia(
-  takeId: string,
-  signal?: AbortSignal,
-): Promise<Response> {
-  return performanceTakeMediaStream({ ...customerTransport.authenticated, path: { take_id: takeId }, signal, parseAs: 'stream' }).then(result => result.response);
-}

@@ -41,7 +41,7 @@ serialize transitions; timestamps and CHECKs preserve terminal facts. An expired
 record is excluded from capacity immediately and cannot be consumed before expiry cleanup.
 Repeated consumption is a no-op; cleanup release does not rewrite a consumed/expired hold.
 Lowering finite quota below occupancy preserves existing allocations and unexpired holds;
-it prevents additional admission, without revoking previously admitted capacity.
+it prevents additional admission, without revoking existing admitted capacity.
 
 The lock order within capacity operations is:
 
@@ -98,3 +98,13 @@ Hold expiry and business cleanup remain distinct. Account erasure releases lefto
 HELD capacity only after resource cleanup and retains Take reservation lineage until
 its staging/candidate cleanup acknowledges completion. See
 [business lifecycle integration](business-resource-lifecycle.md).
+
+
+## Transfer admission
+
+UploadSession admission applies independent temporary transport budgets in media_storage.
+Business admission still requires a durable Hold for Score Import and Take recordings.
+Transport completion does not consume a Hold; business finalization commits consumption,
+Usage allocation and the resource together. Cancelling an unconsumed domain request
+releases its Hold and leaves physical cleanup with its Session. Multipart limits and
+per-user session counts do not create another entitlement authority.

@@ -1,8 +1,11 @@
 'use client';
 
 import Image from 'next/image';
+import { useQuery } from '@tanstack/react-query';
+import { principalIndependentQueryMeta } from '@/lib/query-auth-scope';
 import { useTranslations } from 'next-intl';
 import { useGuestPreview } from '@/features/scores/guest-preview/queries';
+import { guestPreviewQueryKeys } from './query-keys';
 import { guestPreviewApi } from '@/features/scores/guest-preview/api';
 import { ResourceLoading } from '@/components/loading';
 import { ResourceLoadError } from '@/components/states';
@@ -21,12 +24,7 @@ export function GuestPreviewPage({ token }: { token: string }) {
       <p>{t('by', { name: preview.shared_by })}</p>
       <p className="text-muted-foreground">{t('description')}</p>
       {preview.audio_available ? (
-        <audio
-          controls
-          controlsList="nodownload"
-          src={guestPreviewApi.playbackUrl(token)}
-          aria-label={t('audio')}
-        />
+        <GuestPreviewAudio token={token} />
       ) : (
         <p>{t('audioUnavailable')}</p>
       )}
@@ -49,4 +47,22 @@ export function GuestPreviewPage({ token }: { token: string }) {
       </section>
     </main>
   );
+}
+
+
+function GuestPreviewAudio({ token }: { token: string }) {
+  const t = useTranslations('guestPreview');
+  const access = useQuery({
+    queryKey: [...guestPreviewQueryKeys.public(token), 'playback'],
+    meta: principalIndependentQueryMeta,
+    queryFn: ({signal}) => guestPreviewApi.playbackAccess(token,signal),
+    retry: false,
+    gcTime: 0,
+    refetchInterval: query => query.state.data ? Math.max(1000,(query.state.data.expires_in-30)*1000) : false,
+  });
+  return <div>
+    {access.data ? <audio controls controlsList="nodownload" src={access.data.playback_url} aria-label={t('audio')} /> : <p>{t('audioUnavailable')}</p>}
+    <button type="button" onClick={() => void access.refetch()} disabled={access.isFetching}>{t('refreshPlayback')}</button>
+    {access.error ? <p role="alert">{t('audioUnavailable')}</p> : null}
+  </div>;
 }

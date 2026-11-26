@@ -3,8 +3,7 @@
 from io import BytesIO
 import os
 from uuid import uuid4
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError
+from tests.support.live_object_storage import SignedProviderClient, isolated_provider_namespace
 import pytest
 from app.storage import ObjectStorage
 from app.storage.base import ObjectNotFoundError
@@ -104,6 +103,7 @@ def test_concrete_adapter_issues_signed_upload_and_download(monkeypatch):
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", "http://localhost:9010")
+    monkeypatch.setattr(settings, "S3_FORCE_PATH_STYLE", True)
     storage = S3CompatibleObjectStorage()
     target = storage.generate_put_upload_url(
         "test/object", content_type="audio/webm", content_length=2
@@ -135,27 +135,28 @@ def test_real_object_store_capabilities_and_direct_upload(monkeypatch):
         )
     monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", None)
     storage = S3CompatibleObjectStorage()
-    prefix = "contract-tests/" + uuid4().hex
-    assert_object_capabilities(storage, prefix)
+    prefix = "contract-tests/" + uuid4().hex + "/"
     key, data = prefix + "/direct", b"browser direct upload bytes"
-    try:
-        target = storage.generate_put_upload_url(
-            key, content_type="application/octet-stream", content_length=len(data)
-        )
-        with urlopen(
-            Request(
+    with isolated_provider_namespace(storage, prefix):
+        assert_object_capabilities(storage, prefix)
+        client = SignedProviderClient()
+        try:
+            target = storage.generate_put_upload_url(
+                key, content_type="application/octet-stream", content_length=len(data)
+            )
+            client.request(
+                "PUT",
                 target.upload_url,
                 data=data,
                 headers=target.upload_headers,
-                method=target.upload_method,
+                stage="single_put",
             )
-        ) as response:
-            assert response.status in {200, 201, 204}
-        assert storage.read_bytes(key) == data
-        with urlopen(storage.download_url(key)) as response:
-            assert response.read() == data
-    finally:
-        storage.delete(key)
+            assert storage.read_bytes(key) == data
+            assert (
+                client.request("GET", storage.download_url(key), stage="download").content == data
+            )
+        finally:
+            client.close()
 
 
 @pytest.mark.skipif(
@@ -172,55 +173,55 @@ def test_real_object_store_signed_lengths_and_multipart_lifecycle(monkeypatch):
         )
     monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", None)
     storage = S3CompatibleObjectStorage()
-    prefix = "contract-tests/" + uuid4().hex
+    prefix = "contract-tests/" + uuid4().hex + "/"
     key, rejected = prefix + "/multipart", prefix + "/length"
-    upload = storage.create_multipart_upload(key, content_type="audio/webm")
-    try:
-        target = storage.generate_put_upload_url(
-            rejected, content_type="audio/webm", content_length=3
-        )
-        with pytest.raises(HTTPError) as raised:
-            urlopen(
-                Request(
+    with isolated_provider_namespace(storage, prefix):
+        client = SignedProviderClient()
+        try:
+            upload = storage.create_multipart_upload(key, content_type="audio/webm")
+            target = storage.generate_put_upload_url(
+                rejected, content_type="audio/webm", content_length=3
+            )
+            client.request(
+                "PUT",
+                target.upload_url,
+                data=b"four",
+                headers={"content-type": "audio/webm"},
+                expected=403,
+                stage="wrong_signed_length",
+            )
+            assert not storage.exists(rejected)
+            data = (b"a" * (5 * 1024 * 1024), b"end")
+            for number, content in enumerate(data, 1):
+                target = storage.generate_part_upload_url(
+                    key, upload, number, content_length=len(content)
+                )
+                client.request(
+                    "PUT",
                     target.upload_url,
-                    data=b"four",
-                    headers={"content-type": "audio/webm"},
-                    method="PUT",
+                    data=content,
+                    headers=target.upload_headers,
+                    stage=f"part_{number}",
                 )
+            parts = storage.list_uploaded_parts(key, upload)
+            assert [p.size_bytes for p in parts] == [len(p) for p in data]
+            result = storage.complete_multipart_upload(key, upload, parts)
+            assert result.etag
+            assert storage.read_bytes(key) == b"".join(data)
+            with pytest.raises(ObjectNotFoundError):
+                storage.list_uploaded_parts(key, upload)
+            client.request(
+                "PUT",
+                target.upload_url,
+                data=data[-1],
+                headers=target.upload_headers,
+                expected=404,
+                stage="completed_handle_rejected",
             )
-        assert raised.value.code == 403
-        assert not storage.exists(rejected)
-        data = (b"a" * (5 * 1024 * 1024), b"end")
-        for number, content in enumerate(data, 1):
-            target = storage.generate_part_upload_url(
-                key, upload, number, content_length=len(content)
-            )
-            with urlopen(
-                Request(
-                    target.upload_url, data=content, headers=target.upload_headers, method="PUT"
-                )
-            ) as response:
-                assert response.status == 200
-        parts = storage.list_uploaded_parts(key, upload)
-        assert [p.size_bytes for p in parts] == [len(p) for p in data]
-        result = storage.complete_multipart_upload(key, upload, parts)
-        assert result.etag
-        assert storage.read_bytes(key) == b"".join(data)
-        with pytest.raises(ObjectNotFoundError):
-            storage.list_uploaded_parts(key, upload)
-        with pytest.raises(HTTPError) as raised:
-            urlopen(
-                Request(
-                    target.upload_url, data=data[-1], headers=target.upload_headers, method="PUT"
-                )
-            )
-        assert raised.value.code == 404
-        storage.abort_multipart_upload(key, upload)
-        other = storage.create_multipart_upload(rejected, content_type="audio/webm")
-        storage.abort_multipart_upload(rejected, other)
-        with pytest.raises(ObjectNotFoundError):
-            storage.list_uploaded_parts(rejected, other)
-    finally:
-        storage.abort_multipart_upload(key, upload)
-        storage.delete(key)
-        storage.delete(rejected)
+            storage.abort_multipart_upload(key, upload)
+            other = storage.create_multipart_upload(rejected, content_type="audio/webm")
+            storage.abort_multipart_upload(rejected, other)
+            with pytest.raises(ObjectNotFoundError):
+                storage.list_uploaded_parts(rejected, other)
+        finally:
+            client.close()

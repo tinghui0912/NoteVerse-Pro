@@ -31,6 +31,7 @@ export async function mockGuestPreview(page: Page, token: string) {
   wav.write('data', 36);
   wav.writeUInt32LE(16000, 40);
   await page.route(`**/api/v1/guest-previews/${token}/playback`, (route) =>
-    route.fulfill({ contentType: 'audio/wav', body: wav })
+    route.fulfill({json:{playback_url:'http://localhost:3000/guest-listening',download_url:'http://localhost:3000/guest-listening',expires_in:900}})
   );
+  await page.route('**/guest-listening',route=>route.fulfill({contentType:'audio/wav',body:wav}));
 }

@@ -16,7 +16,7 @@ it.each(['pending', 'processing', 'unavailable', 'ready'] as const)('renders %s 
   const ready = status === 'ready';
   const { container } = render(<NextIntlClientProvider locale="en" messages={{ score: messages }}>
     <ScoreDetailHero title="Head score" thumbnailLoading={preparing} thumbnailUrl={ready ? '/head.svg' : null}
-      playbackVisible playbackEnabled={ready} playbackLoading={preparing} playbackAudioSrc={ready ? '/head.wav' : undefined} />
+      playbackVisible playbackEnabled={ready} playbackLoading={preparing} loadPlayback={ready ? async () => ({playback_url:'https://objects.example/head.wav',expires_in:900}) : undefined} />
   </NextIntlClientProvider>);
   const playback = screen.getByRole('button');
   expect(playback.hasAttribute('disabled')).toBe(!ready);

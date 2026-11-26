@@ -1,10 +1,11 @@
 // @vitest-environment node
-import { openPerformanceTakeMedia } from "@/lib/api/performance-takes";
-import { afterEach, expect, it, vi } from "vitest";
+import { performanceTakesApi } from "@/lib/api/performance-takes";
+import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { opfsStoreFixture } from "../../__fixtures__/opfs-store";
 import type { OpfsMediaStoragePlatform } from "../opfs-media-file";
 import { materializePerformanceTakeMedia } from "./materialize";
-vi.mock("@/lib/api/performance-takes", () => ({ openPerformanceTakeMedia: vi.fn() }));
+vi.mock("@/lib/api/performance-takes", () => ({ performanceTakesApi: { getPlaybackUrl: vi.fn() } }));
+beforeEach(() => { vi.stubGlobal("fetch", vi.fn()); vi.mocked(performanceTakesApi.getPlaybackUrl).mockResolvedValue({take_id:"take/a",playback_url:"https://objects.example/play",download_url:"https://objects.example/download",expires_in:900}); });
 afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -42,7 +43,7 @@ it.each([true, false])(
   async (length) => {
     const f = opfsStoreFixture(),
       progress = vi.fn();
-    vi.mocked(openPerformanceTakeMedia).mockResolvedValue(
+    vi.mocked(fetch).mockResolvedValue(
       response(
         undefined,
         length ? undefined : { "content-type": "video/webm" },
@@ -52,7 +53,7 @@ it.each([true, false])(
       { ...options(), onProgress: progress },
       f.platform,
     );
-    expect(openPerformanceTakeMedia).toHaveBeenCalledWith(
+    expect(performanceTakesApi.getPlaybackUrl).toHaveBeenCalledWith(
       "take/a",
       expect.any(AbortSignal),
     );
@@ -79,7 +80,7 @@ it.each(["0", "-1", "NaN", "Infinity", "7", "6.5"])(
   "rejects mismatching/invalid HTTP size %s without publishing media",
   async (length) => {
     const f = opfsStoreFixture();
-    vi.mocked(openPerformanceTakeMedia).mockResolvedValue(
+    vi.mocked(fetch).mockResolvedValue(
       response(undefined, {
         "content-type": "video/webm",
         "content-length": length,
@@ -96,7 +97,7 @@ it.each([{ chunks: ["abc"] }, { chunks: ["abc", "def", "extra"] }])(
   "requires streamed bytes to equal durable Take size %#",
   async ({ chunks }) => {
     const f = opfsStoreFixture();
-    vi.mocked(openPerformanceTakeMedia).mockResolvedValue(
+    vi.mocked(fetch).mockResolvedValue(
       response(chunks, { "content-type": "video/webm" }),
     );
     await expect(
@@ -110,7 +111,7 @@ it.each(["audio/webm", "application/octet-stream", ""])(
   "rejects incompatible response MIME %s",
   async (mime) => {
     const f = opfsStoreFixture();
-    vi.mocked(openPerformanceTakeMedia).mockResolvedValue(
+    vi.mocked(fetch).mockResolvedValue(
       response(undefined, { "content-type": mime }),
     );
     await expect(
@@ -121,7 +122,7 @@ it.each(["audio/webm", "application/octet-stream", ""])(
 );
 it("supports MIME parameters while preserving durable MIME on the file-backed view", async () => {
   const f = opfsStoreFixture();
-  vi.mocked(openPerformanceTakeMedia).mockResolvedValue(
+  vi.mocked(fetch).mockResolvedValue(
     response(undefined, { "content-type": "video/webm; codecs=vp9" }),
   );
   const media = await materializePerformanceTakeMedia(options(), f.platform);
@@ -129,13 +130,13 @@ it("supports MIME parameters while preserving durable MIME on the file-backed vi
   await media.release();
 });
 it("requires a streaming response and OPFS, with no memory substitute", async () => {
-  vi.mocked(openPerformanceTakeMedia).mockResolvedValue(new Response(null));
+  vi.mocked(fetch).mockResolvedValue(new Response(null));
   await expect(
     materializePerformanceTakeMedia(options()),
   ).rejects.toMatchObject({
     reason: "stream_unavailable",
   });
-  vi.mocked(openPerformanceTakeMedia).mockResolvedValue(response());
+  vi.mocked(fetch).mockResolvedValue(response());
   vi.stubGlobal("navigator", { storage: {} });
   await expect(
     materializePerformanceTakeMedia(options()),
@@ -148,7 +149,7 @@ it("aborts a pending reader, removes partial bytes and releases the file lock", 
     abort = new AbortController(),
     cancel = vi.fn();
   let pulls = 0;
-  vi.mocked(openPerformanceTakeMedia).mockResolvedValue(
+  vi.mocked(fetch).mockResolvedValue(
     new Response(
       new ReadableStream(
         {
@@ -181,7 +182,7 @@ it("aborts a pending reader, removes partial bytes and releases the file lock", 
 it("writer failure cancels source and removes partial storage", async () => {
   const f = opfsStoreFixture();
   f.write.mockRejectedValueOnce(new Error("quota"));
-  vi.mocked(openPerformanceTakeMedia).mockResolvedValue(response());
+  vi.mocked(fetch).mockResolvedValue(response());
   await expect(
     materializePerformanceTakeMedia(options(), f.platform),
   ).rejects.toMatchObject({ reason: "download_failed" });
@@ -191,7 +192,7 @@ it("writer failure cancels source and removes partial storage", async () => {
 });
 it("reclaims only unlocked downloaded-media orphans, preserving another tab owner", async () => {
   const f = opfsStoreFixture();
-  vi.mocked(openPerformanceTakeMedia).mockImplementation(async () => response());
+  vi.mocked(fetch).mockImplementation(async () => response());
   const live = await materializePerformanceTakeMedia(options(), f.platform);
   f.files.set("crashed", [new Blob(["partial"])]);
   const next = await materializePerformanceTakeMedia(options(), f.platform);
@@ -258,7 +259,7 @@ it("accepts a large lazy logical stream with one bounded chunk and a counting fi
       ) => callback(),
     } as unknown as LockManager,
   };
-  vi.mocked(openPerformanceTakeMedia).mockResolvedValue(
+  vi.mocked(fetch).mockResolvedValue(
     new Response(source, {
       headers: {
         "content-type": "video/webm",
@@ -275,4 +276,10 @@ it("accepts a large lazy logical stream with one bounded chunk and a counting fi
   expect(maxInFlight).toBe(1);
   await media.release();
   expect(removed).toBe(1);
+});
+
+it("renews a rejected download capability once and streams from the signed provider URL",async()=>{
+ const f=opfsStoreFixture();vi.mocked(fetch).mockResolvedValueOnce(new Response(null,{status:403})).mockResolvedValueOnce(response());
+ const media=await materializePerformanceTakeMedia(options(),f.platform);
+ expect(performanceTakesApi.getPlaybackUrl).toHaveBeenCalledTimes(2);expect(fetch).toHaveBeenLastCalledWith('https://objects.example/download',expect.objectContaining({credentials:'omit',signal:expect.any(AbortSignal)}));await media.release();
 });

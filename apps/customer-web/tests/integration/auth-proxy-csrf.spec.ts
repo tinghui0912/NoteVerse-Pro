@@ -57,18 +57,17 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
     origin: new URL(page.url()).origin,
   };
 
-  const upload = await page.request.post('/api/v1/uploads', {
-    headers: csrfHeaders,
-    multipart: {
-      file: {
-        name: 'score.png',
-        mimeType: 'image/png',
-        buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC', 'base64'),
-      },
-    },
-  });
+  const bytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC','base64');
+  const admission=await page.request.post('/api/v1/uploads',{headers:csrfHeaders,data:{client_request_id:crypto.randomUUID(),filename:'score.png',byte_size:bytes.length,content_type:'image/png'}});
+  expect(admission.status()).toBe(200);
+  const {upload_session:session}=await admission.json();
+  const put=await page.request.put(session.upload_target.url,{headers:session.upload_target.headers,data:bytes});
+  expect(put.ok()).toBe(true);
+  const complete=await page.request.post(`/api/v1/upload-sessions/${session.session_id}/complete`,{headers:csrfHeaders});
+  expect(complete.status()).toBe(200);
+  const upload=await page.request.post(`/api/v1/uploads/${session.session_id}/finalize`,{headers:csrfHeaders});
   expect(upload.status()).toBe(200);
-  const uploadBody = await upload.json();
+  const uploadBody=await upload.json();
 
   const importJob = await page.request.post('/api/v1/import-jobs', {
     headers: csrfHeaders,

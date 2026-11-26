@@ -7,7 +7,7 @@ entry into the concrete transaction participant; physical existence is never rea
 
 | Resource / real call path | Semantic owner and authorization | Usage / Quota | Creation and release transaction | Recovery and invariants |
 | --- | --- | --- | --- | --- |
-| `uploads/router.py → UploadService.create_upload/delete_upload → UploadRepository` | Uploader; authenticated upload and owner-only deletion | UPLOAD while no InputAsset refers to Upload; positive growth needs Hold | Hold committed before Objects prewrite; final Upload + adoption + consumed Hold + allocation; deletion releases before retirement | Intent cleans failed prewrite. Stable UploadCreationRequest identity owns capacity generations. Unknown COMMIT reads persisted completion; retry cannot allocate twice. |
+| `uploads/router.py → UploadService.create_request/finalize_upload/delete_upload → UploadRepository` | Uploader; authenticated upload and owner-only deletion | UPLOAD while no InputAsset refers to Upload; positive growth needs Hold | Hold committed before Objects prewrite; final Upload + adoption + consumed Hold + allocation; deletion releases before retirement | Intent cleans failed prewrite. Stable UploadCreationRequest identity owns capacity generations. Unknown COMMIT reads persisted completion; retry cannot allocate twice. |
 | `import_jobs/router.py → ImportJobService`, `review/service.py → confirm → scores/input_asset_lifecycle.py` | Job user; Upload user must agree with job/Score owner | Independent Upload converts to INPUT_ASSET on first promotion; each later semantic input counts again | Upload locks serialize classification; source/inputs/job confirmation/accounting commit together | ScoreInputAssetLifecycle owns conversion/release; sorted Upload locks protect multiplicity. Net-zero same-user conversion needs no fresh capacity. |
 | `revisions/router.py → RevisionService._append → RevisionWriter.write/_unused` | Score owner pays; ScoreAccessPolicy authorizes editor/owner | SOURCE; exact positive bytes require Hold; history retains each Source | Hold and prewrite phases precede Score lock; final source/head/outboxes + consumption + allocation | Same content/no-op releases unused Hold; expected-head/idempotency rechecks after IO. Capacity locks precede Objects adoption; active owner/actor re-admission follows IO. |
 | `score_assets/score_revision_rendering.py → _render_records/render_for_worker` | Score owner; worker lease + revision fingerprint + Score admission | DERIVED_RENDER, non-quota | Asset replacement/adoption and Usage deltas atomic; retirement after release | Generation/lease tests fence late results. Usage serialization precedes Objects locks. |
@@ -20,7 +20,7 @@ entry into the concrete transaction participant; physical existence is never rea
 | `PerformanceTakeService.delete_take` | Take owner | Final UPLOAD release | Take removal + Usage release + retirement | Caller-owned deletion releases Usage before retirement. Manifest/reservation retain idempotency and temporary cleanup lineage. |
 | `account/router.py → AvatarService.replace_user_avatar/clear_user_avatar` | Current User; User lock owns avatar reference | No Usage / no Hold | Normalize immutable JPEG, Intent prewrite; User reference replacement and prior retirement | User lock serializes clear/replacement; active-user recheck follows prewrite. |
 | `practice/bundle/writer.py → ensure_binding`, `retention.py` | Score/Revision binding, shared derived Bundle | No Usage / no Hold | Both representations adopted before READY/binding; last binding release admits retirement | Content-addressed reuse is physical identity, not User quota. CREATING/READY and existing compiler/GC races remain business-owned. |
-| Account deletion | `DELETE /me → AccountDeletionService → composition/account_deletion.py` | Owned semantic allocations are released without fresh capacity | Account tombstone/revocation and operation commit together; bounded worker units coordinate domain cleanup | Preserve Take capability/candidate cleanup evidence until its own grace ends; do not use bare User CASCADE as a lifecycle implementation. |
+| Account deletion | `DELETE /me → AccountDeletionService → composition/account_deletion.py` | Owned semantic allocations are released without fresh capacity | Account tombstone/revocation and operation commit together; bounded worker units coordinate domain cleanup | Preserve UploadSession capability and unknown-IO cleanup evidence until settlement; do not use bare User CASCADE as a lifecycle implementation. |
 
 ## Shared authorities
 
@@ -35,8 +35,9 @@ Parent admission precedes capacity/Usage serialization, followed by write intent
 and retirement. Business uploads are locked by ascending relational PK, never page/input order.
 Quota order remains Entitlement → UsageAccount → Hold → category counters. No physical write
 holds Score, Upload or quota locks: durable prewrite phases release them and re-admit afterward.
-The narrow Intent/destructive object locks fence physical IO itself; removing them would allow
-stale writes or deletion to race adoption. They do not span quota or business admission.
+ObjectWriteCoordinator persists write generation before releasing its Session for IO.
+Fresh transactions fence receipt publication/adoption. Retirement owns destructive
+object fencing independently of business and quota admission.
 
 Pure database HTTP commands use the command dependency. External-IO coordinators own their
 explicit durable phases; transaction participants only flush. Worker execution owns graph cleanup
@@ -55,8 +56,7 @@ Deletion cannot require new capacity for a net-decreasing same-user conversion.
 
 Use durable Hold identity, business idempotency/lease identity, write generation and operation
 UUIDs. Inventory/Usage reconciliation does not infer ownership from events or provider scans.
-Runtime fence failures remain integrity failures, with no reference-waiting state. Staging and
-candidate cleanup retain the Take protocol's capability and unknown-COMMIT grace. Account
+Runtime fence failures remain integrity failures, with no reference-waiting state. UploadSession cleanup retains capability expiry and unknown-IO evidence. Account
 deactivation must not erase the rows that still own that cleanup.
 
 ## Account deletion

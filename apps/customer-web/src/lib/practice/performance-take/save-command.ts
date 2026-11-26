@@ -1,3 +1,4 @@
+import type { uploadSession, UploadSessionOptions } from '@/lib/upload/upload-session-client';
 import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
 import { releaseLocalMediaAsset } from '@/lib/practice/media/local-media-asset';
 import type { performanceTakesApi } from '@/lib/api/performance-takes';
@@ -19,7 +20,8 @@ export class PerformanceTakeSaveCommand {
   constructor(
     input: SavePerformanceTakeInput,
     private readonly transport: SaveTransport,
-    private readonly upload: (url: string, method: string, headers: Record<string, string>, body: Blob) => Promise<void>,
+    private readonly upload: typeof uploadSession,
+    private readonly options: Pick<UploadSessionOptions, 'signal' | 'onProgress'> = {},
   ) {
     const lease = input.recordedPerformance.recording.media.retain();
     this.input = {
@@ -44,6 +46,7 @@ export class PerformanceTakeSaveCommand {
   }
 
   private async run() {
+    this.options.signal?.throwIfAborted();
     const request = performanceTakeUploadRequest(this.input);
     const response = await this.transport.reserveUpload(request);
     const reservation = response;
@@ -82,25 +85,12 @@ export class PerformanceTakeSaveCommand {
       return reservation.take;
     }
     if (reservation.status === 'RESERVED') {
-      const target = reservation.upload_target;
-      if (!target) throw new Error('Reserved upload has no upload target');
-      try {
-        await this.upload(
-          target.url,
-          target.method,
-          target.headers,
-          this.input.recordedPerformance.recording.media.blob,
-        );
-      } catch (error) {
-        try {
-          await this.transport.cancelUploadReservation(
-            reservation.reservation_id,
-          );
-        } catch {
-          // Reservation expiry processing retains cleanup ownership.
-        }
-        throw error;
-      }
+      const session = reservation.upload_session;
+      if (!session) throw new Error('Upload session is unavailable');
+      await this.upload(session.session_id, this.input.recordedPerformance.recording.media.blob, {
+        ...this.options,
+        cancel: () => this.transport.cancelUploadReservation(reservation.reservation_id),
+      });
     }
     // Unknown finalize outcomes retain the reservation for an idempotent retry.
     const finalized = await this.transport.finalizeTake(

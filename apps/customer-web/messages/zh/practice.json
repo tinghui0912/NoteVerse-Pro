@@ -382,5 +382,8 @@
   "compositeVideoPreviewSeek": "合成预览位置",
   "compositeVideoScoreOnlyDesc": "以干净乐谱为画面，保留原始录音。",
   "deletePerformanceTakeSuccessTitle": "已删除该演奏",
-  "deletePerformanceTakeSuccessDesc": "已删除保存的演奏并释放存储配额。"
+  "deletePerformanceTakeSuccessDesc": "已删除保存的演奏并释放存储配额。",
+  "mediaProcessing": "录音正在校验，处理完成后即可播放。",
+  "mediaVerificationFailed": "录音校验失败。你可以删除它并重新保存录音。",
+  "refreshPlaybackLink": "更新播放链接"
 }

@@ -111,5 +111,7 @@
     "submit": "删除我的账户",
     "pending": "正在关闭账户…",
     "retention": "依适用政策保留的记录、备份和存储版本按各自保留政策处理，物理清除不会立即全部完成。"
-  }
+  },
+  "avatarTooLarge": "请选择不超过 5 MiB 的头像。",
+  "avatarInvalid": "无法使用此图片，请选择有效的 PNG、JPEG 或 WebP 图片。"
 }

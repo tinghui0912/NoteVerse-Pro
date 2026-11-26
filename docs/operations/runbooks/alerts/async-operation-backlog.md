@@ -82,3 +82,9 @@ same unified status metric. `noteverse_async_operation_oldest_unfinished_age_sec
 includes stopped failures as well as open delivery. The completion-duration series
 measures creation-to-completion for these multi-attempt cleanup operations, including
 all committed units and retry delays, rather than only the final worker lease.
+
+
+Physical transfer and media verification work also appears in the exporter through
+`noteverse_media_resource_backlog` and `noteverse_media_resource_oldest_age_seconds`.
+Unknown writes, unknown completion, expired uncleaned sessions and failed Take media
+processing follow the [media recovery runbook](../media-storage-recovery.md).

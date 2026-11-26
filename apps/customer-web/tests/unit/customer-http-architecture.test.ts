@@ -15,10 +15,11 @@ function files(directory: string): string[] {
 const resourceReads: Record<string, string> = {
   'lib/practice/acoustic/source/browser-microphone-platform.ts': 'contract.coefficientUrl',
   'lib/practice/composite-video/download.ts': 'url',
+  'lib/practice/media/performance-take/materialize.ts': 'access.download_url',
 };
 const policyFiles = new Set([
   'lib/http/customer-browser-transport.ts',
-  'lib/http/direct-object-upload.ts',
+  'lib/upload/upload-session-client.ts',
 ]);
 
 it('uses source-owned browser identity and OpenAPI-owned Customer path templates', () => {

@@ -16,10 +16,10 @@ beforeEach(() => {assets.length = 0; vi.stubGlobal('Audio', class extends AudioA
 afterEach(() => vi.unstubAllGlobals());
 const wrapper = ({children}: {children: React.ReactNode}) => <NextIntlClientProvider locale="en" messages={{score}}>{children}</NextIntlClientProvider>;
 it('plays the admitted audio, pauses and releases it on unmount', async () => {
-  const view = render(<ScoreCoverPlaybackButton audioSrc="/api/v1/scores/score/playback" />, {wrapper});
+  const view = render(<ScoreCoverPlaybackButton loadPlayback={async () => ({playback_url:"https://objects.example/score",expires_in:900})} />, {wrapper});
   await userEvent.click(screen.getByRole('button', {name: score.playScore}));
   expect(assets).toHaveLength(1);
-  expect(assets[0].src).toBe('/api/v1/scores/score/playback');
+  expect(assets[0].src).toBe('https://objects.example/score');
   expect(screen.getByRole('button', {name: score.pauseScore})).toBeVisible();
   await userEvent.click(screen.getByRole('button', {name: score.pauseScore}));
   expect(assets[0].pause).toHaveBeenCalledOnce();
@@ -31,4 +31,17 @@ it('plays the admitted audio, pauses and releases it on unmount', async () => {
 it.each([false, true])('disables playback until audio is available (loading=%s)', loading => {
   render(<ScoreCoverPlaybackButton loading={loading} />, {wrapper});
   expect(screen.getByRole('button', {name: loading ? score.playbackPreparing : score.playbackUnavailable})).toBeDisabled();
+});
+
+it('renews the signed capability after a native media failure',async()=>{
+ const load=vi.fn().mockResolvedValueOnce({playback_url:'https://objects.test/first',expires_in:900}).mockResolvedValueOnce({playback_url:'https://objects.test/fresh',expires_in:900});
+ render(<ScoreCoverPlaybackButton loadPlayback={load} />,{wrapper});
+ await userEvent.click(screen.getByRole('button',{name:score.playScore}));act(()=>assets[0].dispatchEvent(new Event('error')));
+ expect(screen.getByRole('alert')).toHaveTextContent(score.playbackRefreshHint);
+ await userEvent.click(screen.getByRole('button',{name:score.playScore}));expect(load).toHaveBeenCalledTimes(2);expect(assets[1].src).toBe('https://objects.test/fresh');
+});
+it('does not start playback when access resolves after unmount',async()=>{
+ let resolve!:(v:{playback_url:string;expires_in:number})=>void;
+ const view=render(<ScoreCoverPlaybackButton loadPlayback={()=>new Promise(r=>{resolve=r;})} />,{wrapper});
+ await userEvent.click(screen.getByRole('button',{name:score.playScore}));view.unmount();await act(async()=>resolve({playback_url:'https://objects.test/late',expires_in:900}));expect(assets).toHaveLength(0);
 });

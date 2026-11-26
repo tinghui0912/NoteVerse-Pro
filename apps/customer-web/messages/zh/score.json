@@ -106,5 +106,6 @@
   "leaveScore": "离开乐谱",
   "leaveScoreTitle": "离开“{title}”？",
   "leaveScoreDescription": "你将失去对此乐谱的访问权限。乐谱和其他协作者不受影响。所有者以后可以再次邀请你。",
-  "leaveFailed": "无法离开乐谱"
+  "leaveFailed": "无法离开乐谱",
+  "playbackRefreshHint": "暂时无法播放，请再次点击播放以更新链接。"
 }
