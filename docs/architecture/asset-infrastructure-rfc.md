@@ -4,8 +4,8 @@
 
 调查基准：`refactor/practice-foundation-v2`，
 `cfe83a5c845d29d83e26c3ba6f3e1fa749e9f891`，2026-11-25。
-Task 0.2 复核基准：`480bff0180bd1d74f60679f23a0e0df362701b08`，2026-11-26。
-Task 0/0.1/0.2 仅调查和设计；没有创建下文的生产模型、接口、迁移或任务。
+Task 0.3 复核基准：`1f1a6496ac861c68f6cf58390b6863259f7e3728`，2026-11-26。
+Task 0/0.1/0.2/0.3 仅调查和设计；没有创建下文的生产模型、接口、迁移或任务。
 锁序、Account erasure、receipt/copy、binding 及 N1–N8 的详细审查依据见
 [Architecture Gate Closure](asset-infrastructure-gates.md)；实际存储实验见
 [Provider Qualification](asset-provider-qualification.md)。两份材料属于本 RFC 的审查证据，
@@ -18,7 +18,7 @@ Task 0/0.1/0.2 仅调查和设计；没有创建下文的生产模型、接口�
 | 路径和调用链 | 核实的当前事实 | 对本 RFC 的影响 |
 | --- | --- | --- |
 | [Provider port](../../backend/app/storage/base.py)、[S3 adapter](../../backend/app/storage/s3_compatible.py)、[factory](../../backend/app/storage/factory.py) | 一个部署一个私有 namespace；同步 boto3/SigV4，支持 put、copy、读/范围读、stat、delete、签名 PUT/GET；没有 multipart port | 不能把底层 SDK 具有 multipart 方法当成应用已有可靠 multipart 协议 |
-| [开发 Compose](../../docker-compose.backend-dev.yml) 与本地 `backend/.env.docker` | Compose 声明 MinIO `RELEASE.2025-04-22T22-12-26Z`，实际开发凭据指向阿里云 OSS；真实请求返回 AliyunOSS | 本批实际验证 OSS，详见 qualification；生产 Provider 仍 UNKNOWN，不能由开发或 staging 推断 |
+| [开发 Compose](../../docker-compose.backend-dev.yml) 与本地 `backend/.env.docker` | Compose 声明 MinIO `RELEASE.2025-04-22T22-12-26Z`，实际开发凭据指向阿里云 OSS；真实请求返回 AliyunOSS | Task 0.1/0.2 实测 OSS；Task 0.3 只验证工具分类逻辑；生产 Provider 仍 UNKNOWN，不能由开发或 staging 推断 |
 | [Upload router](../../backend/app/modules/uploads/router.py) → [UploadService.create_upload](../../backend/app/modules/uploads/service.py) → [repository](../../backend/app/modules/uploads/repository.py) | HTTP multipart/form-data → API 读取完整图片 → Hold/请求 generation 提交 → ObjectWriteIntent → Upload/消费/Allocation 原子提交 | 普通 Upload 不是浏览器直传会话；请求幂等和容量 lineage 已存在，应保留 |
 | [图片准入](../../backend/app/modules/uploads/upload_admission.py) | 最多读取 20 MiB + 1；真实解码/验证 PNG、JPEG、BMP、GIF、WebP、TIFF，检查后缀和容器 | 20 MiB 是当前图片政策，不是通用资产大小限制 |
 | [Upload](../../backend/app/db/models/upload.py)、[UploadCreationRequest](../../backend/app/db/models/upload_creation_request.py) | Upload 是语义资源；请求表唯一 `(user_id, client_request_id)`，记录 fingerprint、generation、Hold、结果；删除后结果 FK SET NULL，但 completed_at 保留 | 不能用传输会话替代业务幂等证据，或重放已经删除的结果 |
@@ -54,7 +54,7 @@ Alembic 实际 head 为 `0008_collaboration_closure`，链为 0001…0008。
   它目前有业务 lease 和媒体验证，不能描述成“没有协议”，但不满足新的唯一采用入口要求。
 - 当前 `object_metadata().checksum_sha256` 来自用户 metadata `sha256`，不是服务端验证的完整文件摘要；
   Take 当前正确地重新读取完整字节，不依赖该 metadata 建立 StoredObject SHA。
-- multipart、Provider capability qualification、browser resume 均尚未实现；下面是设计，不是已通过的能力声明。
+- 生产 multipart、Provider capability qualification、browser resume 均尚未实现；独立工具已有部分 OSS 观察，下面设计不等于完整能力获批。
 - Take 的底层 `copy` 现在固定调用单次 `copy_object`，而 Take 没有独立产品文件大小上限。
   Provider 的单次 copy 上限因此是必须核实的端到端能力缺口，不能只增加浏览器 multipart 后宣称大录音已支持。
 
@@ -488,11 +488,11 @@ Take 的“接受 staging”和“生成 Take”是两个不同事务，前者�
 | --- | --- | --- |
 | `upload_sessions` | id、session_uuid、user_id FK users RESTRICT、generation、admission_fingerprint、expected_bytes、admitted_content_type、optional expected_sha256、opaque staging_key、initiate_operation_id、verification_operation_id、capability_policy_version、part_size/part_count、state、hard_deadline_at、last_capability_expires_at、completion_fingerprint、provider_completed_at、consumed_at、terminal_at、input_released_at、created/updated | UUID/key 唯一；bytes/generation/part size/count 正整数；SHA 格式；结果 identity/manifest/终态 tuple CHECK；结果通过 session/generation/kind 复合 FK 和锁定 ledger 核验，不以跨表 CHECK 冒充完整性；deadline 必须在创建后；能力期限不能超过 hard deadline；input仅可在CONSUMED或取消/过期/拒绝终态释放，CONSUMED需显式业务释放命令；user/state/created 与 state/deadline/id 索引；不加 StoredObject FK以免把传输证据变成第十条语义引用 |
 | `upload_session_parts` | session_id FK RESTRICT、part_number、expected_length、admitted_checksum、observed size/ETag/checksum、observed_at | 唯一(session_id,part_number)，number/length 正值；传输计划不可变；跨行总量由锁定 Session 的服务核验，不能声称单行 CHECK 已保证全 manifest |
-| `upload_session_operations` | operation_uuid、session_id FK SET NULL、session_uuid_snapshot、generation、不可变 kind INITIATE/COMPLETE/VERIFY/CLEANUP、exact staging key及provider handle/orphan evidence、cleanup_not_before、既有 delivery timestamps/attempt token/count/due、structured failure facts | 唯一(session_uuid_snapshot,generation,kind)，避免FK置空后唯一性丢失；Session 当前可发布命令由明确 operation identity/attempt 条件更新决定；取消后 cleanup 可与旧未知结果的历史证据共存，不以“所有非终态 operation 唯一”阻止清理；snapshot identity在Session删除后仍可诊断；kind/result/delivery tuple CHECK；status/due/id 索引；snapshot 不是业务 ownership |
+| `upload_session_operations` | operation_uuid、session_id FK SET NULL、session_uuid_snapshot、generation、不可变 kind INITIATE/COMPLETE/VERIFY/CLEANUP、exact staging key及provider handle/orphan evidence、cleanup_not_before、既有 delivery timestamps/current attempt token/count/due、published attempt token、operation_result、settlement_status、structured failure facts | 唯一(session_uuid_snapshot,generation,kind)，避免FK置空后唯一性丢失；Session 当前可发布命令由明确 operation identity/attempt 条件更新决定；取消后 cleanup 可与旧未知结果的历史证据共存，不以“所有非终态 operation 唯一”阻止清理；snapshot identity在Session删除后仍可诊断；精确 UUID/generation/kind/current-vs-published token/result/settlement CHECK；identity/result 不可 retarget；status/due/id 索引；snapshot 不是业务 ownership |
 | `upload_creation_requests` | 保留 user/request/fingerprint/generation/Hold/结果和完成时间；不增加独立可修改 Session FK | 通过下述 concrete binding 查询每代 Session；新 generation 不 retarget 旧 binding，旧 Session 保留 cleanup evidence |
 | `performance_take_upload_reservations` | 保留 Manifest、client id、quota_hold_id、业务 status/finalize candidate/lease 和 orphan lineage；通过 concrete binding 关联 Session；增加 finalizing_copy_operation_id FK RESTRICT；orphan candidate保留对应copy operation identity | 移除被 Session 替代的 raw PUT/staging locator/URL期限物理事实；copy operation完成不是Take完成；业务 retention条件与物理 ack分别通过 contract取得，禁止同一事实双写；Manifest/owner复合FK和quota_hold_id唯一性保持 |
 | `avatar_change_requests` | Account-owned replacement idempotency：user_id、client_request_id、request_fingerprint、normalized Intent identity、applied_at、result identity snapshot | 唯一(user_id,client_request_id)；重复完成不再次覆盖当前头像；不把旧头像 FK当作保留引用，不记录 Signed URL；未采用input由Session清理 |
-| `upload_session_bindings` | session_id PK、user_id、command_generation；三个具体 nullable FK：upload_creation_request_id / avatar_change_request_id / take_reservation_id | CHECK num_nonnulls(三 FK)=1；Session 和各 command 的 (id,user_id) 复合 FK 均 RESTRICT；各 command/generation UNIQUE；Session PK 保证跨表全局 at-most-one；BEFORE UPDATE identity trigger 禁止 retarget；deferred constraint triggers 保证每个已提交 Session 有 binding，且 unlink 必须同事务删除 Session；删除前核对 terminal 与唯一 Objects ACK |
+| `upload_session_bindings` | session_id PK、user_id、command_generation；三个具体 nullable FK：upload_creation_request_id / avatar_change_request_id / take_reservation_id | CHECK num_nonnulls(三 FK)=1；Session 和各 command 的 (id,user_id) 复合 FK 均 RESTRICT；各 command/generation UNIQUE；Session PK 保证跨表全局 at-most-one；BEFORE UPDATE identity trigger 禁止 retarget；deferred constraint triggers 保证每个已提交 Session 有 binding，且 unlink 必须同事务删除 Session；删除前核对 terminal 与精确 UUID/generation/CLEANUP/current published attempt 的 SETTLED result；相关 physical operations 不得有未解决项；不使用 Boolean ACK |
 | `object_copy_operations` | copy_uuid、source key/可用version及已验证size/SHA、target key、write_generation、provider upload ID、physical phase INITIATE/COPY_PARTS/COMPLETE/VERIFY/CLEANUP、持久化有序part observations、verified target facts、released_at、cleanup acknowledgment、现有delivery/structured failure字段 | copy_uuid唯一；同target同时至多一个未释放physical generation（partial unique）；exact facts不可变，part observation有明确typed codec及上限；status/due/id索引；无User/Score业务owner；terminal/failure tuple沿用既有约束；不得在未解决迟到IO前释放该generation |
 
 Intent-driven copy在ObjectWriteIntent中增加明确的copy_operation_id FK RESTRICT；
@@ -504,10 +504,17 @@ physical generation和对应的Intent/Take lease。ObjectCopyOperation不获取�
 格式和查询预算由已验证max_parts确定。是否改为独立part子表由持久化规模测试决定，不暴露松散Any契约。
 
 Binding 的完整结构与 PostgreSQL 原型证据见 [Gate D](asset-infrastructure-gates.md)。
+Task 0.3 SQL 原型进一步验证 operation identity/attempt/settlement 及三个 domain 的持久化 generation lineage。
+Binding UNIQUE 只约束活跃行；旧 command generation 在 binding 删除后仍须由 domain 终态 lineage 拒绝重放。
+原型通过具体 FK 的各自 generation 表证明该约束，不要求机械复制为生产表，不引入通用 owner/生命周期模型。
+历史 parent command 正式擦除后的 API 身份不重用和保留政策仍需 domain/Owner 决策，不能宣称 UNIQUE 无限保存历史。
 Session UUID 由服务端产生，外部 API 不允许绑定已有 Session；数据库 FK arc 同时阻止跨域竞争和跨用户移交。
 业务完成从自己的 concrete binding 解析 Session，并锁定 VERIFIED→CONSUMED；不由客户端选择 input owner。
 Quota ownership/category/bytes 仍由业务在容量锁下校验。
-SessionOperation 的 INITIATE/VERIFY/CLEANUP 结果是唯一物理执行证据，Session 只存匹配的结果 identity；
+SessionOperation 的 INITIATE/VERIFY/CLEANUP 结果是唯一物理执行证据；current attempt token 是当前 claim authority，
+published attempt token 是成功结果的不可变执行快照。旧 claim CAS 必须更新零行；
+精确 CLEANUP SETTLED 不代表数据库自行验证了 Provider 内部迟到 IO 已终结。Objects Service 必须保留并核实所有未知副作用，
+不能仅靠轮换 token 清除 UNKNOWN。Session 只存匹配的结果 identity；
 parts 保存可追溯观测，不能替代最终全量验证。自动 retry 复用 DurableFailure，禁止记录 Signed URL、secret 或原始异常正文到 Ops。
 
 Account 擦除的 TAKES 只提交 semantic release；TRANSFERS 确认 Session/Copy 临时责任关闭后，
@@ -630,7 +637,7 @@ Provider-specific保障必须由真实兼容服务测试，不因不可用而改
 
 N1–N8 的唯一决策状态表在 [Gate F](asset-infrastructure-gates.md)。
 N1/N4/N5/N6/N7/N8 为 UNRESOLVED，N2/N3 为 BLOCKED；没有新提案被标为 APPROVED。
-本批 PostgreSQL 与 OSS 实验是可审查证据，不是新生产架构已经通过验收的声明。
+本批 PostgreSQL/工具逻辑实验与既有 OSS 观察是可审查证据，不是新生产架构已经通过验收的声明。
 生产 Provider、在途结果终结保证、参数和证据保留政策未确认前，不进入 Task 1。
 不新增支付、租户、通用 Asset Catalog、兼容路径或 Practice/Realtime/Ops 整体重构。
 
@@ -656,4 +663,4 @@ UNKNOWN 参数不填入生产契约，N1–N8 不自动升级为 APPROVED。
 | 13. 物理清理证据保留政策 | UNRESOLVED；snapshot 不含 PII/secret；不能因 Session/User 删除丢掉未知 IO 责任 |
 
 Account 新阶段、immutable/deferred binding triggers 和 receipt/copy 接口仍为待审批设计。
-[Task 0.2 findings](asset-infrastructure-gates.md) 区分实际验证、原型约束与尚未证明的物理保证。
+[Task 0.3 findings](asset-infrastructure-gates.md) 区分实际验证、原型约束与尚未证明的物理保证。

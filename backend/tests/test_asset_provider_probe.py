@@ -7,7 +7,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from botocore.exceptions import ClientError, ConnectionClosedError
+from botocore.exceptions import (
+    ClientError,
+    ConnectionClosedError,
+    ReadTimeoutError,
+    ConnectTimeoutError,
+)
 import pytest
 
 from tests.support import qualify_asset_provider as probe
@@ -63,7 +68,7 @@ class ProviderDouble:
     def create_multipart_upload(self, **kwargs):
         pair = (kwargs["Key"], "provider-handle")
         self.uploads.add(pair)
-        return {"UploadId": pair[1], "ResponseMetadata": {}}
+        return {"UploadId": pair[1], "ResponseMetadata": {"HTTPStatusCode": 200}}
 
     def abort_multipart_upload(self, **kwargs):
         pair = (kwargs["Key"], kwargs["UploadId"])
@@ -74,6 +79,7 @@ class ProviderDouble:
         if pair not in self.uploads:
             raise missing()
         self.uploads.remove(pair)
+        return {"ResponseMetadata": {"HTTPStatusCode": 204}}
 
     def delete_object(self, **kwargs):
         pair = (kwargs["Key"], kwargs.get("VersionId"))
@@ -85,6 +91,7 @@ class ProviderDouble:
         else:
             self.versions.discard(pair)
             self.markers.discard(pair)
+        return {"ResponseMetadata": {"HTTPStatusCode": 204}}
 
     def head_object(self, **kwargs):
         if kwargs["Key"] not in self.objects:
@@ -101,6 +108,7 @@ def qualification():
     q.origin = "http://localhost:3000"
     q.keys, q.uploads = set(), set()
     q.unsettled_io = False
+    q.generations, q.unsettled_operations = {}, []
     q.report = {"checks": {}}
     q.client = ProviderDouble(q.prefix)
     q.signing = Mock()
@@ -139,7 +147,13 @@ def test_network_abort_failure_does_not_prevent_second_upload_cleanup(qualificat
     assert not q.client.uploads
     assert result["status"] == "BLOCKED"  # Even successful later discovery is not a late-IO proof.
     assert result["unsettled_io"]
-    assert result["stages"]["abort_registered"]["failures"] == [{"code": "ConnectionClosedError"}]
+    failure = result["stages"]["abort_registered"]["failures"][0]
+    assert (
+        failure["code"] == "ConnectionClosedError"
+        and failure["error_category"] == "NETWORK_UNCERTAIN"
+    )
+    assert q.unsettled_operations[0]["operation"] == "AbortMultipartUpload"
+    assert q.unsettled_operations[0]["key"] == first[0]
     assert "private" not in json.dumps(result)
 
 
@@ -300,7 +314,11 @@ def test_browser_receives_url_only_over_stdin_without_file_persistence(
     transport.__enter__ = Mock(return_value=response)
     transport.__exit__ = Mock(return_value=False)
     monkeypatch.setattr(probe, "urlopen", Mock(return_value=transport))
-    child = Mock(return_value=SimpleNamespace(returncode=0, stdout='{"status":"PASS"}'))
+    child = Mock(
+        return_value=SimpleNamespace(
+            returncode=0, stdout='{"status":"PASS","http_status":200,"etag_visible":true}'
+        )
+    )
     monkeypatch.setattr(probe.subprocess, "run", child)
     monkeypatch.setattr(Path, "write_text", Mock(side_effect=AssertionError("No URL files")))
     monkeypatch.chdir(tmp_path)
@@ -318,3 +336,320 @@ def test_removed_file_and_barrier_interfaces_are_rejected(flag, monkeypatch, tmp
     with pytest.raises(SystemExit) as exc:
         probe.main()
     assert exc.value.code == 2 and not list(tmp_path.iterdir())
+
+
+def provider_error(code, status):
+    return ClientError(
+        {
+            "Error": {"Code": code, "Message": "secret body must never be logged"},
+            "ResponseMetadata": {"HTTPStatusCode": status},
+        },
+        "probe",
+    )
+
+
+def sdk_success(status=200):
+    return {"ResponseMetadata": {"HTTPStatusCode": status}, "ETag": "etag"}
+
+
+@pytest.mark.parametrize(
+    "code,http,status,unsettled",
+    [
+        ("InvalidPart", 400, "PASS", False),
+        ("AccessDenied", 403, "BLOCKED", False),
+        ("InvalidAccessKeyId", 403, "BLOCKED", False),
+        ("NoSuchUpload", 404, "UNKNOWN", False),
+        ("InternalError", 500, "BLOCKED", True),
+        ("RequestTimeout", 408, "BLOCKED", True),
+        ("InvalidPart", 200, "UNKNOWN", False),
+    ],
+)
+def test_invalid_completion_requires_exact_expected_provider_rejection(
+    qualification, code, http, status, unsettled
+):
+    q = qualification
+    q.put_part = Mock(return_value=sdk_success())
+    q.client.complete_multipart_upload = Mock(side_effect=provider_error(code, http))
+    q.invalid_completion()
+    result = q.report["checks"]["invalid_completion"]
+    assert result["status"] == status
+    assert result["expected_error"] == {"code": "InvalidPart", "http_status": 400}
+    assert result["observed_error"] == code and result["http_status"] == http
+    assert q.unsettled_io == unsettled
+    assert q.report["checks"]["embedded_error_in_http_200"]["status"] == (
+        "PASS" if code == "InvalidPart" and http == 200 else "UNKNOWN"
+    )
+    assert "secret body" not in json.dumps(q.report)
+
+
+def test_accepting_invalid_etag_fails_qualification(qualification):
+    q = qualification
+    q.put_part = Mock(return_value=sdk_success())
+    q.client.complete_multipart_upload = Mock(return_value=sdk_success())
+    q.invalid_completion()
+    assert q.report["checks"]["invalid_completion"]["status"] == "FAIL"
+    assert q.report["checks"]["embedded_error_in_http_200"]["status"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize(
+    "operation,method",
+    [
+        ("CreateMultipartUpload", "create_multipart_upload"),
+        ("UploadPart", "upload_part"),
+        ("CompleteMultipartUpload", "complete_multipart_upload"),
+        ("AbortMultipartUpload", "abort_multipart_upload"),
+        ("CopyObject", "copy_object"),
+        ("UploadPartCopy", "upload_part_copy"),
+        ("DeleteObject", "delete_object"),
+    ],
+)
+@pytest.mark.parametrize("status", [408, 500, 503])
+def test_all_side_effect_boundaries_preserve_ambiguous_http_responsibility(
+    qualification, operation, method, status
+):
+    q = qualification
+    key = q.key("uncertain")
+    setattr(q.client, method, Mock(side_effect=provider_error("InternalError", status)))
+    result = q.request_outcome(operation, key)
+    assert result["outcome"] == "UNCERTAIN" and q.unsettled_io
+    assert q.unsettled_operations == [result]
+    assert result["operation"] == operation and result["key"] == key
+    assert (
+        result["generation"] == q.generations[key] and result["error_category"] == "AMBIGUOUS_HTTP"
+    )
+    assert "secret body" not in json.dumps(result)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ConnectionClosedError(endpoint_url="secret"),
+        ReadTimeoutError(endpoint_url="secret"),
+        ConnectTimeoutError(endpoint_url="secret"),
+    ],
+)
+def test_network_timeouts_are_uncertain_for_mutation_but_not_read_only_inspection(
+    qualification, error
+):
+    q = qualification
+    key = q.key("network")
+    read = q.observe_error(error, operation="GetBucketPolicy")
+    assert read["outcome"] == "UNCERTAIN" and not q.unsettled_io
+    q.client.abort_multipart_upload = Mock(side_effect=error)
+    result = q.request_outcome("AbortMultipartUpload", key)
+    assert result["outcome"] == "UNCERTAIN" and q.unsettled_io
+    assert result["error_category"] == "NETWORK_UNCERTAIN"
+
+
+@pytest.mark.parametrize(
+    "code,status",
+    [
+        ("AccessDenied", 403),
+        ("InvalidAccessKeyId", 403),
+        ("NoSuchUpload", 404),
+        ("InvalidPart", 400),
+    ],
+)
+def test_explicit_rejection_is_not_ambiguous_side_effect(qualification, code, status):
+    q = qualification
+    key = q.key("rejection")
+    q.client.abort_multipart_upload = Mock(side_effect=provider_error(code, status))
+    outcome = q.request_outcome("AbortMultipartUpload", key)
+    assert outcome["outcome"] == "REJECTED" and not q.unsettled_io
+
+
+def setup_race(q, *, abort_error=None, opponent_error=None, object_exists=False):
+    key = q.key("race")
+    q.start = Mock(return_value=(key, "handle"))
+    q.put_part = Mock(return_value={"ETag": "etag"})
+    q.client.abort_multipart_upload = Mock(side_effect=abort_error, return_value=sdk_success(204))
+    q.client.upload_part = Mock(side_effect=opponent_error, return_value=sdk_success())
+    q.client.complete_multipart_upload = Mock(
+        side_effect=opponent_error, return_value=sdk_success()
+    )
+    q.parts = Mock(side_effect=missing())
+    q.client.head_object = (
+        Mock(return_value={}) if object_exists else Mock(side_effect=missing("NoSuchKey"))
+    )
+    return key
+
+
+@pytest.mark.parametrize(
+    "name,fault",
+    [
+        (name, fault)
+        for name in ("abort", "upload_abort_race", "complete_abort_race")
+        for fault in ("abort500", "opponent500", "abort_disconnect", "opponent_disconnect")
+        if name != "abort" or not fault.startswith("opponent")
+    ],
+)
+def test_zero_mpu_does_not_qualify_uncertain_race_results(qualification, name, fault):
+    q = qualification
+    error = (
+        provider_error("InternalError", 500)
+        if fault.endswith("500")
+        else ConnectionClosedError(endpoint_url="secret")
+    )
+    setup_race(
+        q,
+        abort_error=error if fault.startswith("abort") else None,
+        opponent_error=error if fault.startswith("opponent") else None,
+    )
+    q.abort_race(name)
+    result = q.report["checks"][name]
+    assert result["status"] == "BLOCKED" and result["unsettled_io"]
+    assert result["final_inventory"]["mpu"] == "ABSENT"
+    assert result["final_inventory"]["completed_object"] == "MISSING"
+    assert q.unsettled_operations and cleanup_result(q)["status"] == "BLOCKED"
+
+
+@pytest.mark.parametrize(
+    "opponent_error,object_exists,expected,result_name",
+    [
+        (None, True, "PASS", "COMPLETED_OBJECT_SURVIVED_ABORT"),
+        (None, False, "UNKNOWN", "REQUEST_OBJECT_OBSERVATION_MISMATCH"),
+        (missing(), False, "PASS", "COMPLETE_REJECTED_OBJECT_MISSING"),
+        (missing(), True, "UNKNOWN", "REQUEST_OBJECT_OBSERVATION_MISMATCH"),
+        (provider_error("AccessDenied", 403), False, "UNKNOWN", "UNEXPECTED_REQUEST_REJECTION"),
+    ],
+)
+def test_complete_abort_preserves_request_and_full_object_outcome_matrix(
+    qualification, opponent_error, object_exists, expected, result_name
+):
+    q = qualification
+    setup_race(q, opponent_error=opponent_error, object_exists=object_exists)
+    q.abort_race("complete_abort_race")
+    result = q.report["checks"]["complete_abort_race"]
+    assert result["status"] == expected and result["observation"] == result_name
+    assert result["abort_outcome"]["outcome"] == "SUCCESS"
+    assert result["opponent_outcome"]["operation"] == "CompleteMultipartUpload"
+
+
+def test_remaining_mpu_is_unfinished_even_when_both_requests_succeeded(qualification):
+    q = qualification
+    setup_race(q)
+    q.parts = Mock(return_value=[])
+    q.abort_race("upload_abort_race")
+    assert q.report["checks"]["upload_abort_race"]["status"] == "BLOCKED"
+
+
+@pytest.mark.parametrize("object_exists,expected", [(True, "PASS"), (False, "UNKNOWN")])
+def test_abort_no_such_upload_requires_positive_complete_object_evidence(
+    qualification, object_exists, expected
+):
+    q = qualification
+    setup_race(q, abort_error=missing(), object_exists=object_exists)
+    q.abort_race("complete_abort_race")
+    result = q.report["checks"]["complete_abort_race"]
+    assert result["status"] == expected
+    assert result["abort_outcome"]["code"] == "NoSuchUpload"
+    assert result["opponent_outcome"]["outcome"] == "SUCCESS"
+
+
+@pytest.mark.parametrize(
+    "http,error,abort_error",
+    [
+        (500, None, None),
+        (None, ConnectionClosedError(endpoint_url="secret"), None),
+        (200, None, None),
+        (200, None, provider_error("InternalError", 500)),
+    ],
+)
+def test_inflight_part_requires_known_abort_put_and_object_inventory(
+    qualification, monkeypatch, http, error, abort_error
+):
+    q = qualification
+    setup_race(q, abort_error=abort_error)
+
+    def body(target, sent, release):
+        sent.set()
+        assert release.wait(10)
+        if error:
+            raise error
+        return http
+
+    monkeypatch.setattr(q, "send_partial_part", body)
+    q.abort_inflight_part()
+    result = q.report["checks"]["abort_inflight_part"]
+    assert result["status"] == ("PASS" if http == 200 and abort_error is None else "BLOCKED")
+    assert (
+        result["opponent_outcome"]["http_status"] == http
+        if http is not None
+        else result["opponent_outcome"]["code"] == "ConnectionClosedError"
+    )
+    assert result["final_inventory"]["completed_object"] == "MISSING"
+
+
+@pytest.mark.parametrize(
+    "name,method,data",
+    [
+        (
+            "encryption",
+            "get_bucket_encryption",
+            {
+                "ServerSideEncryptionConfiguration": {
+                    "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]
+                }
+            },
+        ),
+        ("policy", "get_bucket_policy", {"Policy": "sensitive policy body"}),
+        (
+            "cors",
+            "get_bucket_cors",
+            {
+                "CORSRules": [
+                    {"AllowedOrigins": ["http://localhost:3000"], "AllowedMethods": ["GET"]}
+                ]
+            },
+        ),
+        ("versioning", "get_bucket_versioning", {}),
+        (
+            "lifecycle",
+            "get_bucket_lifecycle_configuration",
+            {
+                "Rules": [
+                    {
+                        "Status": "Enabled",
+                        "Filter": {"Prefix": "other-prefix/"},
+                        "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 7},
+                    }
+                ]
+            },
+        ),
+    ],
+)
+def test_configuration_read_success_is_only_observation_not_approved_capability(
+    qualification, name, method, data
+):
+    q = qualification
+    setattr(q.client, method, Mock(return_value=data))
+    q.configuration()
+    result = q.report["checks"]["configuration_" + name]
+    assert result["inspection_status"] == "PASS" and result["observed_configuration"]
+    assert result["qualification_status"] == result["status"] == "UNKNOWN"
+    assert "sensitive policy body" not in json.dumps(result)
+
+
+@pytest.mark.parametrize(
+    "browser_result",
+    [{"status": "BLOCKED", "http_status": 500}, {"status": "BLOCKED", "error_class": "TypeError"}],
+)
+def test_browser_uncertain_upload_retains_cleanup_responsibility(
+    qualification, monkeypatch, browser_result
+):
+    q = qualification
+    q.signing.generate_presigned_url.return_value = "https://signed.invalid/?secret=credential"
+    response = SimpleNamespace(status=200, headers=HEADERS | {"ETag": "tag"})
+    transport = Mock()
+    transport.__enter__ = Mock(return_value=response)
+    transport.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(probe, "urlopen", Mock(return_value=transport))
+    monkeypatch.setattr(
+        probe.subprocess,
+        "run",
+        Mock(return_value=SimpleNamespace(returncode=0, stdout=json.dumps(browser_result))),
+    )
+    q.signed_transport(Path("browser.mjs"))
+    assert q.report["checks"]["browser_access"]["status"] == "BLOCKED"
+    assert q.unsettled_io and q.unsettled_operations[0]["operation"] == "UploadPart"
+    assert "credential" not in json.dumps(q.report)

@@ -1,8 +1,9 @@
-# Asset Provider Qualification — Task 0.2
+# Asset Provider Qualification — Task 0.3
 
 状态：**部分开发环境能力已实测，完整实施门槛尚未关闭。**
-复核基准 `480bff0180bd1d74f60679f23a0e0df362701b08`，2026-11-26（Asia/Shanghai）。
-保留 Task 0.1 原始证据，不覆盖或删除；新报告 schema=2。
+复核基准 `1f1a6496ac861c68f6cf58390b6863259f7e3728`，2026-11-26（Asia/Shanghai）。
+保留 Task 0.1/0.2 原始证据，不覆盖或删除。Task 0.3 工具输出 schema=3；
+**本批未执行真实 OSS，没有 schema=3 Provider 实测结果**。新增分类证据全部来自工具 doubles，不能替代真实资格。
 本报告是 [RFC](asset-infrastructure-rfc.md) 的证据，不是 Accepted Provider Contract。
 
 ## 环境与凭据边界
@@ -44,7 +45,9 @@ Task 0.1 曾实际尝试 `docker pull minio/minio:RELEASE.2025-04-22T22-12-26Z`�
 - [宿主机完整运行](evidence/asset-provider-oss-host.json)：UTC 15:11；Windows 到 OSS，
   包括真实 Chromium 和在途 body 屏障。
 - [Task 0.2 OSS 运行](evidence/asset-provider-oss-review-02.json)：UTC 2026-11-25 16:31（本地 11-26 00:31）；
-  修复工具后的真实执行；下面的 cleanup/orphan/CORS/checksum 结论以此 schema=2 结果为准。
+  Task 0.2 的真实执行；下面的历史 cleanup/orphan/CORS/checksum 观察以此 schema=2 结果为准。
+  schema=1/2 中 configuration_* 的旧 PASS 仅证明当时读取配置成功，不是 IAM/加密/完整清理能力已合格；
+  Task 0.3 的规范状态以本页新表和 schema=3 工具算法为准，不能重写历史 JSON 冒充新一次实验。
 
 Task 0.1 原始 JSON 的 cleanup PASS 只包含当时对象/MPU 观察，**未完整验证版本/Delete Marker**，
 旧 orphan 测试还保留了 self.uploads 中的原始 handle；不能把那些标签解释成 Task 0.2 新标准已经满足。
@@ -83,6 +86,48 @@ Upload/Abort 与 Complete/Abort 还分别使用并发 HTTP 请求和同步 Barri
   不能从字段存在推导 full/composite 语义或服务真正验证了错误摘要。完整读回字节的本地 SHA 验证单独记录。
 - lifecycle：读取成功观察 `NoSuchLifecycleConfiguration` / HTTP 404。
   **incomplete multipart 清理策略缺失，N3 BLOCKED**；schema=2 直接记录 BLOCKED，旧 schema=1 的 PASS 只是读配置结果。
+
+## Task 0.3 结果分类契约（仅独立工具）
+
+| 请求观察 | 工具结论 | unsettled / 责任 |
+| --- | --- | --- |
+| 错误 ETag → InvalidPart / 400 | invalid_completion PASS；同时记录 expected_error、observed_error、HTTP status | 明确预期拒绝，不推导写入发生 |
+| 错误 ETag → AccessDenied / InvalidAccessKeyId | BLOCKED | 不能证明错误 ETag 规则；4xx 明确拒绝不伪造未知写入 |
+| 错误 ETag → NoSuchUpload / 404 | UNKNOWN | 不是对 ETag 的有效验证；不等于已找到完整对象 |
+| 错误 ETag 被成功接受 | FAIL | 不能把上传成功当资格成功 |
+| Complete 的 InvalidPart / HTTP 200 内嵌错误 | embedded_error_in_http_200 单独 PASS；invalid_completion 的 400 预期仍 UNKNOWN | 仅验证实际观察到的 SDK/内嵌错误，不将两项混淆 |
+| mutation HTTP 408 / 5xx | BLOCKED，AMBIGUOUS_HTTP | 不假定服务没有执行副作用；保留 unsettled operation context |
+| mutation ConnectionClosed / ReadTimeout / ConnectTimeout 等 | BLOCKED，NETWORK_UNCERTAIN | 不因最终库存零清除未知责任 |
+| 其他明确 4xx | REJECTED；资格按各实验预期判断，不能默认 PASS | NoSuchUpload、AccessDenied 与 InvalidPart 是不同事实 |
+| 配置读取成功 | inspection_status=PASS + 脱敏 observed_configuration；qualification_status/status=UNKNOWN | 不自动批准 Versioning、IAM、Encryption、CORS 或 lifecycle |
+| NoSuchLifecycleConfiguration | inspection_status=ABSENT；qualification_status=BLOCKED | 当前开发未配置；不能说已具备 incomplete MPU 清理策略 |
+
+CreateMultipartUpload、UploadPart、CompleteMultipartUpload、AbortMultipartUpload、CopyObject、
+UploadPartCopy、DeleteObject 的调用均经过显式 mutation error boundary。
+未知项记录 operation、当前随机 namespace 内的精确 key、工具生成的 generation correlation UUID、错误类别/code/status；
+该 generation 是 probe 的关联标识，不是冒充未来 Session/Intent 的持久化 execution fence。
+不输出 bucket 名、凭据、Signed URL 或原始错误正文。超出 namespace 的 locator 不写入报告或执行清理。
+read-only inspection 的网络错误使其观察 UNKNOWN，不据此声称有未知写入。
+
+### Abort / Complete Outcome Matrix
+
+| Abort | 对手 | 最终 MPU / 完整对象 | 结论 |
+| --- | --- | --- | --- |
+| SUCCESS | UploadPart SUCCESS 或 NoSuchUpload/404 | ABSENT / MISSING | PASS，仅有界收敛观察 |
+| SUCCESS | Complete SUCCESS | ABSENT / EXISTS | PASS，明确标为 COMPLETED_OBJECT_SURVIVED_ABORT；仍需清理完整 key |
+| SUCCESS | Complete NoSuchUpload/404 | ABSENT / MISSING | PASS，明确拒绝且完整对象缺失 |
+| SUCCESS | Complete SUCCESS | ABSENT / MISSING | UNKNOWN，请求结果与对象观察不一致 |
+| SUCCESS | Complete NoSuchUpload/404 | ABSENT / EXISTS | UNKNOWN，不能将失配合并为普通成功 |
+| NoSuchUpload/404 | Complete SUCCESS | ABSENT / EXISTS | 记录 Complete 赢得竞态；不据此证明 Abort 独立能力 |
+| NoSuchUpload/404 | 无已证实成功的 Complete | ABSENT / 任意 | UNKNOWN，不把所有明确拒绝都当成功 |
+| 任一请求 408/5xx、断连或 timeout | 任意 | 即使 ABSENT / MISSING | BLOCKED；未知副作用 ledger 保留 |
+| 任意 | 任意 | PRESENT 或观察 UNKNOWN | BLOCKED，实验未收敛或无法核实 |
+
+每项记录两个实际 request outcome、MPU/parts、完整对象、unsettled 和观察边界。
+Standalone Abort 与在途 PUT 同样必须验证实际 Abort outcome；在途 PUT 另外保留原始 HTTP status。
+不把 ListParts 零项等同于 MPU 不存在，也不把 NoSuchUpload 等同于完整对象缺失。
+所有 PASS 都是有界实验观察，不解决 N3 的永久迟到 IO 问题。
+工具逻辑测试覆盖 500/断连/库存零的组合；**这些不是新的 OSS 并发实测**。
 
 ## Provider 文档与参数约束
 

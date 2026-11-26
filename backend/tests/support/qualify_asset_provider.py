@@ -70,8 +70,10 @@ class Qualification:
         self.keys: set[str] = set()
         self.uploads: set[tuple[str, str]] = set()
         self.unsettled_io = False
+        self.generations: dict[str, str] = {}
+        self.unsettled_operations: list[dict[str, object]] = []
         self.report: dict[str, object] = {
-            "schema": 2,
+            "schema": 3,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             "provider_family": "Aliyun OSS" if "aliyuncs.com" in endpoint else "UNKNOWN",
             "provider_version": "UNKNOWN (managed service)",
@@ -108,12 +110,82 @@ class Qualification:
     def record(self, name: str, status: str = "PASS", **evidence: object) -> None:
         self.report["checks"][name] = {"status": status, **evidence}
 
-    def observe_error(self, error: Exception) -> dict[str, str | int]:
-        if isinstance(
+    def observe_error(
+        self,
+        error: Exception,
+        *,
+        operation: str = "inspection",
+        key: str | None = None,
+        side_effect: bool = False,
+    ) -> dict[str, object]:
+        facts = safe_error(error)
+        status = facts.get("http_status")
+        if status == 408 or isinstance(status, int) and status >= 500:
+            category = "AMBIGUOUS_HTTP"
+        elif isinstance(status, int) and 400 <= status < 500:
+            category = "EXPLICIT_REJECTION"
+        elif isinstance(error, ClientError) and status == 200 and facts["code"] == "InvalidPart":
+            category = "EMBEDDED_REJECTION"
+        elif isinstance(
             error, (BotoCoreError, OSError, subprocess.TimeoutExpired)
-        ) and not isinstance(error, ClientError):
+        ) and not isinstance(error, (ClientError, HTTPError)):
+            category = "NETWORK_UNCERTAIN"
+        else:
+            category = "UNEXPECTED_ERROR"
+        uncertain = category in ("AMBIGUOUS_HTTP", "NETWORK_UNCERTAIN", "UNEXPECTED_ERROR")
+        scoped = key is not None and key.startswith(self.prefix)
+        evidence = dict(
+            facts,
+            operation=operation,
+            key=key if scoped else None,
+            generation=self.generations.get(key, "UNKNOWN") if scoped else None,
+            error_category=category,
+            outcome="UNCERTAIN" if uncertain else "REJECTED",
+        )
+        if side_effect and uncertain:
             self.unsettled_io = True
-        return safe_error(error)
+            if evidence not in self.unsettled_operations:
+                self.unsettled_operations.append(evidence)
+        return evidence
+
+    def mutate(self, operation: str, key: str, **kwargs: object):
+        """Only mutating Provider calls use this explicit context/error boundary."""
+        methods = {
+            "CreateMultipartUpload": "create_multipart_upload",
+            "UploadPart": "upload_part",
+            "CompleteMultipartUpload": "complete_multipart_upload",
+            "AbortMultipartUpload": "abort_multipart_upload",
+            "CopyObject": "copy_object",
+            "UploadPartCopy": "upload_part_copy",
+            "DeleteObject": "delete_object",
+        }
+        self.require_scoped_key(key)
+        try:
+            result = getattr(self.client, methods[operation])(Bucket=self.bucket, Key=key, **kwargs)
+            status = result.get("ResponseMetadata", {}).get("HTTPStatusCode")
+            if result.get("Error") or isinstance(status, int) and status >= 400:
+                raise ClientError(
+                    result | {"Error": result.get("Error") or {"Code": "HTTPError"}}, operation
+                )
+            if not isinstance(status, int) or not 200 <= status < 300:
+                raise ValueError("Unrecognized mutating response status")
+            return result
+        except Exception as error:
+            self.observe_error(error, operation=operation, key=key, side_effect=True)
+            raise
+
+    def request_outcome(self, operation: str, key: str, **kwargs: object) -> dict[str, object]:
+        try:
+            result = self.mutate(operation, key, **kwargs)
+            return {
+                "operation": operation,
+                "key": key,
+                "generation": self.generations.get(key, "UNKNOWN"),
+                "outcome": "SUCCESS",
+                "http_status": result["ResponseMetadata"]["HTTPStatusCode"],
+            }
+        except Exception as error:
+            return self.observe_error(error, operation=operation, key=key)
 
     def require_scoped_key(self, key: str) -> None:
         if not key.startswith(self.prefix) or key == self.prefix:
@@ -122,12 +194,13 @@ class Qualification:
     def key(self, suffix: str) -> str:
         key = self.prefix + suffix
         self.keys.add(key)
+        self.generations[key] = uuid4().hex
         return key
 
     def start(self, suffix: str, **kwargs: object) -> tuple[str, str]:
         key = self.key(suffix)
-        result = self.client.create_multipart_upload(
-            Bucket=self.bucket, Key=key, ContentType="application/octet-stream", **kwargs
+        result = self.mutate(
+            "CreateMultipartUpload", key, ContentType="application/octet-stream", **kwargs
         )
         upload_id = result["UploadId"]
         self.uploads.add((key, upload_id))
@@ -152,14 +225,14 @@ class Qualification:
             marker = following
 
     def put_part(self, key: str, upload_id: str, number: int, body: bytes, **kwargs: object):
-        return self.client.upload_part(
-            Bucket=self.bucket, Key=key, UploadId=upload_id, PartNumber=number, Body=body, **kwargs
+        return self.mutate(
+            "UploadPart", key, UploadId=upload_id, PartNumber=number, Body=body, **kwargs
         )
 
     def finish(self, key: str, upload_id: str, parts):
-        return self.client.complete_multipart_upload(
-            Bucket=self.bucket,
-            Key=key,
+        return self.mutate(
+            "CompleteMultipartUpload",
+            key,
             UploadId=upload_id,
             MultipartUpload={"Parts": parts},
         )
@@ -233,13 +306,21 @@ class Qualification:
                         "effective_iam": "UNKNOWN; successful probes prove only exercised actions",
                     }
                 self.record(
-                    "configuration_" + name, "UNKNOWN" if name == "lifecycle" else "PASS", **facts
+                    "configuration_" + name,
+                    "UNKNOWN",
+                    inspection_status="PASS",
+                    observed_configuration=facts,
+                    qualification_status="UNKNOWN",
                 )
             except Exception as error:
                 facts = self.observe_error(error)
                 self.record(
                     "configuration_" + name,
                     "BLOCKED" if name == "lifecycle" and facts.get("code") == absent else "UNKNOWN",
+                    inspection_status="ABSENT" if facts.get("code") == absent else "UNKNOWN",
+                    qualification_status="BLOCKED"
+                    if name == "lifecycle" and facts.get("code") == absent
+                    else "UNKNOWN",
                     configuration_absent=facts.get("code") == absent,
                     **facts,
                 )
@@ -275,9 +356,9 @@ class Qualification:
             assert error.response["Error"]["Code"] == "NoSuchUpload"
             self.client.head_object(Bucket=self.bucket, Key=key)
             self.record("no_such_upload_after_completion", completed_object_exists=True)
-        self.client.copy_object(
-            Bucket=self.bucket,
-            Key=self.key("single-copy"),
+        self.mutate(
+            "CopyObject",
+            self.key("single-copy"),
             CopySource={"Bucket": self.bucket, "Key": key},
         )
         assert self.read(self.prefix + "single-copy") == actual
@@ -287,9 +368,9 @@ class Qualification:
             actual_maximum="UNKNOWN; no large-object boundary test",
         )
         copy_key, copy_id = self.start("multipart-copy")
-        copied = self.client.upload_part_copy(
-            Bucket=self.bucket,
-            Key=copy_key,
+        copied = self.mutate(
+            "UploadPartCopy",
+            copy_key,
             UploadId=copy_id,
             PartNumber=1,
             CopySource={"Bucket": self.bucket, "Key": key},
@@ -304,18 +385,41 @@ class Qualification:
     def invalid_completion(self) -> None:
         key, identity = self.start("invalid-completion")
         self.put_part(key, identity, 1, b"invalid-etag-probe")
-        try:
-            self.finish(key, identity, [{"PartNumber": 1, "ETag": '"' + "0" * 32 + '"'}])
-            self.record("invalid_completion", "FAIL")
-        except ClientError as error:
-            facts = self.observe_error(error)
-            self.record("invalid_completion", **facts)
-            self.record(
-                "embedded_error_in_http_200",
-                "PASS" if facts["http_status"] == 200 else "UNKNOWN",
-                observed_error_http_status=facts["http_status"],
-                note="Only observed provider responses count; no fake success response injection",
-            )
+        observed = self.request_outcome(
+            "CompleteMultipartUpload",
+            key,
+            UploadId=identity,
+            MultipartUpload={"Parts": [{"PartNumber": 1, "ETag": '"' + "0" * 32 + '"'}]},
+        )
+        expected = {"code": "InvalidPart", "http_status": 400}
+        if observed["outcome"] == "SUCCESS":
+            status = "FAIL"
+        elif observed.get("code") == "InvalidPart" and observed.get("http_status") == 400:
+            status = "PASS"
+        elif observed["outcome"] == "UNCERTAIN" or observed.get("code") in (
+            "AccessDenied",
+            "InvalidAccessKeyId",
+        ):
+            status = "BLOCKED"
+        else:
+            status = "UNKNOWN"
+        self.record(
+            "invalid_completion",
+            status,
+            expected_error=expected,
+            observed_error=observed.get("code"),
+            http_status=observed.get("http_status"),
+            outcome=observed,
+        )
+        embedded = observed.get("http_status") == 200 and observed.get("code") == "InvalidPart"
+        self.record(
+            "embedded_error_in_http_200",
+            "PASS" if embedded else "UNKNOWN",
+            expected_error="InvalidPart within HTTP 200",
+            observed_error=observed.get("code"),
+            observed_error_http_status=observed.get("http_status"),
+            note="Independent of invalid ETag / HTTP 400 qualification",
+        )
 
     def orphan_discovery(self) -> None:
         key, original_id = self.start("lost-initiation-receipt")
@@ -331,7 +435,7 @@ class Qualification:
                     found.append(upload)
         assert len(found) == 1 and found[0]["UploadId"] == original_id
         discovered_id = found[0]["UploadId"]
-        self.client.abort_multipart_upload(Bucket=self.bucket, Key=key, UploadId=discovered_id)
+        self.mutate("AbortMultipartUpload", key, UploadId=discovered_id)
         # No application cleanup registration exists: the discovered handle owns this Abort.
         assert (key, original_id) not in self.uploads
         remaining = []
@@ -357,52 +461,141 @@ class Qualification:
             injection="application receipt discarded; network response loss and internal late IO remain unverified",
         )
 
-    def abort_and_races(self) -> None:
-        for operation in ("abort", "upload_abort_race", "complete_abort_race"):
-            key, identity = self.start(operation)
-            part = self.put_part(key, identity, 1, b"race-data")
-            if operation == "abort":
-                self.client.abort_multipart_upload(Bucket=self.bucket, Key=key, UploadId=identity)
-                outcomes = []
+    def inspect_transfer(self, key: str, identity: str) -> dict[str, object]:
+        observed = {"mpu": "UNKNOWN", "parts": None, "completed_object": "UNKNOWN"}
+        try:
+            observed["parts"] = len(self.parts(key, identity))
+            observed["mpu"] = "PRESENT"
+        except ClientError as error:
+            if (
+                error.response["Error"]["Code"] == "NoSuchUpload"
+                and error.response["ResponseMetadata"]["HTTPStatusCode"] == 404
+            ):
+                observed.update(mpu="ABSENT", parts=0)
             else:
-                barrier = Barrier(2)
-
-                def compete(action):
-                    barrier.wait(timeout=10)
-                    try:
-                        if action == "abort":
-                            self.client.abort_multipart_upload(
-                                Bucket=self.bucket, Key=key, UploadId=identity
-                            )
-                        elif operation == "upload_abort_race":
-                            self.put_part(key, identity, 1, b"c" * (5 * 1024 * 1024))
-                        else:
-                            self.finish(key, identity, [{"PartNumber": 1, "ETag": part["ETag"]}])
-                        return {"action": action, "result": "accepted"}
-                    except Exception as error:
-                        return {"action": action, **self.observe_error(error)}
-
-                with ThreadPoolExecutor(2) as pool:
-                    outcomes = list(pool.map(compete, ("abort", "write")))
-            try:
-                remaining = len(self.parts(key, identity))
-                self.record(operation, "UNKNOWN", outcomes=outcomes, remaining_parts=remaining)
-            except ClientError as error:
-                assert error.response["Error"]["Code"] == "NoSuchUpload"
-                try:
-                    self.client.head_object(Bucket=self.bucket, Key=key)
-                    object_exists = True
-                except ClientError as missing:
-                    if missing.response["ResponseMetadata"]["HTTPStatusCode"] != 404:
-                        raise
-                    object_exists = False
-                self.record(
-                    operation,
-                    outcomes=outcomes,
-                    upload_absent_after_both_calls_settled=True,
-                    completed_object_exists=object_exists,
-                    scheduling="simultaneous caller barrier; internal provider overlap not proven",
+                observed["mpu_error"] = self.observe_error(error, operation="ListParts", key=key)
+        except Exception as error:
+            observed["mpu_error"] = self.observe_error(error, operation="ListParts", key=key)
+        try:
+            self.client.head_object(Bucket=self.bucket, Key=key)
+            observed["completed_object"] = "EXISTS"
+        except ClientError as error:
+            if error.response["ResponseMetadata"]["HTTPStatusCode"] == 404 and error.response[
+                "Error"
+            ]["Code"] in ("404", "NoSuchKey", "NotFound"):
+                observed["completed_object"] = "MISSING"
+            else:
+                observed["object_error"] = self.observe_error(
+                    error, operation="HeadObject", key=key
                 )
+        except Exception as error:
+            observed["object_error"] = self.observe_error(error, operation="HeadObject", key=key)
+        return observed
+
+    def record_race(self, name: str, abort, opponent, observed) -> None:
+        outcomes = [abort] + ([opponent] if opponent else [])
+        known = all(
+            o["outcome"] == "SUCCESS"
+            or (o.get("code") == "NoSuchUpload" and o.get("http_status") == 404)
+            for o in outcomes
+        )
+        if any(o["outcome"] == "UNCERTAIN" for o in outcomes) or self.unsettled_io:
+            status, result = "BLOCKED", "UNCERTAIN_SIDE_EFFECT"
+        elif observed["mpu"] != "ABSENT" or observed["completed_object"] == "UNKNOWN":
+            status, result = "BLOCKED", "INCOMPLETE_INVENTORY"
+        elif not known:
+            status, result = "UNKNOWN", "UNEXPECTED_REQUEST_REJECTION"
+        elif abort["outcome"] != "SUCCESS" and not (
+            name == "complete_abort_race"
+            and opponent["outcome"] == "SUCCESS"
+            and observed["completed_object"] == "EXISTS"
+        ):
+            status, result = "UNKNOWN", "ABORT_NOT_OBSERVED_SUCCESSFUL"
+        elif name == "complete_abort_race":
+            if opponent["outcome"] == "SUCCESS" and observed["completed_object"] == "EXISTS":
+                status, result = "PASS", "COMPLETED_OBJECT_SURVIVED_ABORT"
+            elif (
+                opponent.get("code") == "NoSuchUpload" and observed["completed_object"] == "MISSING"
+            ):
+                status, result = "PASS", "COMPLETE_REJECTED_OBJECT_MISSING"
+            else:
+                status, result = "UNKNOWN", "REQUEST_OBJECT_OBSERVATION_MISMATCH"
+        elif observed["completed_object"] != "MISSING":
+            status, result = "FAIL", "UNEXPECTED_COMPLETED_OBJECT"
+        else:
+            status, result = "PASS", "ABORTED_WITHOUT_COMPLETED_OBJECT"
+        self.record(
+            name,
+            status,
+            abort_outcome=abort,
+            opponent_outcome=opponent,
+            final_inventory=observed,
+            unsettled_io=self.unsettled_io,
+            observation=result,
+            boundary="bounded joined caller results; no permanent internal late-IO guarantee",
+        )
+
+    def abort_race(self, name: str) -> None:
+        key, identity = self.start(name)
+        part = self.put_part(key, identity, 1, b"race-data")
+        if name == "abort":
+            abort = self.request_outcome("AbortMultipartUpload", key, UploadId=identity)
+            opponent = None
+        else:
+            barrier = Barrier(2)
+
+            def compete(operation):
+                barrier.wait(timeout=10)
+                if operation == "AbortMultipartUpload":
+                    return self.request_outcome(operation, key, UploadId=identity)
+                if operation == "UploadPart":
+                    return self.request_outcome(
+                        operation,
+                        key,
+                        UploadId=identity,
+                        PartNumber=1,
+                        Body=b"c" * (5 * 1024 * 1024),
+                    )
+                return self.request_outcome(
+                    operation,
+                    key,
+                    UploadId=identity,
+                    MultipartUpload={"Parts": [{"PartNumber": 1, "ETag": part["ETag"]}]},
+                )
+
+            operation = "UploadPart" if name == "upload_abort_race" else "CompleteMultipartUpload"
+            with ThreadPoolExecutor(2) as pool:
+                abort, opponent = list(pool.map(compete, ("AbortMultipartUpload", operation)))
+        self.record_race(name, abort, opponent, self.inspect_transfer(key, identity))
+
+    def abort_and_races(self) -> None:
+        for name in ("abort", "upload_abort_race", "complete_abort_race"):
+            try:
+                self.abort_race(name)
+            except Exception as error:
+                self.record(name, "BLOCKED", **self.observe_error(error))
+
+    @staticmethod
+    def send_partial_part(target: str, sent: Event, release: Event) -> int:
+        address = urlsplit(target)
+        if address.scheme != "https":
+            raise ValueError("Network in-flight probe requires HTTPS")
+        connection = HTTPSConnection(address.hostname, address.port or 443, timeout=30)
+        body = b"i" * (5 * 1024 * 1024)
+        try:
+            connection.putrequest("PUT", address.path + "?" + address.query)
+            connection.putheader("Content-Length", str(len(body)))
+            connection.endheaders()
+            connection.send(body[:65536])
+            sent.set()
+            if not release.wait(30):
+                raise TimeoutError("Probe coordinator did not release body")
+            connection.send(body[65536:])
+            response = connection.getresponse()
+            response.read()
+            return response.status
+        finally:
+            connection.close()
 
     def abort_inflight_part(self) -> None:
         key, identity = self.start("abort-inflight-network-part")
@@ -413,54 +606,32 @@ class Qualification:
             HttpMethod="PUT",
         )
         sent, release = Event(), Event()
-        body = b"i" * (5 * 1024 * 1024)
-
-        def send_partial():
-            address = urlsplit(target)
-            if address.scheme != "https":
-                raise ValueError("Network in-flight probe requires HTTPS")
-            connection = HTTPSConnection(address.hostname, address.port or 443, timeout=30)
-            try:
-                connection.putrequest("PUT", address.path + "?" + address.query)
-                connection.putheader("Content-Length", str(len(body)))
-                connection.endheaders()
-                connection.send(body[:65536])
-                sent.set()
-                if not release.wait(30):
-                    raise TimeoutError("Probe coordinator did not release body")
-                connection.send(body[65536:])
-                response = connection.getresponse()
-                response.read()
-                return response.status
-            finally:
-                connection.close()
-
         with ThreadPoolExecutor(1) as pool:
-            pending = pool.submit(send_partial)
+            pending = pool.submit(self.send_partial_part, target, sent, release)
             try:
                 if not sent.wait(10):
-                    raise TimeoutError("No request body was sent")
-                self.client.abort_multipart_upload(Bucket=self.bucket, Key=key, UploadId=identity)
+                    abort = {"outcome": "NOT_ATTEMPTED", "operation": "AbortMultipartUpload"}
+                else:
+                    abort = self.request_outcome("AbortMultipartUpload", key, UploadId=identity)
             finally:
                 release.set()
             try:
                 status = pending.result(timeout=35)
-                outcome = {"part_http_status": status}
+                if not 200 <= status < 300:
+                    raise ClientError(
+                        {
+                            "Error": {"Code": "HTTPError"},
+                            "ResponseMetadata": {"HTTPStatusCode": status},
+                        },
+                        "UploadPart",
+                    )
+                outcome = {"operation": "UploadPart", "outcome": "SUCCESS", "http_status": status}
             except Exception as error:
-                outcome = self.observe_error(error)
-        try:
-            remaining = len(self.parts(key, identity))
-        except ClientError as error:
-            if error.response["Error"]["Code"] != "NoSuchUpload":
-                raise
-            remaining = 0
-        self.record(
-            "abort_inflight_part",
-            "PASS" if remaining == 0 else "UNKNOWN",
-            sent_body_prefix_bytes=65536,
-            remaining_parts=remaining,
-            **outcome,
-            observation="Abort issued after HTTPS headers and body prefix sent, before remaining body; no internal provider ordering claim",
+                outcome = self.observe_error(
+                    error, operation="UploadPart", key=key, side_effect=True
+                )
+        self.record_race(
+            "abort_inflight_part", abort, outcome, self.inspect_transfer(key, identity)
         )
 
     def checksums(self) -> None:
@@ -504,13 +675,26 @@ class Qualification:
             with urlopen(
                 Request(target, data=b"signed-part", method="PUT"), timeout=30
             ) as response:
+                if not 200 <= response.status < 300:
+                    raise ClientError(
+                        {
+                            "Error": {"Code": "HTTPError"},
+                            "ResponseMetadata": {"HTTPStatusCode": response.status},
+                        },
+                        "UploadPart",
+                    )
                 self.record(
                     "signed_endpoint_http_access",
+                    "PASS" if response.headers.get("ETag") else "UNKNOWN",
                     http_status=response.status,
                     etag_readable=bool(response.headers.get("ETag")),
                 )
         except Exception as error:
-            self.record("signed_endpoint_http_access", "BLOCKED", **self.observe_error(error))
+            self.record(
+                "signed_endpoint_http_access",
+                "BLOCKED",
+                **self.observe_error(error, operation="UploadPart", key=key, side_effect=True),
+            )
         try:
             request = Request(
                 target,
@@ -532,17 +716,49 @@ class Qualification:
             note="Requires separate real-browser PUT before scoped cleanup",
         )
         if browser_script:
-            result = subprocess.run(
-                ["node", str(browser_script)],
-                input=json.dumps({"url": target, "origin": self.origin}),
-                text=True,
-                capture_output=True,
-                timeout=60,
-            )
-            if result.returncode:
-                self.record("browser_access", "BLOCKED", error_class="BrowserLauncherFailed")
-            else:
-                self.report["checks"]["browser_access"] = json.loads(result.stdout)
+            try:
+                result = subprocess.run(
+                    ["node", str(browser_script)],
+                    input=json.dumps({"url": target, "origin": self.origin}),
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                if result.returncode:
+                    raise ConnectionError("Browser result unavailable")
+                data = json.loads(result.stdout)
+                http_status = data.get("http_status")
+                if not isinstance(http_status, int):
+                    raise ConnectionError("Browser upload outcome unavailable")
+                if isinstance(http_status, int) and not 200 <= http_status < 300:
+                    raise ClientError(
+                        {
+                            "Error": {"Code": "HTTPError"},
+                            "ResponseMetadata": {"HTTPStatusCode": http_status},
+                        },
+                        "UploadPart",
+                    )
+                self.report["checks"]["browser_access"] = {
+                    k: v
+                    for k, v in data.items()
+                    if k
+                    in (
+                        "browser",
+                        "origin",
+                        "status",
+                        "http_status",
+                        "etag_visible",
+                        "real_signed_part_request",
+                        "app_document",
+                        "error_class",
+                    )
+                }
+            except Exception as error:
+                self.record(
+                    "browser_access",
+                    "BLOCKED",
+                    **self.observe_error(error, operation="UploadPart", key=key, side_effect=True),
+                )
 
     def cleanup(self) -> None:
         """Best-effort every item; PASS requires complete independent final inventories.
@@ -597,9 +813,7 @@ class Qualification:
                     stage["failures"].append(self.observe_error(error))
 
         def abort(item):
-            self.client.abort_multipart_upload(
-                Bucket=self.bucket, Key=item["Key"], UploadId=item["UploadId"]
-            )
+            self.mutate("AbortMultipartUpload", item["Key"], UploadId=item["UploadId"])
 
         clean_items(
             "abort_registered", [{"Key": k, "UploadId": u} for k, u in sorted(self.uploads)], abort
@@ -611,7 +825,7 @@ class Qualification:
         clean_items(
             "delete_objects",
             [{"Key": k} for k in sorted(keys)],
-            lambda item: self.client.delete_object(Bucket=self.bucket, Key=item["Key"]),
+            lambda item: self.mutate("DeleteObject", item["Key"]),
         )
         # Deleting current objects may create markers; enumerate versions afterwards.
         found = scan("discover_versions", "list_object_versions", ("Versions", "DeleteMarkers"))
@@ -619,9 +833,7 @@ class Qualification:
             clean_items(
                 "delete_" + field.lower(),
                 found[field],
-                lambda item: self.client.delete_object(
-                    Bucket=self.bucket, Key=item["Key"], VersionId=item["VersionId"]
-                ),
+                lambda item: self.mutate("DeleteObject", item["Key"], VersionId=item["VersionId"]),
             )
         final_mpu = scan("verify_mpu", "list_multipart_uploads", ("Uploads",))
         final_objects = scan("verify_objects", "list_objects_v2", ("Contents",))
@@ -653,6 +865,7 @@ class Qualification:
             stages=stages,
             **counts,
             unsettled_io=self.unsettled_io,
+            unresolved_operations=self.unsettled_operations,
             observation="bounded final inventories; not a permanent late-IO guarantee",
         )
 

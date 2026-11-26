@@ -234,14 +234,17 @@ def test_take_finalization_loses_to_reservation_expiry_after_physical_copy(
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
 
+@pytest.mark.parametrize("winner", [1, 2])
+@pytest.mark.parametrize("deleted_user", [1, 2])
 def test_two_upload_owners_share_canonical_object_without_cross_account_wait_cycle(
-    gate_database, monkeypatch
+    gate_database, monkeypatch, winner, deleted_user
 ):
     """Real UploadService phases; only bytes and deterministic scheduling are fixtures.
 
     Both users hold their own capacity/account locks in semantic admission.
     The second waits on the shared write Intent held by the first adopter;
-    that adopter can allocate and commit without ever waiting on user 2.
+    that adopter can allocate and commit without waiting on the other User.
+    Both winners and both deletion sides are exercised deterministically.
     """
     import hashlib
     import io
@@ -286,7 +289,7 @@ def test_two_upload_owners_share_canonical_object_without_cross_account_wait_cyc
         user_id = db.info["gate_user"]
         # Reentrant: the real Upload command already owns this Account and Hold.
         usage.committed_bytes(db, user_id, lock=True)
-        if user_id == 1:
+        if user_id == winner:
             result = original_adopt(db, written)
             owner_pid.put(db.scalar(text("SELECT pg_backend_pid()")))
             holder_ready.set()
@@ -363,14 +366,15 @@ def test_two_upload_owners_share_canonical_object_without_cross_account_wait_cyc
         assert retirement.status.value == "CANCELLED" and retirement.deletion_fenced_at is None
         assert retire_if_unreferenced(db, blob_id) is None
         upload_module.UploadService(storage=storage).delete_upload(
-            db, db.get(User, 1), results[0].upload_id
+            db, db.get(User, deleted_user), results[deleted_user - 1].upload_id
         )
         db.commit()
-        assert db.get(StorageUsageAccount, 1).used_bytes == 0
-        assert db.get(StorageUsageAccount, 2).used_bytes == len(content)
+        assert db.get(StorageUsageAccount, deleted_user).used_bytes == 0
+        survivor = 3 - deleted_user
+        assert db.get(StorageUsageAccount, survivor).used_bytes == len(content)
         assert db.get(StoredObject, blob_id) is not None
         assert (
-            db.scalar(select(Upload).where(Upload.uploader_user_id == 2)).stored_object_id
+            db.scalar(select(Upload).where(Upload.uploader_user_id == survivor)).stored_object_id
             == blob_id
         )
         assert retire_if_unreferenced(db, blob_id) is None and storage.exists(key)
