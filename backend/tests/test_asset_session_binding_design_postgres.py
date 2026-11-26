@@ -411,7 +411,15 @@ def test_binding_cannot_be_unlinked_before_cleanup(binding_design):
 
 
 def insert_operation(
-    db, *, id=1, session_id=1, uuid=None, generation=None, kind="CLEANUP", token=None
+    db,
+    *,
+    id=1,
+    session_id=1,
+    uuid=None,
+    generation=None,
+    kind="CLEANUP",
+    token=None,
+    register_staging=False,
 ):
     identity, current_generation = db.execute(
         text("SELECT session_uuid,generation FROM gate_sessions WHERE id=:id"), {"id": session_id}
@@ -430,7 +438,8 @@ def insert_operation(
         },
     )
     if (
-        kind == "CLEANUP"
+        register_staging
+        and kind == "CLEANUP"
         and (uuid is None or uuid == identity)
         and (generation is None or generation == current_generation)
     ):
@@ -608,11 +617,55 @@ def publish_cleanup(db, token, *, id=1, epoch=1):
     return publish_root(db, token, id=id, epoch=epoch)
 
 
+def record_empty_observation(db, *, operation_id=2, **overrides):
+    values = dict(
+        db.execute(
+            text("""SELECT operation_uuid AS op,session_uuid_snapshot AS u,
+        session_generation AS g,claim_epoch AS e,attempt_token AS t
+        FROM gate_physical_operations WHERE id=:id"""),
+            {"id": operation_id},
+        )
+        .mappings()
+        .one()
+    )
+    values.update(
+        {
+            "observation": uuid4(),
+            "result": "NOT_FOUND",
+            "scope": "EXACT_SESSION_GENERATION",
+            "mpus": 0,
+            "objects": 0,
+        }
+    )
+    values.update(overrides)
+    db.execute(
+        text("""INSERT INTO gate_empty_set_observations(observation_uuid,discovery_operation_uuid,
+        session_uuid_snapshot,session_generation,claim_epoch,attempt_token,result,observation_scope,mpus_observed,objects_observed)
+        VALUES(:observation,:op,:u,:g,:e,:t,:result,:scope,:mpus,:objects)"""),
+        values,
+    )
+    return values["observation"]
+
+
+def attach_empty_observation(db, observation, *, session_id=1):
+    db.execute(
+        text("UPDATE gate_sessions SET empty_set_observation_uuid=:o WHERE id=:id"),
+        {"o": observation, "id": session_id},
+    )
+
+
+def settle_empty_discovery(db, *, operation_id=2, session_id=1):
+    observation = record_empty_observation(db, operation_id=operation_id)
+    assert publish_success(db, id=operation_id, result="NOT_FOUND") == 1
+    attach_empty_observation(db, observation, session_id=session_id)
+    return observation
+
+
 def seed_cleaned_binding(engine, domain="upload"):
     with engine.begin() as db:
         add_binding(db, domain=domain)
         db.execute(text("UPDATE gate_sessions SET terminal=true WHERE id=1"))
-        token = insert_operation(db)
+        token = insert_operation(db, register_staging=True)
         assert publish_cleanup(db, token) == 1
 
 
@@ -701,7 +754,7 @@ def test_wrong_operation_evidence_cannot_release_binding(binding_design, fault):
             else:
                 assert publish_success(db, id=1) == 1
         elif fault != "missing":
-            token = insert_operation(db)
+            token = insert_operation(db, register_staging=True)
             if fault == "stale_attempt":
                 assert claim_operation(db, token, uuid4())
                 assert publish_cleanup(db, token) == 0
@@ -775,7 +828,7 @@ def test_late_attempt_waits_for_rotation_and_cannot_publish_ack(binding_design):
     engine, ready = binding_design, Queue()
     with engine.begin() as db:
         add_binding(db)
-        old = insert_operation(db)
+        old = insert_operation(db, register_staging=True)
     current = uuid4()
     with Session(engine) as takeover, ThreadPoolExecutor(1) as pool:
         owner = takeover.scalar(text("SELECT pg_backend_pid()"))
@@ -908,7 +961,7 @@ def test_operation_cannot_insert_preapproved_ack(binding_design):
 def test_unresolved_evidence_cannot_be_deleted_to_bypass_release_guard(binding_design):
     with binding_design.begin() as db:
         add_binding(db)
-        token = insert_operation(db)
+        token = insert_operation(db, register_staging=True)
         insert_operation(db, id=2, kind="COMPLETE")
         db.execute(text("UPDATE gate_sessions SET terminal=true"))
         with pytest.raises(IntegrityError, match="all registered locators"), db.begin_nested():
@@ -928,7 +981,7 @@ def test_unresolved_evidence_cannot_be_deleted_to_bypass_release_guard(binding_d
 def prepare_locators(db, *, second_handle=False):
     add_binding(db)
     db.execute(text("UPDATE gate_sessions SET terminal=true WHERE id=1"))
-    token = insert_operation(db)
+    token = insert_operation(db, register_staging=True)
     pg = uuid4()
     first = register_resource(
         db,
@@ -1109,7 +1162,7 @@ def test_copy_candidate_version_is_bound_and_fingerprint_is_not_cleanup_authorit
     with binding_design.begin() as db:
         add_binding(db)
         db.execute(text("UPDATE gate_sessions SET terminal=true"))
-        token = insert_operation(db)
+        token = insert_operation(db, register_staging=True)
         candidate = register_resource(db, kind="COPY_CANDIDATE", version="version-1")
         db.execute(text("UPDATE gate_sessions SET resources_closed=true"))
         with pytest.raises(IntegrityError, match="ACK must match"), db.begin_nested():
@@ -1163,10 +1216,10 @@ def assign_worker(db, operation_uuid, epoch, token, worker):
     )
 
 
-def worker_publish(db, operation_uuid, epoch, token):
+def worker_publish(db, operation_uuid, epoch, token, result="CLEANED"):
     return db.scalar(
-        text("SELECT gate_worker_publish(:o,:e,:t,'CLEANED')"),
-        {"o": operation_uuid, "e": epoch, "t": token},
+        text("SELECT gate_worker_publish(:o,:e,:t,:r)"),
+        {"o": operation_uuid, "e": epoch, "t": token, "r": result},
     )
 
 
@@ -1419,7 +1472,7 @@ def test_resource_registration_wins_and_closure_observes_committed_resource(bind
     engine, ready = binding_design, Queue()
     with engine.begin() as db:
         add_binding(db)
-        token = insert_operation(db)
+        token = insert_operation(db, register_staging=True)
     with Session(engine) as registering, ThreadPoolExecutor(1) as pool:
         owner = registering.scalar(text("SELECT pg_backend_pid()"))
         late = register_resource(registering, kind="MPU", upload_id="registered-before-close")
@@ -1463,7 +1516,7 @@ def test_resource_closure_wins_and_late_registration_is_rejected(binding_design)
     engine, ready = binding_design, Queue()
     with engine.begin() as db:
         add_binding(db)
-        token = insert_operation(db)
+        token = insert_operation(db, register_staging=True)
     with Session(engine) as closing, ThreadPoolExecutor(1) as pool:
         owner = closing.scalar(text("SELECT pg_backend_pid()"))
         closing.execute(text("UPDATE gate_sessions SET terminal=true WHERE id=1"))
@@ -1518,7 +1571,7 @@ def test_successful_physical_operation_requires_correct_resource_provenance(
 ):
     with binding_design.begin() as db:
         add_binding(db)
-        token = insert_operation(db)
+        token = insert_operation(db, register_staging=True)
         insert_operation(db, id=2, kind=kind)
         with pytest.raises(IntegrityError, match="requires resource references"), db.begin_nested():
             publish_success(db, id=2)
@@ -1556,7 +1609,7 @@ def test_successful_physical_operation_requires_correct_resource_provenance(
 def test_resource_provenance_rejects_wrong_source_operation(binding_design, fault):
     with binding_design.begin() as db:
         add_binding(db)
-        insert_operation(db)
+        insert_operation(db, register_staging=True)
         if fault == "session":
             add_binding(db, session_id=2, user_id=2, command_id=2)
         insert_operation(
@@ -1587,7 +1640,7 @@ def test_resource_provenance_rejects_wrong_source_operation(binding_design, faul
 def test_unknown_initiate_discovery_does_not_forge_creation_success(binding_design):
     with binding_design.begin() as db:
         add_binding(db)
-        token = insert_operation(db)
+        token = insert_operation(db, register_staging=True)
         insert_operation(db, id=2, kind="INITIATE")
         db.execute(
             text("UPDATE gate_physical_operations SET settlement_status='UNKNOWN' WHERE id=2")
@@ -1621,10 +1674,12 @@ def test_read_only_verification_and_empty_discovery_have_explicit_results(bindin
     with binding_design.begin() as db:
         add_binding(db)
         insert_operation(db, id=1, kind="VERIFY")
-        assert publish_success(db, id=1) == 1
         insert_operation(db, id=2, kind="DISCOVER")
-        assert publish_success(db, id=2, result="NOT_FOUND") == 1
         insert_operation(db, id=3, kind="INITIATE")
+        assert publish_success(db, id=1) == 1
+        db.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+        record_empty_observation(db, operation_id=2)
+        assert publish_success(db, id=2, result="NOT_FOUND") == 1
         with pytest.raises(IntegrityError, match="empty discovery"), db.begin_nested():
             publish_success(db, id=3, result="NOT_FOUND")
 
@@ -1709,7 +1764,7 @@ def test_immutable_settlement_history_and_fk_null_cannot_change_locator(binding_
 def test_resource_insert_rejects_wrong_session_snapshot(binding_design, fault):
     with binding_design.begin() as db:
         add_binding(db)
-        insert_operation(db)
+        insert_operation(db, register_staging=True)
         with (
             pytest.raises(IntegrityError, match="registration identity or fence"),
             db.begin_nested(),
@@ -1735,7 +1790,7 @@ def test_registration_closure_rejects_unproved_snapshot_isolation(
 ):
     with binding_design.begin() as db:
         add_binding(db)
-        insert_operation(db)
+        insert_operation(db, register_staging=True)
     with binding_design.begin() as db:
         db.execute(text("SET TRANSACTION ISOLATION LEVEL " + isolation))
         with pytest.raises(IntegrityError, match="READ COMMITTED isolation"), db.begin_nested():
@@ -1743,3 +1798,505 @@ def test_registration_closure_rejects_unproved_snapshot_isolation(
                 register_resource(db, kind="MPU", upload_id="different-snapshot")
             else:
                 db.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+
+
+@pytest.fixture
+def exclusive_roles(binding_design, ledger_roles):
+    coordinator_a, worker_a = ledger_roles
+    coordinator_b, worker_b = "gate_coordinator_" + uuid4().hex, "gate_worker_" + uuid4().hex
+    with binding_design.begin() as db:
+        schema = db.scalar(text("SELECT current_schema()"))
+        for role in (coordinator_b, worker_b):
+            db.execute(text(f'CREATE ROLE "{role}" NOLOGIN'))
+            db.execute(text(f'GRANT USAGE ON SCHEMA "{schema}" TO "{role}"'))
+        db.execute(
+            text(
+                f'GRANT SELECT(id,operation_uuid,claim_epoch,attempt_token,settlement_status) ON gate_physical_operations TO "{coordinator_b}"'
+            )
+        )
+        for function in (
+            "gate_claim_operation(uuid,bigint,uuid,uuid)",
+            "gate_assign_worker(uuid,bigint,uuid,name)",
+        ):
+            db.execute(text(f'GRANT EXECUTE ON FUNCTION {function} TO "{coordinator_b}"'))
+        for function in (
+            "gate_worker_publish(uuid,bigint,uuid,text)",
+            "gate_worker_ack(uuid,uuid,bigint,uuid,text,text,text,uuid,text)",
+        ):
+            db.execute(text(f'GRANT EXECUTE ON FUNCTION {function} TO "{worker_b}"'))
+    try:
+        yield coordinator_a, coordinator_b, worker_a, worker_b
+    finally:
+        with binding_design.begin() as db:
+            for role in (coordinator_b, worker_b):
+                db.execute(text(f'DROP OWNED BY "{role}"'))
+                db.execute(text(f'DROP ROLE "{role}"'))
+
+
+def advance_claim_to(db, token, epoch):
+    for previous in range(1, epoch):
+        successor = uuid4()
+        assert claim_operation(db, token, successor, expected_epoch=previous)
+        token = successor
+    return token
+
+
+@pytest.mark.parametrize("winner", [0, 1])
+def test_assignment_competition_has_one_exclusive_worker_principal(
+    binding_design, exclusive_roles, winner
+):
+    from sqlalchemy.exc import ProgrammingError
+
+    ca, cb, wa, wb = exclusive_roles
+    coordinators, workers = (ca, cb), (wa, wb)
+    engine, ready = binding_design, Queue()
+    with engine.begin() as db:
+        add_binding(db)
+        token = insert_operation(db)
+        operation = db.scalar(text("SELECT operation_uuid FROM gate_physical_operations"))
+        db.execute(text(f'SET LOCAL ROLE "{ca}"'))
+        token = advance_claim_to(db, token, 5)
+    with Session(engine) as first, ThreadPoolExecutor(1) as pool:
+        first.execute(text(f'SET LOCAL ROLE "{coordinators[winner]}"'))
+        owner = first.scalar(text("SELECT pg_backend_pid()"))
+        assert assign_worker(first, operation, 5, token, workers[winner])
+        assert assign_worker(
+            first, operation, 5, token, workers[winner]
+        )  # Idempotent same principal.
+
+        def competing_assignment():
+            with Session(engine) as second:
+                second.execute(text(f'SET LOCAL ROLE "{coordinators[1 - winner]}"'))
+                ready.put(second.scalar(text("SELECT pg_backend_pid()")))
+                result = assign_worker(second, operation, 5, token, workers[1 - winner])
+                second.commit()
+                return result
+
+        contender = pool.submit(competing_assignment)
+        try:
+            wait_for_blocker(engine, owner, ready.get(timeout=10))
+        finally:
+            first.commit()
+        assert contender.result(timeout=10) is False
+    with engine.connect() as db:
+        assert db.execute(
+            text("SELECT worker_role,claim_epoch,attempt_token FROM gate_worker_claim_grants")
+        ).one() == (workers[winner], 5, token)
+    with pytest.raises(IntegrityError), engine.begin() as db:
+        db.execute(
+            text("INSERT INTO gate_worker_claim_grants VALUES(:w,:o,5,:t)"),
+            {"w": workers[1 - winner], "o": operation, "t": token},
+        )
+    with pytest.raises(ProgrammingError), engine.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{workers[1 - winner]}"'))
+        worker_publish(db, operation, 5, token)
+    with pytest.raises(ProgrammingError), engine.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{workers[winner]}"'))
+        db.execute(
+            text("INSERT INTO gate_worker_claim_grants VALUES(:w,:o,5,:t)"),
+            {"w": workers[winner], "o": operation, "t": token},
+        )
+
+
+@pytest.mark.parametrize("winner", [0, 1])
+def test_two_authorized_coordinators_claim_one_new_epoch(binding_design, exclusive_roles, winner):
+    ca, cb, _, _ = exclusive_roles
+    roles = (ca, cb)
+    engine, ready = binding_design, Queue()
+    with engine.begin() as db:
+        add_binding(db)
+        token = insert_operation(db)
+    next_token = uuid4()
+    with Session(engine) as first, ThreadPoolExecutor(1) as pool:
+        first.execute(text(f'SET LOCAL ROLE "{roles[winner]}"'))
+        owner = first.scalar(text("SELECT pg_backend_pid()"))
+        assert claim_operation(first, token, next_token)
+
+        def compete():
+            with Session(engine) as second:
+                second.execute(text(f'SET LOCAL ROLE "{roles[1 - winner]}"'))
+                ready.put(second.scalar(text("SELECT pg_backend_pid()")))
+                result = claim_operation(second, token, uuid4())
+                second.commit()
+                return result
+
+        contender = pool.submit(compete)
+        try:
+            wait_for_blocker(engine, owner, ready.get(timeout=10))
+        finally:
+            first.commit()
+        assert contender.result(timeout=10) is False
+    with engine.connect() as db:
+        assert db.scalar(text("SELECT count(*) FROM gate_operation_claims")) == 2
+        assert db.scalar(text("SELECT attempt_token FROM gate_physical_operations")) == next_token
+
+
+def test_exclusive_epoch_five_to_six_takeover_preserves_assignments(
+    binding_design, exclusive_roles
+):
+    from sqlalchemy.exc import ProgrammingError
+
+    ca, cb, wa, wb = exclusive_roles
+    with binding_design.begin() as db:
+        original, _, _ = prepare_locators(db)
+        operation = db.scalar(text("SELECT operation_uuid FROM gate_physical_operations"))
+        resources = list(db.execute(text("SELECT * FROM gate_physical_resources")).mappings())
+        db.execute(text(f'SET LOCAL ROLE "{ca}"'))
+        fifth = advance_claim_to(db, original, 5)
+        assert assign_worker(db, operation, 5, fifth, wa)
+        assert assign_worker(db, operation, 5, fifth, wa)
+        assert assign_worker(db, operation, 5, fifth, wb) is False
+    sixth = uuid4()
+    with binding_design.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{cb}"'))
+        assert claim_operation(db, fifth, sixth, expected_epoch=5)
+        assert assign_worker(db, operation, 6, sixth, wb)
+        assert assign_worker(db, operation, 5, fifth, wb) is False
+    with binding_design.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{wa}"'))
+        assert worker_publish(db, operation, 5, fifth) is False
+        assert worker_ack(db, resources[0], 5, fifth) is False
+    with pytest.raises(ProgrammingError), binding_design.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{wa}"'))
+        worker_publish(db, operation, 6, sixth)
+    with binding_design.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{wb}"'))
+        for resource in resources:
+            assert worker_ack(db, resource, 6, sixth)
+        assert worker_publish(db, operation, 6, sixth)
+    for statement in (
+        "UPDATE gate_worker_claim_grants SET worker_role='replacement'",
+        "UPDATE gate_worker_claim_grants SET claim_epoch=claim_epoch+1",
+        "DELETE FROM gate_worker_claim_grants",
+    ):
+        with pytest.raises(IntegrityError, match="immutable"), binding_design.begin() as db:
+            db.execute(text(statement))
+    with binding_design.connect() as db:
+        assert db.execute(
+            text(
+                "SELECT claim_epoch,worker_role FROM gate_worker_claim_grants ORDER BY claim_epoch"
+            )
+        ).all() == [(5, wa), (6, wb)]
+        assert db.scalar(text("SELECT published_claim_epoch FROM gate_physical_operations")) == 6
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "complete",
+        "missing",
+        "unsettled_discovery",
+        "unknown_initiate",
+        "unknown_complete",
+        "unknown_copy",
+    ],
+)
+def test_truly_empty_resource_set_requires_explicit_settled_discovery(binding_design, case):
+    with binding_design.begin() as db:
+        add_binding(db)
+        token = insert_operation(db)  # No implicit resource.
+        if case != "missing":
+            insert_operation(db, id=2, kind="DISCOVER")
+        if case.startswith("unknown_"):
+            insert_operation(db, id=3, kind=case.removeprefix("unknown_").upper())
+            db.execute(
+                text("UPDATE gate_physical_operations SET settlement_status='UNKNOWN' WHERE id=3")
+            )
+        db.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+        assert db.scalar(text("SELECT count(*) FROM gate_physical_resources")) == 0
+        if case not in ("missing", "unsettled_discovery"):
+            observation = settle_empty_discovery(db)
+        elif case == "unsettled_discovery":
+            observation = record_empty_observation(db)
+            with pytest.raises(IntegrityError, match="pointer identity"), db.begin_nested():
+                attach_empty_observation(db, observation)
+        if case == "complete":
+            assert publish_root(db, token) == 1
+            with (
+                pytest.raises(IntegrityError, match="registration identity or fence"),
+                db.begin_nested(),
+            ):
+                register_resource(db, kind="MPU", upload_id="too-late")
+            db.execute(text("DELETE FROM gate_session_bindings"))
+            db.execute(text("DELETE FROM gate_sessions"))
+            assert (
+                db.scalar(text("SELECT observation_uuid FROM gate_empty_set_observations"))
+                == observation
+            )
+            assert db.scalar(text("SELECT count(*) FROM gate_resource_settlements")) == 0
+        else:
+            with pytest.raises(IntegrityError, match="all registered locators"), db.begin_nested():
+                publish_root(db, token)
+            with (
+                pytest.raises(IntegrityError, match="cleanup must be acknowledged"),
+                db.begin_nested(),
+            ):
+                db.execute(text("DELETE FROM gate_session_bindings"))
+            assert db.scalar(text("SELECT count(*) FROM gate_session_bindings")) == 1
+            if case.startswith("unknown_"):
+                assert db.execute(
+                    text(
+                        "SELECT settlement_status,operation_result FROM gate_physical_operations WHERE id=3"
+                    )
+                ).one() == ("UNKNOWN", "NONE")
+
+
+@pytest.mark.parametrize("fault", ["uuid", "generation", "claim", "scope", "nonzero", "kind"])
+def test_empty_observation_cannot_forge_identity_or_result(binding_design, fault):
+    with binding_design.begin() as db:
+        add_binding(db)
+        token = insert_operation(db)
+        insert_operation(db, id=2, kind="VERIFY" if fault == "kind" else "DISCOVER")
+        db.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+        changes = {
+            "uuid": {"u": uuid4()},
+            "generation": {"g": 2},
+            "claim": {"e": 2, "t": uuid4()},
+            "scope": {"scope": "UNSCOPED"},
+            "nonzero": {"mpus": 1},
+            "kind": {},
+        }
+        with pytest.raises(IntegrityError), db.begin_nested():
+            record_empty_observation(db, **changes[fault])
+        with pytest.raises(IntegrityError, match="all registered locators"), db.begin_nested():
+            publish_root(db, token)
+        assert db.scalar(text("SELECT count(*) FROM gate_empty_set_observations")) == 0
+        assert db.scalar(text("SELECT count(*) FROM gate_physical_resources")) == 0
+
+
+def test_other_session_or_unknown_observation_cannot_close_empty_set(binding_design):
+    with binding_design.begin() as db:
+        add_binding(db)
+        token = insert_operation(db)
+        add_binding(db, session_id=2, user_id=2, command_id=2)
+        insert_operation(db, id=3, session_id=2)
+        insert_operation(db, id=4, session_id=2, kind="DISCOVER")
+        db.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+        observation = settle_empty_discovery(db, operation_id=4, session_id=2)
+        for wrong in (observation, uuid4()):
+            with pytest.raises(IntegrityError, match="pointer identity"), db.begin_nested():
+                attach_empty_observation(db, wrong)
+        with pytest.raises(IntegrityError, match="all registered locators"), db.begin_nested():
+            publish_root(db, token)
+
+
+def test_empty_evidence_is_immutable_and_cannot_replace_resource_ack(binding_design):
+    with binding_design.begin() as db:
+        add_binding(db)
+        token = insert_operation(db)
+        resource = register_resource(
+            db
+        )  # An explicitly registered real cleanup target in the SQL experiment.
+        insert_operation(db, id=2, kind="DISCOVER")
+        db.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+        observation = settle_empty_discovery(db)
+        with pytest.raises(IntegrityError, match="all registered locators"), db.begin_nested():
+            publish_root(db, token)
+        for statement in (
+            "UPDATE gate_empty_set_observations SET observation_uuid=gen_random_uuid()",
+            "DELETE FROM gate_empty_set_observations",
+        ):
+            with pytest.raises(IntegrityError, match="immutable"), db.begin_nested():
+                db.execute(text(statement))
+        with pytest.raises(IntegrityError, match="pointer is immutable"), db.begin_nested():
+            attach_empty_observation(db, uuid4())
+        acknowledge_resource(db, resource, token)
+        assert publish_root(db, token) == 1
+        assert (
+            db.scalar(text("SELECT empty_set_observation_uuid FROM gate_sessions")) == observation
+        )
+
+
+def test_not_found_requires_trusted_observation_not_worker_assertion(binding_design, ledger_roles):
+    from sqlalchemy.exc import ProgrammingError
+
+    coordinator, worker = ledger_roles
+    with binding_design.begin() as db:
+        add_binding(db)
+        insert_operation(db)
+        token = insert_operation(db, id=2, kind="DISCOVER")
+        operation = db.scalar(
+            text("SELECT operation_uuid FROM gate_physical_operations WHERE id=2")
+        )
+        db.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+        db.execute(text(f'SET LOCAL ROLE "{coordinator}"'))
+        assert assign_worker(db, operation, 1, token, worker)
+    with binding_design.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{worker}"'))
+        with pytest.raises(IntegrityError, match="empty discovery"), db.begin_nested():
+            worker_publish(db, operation, 1, token, result="NOT_FOUND")
+        with pytest.raises(ProgrammingError), db.begin_nested():
+            db.execute(
+                text(
+                    """INSERT INTO gate_empty_set_observations VALUES(:o,:d,:u,1,1,:t,'NOT_FOUND','EXACT_SESSION_GENERATION',0,0)"""
+                ),
+                {"o": uuid4(), "d": operation, "u": uuid4(), "t": token},
+            )
+    with binding_design.begin() as db:
+        observation = record_empty_observation(db)
+    with binding_design.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{worker}"'))
+        assert worker_publish(db, operation, 1, token, result="NOT_FOUND")
+    with binding_design.begin() as db:
+        attach_empty_observation(db, observation)
+        assert db.scalar(
+            text(
+                "SELECT gate_cleanup_ready(operation_uuid) FROM gate_physical_operations WHERE id=1"
+            )
+        )
+
+
+def test_old_discovery_claim_observation_cannot_authorize_new_claim(binding_design):
+    with binding_design.begin() as db:
+        add_binding(db)
+        token = insert_operation(db)
+        original = insert_operation(db, id=2, kind="DISCOVER")
+        db.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+        old_observation = record_empty_observation(db)
+        assert claim_operation(db, original, uuid4(), id=2)
+        with pytest.raises(IntegrityError, match="empty discovery"), db.begin_nested():
+            publish_success(db, id=2, result="NOT_FOUND")
+        with pytest.raises(IntegrityError, match="pointer identity"), db.begin_nested():
+            attach_empty_observation(db, old_observation)
+        with pytest.raises(IntegrityError, match="all registered locators"), db.begin_nested():
+            publish_root(db, token)
+        new_observation = settle_empty_discovery(db)
+        assert new_observation != old_observation
+        assert publish_root(db, token) == 1
+
+
+@pytest.fixture(params=["null", "missing", "uuid", "generation"])
+def orphaned_operation(binding_design, ledger_roles, request):
+    coordinator, worker = ledger_roles
+    with binding_design.begin() as db:
+        token, _, _ = prepare_locators(db)
+        operation = db.scalar(text("SELECT operation_uuid FROM gate_physical_operations"))
+        resource = (
+            db.execute(text("SELECT * FROM gate_physical_resources WHERE resource_kind='MPU'"))
+            .mappings()
+            .one()
+        )
+        db.execute(text(f'SET LOCAL ROLE "{coordinator}"'))
+        assert assign_worker(db, operation, 1, token, worker)
+    # Privileged corruption fixture only; no product trigger is relaxed or replaced.
+    with binding_design.begin() as db:
+        db.execute(text("SET LOCAL session_replication_role=replica"))
+        fault = request.param
+        if fault == "null":
+            db.execute(text("UPDATE gate_physical_operations SET session_id=NULL"))
+        elif fault == "missing":
+            db.execute(text("DELETE FROM gate_sessions"))
+        elif fault == "uuid":
+            db.execute(
+                text("UPDATE gate_physical_operations SET session_uuid_snapshot=gen_random_uuid()")
+            )
+        else:
+            db.execute(
+                text("UPDATE gate_physical_operations SET session_generation=session_generation+1")
+            )
+        db.execute(text("SET LOCAL session_replication_role=origin"))
+    return operation, token, resource
+
+
+def test_historical_operation_without_exact_parent_cannot_progress(
+    binding_design, ledger_roles, orphaned_operation
+):
+    coordinator, worker = ledger_roles
+    operation, token, resource = orphaned_operation
+    with binding_design.connect() as db:
+        snapshot = db.execute(text("SELECT * FROM gate_physical_operations")).one()
+        counts = [
+            db.scalar(text("SELECT count(*) FROM " + name))
+            for name in (
+                "gate_operation_claims",
+                "gate_worker_claim_grants",
+                "gate_resource_settlements",
+            )
+        ]
+    with binding_design.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{coordinator}"'))
+        assert claim_operation(db, token, uuid4()) is False
+        assert assign_worker(db, operation, 1, token, worker) is False
+    with binding_design.begin() as db:
+        db.execute(text(f'SET LOCAL ROLE "{worker}"'))
+        assert worker_publish(db, operation, 1, token) is False
+        assert worker_ack(db, resource, 1, token) is False
+    with binding_design.connect() as db:
+        assert db.execute(text("SELECT * FROM gate_physical_operations")).one() == snapshot
+        assert [
+            db.scalar(text("SELECT count(*) FROM " + name))
+            for name in (
+                "gate_operation_claims",
+                "gate_worker_claim_grants",
+                "gate_resource_settlements",
+            )
+        ] == counts
+
+
+def test_closure_empty_set_assignment_publication_and_unlink_are_atomic(
+    binding_design, ledger_roles
+):
+    coordinator, worker = ledger_roles
+    engine, ready = binding_design, Queue()
+    with engine.begin() as db:
+        add_binding(db)
+        token = insert_operation(db)
+        insert_operation(db, id=2, kind="DISCOVER")
+        operation = db.scalar(
+            text("SELECT operation_uuid FROM gate_physical_operations WHERE id=1")
+        )
+    with Session(engine) as closing, ThreadPoolExecutor(1) as pool:
+        owner = closing.scalar(text("SELECT pg_backend_pid()"))
+        closing.execute(text("UPDATE gate_sessions SET terminal=true,resources_closed=true"))
+
+        def late_registration():
+            with Session(engine) as late:
+                ready.put(late.scalar(text("SELECT pg_backend_pid()")))
+                with (
+                    pytest.raises(IntegrityError, match="registration identity or fence"),
+                    late.begin_nested(),
+                ):
+                    register_resource(late, kind="MPU", upload_id="late-in-empty-set")
+                late.commit()
+
+        contender = pool.submit(late_registration)
+        try:
+            wait_for_blocker(engine, owner, ready.get(timeout=10))
+            observation = settle_empty_discovery(closing)
+            assert closing.scalar(text("SELECT count(*) FROM gate_physical_resources")) == 0
+            assert closing.scalar(text("SELECT gate_cleanup_ready(:o)"), {"o": operation})
+            closing.execute(text(f'SET LOCAL ROLE "{coordinator}"'))
+            assert assign_worker(closing, operation, 1, token, worker)
+            assert assign_worker(closing, operation, 1, token, worker)
+            closing.execute(text(f'SET LOCAL ROLE "{worker}"'))
+            assert worker_publish(closing, operation, 1, token)
+            closing.execute(text("RESET ROLE"))
+            with pytest.raises(RuntimeError), closing.begin_nested():
+                closing.execute(text("DELETE FROM gate_session_bindings"))
+                closing.execute(text("DELETE FROM gate_sessions"))
+                raise RuntimeError("injected before unlink commit")
+            assert closing.scalar(text("SELECT count(*) FROM gate_sessions")) == 1
+            assert closing.scalar(text("SELECT count(*) FROM gate_session_bindings")) == 1
+            closing.execute(text("DELETE FROM gate_session_bindings"))
+            closing.execute(text("DELETE FROM gate_sessions"))
+        finally:
+            closing.commit()
+        contender.result(timeout=10)
+    with engine.connect() as db:
+        assert db.scalar(text("SELECT count(*) FROM gate_sessions")) == 0
+        assert db.scalar(text("SELECT count(*) FROM gate_physical_resources")) == 0
+        assert db.scalar(text("SELECT count(*) FROM gate_worker_claim_grants")) == 1
+        assert (
+            db.scalar(text("SELECT observation_uuid FROM gate_empty_set_observations"))
+            == observation
+        )
+        assert (
+            db.scalar(
+                text("SELECT count(*) FROM gate_physical_operations WHERE session_id IS NOT NULL")
+            )
+            == 0
+        )
+        assert (
+            db.scalar(text("SELECT settlement_status FROM gate_physical_operations WHERE id=1"))
+            == "SETTLED"
+        )

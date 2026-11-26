@@ -1,7 +1,7 @@
 # Asset Infrastructure Architecture Gates
 
-Task 0.5，调查基准 `b0870f96d92aed99236ad8e4ffabec695d68178a`。
-Task 0/0.1/0.2/0.3/0.4 的调查与既有 Accepted Contracts 仍为依据；下面的新方案没有自动取得批准。
+Task 0.6，调查基准 `e48e2e9a5af6d99c34a8707f318251e37c5768ee`。
+Task 0/0.1/0.2/0.3/0.4/0.5 的调查与既有 Accepted Contracts 仍为依据；下面的新方案没有自动取得批准。
 本文件与 [RFC](asset-infrastructure-rfc.md) 一起供负责人审查；**不授权 Task 1**。
 状态中的 APPROVED 只引用已有 accepted contract，不能表示作者批准了新设计。
 新设计结论均为 UNRESOLVED，直到负责人明确接受；BLOCKED 表示指定的证据或环境仍缺失。
@@ -364,7 +364,7 @@ Copy candidate 的 object_key 就是 exact target，不再复制一个可独立�
 具体保留期限和 purge 需 Owner 决策，不宣称它们天然没有个人数据关联。
 
 **Release 算法**：Session UPDATE lock → 核实 expected cleanup UUID / Session UUID/gen / CLEANUP →
-核对 current/published epoch+token → resource set 已关闭且非空 → 每个原始登记行都有当前 claim 的精确 REMOVED/SETTLED →
+核对 current/published epoch+token → resource set 已关闭，有资源时逐项当前 claim REMOVED/SETTLED、无资源时要求 D9 的明确空集证据 →
 无相关 unresolved operation → root CLEANED/SETTLED → 删除 Binding 和 Session（同一事务）。
 Root publication 也检查同一完整性 predicate，而不只是等到 unlink 才检查。
 Session 删除只 SET NULL 关联，Root、claim history、原始 locator、版本和各 ACK snapshot 都保留。
@@ -439,7 +439,7 @@ Session deferred binding guard 使用固定 search_path 的 SECURITY DEFINER，�
 | COMPLETE / SUCCEEDED | CREATED_BY，STAGING_OBJECT，COMPLETE_RESPONSE | 至少一个完整对象资源引用；不等于业务采用或完整 SHA 资格 |
 | COPY / SUCCEEDED | CREATED_BY，COPY_CANDIDATE，COPY_RESPONSE | 至少一个候选引用；不实现完整 copy 协议，也不改变已批准的 Take 状态机 |
 | DISCOVER / SUCCEEDED | DISCOVERED_BY，MPU_LIST 或 HEAD | 至少一个发现资源；保留真实发现 observation identity，不补造原 INITIATE 成功 |
-| DISCOVER / NOT_FOUND | 空的发现结果 | 无本次来源资源引用；表示可信执行器报告本次查询未发现资源，不证明永久无迟到 IO |
+| DISCOVER / NOT_FOUND | 不可变 empty-set observation，非 Physical Resource | 必须有精确当前 discovery claim 的空集 observation，且无本次来源资源引用；可信执行器报告本次查询未发现资源，不证明永久无迟到 IO，见 D9 |
 | VERIFY / SUCCEEDED | 只读观察，不创建资源 | 不要求创建来源引用；此原型不把该状态当作完整 verified receipt |
 | CLEANUP / CLEANED | 所有登记行的 CLEANUP_TARGET；也可在关闭前以 DISCOVERED_BY 记录自身扫描发现 | 完整已关闭集合、逐项 locator/当前 claim ACK、其他 operation 均 settled；不能只靠 Boolean |
 
@@ -461,7 +461,7 @@ Objects 必须记录真实 INITIATE/COMPLETE/COPY 响应或 exact-key discovery�
 | Schema Owner / 可信 Objects registrar | 安装 DDL、登记已核实的资源和来源、关闭完整集合；测试 fixture 用 owner 模拟 registrar | 不是部署中的普通 Provider Worker，不表示允许生产共用 owner 凭据 |
 | Lease / Claim Coordinator | 仅对必要 Operation 列 SELECT；有 claim/assignment 函数 EXECUTE，无广泛表写权限。以 expected epoch/token CAS 推进，再把精确 claim 分配给 Worker principal | 数据库没有 clock/lease ownership 校验；Coordinator 何时可 takeover、如何认证真正 Lease Holder 仍 UNRESOLVED |
 | Provider Worker | 无 ledger 表 SELECT/INSERT/UPDATE，无 claim/assignment EXECUTE；只能携带 dispatch 获得的 exact claim/locator 调用受控 publication/ACK | 不自行发现任意 token；任务派发与身份认证仍需真实受信基础设施 |
-| Grant ledger | immutable `(worker principal,operation UUID,epoch,token)`，FK 到 claim history；函数同时验证 principal assignment 和当前 epoch/token | 这是发布权限分配事实，不是第二个 current claim 或完整 lease 生命周期 |
+| Grant ledger | PK `(operation UUID,epoch)`，唯一 Worker principal/token，FK 到 claim history；所有列不可 UPDATE/DELETE；同 Worker 的当前 claim 重复 assignment 幂等，不同 Worker 返回 false | 这是独占 principal 的发布权限分配事实，不是第二个 current claim，也不是 Provider IO exactly-once 或完整 lease 生命周期 |
 
 所有 SECURITY DEFINER 函数固定隔离 schema/search_path、撤销 PUBLIC EXECUTE。
 Invoker principal 在隔离 SQL 中由受 PostgreSQL 角色成员权限控制的 SET ROLE / session_user 确定；
@@ -474,12 +474,88 @@ Worker 不能通过传入另一个 role 字符串取得权限。测试以 superu
 SETTLED 后不能再次 claim 或重新 assignment；历史保留但不重新授权旧 Worker。
 权限隔离、CAS 竞争排斥、单调 fencing 均不代表 Provider 内部旧 IO 已停止。N3 保持 BLOCKED。
 
+### D9. Task 0.6 Exclusive Assignment / Empty Set / Parent Guard
+
+**UNRESOLVED 提案 + PostgreSQL 原型证据，不是生产授权。**
+
+#### 一个 Epoch 的独占 Assignment
+
+`gate_worker_claim_grants` 的主键为 `(operation_uuid,claim_epoch)`，不再把 Worker 放进主键。
+Token FK 指向 immutable claim history；Worker principal 是不可变属性。两个不同 principal 无法同时拥有同一 claim。
+`gate_assign_worker()` 在精确 Session NO KEY UPDATE → 当前 Operation SHARE 下执行 INSERT ON CONFLICT DO NOTHING，
+随后核对已有行的 principal/token。当前未 settled claim 的同 Worker 重复分配返回 true，不同行为者返回 false；
+已失效或已 settled claim 返回 false。换 Worker 必须由受权 Coordinator CAS 创建新 epoch，旧授权保留且不可修改/删除。
+
+真实 PostgreSQL 两个 Coordinator Role、两个 Worker Role、独立连接与 Queue/pg_blocking_pids 证明：
+两个获胜方向均只有一个 assignment；不同 Worker 的直接重复 INSERT 还被 PK 拒绝，Worker 本身没有 INSERT 权限。
+另覆盖两个获胜方向的 claim CAS，和 Epoch 5/A → Epoch 6/B：A 的旧 publication/ACK 返回 false，
+即便知道新 token 也没有 B 的授权；B 可对全部资源发布 epoch 6 ACK 和 Root result。
+
+此独占性限于 **Worker principal / claim epoch**；同 principal 内的重复投递、两个进程或 takeover 后仍在 Provider 内运行的旧请求，
+不能靠一条授权行保证物理 IO exactly-once。Coordinator 的真实 lease 判断、派发与 Provider 幂等仍是独立边界。
+
+#### 真正空集合的结算证据
+
+新增隔离表 `gate_empty_set_observations`，它是集合完整性证据，**不是虚构物理对象**：
+
+| 字段 / 关系 | SQL 约束 / 含义 |
+| --- | --- |
+| observation_uuid | PK，原型内不可 UPDATE/DELETE；Session 以一次性不可变 pointer 引用 |
+| discovery_operation_uuid | FK 到真实 DISCOVER Operation；同 operation/claim epoch 至多一 observation，旧 attempt 证据可以保留 |
+| Session UUID / Generation | INSERT 在精确 closed/terminal Session NO KEY UPDATE 下核对，与来源 Operation 三元组匹配 |
+| claim_epoch / attempt_token | FK 到 immutable claim history；INSERT 必须为来源 Operation 当前、尚未 settled 的 claim |
+| result / scope / counts | 仅 NOT_FOUND、EXACT_SESSION_GENERATION、MPU=0 / object=0；可信 Objects registrar 记录实际查询结果，不由 Worker 凭结果字符串创建 |
+
+DISCOVER 不能只将 result 改成 NOT_FOUND：其 publication 必须引用上述精确当前 claim 的 observation。
+Session pointer 只能指向同一 Session/Generation 的已 SETTLED/NOT_FOUND discovery，并匹配 published/current claim。
+错误 UUID、generation、scope、非零数量、来源 kind、旧 attempt 或未 settled result 均拒绝；Worker 无 observation 表写权限。
+Source Operation、observation 与必要快照在 Session 删除后保留，不能删除证据来重新激活旧 session。
+
+DISCOVER Operation 必须在资源集合关闭前创建；其 inventory 查询与 observation publication 在关闭后完成。
+如果已有资源行，即使 Provider inventory 当前为零，empty observation 也不代替这些行的独立 ACK。
+原始 locator 行是清理责任历史，不会因一次负向观察自动消失。
+
+| 集合 / 状态 | Root CLEANED |
+| --- | --- |
+| 有资源且全部有当前 claim 精确 ACK；其他 operation settled | 允许，不要求空集 observation |
+| 有资源，缺一个 ACK，即使有 empty observation | 拒绝 |
+| 零资源 + 正确 closed-set observation + 同 Session/gen DISCOVER NOT_FOUND settled + 无未知操作 | 允许 |
+| 零资源，无 observation / 无 pointer / discovery 未 settled | 拒绝 |
+| 零资源，原 INITIATE UNKNOWN，随后 NOT_FOUND | 拒绝；一次未发现不是未知副作用的解决证据 |
+| 零资源，其他 COMPLETE/COPY 等仍 UNKNOWN | 拒绝 |
+| 跨 Session、错 generation、错 observation UUID、伪造 result/旧 claim | 拒绝 |
+
+`insert_operation()` 默认不再登记 STAGING_OBJECT。旧物理目标测试显式 `register_staging=True` 或逐行 register_resource；
+所有空集合测试明确断言 Resource 表为零，没有 dummy object、fake UploadId 或为满足 EXISTS 制造对象。
+
+Observation 是可信执行器声明的 **有界查询结果**。PostgreSQL 只能证明其身份、scope、claim、不可变性和指向关系，
+不能证明 registrar 真的访问了 Provider，更不能把 NOT_FOUND 当作未来永不出现对象的证明。
+完整 discovery、能力到期、未知 IO 解决和永久结束仍由 Objects/Lease/Provider 协议负责，N3 仍 BLOCKED。
+没有引入自动清除 UNKNOWN、重新分类未知结果或新的恢复状态机。
+
+#### Parent Session Guard
+
+四个受控函数 `gate_claim_operation` / `gate_assign_worker` / `gate_worker_publish` / `gate_worker_ack`
+首先按 Session id + UUID + generation 锁同一 Session FOR NO KEY UPDATE，并立刻检查 FOUND。
+缺失或不匹配均返回 false，不读取后续执行权、不推进 epoch、不新增 grant/settlement、不改变 Operation snapshot。
+只有父 Session 验证成功后才进入 Operation / Assignment / Resource publication 检查，保持锁序。
+
+异常 fixture 仅由测试 Schema Owner 在本事务 `session_replication_role=replica` 下构造 NULL FK、缺行、错 UUID、错 generation，
+随后恢复 origin；没有永久关闭、替换或放宽产品 trigger。四种异常中即便 Worker 已有真实 token/assignment 也不能推进。
+正常父 Session 的所有正向 claim/assignment/publication/ACK 回归继续通过。
+
+组合测试的合法顺序是：预先登记 DISCOVER Operation → Closure 在 Session 赢得登记竞态 → 零 Resource →
+不可变空集 observation / DISCOVER settlement → Root **ready**（尚未 SETTLED）→ 独占 Worker assignment →
+Worker publication 将 Root SETTLED → Binding/Session 同事务删除。
+不能先把 Root SETTLED 再授权 Worker 执行已完成任务。测试同时覆盖 rollback 恢复 Binding/Session，
+迟到登记等待后拒绝，以及 unlink 后仅保留独立操作/observation 证据。
+
 ## E. Provider证据与尚未关闭的门槛
 
 详见 [Provider qualification](asset-provider-qualification.md) 及其中原始脱敏JSON。
 开发实际为阿里云OSS，不能继续把Compose MinIO当作实际开发或生产能力证据。
 生产Provider仍UNKNOWN；完整IAM/加密策略、在途IO永久结束边界、最大尺寸和composite checksum资格未获证明。
-既有真实小对象观察不能填补这些结论；Task 0.4/0.5 没有新增真实 Provider 测试。
+既有真实小对象观察不能填补这些结论；Task 0.4/0.5/0.6 没有新增真实 Provider 测试。
 
 ## F. N1–N8状态
 
@@ -497,7 +573,15 @@ SETTLED 后不能再次 claim 或重新 assignment；历史保留但不重新授
 没有新增提案被自动标为APPROVED。现有accepted Objects/Usage/Quota/Inventory/Take/Account合同继续有效；
 本批明确不改变生产代码、ORM、迁移、API、Frontend、运行时Provider或已批准ADR。
 
-## G. Task 0.5 Findings
+## G. Task 0.6 Findings
+
+| Finding | 修复 / 证据 | 剩余边界 / Approval |
+| --- | --- | --- |
+| P1-A 同 claim 多 Worker | PK(operation UUID,epoch)，immutable assignment，当前同 Worker 幂等；两 Coordinator/Worker 两竞争方向和 5→6 takeover | 独占 principal 不等于 IO exactly-once；真实 Lease Authority 未获证明 |
+| P1-B 空集合卡住 | 独立 immutable NOT_FOUND observation、精确 Session pointer、当前 discovery claim、完整 result 绑定；有资源时仍必须逐项 ACK | Provider 负向观察不证明永久无迟到 IO |
+| P2-C Parent Guard | 四函数三元组锁父后检查 FOUND；四类历史异常返回 false 且所有计数/snapshot 不变 | Schema Owner 的特权造数只用于隔离异常 fixture |
+
+### 保留的 Task 0.5 Findings
 
 | Finding | 修复 / PostgreSQL 证据 | 剩余信任 / Approval |
 | --- | --- | --- |
@@ -520,6 +604,18 @@ SETTLED 后不能再次 claim 或重新 assignment；历史保留但不重新授
 Task 0.2 orphan discovery、Task 0.3 5xx/timeout、三 concrete FK、deferred constraints 和真实 UploadService 两 winner/两删除方向均保留。
 Account Erasure 仍为 TAKES semantic release → TRANSFERS physical settlement → FINALIZE history erasure。
 
+## Hosted CI 证据边界与 Task 0.5 更正
+
+基准 [e48e2e9a 的检查](https://github.com/tinghui0912/NoteVerse-Pro/commit/e48e2e9a5af6d99c34a8707f318251e37c5768ee/checks)
+对应 12 个 PR Workflow Runs 为 **FAILURE**；另有 2 个 trusted-main publication job 为 SKIPPED。
+本轮开始时按该 headRevision 读取 PR diagnostics，实际得到 12 failure + 2 skipped、hasMore=false。
+上一轮 commit-workflow wrapper 的空列表不能证明 CI 不存在；前轮交付的 UNAVAILABLE 不能作为这些 run 的状态。
+一个已失败 run 的 jobs summary 可读，进一步 job detail 返回 HTTP 502，未取得步骤详情；不据此推测代码、runner 或配额原因。
+
+本轮 push 后仅取一次新 head 的即时快照，附带该快照中已知 run/job 的只读详情，不等待、不轮询、不 rerun。
+每个 run 的实际 status/conclusion、可读取的 Job Steps 和缺失信息记录在最终报告；PENDING 不改写成通过，
+FAILURE 不改写成 UNAVAILABLE。没有修改 Workflow 或降低任何门禁。
+
 ## 本地验证记录
 
 2026-11-26，既有 quality container / PostgreSQL 17.11；只在项目专用测试 DB
@@ -530,9 +626,9 @@ Backend 命令从 `/repo/backend` 执行；PG 行通过 quality container 的 Py
 
 | 实际命令 | 最终输出 |
 | --- | --- |
-| `python -m pytest -q tests/test_asset_session_binding_design_postgres.py` | `156 passed, 1 warning in 73.32s` |
-| `python -m pytest -q tests/test_asset_provider_probe.py` | `101 passed, 1 warning in 4.91s`；仅工具逻辑 doubles |
-| `python -m pytest -q tests/test_asset_gate_postgres.py tests/test_object_write_postgres.py tests/test_stored_object_retirement_postgres.py tests/test_upload_reservation_postgres.py tests/test_account_deletion_postgres.py tests/test_storage_quota_postgres.py` | `119 passed, 1 warning in 78.59s`；合并执行 8 项真实锁序测试及 111 项既有回归，不虚构分别执行的耗时 |
+| `python -m pytest -q tests/test_asset_session_binding_design_postgres.py` | `182 passed, 1 warning in 79.59s` |
+| `python -m pytest -q tests/test_asset_provider_probe.py` | `101 passed, 1 warning in 4.71s`；仅工具逻辑 doubles |
+| `python -m pytest -q tests/test_asset_gate_postgres.py tests/test_object_write_postgres.py tests/test_stored_object_retirement_postgres.py tests/test_upload_reservation_postgres.py tests/test_account_deletion_postgres.py tests/test_storage_quota_postgres.py` | `119 passed, 1 warning in 70.34s`；合并执行 8 项真实锁序测试及 111 项既有回归，不虚构分别执行的耗时 |
 | `python -m ruff check app tests scripts` | `All checks passed!` |
 | `python -m ruff format --check tests` | **FAIL：10 files would be reformatted, 296 files already formatted**；10 项均是起点未改文件，见下方复核 |
 | `python -m ruff format --check tests/support/asset_binding_ledger_design.py tests/test_asset_session_binding_design_postgres.py` | `2 files already formatted` |
@@ -541,7 +637,7 @@ Backend 命令从 `/repo/backend` 执行；PG 行通过 quality container 的 Py
 | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality.ps1 -Check docs-links` | 11 tests OK；Documentation structure OK；Markdown links are valid |
 | `git diff --check` | exit 0 |
 
-格式基线复核：逐个 `git show b0870f96:backend/tests/<file>` 将起点源码通过 stdin 交给相同容器的
+格式基线复核：逐个 `git show e48e2e9a:backend/tests/<file>` 将起点源码通过 stdin 交给相同容器的
 `ruff format --check --stdin-filename tests/<file>`；全部返回 1，并确认本批对这些文件 `git diff --quiet HEAD`。
 未为了通过门禁修改以下无关文件：
 `test_health_api.py`、`test_image_contract.py`、`test_practice_physical_strike_contract.py`、
@@ -549,17 +645,14 @@ Backend 命令从 `/repo/backend` 执行；PG 行通过 quality container 的 Py
 `test_prepare_model_assets.py`、`test_public_frontend_url_settings.py`、`test_text_integration.py`、`test_trusted_proxy_settings.py`。
 这是已确认的基线格式失败，不将全量 format 描述为通过。
 
-首轮原型执行为 2 failed / 143 passed：旧测试在 Root 关闭后登记 unresolved Operation，
-与新增的 open fence 冲突；另有 owner 建 Session 后 SET ROLE Coordinator 导致 deferred binding guard 读取权限不足。
-前者将未知 operation 在关闭前登记，继续断言不可删除证据和不可释放；后者让固定 search_path 的约束函数受保护执行，
-没有重新开放 Worker 的表 SELECT。修复后完整套件实际重跑通过，不放宽身份、ACK 或并发断言。
-新增字段格式化前的临时检查有 11 项 format 失败，格式化本批文件后回到原有 10 项基线。
-保留 pg_blocking_pids、两个获胜方向和明确提交次序，无 sleep、重复重试或 timeout 增大。
+本轮原型完整执行 182 项通过；没有为通过测试放宽 UNKNOWN、locator、generation 或权限断言。
+保留 pg_blocking_pids、Registration/Closure 两个获胜方向，并新增两个 Coordinator/Worker 的竞争方向、
+真实零资源和历史异常 Parent fixture；没有 sleep、重复重试或 timeout 增大。
 pytest warning 是既有 FastAPI/Starlette TestClient 的 httpx 弃用提示。
 
 本批未运行真实 OSS；没有新 Provider JSON，没有访问生产或修改任何 bucket 配置。
 Task 0.1/0.2 的 [历史真实结果](evidence/asset-provider-oss-review-02.json) 保留不变，
 不能把本批 doubles 的 HTTP 200/500 合成场景描述成实际 OSS 已执行。
-共 376 项最终测试通过（156 binding + 8 lock + 111 regression + 101 tool），另有文档检查 11 项。
+共 402 项最终测试通过（182 binding + 8 lock + 111 regression + 101 tool），另有文档检查 11 项。
 Provider 工具/测试、真实 UploadService gate 文件和历史证据均未改。完整 Backend/Frontend、Build、Alembic/API regeneration 未执行：本批只修改允许的 SQL 原型、测试和两份架构文档。
 提交后仅取一次 Hosted CI 即时状态，结果在交付报告记录；不等待、不轮询。Task 1 仍未获授权。

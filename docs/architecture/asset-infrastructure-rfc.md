@@ -4,8 +4,8 @@
 
 调查基准：`refactor/practice-foundation-v2`，
 `cfe83a5c845d29d83e26c3ba6f3e1fa749e9f891`，2026-11-25。
-Task 0.5 复核基准：`b0870f96d92aed99236ad8e4ffabec695d68178a`，2026-11-26。
-Task 0/0.1/0.2/0.3/0.4/0.5 仅调查和设计；没有创建下文的生产模型、接口、迁移或任务。
+Task 0.6 复核基准：`e48e2e9a5af6d99c34a8707f318251e37c5768ee`，2026-11-26。
+Task 0/0.1/0.2/0.3/0.4/0.5/0.6 仅调查和设计；没有创建下文的生产模型、接口、迁移或任务。
 锁序、Account erasure、receipt/copy、binding 及 N1–N8 的详细审查依据见
 [Architecture Gate Closure](asset-infrastructure-gates.md)；实际存储实验见
 [Provider Qualification](asset-provider-qualification.md)。两份材料属于本 RFC 的审查证据，
@@ -486,12 +486,14 @@ Take 的“接受 staging”和“生成 Take”是两个不同事务，前者�
 
 | 表 | 主要字段/关系 | 约束与索引 |
 | --- | --- | --- |
-| `upload_sessions` | id、session_uuid、user_id FK users RESTRICT、generation、admission_fingerprint、expected_bytes、admitted_content_type、optional expected_sha256、opaque staging_key、initiate_operation_id、verification_operation_id、cleanup_operation_uuid、resources_closed、capability_policy_version、part_size/part_count、state、hard_deadline_at、last_capability_expires_at、completion_fingerprint、provider_completed_at、consumed_at、terminal_at、input_released_at、created/updated | UUID/key 唯一；bytes/generation/part size/count 正整数；SHA 格式；结果 identity/manifest/终态 tuple CHECK；结果通过 session/generation/kind 复合 FK 和锁定 ledger 核验，不以跨表 CHECK 冒充完整性；cleanup UUID 一次绑定，resources_closed 是不可逆的完整登记声明；deadline 必须在创建后；能力期限不能超过 hard deadline；input仅可在CONSUMED或取消/过期/拒绝终态释放，CONSUMED需显式业务释放命令；user/state/created 与 state/deadline/id 索引；不加 StoredObject FK以免把传输证据变成第十条语义引用 |
+| `upload_sessions` | id、session_uuid、user_id FK users RESTRICT、generation、admission_fingerprint、expected_bytes、admitted_content_type、optional expected_sha256、opaque staging_key、initiate_operation_id、verification_operation_id、cleanup_operation_uuid、resources_closed、empty_set_observation_uuid、capability_policy_version、part_size/part_count、state、hard_deadline_at、last_capability_expires_at、completion_fingerprint、provider_completed_at、consumed_at、terminal_at、input_released_at、created/updated | UUID/key 唯一；bytes/generation/part size/count 正整数；SHA 格式；结果 identity/manifest/终态 tuple CHECK；结果通过 session/generation/kind 复合 FK 和锁定 ledger 核验，不以跨表 CHECK 冒充完整性；cleanup UUID/empty observation pointer 一次绑定，resources_closed 是不可逆的完整登记声明；空集合不能以零行代替明确 NOT_FOUND 证据；deadline 必须在创建后；能力期限不能超过 hard deadline；input仅可在CONSUMED或取消/过期/拒绝终态释放，CONSUMED需显式业务释放命令；user/state/created 与 state/deadline/id 索引；不加 StoredObject FK以免把传输证据变成第十条语义引用 |
 | `upload_session_parts` | session_id FK RESTRICT、part_number、expected_length、admitted_checksum、observed size/ETag/checksum、observed_at | 唯一(session_id,part_number)，number/length 正值；传输计划不可变；跨行总量由锁定 Session 的服务核验，不能声称单行 CHECK 已保证全 manifest |
 | `upload_session_operations` | operation_uuid、session_id FK SET NULL、session_uuid_snapshot、generation、不可变 kind INITIATE/COMPLETE/VERIFY/CLEANUP，独立 DISCOVER、物理 resource UUID references、cleanup_not_before、既有 delivery timestamps/current claim_epoch/attempt token/count/due、published epoch/attempt token、operation_result、settlement_status、structured failure facts | 主协议 phase 唯一(session_uuid_snapshot,generation,kind)，避免FK置空后唯一性丢失；独立 discovery 使用稳定 operation UUID；INSERT 必须在 Session NO KEY UPDATE 下匹配 id/UUID/gen/open fence；Session 当前可发布命令由明确 operation identity/attempt 条件更新决定；取消后 cleanup 可与旧未知结果的历史证据共存，不以“所有非终态 operation 唯一”阻止清理；snapshot identity在Session删除后仍可诊断；精确 UUID/generation/kind/单调 claim epoch/current-vs-published token/result/settlement CHECK；旧状态 CAS + immutable claim journal + token UNIQUE；只有 Coordinator 可 claim/assignment，Worker 无 ledger SELECT/表写权限，通过 exact assigned claim 的受控函数发布；identity/result 不可 retarget；status/due/id 索引；snapshot 不是业务 ownership |
 | `upload_session_physical_resources` | resource_uuid、Session UUID/gen、expected cleanup operation UUID、source_operation_uuid、provenance_kind、observation UUID/method、resource_kind、原始 exact object_key / provider_upload_id / physical_generation / version_id、locator_fingerprint | 明确资源子行；CREATED_BY/DISCOVERED_BY 与 CLEANUP_TARGET 是不同关系，来源/目标须匹配同一 Session generation；登记先锁 Session NO KEY UPDATE 再验证来源 Operation，与集合关闭冲突；同 key 多 MPU 是不同原始 UploadId；locator/来源/observation 不可 retarget；MPU UploadId 非空、version 为空；对象无 UploadId，version 可空；raw locator 内部受保护，fingerprint 只作安全日志 |
 | `upload_session_resource_settlements` | resource UUID、cleanup UUID、claim epoch/token、执行 locator snapshots、result/settlement | 当前 claim 与原始 locator 逐项匹配；每资源每 claim 一结果，immutable；root CLEANED 只在完整已关闭资源集均正确 settled 且无未知 operation 时发布 |
 | `upload_session_operation_claims` | operation UUID、claim_epoch、token、previous epoch/token | 唯一 token / operation epoch，前驱 FK，immutable；CAS function 固定 search_path/权限，只从匹配旧状态推进，不允许 token 回退或重用 |
+| `upload_session_empty_set_observations`（待批准） | observation UUID、DISCOVER operation FK、Session UUID/gen snapshot、claim epoch/token、NOT_FOUND、exact-generation scope、零 MPU/object observations | 集合证据不是 Physical Resource；同 discovery/epoch 唯一；immutable；必须核对 closed Parent 与当前 claim，NOT_FOUND publication 和 Session pointer 引用同一 observation；未知 mutation 仍阻止 Root |
+| Worker assignment 契约（隔离表 `gate_worker_claim_grants`） | operation UUID + epoch PK、唯一 Worker principal、token FK 到 claim history | 同 principal 当前 claim 幂等；不同 principal 拒绝；不可 UPDATE/DELETE，换 Worker 要新 epoch。生产 principal/lease authority 与持久化映射仍待 N8，不把测试 role name 直接定为产品身份模型 |
 | `upload_creation_requests` | 保留 user/request/fingerprint/generation/Hold/结果和完成时间；不增加独立可修改 Session FK | 通过下述 concrete binding 查询每代 Session；新 generation 不 retarget 旧 binding，旧 Session 保留 cleanup evidence |
 | `performance_take_upload_reservations` | 保留 Manifest、client id、quota_hold_id、业务 status/finalize candidate/lease 和 orphan lineage；通过 concrete binding 关联 Session；增加 finalizing_copy_operation_id FK RESTRICT；orphan candidate保留对应copy operation identity | 移除被 Session 替代的 raw PUT/staging locator/URL期限物理事实；copy operation完成不是Take完成；业务 retention条件与物理 ack分别通过 contract取得，禁止同一事实双写；Manifest/owner复合FK和quota_hold_id唯一性保持 |
 | `avatar_change_requests` | Account-owned replacement idempotency：user_id、client_request_id、request_fingerprint、normalized Intent identity、applied_at、result identity snapshot | 唯一(user_id,client_request_id)；重复完成不再次覆盖当前头像；不把旧头像 FK当作保留引用，不记录 Signed URL；未采用input由Session清理 |
@@ -507,7 +509,7 @@ physical generation和对应的Intent/Take lease。ObjectCopyOperation不获取�
 格式和查询预算由已验证max_parts确定。是否改为独立part子表由持久化规模测试决定，不暴露松散Any契约。
 
 Binding 的完整结构与 PostgreSQL 原型证据见 [Gate D](asset-infrastructure-gates.md)。
-Task 0.5 SQL 原型进一步验证登记/关闭互斥、Operation INSERT 身份、来源关联和 Coordinator/Worker 权限；保留 Task 0.4 locator/claim/generation 证明。
+Task 0.6 原型补充一个 epoch 一个 Worker principal、明确空集合证据和精确 Parent Guard；保留 0.4/0.5 locator/claim/generation、登记互斥与来源证明。
 Binding UNIQUE 只约束活跃行；旧 command generation 在 binding 删除后仍须由 domain 终态 lineage 拒绝重放。
 原型通过具体 FK 的各自 generation 表证明该约束，不要求机械复制为生产表，不引入通用 owner/生命周期模型。
 历史 parent command 正式擦除后的 API 身份不重用和保留政策仍需 domain/Owner 决策，不能宣称 UNIQUE 无限保存历史。
@@ -516,14 +518,14 @@ Session UUID 由服务端产生，外部 API 不允许绑定已有 Session；数
 Quota ownership/category/bytes 仍由业务在容量锁下校验。
 SessionOperation 的 INITIATE/VERIFY/CLEANUP 结果是唯一物理执行证据；current attempt token/epoch 是当前 fencing identity，不是独立的 Lease Authorization，
 published attempt token 是成功结果的不可变执行快照。旧 claim CAS 必须更新零行；
-精确 CLEANUP SETTLED 还必须引用原始资源 locator 的逐项 ACK；Session.resources_closed 是可信协调器的完整登记声明。
+精确 CLEANUP SETTLED 有资源时必须引用原始 locator 的逐项 ACK；零资源时要求独立的精确 NOT_FOUND observation/discovery result，不以零行本身作为证据。Session.resources_closed 仍是可信协调器的完整登记声明。
 它们不代表数据库自行验证了 Provider 内部迟到 IO 已终结。Objects Service 必须保留并核实所有未知副作用，
 不能仅靠轮换 token 清除 UNKNOWN。Session 只存匹配的结果 identity；
 parts 保存可追溯观测，不能替代最终全量验证。自动 retry 复用 DurableFailure，禁止记录 Signed URL、secret 或原始异常正文到 Ops。
 
 ### Registration、来源与授权的审查边界
 
-参见 [Gate D6–D8](asset-infrastructure-gates.md) 的锁序、结果矩阵和权限证明。
+参见 [Gate D6–D9](asset-infrastructure-gates.md) 的锁序、结果矩阵和权限证明。
 Registration 在 Session FOR NO KEY UPDATE 下重验 open/UUID/gen，Closure 的非键 UPDATE 取得冲突锁；
 登记先提交的资源必须被后续 Closure 看见并获得逐项 ACK，关闭先提交则迟到登记拒绝。
 隔离 SQL 原型要求 READ COMMITTED，登记和首次关闭在更高的固定快照隔离级别下 fail closed；不能只凭行锁推导任意隔离级别的可见性。
@@ -543,6 +545,20 @@ Worker 只能用已分配的 operation UUID/epoch/token 和 locator 调用固定
 函数检查调用 principal 的分配事实、当前 CAS 身份及结果约束，旧 claim 不可发布；SETTLED 不可重新 claim。
 Coordinator 是否有权接管真实 lease、Worker principal/dispatch 如何认证和签发仍为 UNRESOLVED。
 角色权限、单调 epoch、不可变 token history 不能冒充 lease clock/合法 Holder 验证，也不停止 Provider 内部旧请求。
+
+Task 0.6 的 SQL 设计进一步规定：assignment PK 为 (operation UUID,claim epoch)，Worker principal 不可修改。
+同 principal 对当前 claim 重放 assignment 幂等，不同 principal 拒绝；takeover 必须产生新 epoch，不能覆盖旧授权行。
+这是独占 principal 的授权，不是对同一 principal 内重复物理 IO 的 exactly-once 保证。
+四个受控函数在进入 Operation 之前，按 id/UUID/generation 锁住同一父 Session 并检查 FOUND；缺失或错配统一返回 false。
+历史 Operation 即使保留真实 token/grant，也没有脱离父 Session 继续执行的权利。
+
+零资源 Session 的空集证据属于独立 immutable observation，不属于 Physical Resource。
+它引用同 Session/gen 的 DISCOVER Operation 及其当前 claim，记录 scope 与零 MPU/零 object；
+Session 只保存一次性的 observation identity pointer，不复制一份可以独立更新的 observation/result。
+只有该 DISCOVER 已以精确 observation 发布 NOT_FOUND、集合已关闭且所有其他 operation settled，才允许空 Root CLEANED。
+原 INITIATE UNKNOWN + 后续 NOT_FOUND 仍拒绝；有资源缺 ACK 时，空集证据也不能代替 ACK。
+SQL 原型的 observation/assignment 表是边界证明，生产 FK、授权部署和 registrar 接口仍待 N7/N8 审批，不是新增 runtime 表。
+具体矩阵、角色权限、异常 Parent fixture 和组合测试见 Gate D9。
 
 Account 擦除的 TAKES 只提交 semantic release；TRANSFERS 确认 Session/Copy 临时责任关闭后，
 在同一有界事务先删除 parts、binding、Session，再允许 FINALIZE 擦除 Request/Reservation/Manifest；
@@ -690,4 +706,4 @@ UNKNOWN 参数不填入生产契约，N1–N8 不自动升级为 APPROVED。
 | 13. 物理清理证据保留政策 | UNRESOLVED；禁止 secret/Signed URL，原始 locator 按内部敏感关联数据管理；不能因 Session/User 删除丢掉未知 IO 责任 |
 
 Account 新阶段、immutable/deferred binding triggers 和 receipt/copy 接口仍为待审批设计。
-[Task 0.5 findings](asset-infrastructure-gates.md) 区分实际验证、原型约束与尚未证明的物理保证。
+[Task 0.6 findings](asset-infrastructure-gates.md) 区分实际验证、原型约束与尚未证明的物理保证。
