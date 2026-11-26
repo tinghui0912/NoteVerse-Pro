@@ -162,10 +162,10 @@ class PerformanceTakeReservationService:
                 field="client_request_id",
                 details={"reason": "client_request_id_expired_use_new_id"},
             )
-        upload_target = self.storage.upload_url(
+        upload_target = self.storage.generate_put_upload_url(
             key=reservation.staging_object_key,
             content_type=manifest_from_row(reservation.manifest).snapshot.capture.mime_type,
-            checksum_sha256="",
+            content_length=manifest_from_row(reservation.manifest).snapshot.capture.byte_size,
         )
         now = utc_now()
         apply_reservation_transition(
@@ -268,8 +268,8 @@ class PerformanceTakeReservationService:
         staging_key = performance_take_staging_object_key(
             user_id=user_id, take_uuid=take_uuid, media_kind=media.kind, mime_type=media.mime_type
         )
-        upload_target = self.storage.upload_url(
-            key=staging_key, content_type=media.mime_type, checksum_sha256=""
+        upload_target = self.storage.generate_put_upload_url(
+            key=staging_key, content_type=media.mime_type, content_length=media.byte_size
         )
         now = utc_now()
         hold = self.quota.create_hold(

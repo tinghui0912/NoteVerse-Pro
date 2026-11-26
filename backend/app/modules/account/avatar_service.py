@@ -2,13 +2,15 @@
 
 import hashlib
 import io
+import warnings
+from typing import BinaryIO
 from uuid import uuid4
 from sqlalchemy import select
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
-from app.core.logger import logger
+from app.core.config import settings
 from app.db.model_utils import require_persisted_id
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import User
@@ -24,15 +26,27 @@ def avatar_object_key(filename: str) -> str:
     return f"avatars/{filename}"
 
 
+class AvatarFileTooLargeError(ValueError):
+    """The avatar exceeds the bounded input budget."""
+
+
 class AvatarService:
     """Avatar image processing for account profile pictures."""
 
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
-    MAX_FILE_SIZE = 5 * 1024 * 1024
     AVATAR_SIZE = (200, 200)
 
     def __init__(self, storage: ObjectStorage | None = None) -> None:
         self.storage = storage or object_storage
+
+    def read_upload(self, stream: BinaryIO) -> bytes:
+        limit = settings.AVATAR_MAX_UPLOAD_BYTES
+        content = bytearray()
+        while chunk := stream.read(min(64 * 1024, limit - len(content) + 1)):
+            content.extend(chunk)
+            if len(content) > limit:
+                raise AvatarFileTooLargeError("Avatar exceeds the upload limit")
+        return bytes(content)
 
     def is_allowed_extension(self, filename: str) -> bool:
         if "." not in filename:
@@ -41,7 +55,7 @@ class AvatarService:
         return ext in self.ALLOWED_EXTENSIONS
 
     def validate_file_size(self, file_bytes: bytes) -> bool:
-        return len(file_bytes) <= self.MAX_FILE_SIZE
+        return len(file_bytes) <= settings.AVATAR_MAX_UPLOAD_BYTES
 
     def process_avatar(
         self,
@@ -52,10 +66,22 @@ class AvatarService:
         if not self.is_allowed_extension(filename):
             raise ValueError("Unsupported file format")
         if not self.validate_file_size(file_bytes):
-            raise ValueError("File size exceeds the 5MB limit")
+            raise AvatarFileTooLargeError("Avatar exceeds the upload limit")
 
         try:
-            img = Image.open(io.BytesIO(file_bytes))
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(io.BytesIO(file_bytes)) as source:
+                    if source.format not in {"PNG", "JPEG", "GIF", "WEBP"}:
+                        raise ValueError("Unsupported image format")
+                    width, height = source.size
+                    if (
+                        width * height > settings.AVATAR_MAX_PIXELS
+                        or max(width, height) > settings.AVATAR_MAX_DIMENSION
+                    ):
+                        raise ValueError("Avatar dimensions exceed the decoding budget")
+                    source.load()
+                    img = source.copy()
             if img.mode not in ("RGB", "RGBA"):
                 img = img.convert("RGB")
 
@@ -65,20 +91,20 @@ class AvatarService:
                 (self.AVATAR_SIZE[0] - img.size[0]) // 2,
                 (self.AVATAR_SIZE[1] - img.size[1]) // 2,
             )
-            canvas.paste(img, offset)
+            canvas.paste(img, offset, img.getchannel("A") if img.mode == "RGBA" else None)
 
             output = io.BytesIO()
             canvas.save(output, "JPEG", quality=85, optimize=True)
             content = output.getvalue()
             final_filename = f"{user_id}_{hashlib.sha256(content).hexdigest()}_{uuid4().hex}.jpg"
             return avatar_object_key(final_filename), content
-        except Exception as exc:
-            logger.bind(
-                event="account.avatar.processing_failed",
-                user_id=user_id,
-                filename=filename,
-            ).opt(exception=exc).error("Avatar processing failed")
-            raise ValueError(f"Image processing failed: {str(exc)}")
+        except (
+            UnidentifiedImageError,
+            OSError,
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+        ) as exc:
+            raise ValueError("Invalid avatar image") from exc
 
     def replace_user_avatar(
         self,

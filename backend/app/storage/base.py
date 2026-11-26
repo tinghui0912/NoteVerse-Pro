@@ -8,7 +8,15 @@ from typing import Protocol
 
 
 class ObjectStorageUnavailableError(RuntimeError):
-    """The physical provider cannot currently complete a read."""
+    """The provider result is unavailable or its side effect is uncertain."""
+
+
+class ObjectNotFoundError(RuntimeError):
+    """The provider definitively reports a missing object or upload handle."""
+
+
+class ObjectStorageOperationFailedError(RuntimeError):
+    """The provider rejects an operation or returns an invalid response."""
 
 
 @dataclass(frozen=True)
@@ -34,7 +42,25 @@ class ObjectMetadata:
 
     size_bytes: int
     content_type: str | None = None
-    checksum_sha256: str | None = None
+    etag: str | None = None
+    checksum_algorithm: str | None = None
+    checksum: str | None = None
+    checksum_type: str | None = None
+
+
+@dataclass(frozen=True)
+class UploadedPart:
+    part_number: int
+    etag: str
+    size_bytes: int
+
+
+@dataclass(frozen=True)
+class MultipartUploadResult:
+    etag: str | None = None
+    checksum_algorithm: str | None = None
+    checksum: str | None = None
+    checksum_type: str | None = None
 
 
 class ObjectStorage(Protocol):
@@ -54,13 +80,34 @@ class ObjectStorage(Protocol):
 
     def object_metadata(self, key: str) -> ObjectMetadata: ...
 
-    def upload_url(
+    def generate_put_upload_url(
         self,
         key: str,
         *,
         content_type: str,
-        checksum_sha256: str,
+        content_length: int,
+        expires_in: int | None = None,
     ) -> DirectUploadTarget: ...
+
+    def create_multipart_upload(self, key: str, *, content_type: str) -> str: ...
+
+    def generate_part_upload_url(
+        self,
+        key: str,
+        upload_id: str,
+        part_number: int,
+        *,
+        content_length: int,
+        expires_in: int | None = None,
+    ) -> DirectUploadTarget: ...
+
+    def list_uploaded_parts(self, key: str, upload_id: str) -> tuple[UploadedPart, ...]: ...
+
+    def complete_multipart_upload(
+        self, key: str, upload_id: str, parts: tuple[UploadedPart, ...]
+    ) -> MultipartUploadResult: ...
+
+    def abort_multipart_upload(self, key: str, upload_id: str) -> None: ...
 
     def iter_bytes(
         self,
@@ -73,7 +120,7 @@ class ObjectStorage(Protocol):
 
     def copy(self, source_key: str, target_key: str) -> None: ...
 
-    def delete(self, key: str) -> bool: ...
+    def delete(self, key: str) -> None: ...
 
     def download_url(
         self,
@@ -83,5 +130,3 @@ class ObjectStorage(Protocol):
         content_type: str | None = None,
         expires_seconds: int | None = None,
     ) -> str: ...
-
-    def materialize_to_local(self, key: str, target_path: str) -> str: ...

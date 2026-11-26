@@ -1,5 +1,7 @@
 """Committed object facts govern semantic reads independently of physical observations."""
 
+from app.storage.base import ObjectNotFoundError
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 
 from app.shared.time import utc_now
@@ -218,7 +220,7 @@ def test_stream_headers_and_ranges_use_persisted_size(
 @pytest.mark.parametrize(
     "error,status,code",
     [
-        (FileNotFoundError("private-provider-key"), 500, "internal_error"),
+        (ObjectNotFoundError("private-provider-key"), 500, "internal_error"),
         (TimeoutError("private-provider-network"), 503, "storage_backend_unavailable"),
     ],
 )
@@ -261,7 +263,7 @@ def test_admitted_read_failures_have_safe_http_and_internal_diagnostics(
 @pytest.mark.parametrize(
     "error,expected",
     [
-        (FileNotFoundError("private"), StoredObjectIntegrityError),
+        (ObjectNotFoundError("private"), StoredObjectIntegrityError),
         (TimeoutError("private"), ExternalServiceException),
     ],
 )
@@ -286,13 +288,17 @@ async def test_inflight_stream_failures_terminate_without_a_fallback(error, expe
     [("NoSuchKey", StoredObjectIntegrityError), ("SlowDown", ExternalServiceException)],
 )
 def test_provider_get_failures_are_classified_without_preflight(code, expected):
-    from botocore.exceptions import ClientError
+    from app.storage.s3_compatible import ClientError
     from app.storage.s3_compatible import S3CompatibleObjectStorage
 
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
     storage.client.get_object.side_effect = ClientError(
-        {"Error": {"Code": code, "Message": "private-provider-detail"}}, "GetObject"
+        {
+            "Error": {"Code": code, "Message": "private-provider-detail"},
+            "ResponseMetadata": {"HTTPStatusCode": 404 if code == "NoSuchKey" else 503},
+        },
+        "GetObject",
     )
     with pytest.raises(expected):
         read_admitted_bytes(storage, StoredObjectReadTarget(1, "key", 10, "application/xml"))

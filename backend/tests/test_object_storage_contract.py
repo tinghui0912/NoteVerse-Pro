@@ -4,8 +4,11 @@ from io import BytesIO
 import os
 from uuid import uuid4
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 import pytest
 from app.storage import ObjectStorage
+from app.storage.base import ObjectNotFoundError
+from app.storage.s3_compatible import ClientError
 from app.storage.s3_compatible import S3CompatibleObjectStorage
 from tests.support.object_storage import InMemoryObjectStorage
 
@@ -25,14 +28,16 @@ class ObjectClient:
     def put_object(self, *, Bucket, Key, Body, **kwargs):
         self.store.put_bytes(key=Key, content=Body, content_type=kwargs.get("ContentType"))
 
-    def head_object(self, *, Bucket, Key):
+    def head_object(self, *, Bucket, Key, **kwargs):
         try:
             m = self.store.object_metadata(Key)
-        except FileNotFoundError as exc:
-            error = RuntimeError("missing")
-            error.response = {"Error": {"Code": "NoSuchKey"}}
+        except ObjectNotFoundError as exc:
+            error = ClientError(
+                {"Error": {"Code": "NoSuchKey"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                "HeadObject",
+            )
             raise error from exc
-        return {"ContentLength": m.size_bytes, "ContentType": m.content_type}
+        return {"ContentLength": m.size_bytes, "ContentType": m.content_type, "ETag": m.etag}
 
     def get_object(self, *, Bucket, Key, Range=None):
         data = self.store.read_bytes(Key)
@@ -76,15 +81,15 @@ def assert_object_capabilities(storage: ObjectStorage, prefix: str):
         storage.copy(key, copied)
         assert storage.read_bytes(copied) == data
         assert storage.object_metadata(copied) == metadata
-        target = storage.upload_url(
-            key=key, content_type="application/octet-stream", checksum_sha256=""
+        target = storage.generate_put_upload_url(
+            key=key, content_type="application/octet-stream", content_length=len(data)
         )
         assert target.upload_method == "PUT"
         assert target.upload_url.startswith(("http://", "https://"))
         assert target.upload_headers["content-type"] == "application/octet-stream"
         assert storage.download_url(key).startswith(("http://", "https://"))
-        assert storage.delete(key) is True
-        assert storage.delete(key) is False
+        assert storage.delete(key) is None
+        assert storage.delete(key) is None
         assert not storage.exists(key)
     finally:
         storage.delete(key)
@@ -100,11 +105,18 @@ def test_concrete_adapter_issues_signed_upload_and_download(monkeypatch):
 
     monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", "http://localhost:9010")
     storage = S3CompatibleObjectStorage()
-    target = storage.upload_url("test/object", content_type="audio/webm", checksum_sha256="ab")
+    target = storage.generate_put_upload_url(
+        "test/object", content_type="audio/webm", content_length=2
+    )
     assert target.upload_method == "PUT"
     assert target.upload_url.startswith("http://localhost:9010/")
     assert "X-Amz-Signature=" in target.upload_url
-    assert target.upload_headers == {"content-type": "audio/webm", "x-amz-meta-sha256": "ab"}
+    assert target.upload_headers == {"content-type": "audio/webm", "content-length": "2"}
+    from urllib.parse import parse_qs, urlsplit
+
+    assert parse_qs(urlsplit(target.upload_url).query)["X-Amz-SignedHeaders"] == [
+        "content-length;content-type;host"
+    ]
     download = storage.download_url("test/object", expires_seconds=43)
     assert "X-Amz-Signature=" in download
     assert "X-Amz-Expires=43" in download
@@ -127,8 +139,8 @@ def test_real_object_store_capabilities_and_direct_upload(monkeypatch):
     assert_object_capabilities(storage, prefix)
     key, data = prefix + "/direct", b"browser direct upload bytes"
     try:
-        target = storage.upload_url(
-            key, content_type="application/octet-stream", checksum_sha256=""
+        target = storage.generate_put_upload_url(
+            key, content_type="application/octet-stream", content_length=len(data)
         )
         with urlopen(
             Request(
@@ -144,3 +156,71 @@ def test_real_object_store_capabilities_and_direct_upload(monkeypatch):
             assert response.read() == data
     finally:
         storage.delete(key)
+
+
+@pytest.mark.skipif(
+    not os.environ.get("NOTEVERSE_TEST_OBJECT_STORAGE_ENDPOINT_URL"),
+    reason="Dedicated object-store test service is not configured",
+)
+def test_real_object_store_signed_lengths_and_multipart_lifecycle(monkeypatch):
+    from app.core.config import settings
+    from app.storage.base import ObjectNotFoundError
+
+    for field in ("ENDPOINT_URL", "BUCKET", "ACCESS_KEY_ID", "SECRET_ACCESS_KEY"):
+        monkeypatch.setattr(
+            settings, "S3_" + field, os.environ["NOTEVERSE_TEST_OBJECT_STORAGE_" + field]
+        )
+    monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", None)
+    storage = S3CompatibleObjectStorage()
+    prefix = "contract-tests/" + uuid4().hex
+    key, rejected = prefix + "/multipart", prefix + "/length"
+    upload = storage.create_multipart_upload(key, content_type="audio/webm")
+    try:
+        target = storage.generate_put_upload_url(
+            rejected, content_type="audio/webm", content_length=3
+        )
+        with pytest.raises(HTTPError) as raised:
+            urlopen(
+                Request(
+                    target.upload_url,
+                    data=b"four",
+                    headers={"content-type": "audio/webm"},
+                    method="PUT",
+                )
+            )
+        assert raised.value.code == 403
+        assert not storage.exists(rejected)
+        data = (b"a" * (5 * 1024 * 1024), b"end")
+        for number, content in enumerate(data, 1):
+            target = storage.generate_part_upload_url(
+                key, upload, number, content_length=len(content)
+            )
+            with urlopen(
+                Request(
+                    target.upload_url, data=content, headers=target.upload_headers, method="PUT"
+                )
+            ) as response:
+                assert response.status == 200
+        parts = storage.list_uploaded_parts(key, upload)
+        assert [p.size_bytes for p in parts] == [len(p) for p in data]
+        result = storage.complete_multipart_upload(key, upload, parts)
+        assert result.etag
+        assert storage.read_bytes(key) == b"".join(data)
+        with pytest.raises(ObjectNotFoundError):
+            storage.list_uploaded_parts(key, upload)
+        with pytest.raises(HTTPError) as raised:
+            urlopen(
+                Request(
+                    target.upload_url, data=data[-1], headers=target.upload_headers, method="PUT"
+                )
+            )
+        assert raised.value.code == 404
+        storage.abort_multipart_upload(key, upload)
+        other = storage.create_multipart_upload(rejected, content_type="audio/webm")
+        storage.abort_multipart_upload(rejected, other)
+        with pytest.raises(ObjectNotFoundError):
+            storage.list_uploaded_parts(rejected, other)
+    finally:
+        storage.abort_multipart_upload(key, upload)
+        storage.delete(key)
+        storage.delete(rejected)

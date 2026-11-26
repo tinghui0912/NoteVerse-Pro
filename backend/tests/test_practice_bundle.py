@@ -147,7 +147,6 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
     assets.canonical_source.assert_not_called()
     assert storage.read_bytes.call_count == 2
     writer.ensure_binding.assert_not_called()
-    storage.materialize_to_local.assert_not_called()
 
 
 @pytest.mark.asyncio

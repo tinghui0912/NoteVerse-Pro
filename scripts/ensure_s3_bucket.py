@@ -101,32 +101,13 @@ def main() -> int:
 
     values = require_env(REQUIRED_KEYS)
 
-    try:
-        import boto3
-        from botocore.config import Config
-    except ImportError as exc:
-        raise RuntimeError(
-            "boto3 is required. From backend/, run uv sync --locked --only-group api "
-            "or run this script in a backend runtime environment."
-        ) from exc
+    import sys
 
-    force_path_style = os.environ.get("S3_FORCE_PATH_STYLE", "true").lower() == "true"
-    addressing_style = "path" if force_path_style else "virtual"
-    client = boto3.client(
-        "s3",
-        endpoint_url=values["S3_ENDPOINT_URL"],
-        region_name=values["S3_REGION"],
-        aws_access_key_id=values["S3_ACCESS_KEY_ID"],
-        aws_secret_access_key=values["S3_SECRET_ACCESS_KEY"],
-        config=Config(
-            signature_version="s3v4",
-            request_checksum_calculation="when_required",
-            response_checksum_validation="when_required",
-            s3={
-                "addressing_style": addressing_style,
-                "payload_signing_enabled": False,
-            },
-        ),
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+    from app.storage.bucket_admin import bucket_client
+
+    client = bucket_client(
+        values, force_path_style=os.environ.get("S3_FORCE_PATH_STYLE", "true").lower() == "true"
     )
 
     bucket = values["S3_BUCKET"]

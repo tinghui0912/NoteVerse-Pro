@@ -142,10 +142,10 @@ def test_external_playback_routes_stream_audio(client: TestClient, tmp_path) -> 
                 yield content[index : index + chunk_size]
 
     class FakePlaybackService:
-        from app.storage import AsyncObjectStorage
+        from app.storage import AsyncObjectReader
 
         storage = FakePlaybackStorage()
-        async_storage = AsyncObjectStorage(storage)
+        async_storage = AsyncObjectReader(storage)
 
         def score_revision_delivery(self, db, score_uuid: str, revision_uuid: str, user_id: int):
             token = "score-audio"

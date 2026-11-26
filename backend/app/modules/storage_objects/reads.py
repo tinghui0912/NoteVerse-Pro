@@ -11,8 +11,12 @@ from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
 from app.db.models import StoredObject
 from app.shared.error_codes import CustomerErrorCode
-from app.storage import AsyncObjectStorage, ObjectStorage
-from app.storage.base import ObjectStorageUnavailableError
+from app.storage import AsyncObjectReader, ObjectStorage
+from app.storage.base import (
+    ObjectStorageUnavailableError,
+    ObjectStorageOperationFailedError,
+    ObjectNotFoundError,
+)
 
 
 class StoredObjectIntegrityError(RuntimeError):
@@ -55,8 +59,13 @@ class StoredObjectDelivery(StoredObjectReadTarget):
 def _physical_read(target: StoredObjectReadTarget, operation: str) -> Iterator[None]:
     try:
         yield
-    except (OSError, ObjectStorageUnavailableError) as error:
-        missing = isinstance(error, FileNotFoundError)
+    except (
+        OSError,
+        ObjectNotFoundError,
+        ObjectStorageUnavailableError,
+        ObjectStorageOperationFailedError,
+    ) as error:
+        missing = isinstance(error, ObjectNotFoundError)
         logger.bind(
             event="stored_object.read_failed",
             stored_object_id=target.stored_object_id,
@@ -86,7 +95,7 @@ async def iterate_admitted_bytes(
     end: int | None = None,
 ) -> AsyncIterator[bytes]:
     with _physical_read(target, "iter_bytes"):
-        async for chunk in AsyncObjectStorage(storage).iter_bytes(
+        async for chunk in AsyncObjectReader(storage).iter_bytes(
             target.storage_key, chunk_size=chunk_size, start=start, end=end
         ):
             yield chunk

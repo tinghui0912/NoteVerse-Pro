@@ -44,7 +44,7 @@ repositories, API use cases and workers use the canonical synchronous SQLAlchemy
 operations in worker threads. Authorization, metadata and signed-URL preparation
 run in that request execution path.
 
-HTTP byte streaming uses `AsyncObjectStorage` over the same namespace. Provider
+HTTP byte streaming uses `AsyncObjectReader` over the same namespace. Provider
 iterator construction and advancement cross its `asyncio.to_thread` boundary;
 the adapter owns scheduling only, with no database or domain policy.
 
@@ -270,7 +270,7 @@ shared `object_storage` instance.
 | `app/worker/execution/object_write_cleanup.py`: `execute_object_write_cleanup_task` | H | Intent-generation cleanup only; existing matching StoredObject prevents physical deletion |
 | `app/modules/performance_takes/upload_reservation/cleanup.py`: `cleanup_expired_reservations` | E/H | Reservation-owned staging/candidate grace, lease and reference evidence; never formal recording retirement |
 | `app/modules/import_jobs/pipeline/*`, `app/processing/*`, `app/modules/rendering/*` | D/H | Disposable worker-local materialization/render intermediates under WORK_ROOT; filesystem cleanup is not durable ObjectStorage deletion |
-| `app/storage/s3_compatible.py`; `app/storage/async_adapter.py` | Adapter | Configured provider put/copy/delete/metadata/capability primitives; async scheduling carries no product ownership |
+| `app/storage/s3_compatible.py`; `app/storage/async_reader.py` | Adapter | Configured provider put/copy/delete/metadata/capability primitives; async scheduling carries no product ownership |
 | `scripts/verify_practice_acoustic_model_asset.py`: `verify_asset` | Deployment distribution | Manifest-identified model artifact, outside customer semantic resources: private-bucket validation, explicit conditional publish, metadata/full-byte verification; no StoredObject row or product quota |
 
 All nine semantic FKs are explicitly registered in `storage_objects/references.py`:

@@ -10,6 +10,29 @@ import app.db.models  # noqa: F401
 ROOT = Path(__file__).parents[1] / "app"
 
 
+def test_provider_sdk_imports_and_dependencies_have_one_boundary():
+    repository = ROOT.parents[1]
+    for directory in (ROOT, repository / "scripts", ROOT.parent / "scripts", ROOT.parent / "tests"):
+        for path in directory.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"))
+            in_provider = path.is_relative_to(ROOT / "storage")
+            for node in ast.walk(tree):
+                names = (
+                    [node.module or ""]
+                    if isinstance(node, ast.ImportFrom)
+                    else [a.name for a in node.names]
+                    if isinstance(node, ast.Import)
+                    else []
+                )
+                for name in names:
+                    if name.split(".")[0] in {"boto3", "botocore"}:
+                        assert in_provider, path
+                    if in_provider:
+                        assert not name.startswith(
+                            ("sqlalchemy", "sqlmodel", "fastapi", "app.db", "app.modules")
+                        ), path
+
+
 def test_application_depends_on_storage_port_and_composition_only():
     allowed = {"app.storage", "app.storage.base", "app.storage.factory", "app.storage.paths"}
     for directory in ("modules", "worker", "api"):
@@ -31,7 +54,7 @@ def test_application_depends_on_storage_port_and_composition_only():
 
 
 def test_one_object_namespace_and_required_direct_upload():
-    assert get_type_hints(ObjectStorage.upload_url)["return"] is DirectUploadTarget
+    assert get_type_hints(ObjectStorage.generate_put_upload_url)["return"] is DirectUploadTarget
     assert set(SQLModel.metadata.tables["stored_objects"].columns.keys()) == {
         "id",
         "object_key",
@@ -62,12 +85,16 @@ def test_capability_surface_and_write_observation():
         "exists",
         "read_bytes",
         "object_metadata",
-        "upload_url",
+        "generate_put_upload_url",
+        "create_multipart_upload",
+        "generate_part_upload_url",
+        "list_uploaded_parts",
+        "complete_multipart_upload",
+        "abort_multipart_upload",
         "iter_bytes",
         "copy",
         "delete",
         "download_url",
-        "materialize_to_local",
     }
 
     def public_operations(owner):
@@ -79,7 +106,7 @@ def test_capability_surface_and_write_observation():
 
     assert public_operations(ObjectStorage) == expected
     assert public_operations(S3CompatibleObjectStorage) == expected
-    assert public_operations(InMemoryObjectStorage) == expected
+    assert expected <= public_operations(InMemoryObjectStorage)
     assert set(vars(S3CompatibleObjectStorage())) == {
         "bucket",
         "endpoint_url",

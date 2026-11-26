@@ -36,6 +36,7 @@ from app.shared.error_codes import CustomerErrorCode
 from app.db.models.import_job import ImportArtifactKind
 from tests.support.object_storage import InMemoryObjectStorage
 from app.storage.s3_compatible import S3CompatibleObjectStorage
+from app.modules.storage_objects.reads import materialize_admitted_object, StoredObjectReadTarget
 from app.shared.time import utc_now
 
 
@@ -46,7 +47,7 @@ class FakeS3Client:
     def put_object(self, *, Bucket, Key, Body, **kwargs):
         self.objects[Key] = Body
 
-    def head_object(self, *, Bucket, Key):
+    def head_object(self, *, Bucket, Key, **kwargs):
         if Key not in self.objects:
             raise FakeS3NotFound()
         return {"ContentLength": len(self.objects[Key])}
@@ -59,12 +60,10 @@ class FakeS3Client:
         contents = [{"Key": key, "Size": len(self.objects[key])} for key in sorted(keys)[:MaxKeys]]
         return {"Contents": contents}
 
-    def download_file(self, bucket, key, target_path):
-        if key not in self.objects:
-            raise FakeS3NotFound()
-        os.makedirs(os.path.dirname(target_path), exist_ok=True)
-        with open(target_path, "wb") as file_handle:
-            file_handle.write(self.objects[key])
+    def get_object(self, *, Bucket, Key):
+        from tests.test_object_storage_contract import ObjectResponse
+
+        return {"Body": ObjectResponse(self.objects[Key])}
 
     def generate_presigned_url(self, ClientMethod, Params, ExpiresIn):
         return f"https://signed.example/{Params['Key']}"
@@ -81,8 +80,10 @@ def test_object_storage_put_and_materialize() -> None:
 
         assert stored.size_bytes == 5
         assert stored.object_key == "objects/example.bin"
-        assert storage.materialize_to_local(
-            stored.object_key, os.path.join(temp_dir, "scratch.png")
+        assert materialize_admitted_object(
+            storage,
+            StoredObjectReadTarget(1, stored.object_key, 5, "application/octet-stream"),
+            os.path.join(temp_dir, "scratch.png"),
         ) == os.path.join(temp_dir, "scratch.png")
 
 
@@ -91,8 +92,8 @@ def test_object_storage_delete_is_idempotent() -> None:
         storage = InMemoryObjectStorage()
         stored = storage.put_bytes(key="objects/example.bin", content=b"score")
 
-        assert storage.delete(stored.object_key) is True
-        assert storage.delete(stored.object_key) is False
+        assert storage.delete(stored.object_key) is None
+        assert storage.delete(stored.object_key) is None
 
 
 def test_object_storage_rejects_path_traversal_keys() -> None:
@@ -177,7 +178,7 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
         storage.put_bytes(key=avatar_key, content=avatar_bytes, content_type="image/jpeg")
         assert storage.read_bytes(avatar_key) == avatar_bytes
         with patch.object(storage, "delete", wraps=storage.delete) as delete:
-            assert storage.delete(f"avatars/{filename}") is True
+            assert storage.delete(f"avatars/{filename}") is None
             delete.assert_called_once_with(f"avatars/{filename}")
 
 
@@ -251,8 +252,10 @@ def test_s3_storage_put_and_materialize() -> None:
 
         with patch("app.storage.s3_compatible.settings.WORK_ROOT", temp_dir):
             stored = storage.put_bytes(key="objects/example.bin", content=b"score")
-            path = storage.materialize_to_local(
-                stored.object_key, os.path.join(temp_dir, "scratch.png")
+            path = materialize_admitted_object(
+                storage,
+                StoredObjectReadTarget(1, stored.object_key, 5, "application/octet-stream"),
+                os.path.join(temp_dir, "scratch.png"),
             )
 
         assert stored.object_key == "objects/example.bin"

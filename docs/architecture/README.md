@@ -19,15 +19,9 @@ accepted current decisions and their rationale.
 - [Business Resource Lifecycle and Ownership](business-resource-lifecycle.md)
 - [Storage Schema Execution and Recovery](storage-resource-execution.md)
 - [Object Storage](object-storage.md)
+- [Media Storage Contract](../adr/0009-media-storage-refoundation.md)
 - [Storage Usage](storage-usage.md)
 - [Storage Quota](storage-quota.md)
-
-## RFCs Awaiting Architecture Review
-
-- [Asset Infrastructure Re-foundation RFC](asset-infrastructure-rfc.md): investigated baseline and proposed design; not an approved runtime contract
-
-- [Asset Infrastructure Gate Closure](asset-infrastructure-gates.md): lock audit and proposed lifecycle/authority refinements
-- [Asset Provider Qualification](asset-provider-qualification.md): isolated real-provider observations and outstanding gates
 
 ## Score
 

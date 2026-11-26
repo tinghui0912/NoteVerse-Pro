@@ -2,7 +2,7 @@
 
 from app.modules.storage_objects.reads import StoredObjectDelivery
 
-from app.storage import AsyncObjectStorage
+from app.storage import AsyncObjectReader
 import fnmatch
 import io
 import re
@@ -212,7 +212,7 @@ def test_storage_route_success_matches_its_declared_binary_content(
     result = delivery
     service = SimpleNamespace(
         storage=storage,
-        async_storage=AsyncObjectStorage(storage),
+        async_storage=AsyncObjectReader(storage),
         **{method: Mock(return_value=result)},
     )
 

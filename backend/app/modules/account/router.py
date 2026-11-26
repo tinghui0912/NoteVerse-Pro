@@ -4,7 +4,7 @@ from app.modules.account.deletion_service import AccountDeletionService
 from app.modules.account.schemas import DeleteAccountRequest, AccountDeletionRead
 from app.modules.auth.session_cookies import clear_session_cookies
 from app.worker.dispatch.account_deletion import dispatch_account_deletion_best_effort
-from fastapi import Response, APIRouter, Depends, File, UploadFile, BackgroundTasks
+from fastapi import Response, APIRouter, Depends, File, UploadFile, BackgroundTasks, HTTPException
 
 
 import re
@@ -17,7 +17,11 @@ from app.core.exceptions import FileException, ValidationException
 from app.db.models import User, StoredObject
 from app.db.model_utils import require_persisted_id
 from sqlalchemy import select
-from app.modules.account.avatar_service import AvatarService, avatar_object_key
+from app.modules.account.avatar_service import (
+    AvatarService,
+    AvatarFileTooLargeError,
+    avatar_object_key,
+)
 from app.modules.account.dependencies import get_avatar_service, get_profile_service
 from app.modules.account.profile_service import ProfileService
 from app.modules.account.schemas import (
@@ -64,8 +68,10 @@ def upload_avatar(
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
     try:
-        file_bytes = file.file.read()
-    except Exception:
+        file_bytes = avatar_service.read_upload(file.file)
+    except AvatarFileTooLargeError as exc:
+        raise HTTPException(status_code=413, detail="Avatar exceeds the upload limit") from exc
+    except OSError:
         raise FileException(code=CustomerErrorCode.FILE_READ_FAILED, filename=file.filename)
 
     try:
@@ -73,7 +79,7 @@ def upload_avatar(
             db,
             current_user,
             file_bytes=file_bytes,
-            filename=file.filename,
+            filename=file.filename or "",
         )
     except ValueError as exc:
         raise ValidationException(

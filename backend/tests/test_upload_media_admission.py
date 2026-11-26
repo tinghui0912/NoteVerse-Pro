@@ -22,7 +22,7 @@ from app.modules.uploads.upload_admission import (
     admit_score_import_image,
     read_score_import_upload,
 )
-from app.storage import AsyncObjectStorage
+from app.storage import AsyncObjectReader
 from tests.support.images import image_bytes
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.test_score_revision_services import score_service_session as score_service_session
@@ -254,20 +254,22 @@ def test_http_upload_and_delivery_schedule_provider_io_off_event_loop(score_serv
 
 
 @pytest.mark.asyncio
-async def test_adapter_cancellation_waits_for_physical_mutation_to_settle():
-    storage = InMemoryObjectStorage()
+async def test_reader_cancellation_waits_for_stream_read_and_closes_iterator():
     entered, release = threading.Event(), threading.Event()
-    original = storage.put_bytes
+    closed = threading.Event()
+    storage = InMemoryObjectStorage()
 
-    def put(**kwargs):
-        entered.set()
-        assert release.wait(10)
-        return original(**kwargs)
+    def iterate(*args, **kwargs):
+        try:
+            entered.set()
+            assert release.wait(10)
+            yield b"bytes"
+        finally:
+            closed.set()
 
-    storage.put_bytes = put
-    task = asyncio.create_task(
-        AsyncObjectStorage(storage).put_bytes(key="cancelled", content=b"bytes")
-    )
+    storage.iter_bytes = iterate
+    stream = AsyncObjectReader(storage).iter_bytes("read")
+    task = asyncio.create_task(anext(stream))
     try:
         assert await asyncio.to_thread(entered.wait, 5)
         task.cancel()
@@ -277,4 +279,4 @@ async def test_adapter_cancellation_waits_for_physical_mutation_to_settle():
         release.set()
     with pytest.raises(asyncio.CancelledError):
         await task
-    assert storage.read_bytes("cancelled") == b"bytes"
+    assert closed.is_set()

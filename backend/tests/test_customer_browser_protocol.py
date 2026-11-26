@@ -184,9 +184,9 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
     storage = InMemoryObjectStorage()
     storage.put_bytes(key="native", content=b"native bytes", content_type=mime)
     delivery = StoredObjectDelivery(1, "native", len(b"native bytes"), mime, "native")
-    from app.storage import AsyncObjectStorage
+    from app.storage import AsyncObjectReader
 
-    service = SimpleNamespace(storage=storage, async_storage=AsyncObjectStorage(storage))
+    service = SimpleNamespace(storage=storage, async_storage=AsyncObjectReader(storage))
     dependencies = {
         "guest": get_guest_preview_service,
         "playback": get_playback_delivery_service,

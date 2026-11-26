@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 from app.core.config import Settings
-from app.storage import AsyncObjectStorage, async_object_storage, object_storage
+from app.storage import AsyncObjectReader, object_storage
 
 ROOT = Path(__file__).resolve().parents[1] / "app"
 PROVIDER_IO = {
@@ -15,8 +15,7 @@ PROVIDER_IO = {
     "copy",
     "delete",
     "download_url",
-    "upload_url",
-    "materialize_to_local",
+    "generate_put_upload_url",
     "iter_bytes",
 }
 
@@ -28,8 +27,7 @@ def test_database_backed_delivery_executes_in_synchronous_http_operations():
 
     assert not inspect.iscoroutinefunction(create_upload)
     assert not inspect.iscoroutinefunction(stream_storage_object)
-    assert isinstance(async_object_storage, AsyncObjectStorage)
-    assert async_object_storage._storage is object_storage
+    assert AsyncObjectReader(object_storage)._storage is object_storage
 
 
 def test_object_write_protocol_uses_exact_generation_admission():
@@ -57,7 +55,7 @@ def test_score_upload_admission_is_application_owned_and_domain_specific():
         SCORE_IMPORT_IMAGES,
         MAX_SCORE_IMPORT_UPLOAD_BYTES,
     )
-    from app.modules.account.avatar_service import AvatarService
+    from app.core.config import settings
 
     assert {item.container for item in SCORE_IMPORT_IMAGES} == {
         "PNG",
@@ -69,7 +67,7 @@ def test_score_upload_admission_is_application_owned_and_domain_specific():
     }
     assert MAX_SCORE_IMPORT_UPLOAD_BYTES == 20 * 1024 * 1024
     assert "ALLOWED_EXTENSIONS" not in Settings.model_fields
-    assert AvatarService.MAX_FILE_SIZE == 5 * 1024 * 1024
+    assert settings.AVATAR_MAX_UPLOAD_BYTES == 5 * 1024 * 1024
     source = (ROOT / "modules/uploads/service.py").read_text()
     assert (
         "admit_score_import_image" in source

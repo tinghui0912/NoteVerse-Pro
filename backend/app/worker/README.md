@@ -9,7 +9,7 @@ SessionLocal factory in `app.db.session`. Each workflow explicitly commits its
 claim, semantic outcome or recovery phase; Session creation only opens and closes
 resources. ObjectWrite retains explicit PREPARED and WRITTEN durability phases.
 Workers and database-backed HTTP use cases use synchronous ObjectStorage. HTTP
-streaming schedules provider iteration through AsyncObjectStorage over the same
+streaming schedules provider iteration through AsyncObjectReader over the same
 namespace. Adopted object deletion remains retirement-owned.
 
 ## Package ownership

@@ -18,6 +18,9 @@ class StorageSettings(BaseModel):
     S3_SECRET_ACCESS_KEY: Optional[str] = None
     S3_FORCE_PATH_STYLE: bool = True
     OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS: int = Field(default=900, gt=0)
+    AVATAR_MAX_UPLOAD_BYTES: int = Field(default=5 * 1024 * 1024, gt=0, le=5 * 1024 * 1024)
+    AVATAR_MAX_PIXELS: int = Field(default=16_000_000, gt=0)
+    AVATAR_MAX_DIMENSION: int = Field(default=8192, gt=0)
     WORK_ROOT: str = "data/work"
 
     @field_validator("WORK_ROOT")
