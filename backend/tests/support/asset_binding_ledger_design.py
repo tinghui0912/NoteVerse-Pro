@@ -11,6 +11,7 @@ def install_physical_ledger_design(db):
     schema = db.scalar(text("SELECT current_schema()"))
     assert schema.replace("_", "").isalnum()
     statements = [
+        f'ALTER FUNCTION gate_session_binding_required() SECURITY DEFINER SET search_path TO "{schema}",pg_temp',
         """ALTER TABLE gate_sessions ADD FOREIGN KEY(cleanup_operation_uuid)
           REFERENCES gate_physical_operations(operation_uuid) DEFERRABLE INITIALLY DEFERRED""",
         """CREATE TABLE gate_operation_claims (
@@ -27,6 +28,10 @@ def install_physical_ledger_design(db):
           resource_uuid uuid PRIMARY KEY, session_id bigint REFERENCES gate_sessions(id) ON DELETE SET NULL,
           session_uuid_snapshot uuid NOT NULL, session_generation integer NOT NULL CHECK(session_generation>0),
           cleanup_operation_uuid uuid NOT NULL REFERENCES gate_physical_operations(operation_uuid) ON DELETE RESTRICT,
+          source_operation_uuid uuid NOT NULL REFERENCES gate_physical_operations(operation_uuid) ON DELETE RESTRICT,
+          provenance_kind text NOT NULL CHECK(provenance_kind IN ('CREATED_BY','DISCOVERED_BY')),
+          observation_uuid uuid NOT NULL UNIQUE,
+          observation_method text NOT NULL CHECK(observation_method IN ('INITIATE_RESPONSE','COMPLETE_RESPONSE','COPY_RESPONSE','MPU_LIST','HEAD')),
           resource_kind text NOT NULL CHECK(resource_kind IN ('MPU','STAGING_OBJECT','COPY_CANDIDATE')),
           object_key text NOT NULL CHECK(length(object_key)>0), provider_upload_id text,
           physical_generation uuid NOT NULL, version_id text,
@@ -80,6 +85,9 @@ def install_physical_ledger_design(db):
           IF (OLD.resources_closed AND NOT NEW.resources_closed) OR (NEW.resources_closed AND NOT NEW.terminal) THEN
             RAISE EXCEPTION 'resource registration fence is irreversible' USING ERRCODE='23514';
           END IF;
+          IF NEW.resources_closed AND NOT OLD.resources_closed AND current_setting('transaction_isolation')<>'read committed' THEN
+            RAISE EXCEPTION 'registration closure proof requires READ COMMITTED isolation' USING ERRCODE='23514';
+          END IF;
           RETURN NEW;
         END $$""",
         "CREATE TRIGGER gate_session_resource_fence BEFORE UPDATE ON gate_sessions FOR EACH ROW EXECUTE FUNCTION gate_session_resource_fence()",
@@ -87,21 +95,35 @@ def install_physical_ledger_design(db):
         BEGIN
           IF TG_OP='DELETE' THEN RAISE EXCEPTION 'physical evidence is retained' USING ERRCODE='23514'; END IF;
           IF TG_OP='UPDATE' THEN
-            IF ROW(NEW.resource_uuid,NEW.session_uuid_snapshot,NEW.session_generation,NEW.cleanup_operation_uuid,NEW.resource_kind,NEW.object_key,NEW.provider_upload_id,NEW.physical_generation,NEW.version_id,NEW.locator_fingerprint) IS DISTINCT FROM ROW(OLD.resource_uuid,OLD.session_uuid_snapshot,OLD.session_generation,OLD.cleanup_operation_uuid,OLD.resource_kind,OLD.object_key,OLD.provider_upload_id,OLD.physical_generation,OLD.version_id,OLD.locator_fingerprint) OR NOT
+            IF ROW(NEW.resource_uuid,NEW.session_uuid_snapshot,NEW.session_generation,NEW.cleanup_operation_uuid,NEW.source_operation_uuid,NEW.provenance_kind,NEW.observation_uuid,NEW.observation_method,NEW.resource_kind,NEW.object_key,NEW.provider_upload_id,NEW.physical_generation,NEW.version_id,NEW.locator_fingerprint) IS DISTINCT FROM ROW(OLD.resource_uuid,OLD.session_uuid_snapshot,OLD.session_generation,OLD.cleanup_operation_uuid,OLD.source_operation_uuid,OLD.provenance_kind,OLD.observation_uuid,OLD.observation_method,OLD.resource_kind,OLD.object_key,OLD.provider_upload_id,OLD.physical_generation,OLD.version_id,OLD.locator_fingerprint) OR NOT
               (OLD.session_id IS NOT NULL AND NEW.session_id IS NULL AND NOT EXISTS(SELECT 1 FROM gate_sessions WHERE id=OLD.session_id)) THEN
               RAISE EXCEPTION 'physical locator is immutable' USING ERRCODE='23514';
             END IF;
             RETURN NEW;
           END IF;
+          IF current_setting('transaction_isolation')<>'read committed' THEN
+            RAISE EXCEPTION 'registration closure proof requires READ COMMITTED isolation' USING ERRCODE='23514';
+          END IF;
           PERFORM 1 FROM gate_sessions s WHERE s.id=NEW.session_id AND s.session_uuid=NEW.session_uuid_snapshot
             AND s.generation=NEW.session_generation AND NOT s.resources_closed
-            AND s.cleanup_operation_uuid=NEW.cleanup_operation_uuid FOR KEY SHARE;
+            AND s.cleanup_operation_uuid=NEW.cleanup_operation_uuid FOR NO KEY UPDATE;
           IF NOT FOUND THEN RAISE EXCEPTION 'resource registration identity or fence mismatch' USING ERRCODE='23514'; END IF;
+          PERFORM 1 FROM gate_physical_operations o WHERE o.operation_uuid=NEW.source_operation_uuid
+            AND o.session_id=NEW.session_id AND o.session_uuid_snapshot=NEW.session_uuid_snapshot
+            AND o.session_generation=NEW.session_generation AND o.settlement_status<>'SETTLED'
+            AND ((NEW.provenance_kind='DISCOVERED_BY' AND o.operation_kind IN ('DISCOVER','CLEANUP')
+                AND NEW.observation_method=CASE WHEN NEW.resource_kind='MPU' THEN 'MPU_LIST' ELSE 'HEAD' END)
+              OR (NEW.provenance_kind='CREATED_BY' AND ((o.operation_kind='INITIATE' AND NEW.resource_kind='MPU' AND NEW.observation_method='INITIATE_RESPONSE')
+                OR (o.operation_kind='COMPLETE' AND NEW.resource_kind='STAGING_OBJECT' AND NEW.observation_method='COMPLETE_RESPONSE')
+                OR (o.operation_kind='COPY' AND NEW.resource_kind='COPY_CANDIDATE' AND NEW.observation_method='COPY_RESPONSE')))) FOR SHARE;
+          IF NOT FOUND THEN RAISE EXCEPTION 'resource requires matching live operation provenance' USING ERRCODE='23514'; END IF;
           RETURN NEW;
         END $$""",
         "CREATE TRIGGER gate_resource_guard BEFORE INSERT OR UPDATE OR DELETE ON gate_physical_resources FOR EACH ROW EXECUTE FUNCTION gate_resource_guard()",
         """CREATE FUNCTION gate_resource_ack_guard() RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN
+          PERFORM 1 FROM gate_sessions s JOIN gate_physical_operations o ON o.session_id=s.id
+            WHERE o.operation_uuid=NEW.operation_uuid FOR NO KEY UPDATE OF s;
           PERFORM 1 FROM gate_physical_operations WHERE operation_uuid=NEW.operation_uuid FOR SHARE;
           IF NOT EXISTS(SELECT 1 FROM gate_physical_resources r JOIN gate_physical_operations o ON o.operation_uuid=r.cleanup_operation_uuid
             JOIN gate_sessions s ON s.id=r.session_id
@@ -123,6 +145,12 @@ def install_physical_ledger_design(db):
           IF TG_OP='INSERT' AND (NEW.claim_epoch<>1 OR NEW.settlement_status<>'PENDING' OR NEW.operation_result<>'NONE'
             OR NEW.published_attempt_token IS NOT NULL OR NEW.published_claim_epoch IS NOT NULL) THEN
             RAISE EXCEPTION 'operation must start pending without result' USING ERRCODE='23514';
+          END IF;
+          IF TG_OP='INSERT' THEN
+            PERFORM 1 FROM gate_sessions WHERE id=NEW.session_id
+              AND session_uuid=NEW.session_uuid_snapshot AND generation=NEW.session_generation
+              AND NOT resources_closed FOR NO KEY UPDATE;
+            IF NOT FOUND THEN RAISE EXCEPTION 'operation requires matching open session identity' USING ERRCODE='23514'; END IF;
           END IF;
           IF TG_OP='UPDATE' THEN
             IF ROW(NEW.id,NEW.operation_uuid,NEW.session_uuid_snapshot,NEW.session_generation,NEW.operation_kind)
@@ -151,6 +179,16 @@ def install_physical_ledger_design(db):
             IF NEW.operation_result='CLEANED' AND OLD.settlement_status<>'SETTLED' AND NOT gate_cleanup_ready(NEW.operation_uuid) THEN
               RAISE EXCEPTION 'all registered locators must settle before CLEANED' USING ERRCODE='23514';
             END IF;
+            IF NEW.settlement_status='SETTLED' AND OLD.settlement_status<>'SETTLED' THEN
+              IF NEW.operation_kind IN ('INITIATE','COMPLETE','COPY','DISCOVER') AND NEW.operation_result='SUCCEEDED'
+                AND NOT EXISTS(SELECT 1 FROM gate_physical_resources r WHERE r.source_operation_uuid=NEW.operation_uuid) THEN
+                RAISE EXCEPTION 'successful physical operation requires resource references' USING ERRCODE='23514';
+              END IF;
+              IF NEW.operation_result='NOT_FOUND' AND (NEW.operation_kind<>'DISCOVER'
+                OR EXISTS(SELECT 1 FROM gate_physical_resources r WHERE r.source_operation_uuid=NEW.operation_uuid)) THEN
+                RAISE EXCEPTION 'NOT_FOUND is only an empty discovery result' USING ERRCODE='23514';
+              END IF;
+            END IF;
           END IF;
           IF NEW.session_id IS NOT NULL THEN
             PERFORM 1 FROM gate_sessions WHERE id=NEW.session_id FOR KEY SHARE;
@@ -173,7 +211,7 @@ def install_physical_ledger_design(db):
         f"""CREATE FUNCTION gate_claim_operation(target uuid, expected_epoch bigint, expected_token uuid, new_token uuid)
           RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO "{schema}",pg_temp AS $$
         BEGIN
-          PERFORM 1 FROM gate_sessions s JOIN gate_physical_operations o ON o.session_id=s.id WHERE o.operation_uuid=target FOR KEY SHARE OF s;
+          PERFORM 1 FROM gate_sessions s JOIN gate_physical_operations o ON o.session_id=s.id WHERE o.operation_uuid=target FOR NO KEY UPDATE OF s;
           PERFORM 1 FROM gate_physical_operations WHERE operation_uuid=target AND claim_epoch=expected_epoch
             AND attempt_token=expected_token AND settlement_status<>'SETTLED' FOR UPDATE;
           IF NOT FOUND THEN RETURN false; END IF;
@@ -184,6 +222,64 @@ def install_physical_ledger_design(db):
           RETURN FOUND;
         END $$""",
         "REVOKE ALL ON FUNCTION gate_claim_operation(uuid,bigint,uuid,uuid) FROM PUBLIC",
+        """CREATE TABLE gate_worker_claim_grants (
+          worker_role name NOT NULL, operation_uuid uuid NOT NULL, claim_epoch bigint NOT NULL, attempt_token uuid NOT NULL,
+          PRIMARY KEY(worker_role,operation_uuid,claim_epoch),
+          FOREIGN KEY(operation_uuid,claim_epoch,attempt_token)
+            REFERENCES gate_operation_claims(operation_uuid,claim_epoch,attempt_token)
+        )""",
+        "CREATE TRIGGER gate_worker_grants_immutable BEFORE UPDATE OR DELETE ON gate_worker_claim_grants FOR EACH ROW EXECUTE FUNCTION gate_evidence_immutable()",
+        f"""CREATE FUNCTION gate_assign_worker(target uuid, epoch bigint, token uuid, worker name)
+          RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO "{schema}",pg_temp AS $$
+        BEGIN
+          PERFORM 1 FROM gate_sessions s JOIN gate_physical_operations o ON o.session_id=s.id
+            WHERE o.operation_uuid=target FOR NO KEY UPDATE OF s;
+          PERFORM 1 FROM gate_physical_operations WHERE operation_uuid=target AND claim_epoch=epoch
+            AND attempt_token=token AND settlement_status<>'SETTLED' FOR SHARE;
+          IF NOT FOUND THEN RETURN false; END IF;
+          INSERT INTO gate_worker_claim_grants VALUES(worker,target,epoch,token);
+          RETURN true;
+        END $$""",
+        "REVOKE ALL ON FUNCTION gate_assign_worker(uuid,bigint,uuid,name) FROM PUBLIC",
+        f"""CREATE FUNCTION gate_worker_authorized(target uuid, epoch bigint, token uuid)
+          RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path TO "{schema}",pg_temp AS $$
+          SELECT EXISTS(SELECT 1 FROM gate_worker_claim_grants WHERE operation_uuid=target
+            AND claim_epoch=epoch AND attempt_token=token
+            AND worker_role=CASE WHEN current_setting('role')='none' THEN session_user ELSE current_setting('role')::name END)
+        $$""",
+        "REVOKE ALL ON FUNCTION gate_worker_authorized(uuid,bigint,uuid) FROM PUBLIC",
+        f"""CREATE FUNCTION gate_worker_publish(target uuid, epoch bigint, token uuid, result text)
+          RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO "{schema}",pg_temp AS $$
+        BEGIN
+          IF NOT gate_worker_authorized(target,epoch,token) THEN
+            RAISE EXCEPTION 'worker has no assigned claim' USING ERRCODE='42501';
+          END IF;
+          PERFORM 1 FROM gate_sessions s JOIN gate_physical_operations o ON o.session_id=s.id
+            WHERE o.operation_uuid=target FOR NO KEY UPDATE OF s;
+          UPDATE gate_physical_operations SET published_claim_epoch=epoch,published_attempt_token=token,
+            operation_result=result,settlement_status='SETTLED'
+            WHERE operation_uuid=target AND claim_epoch=epoch AND attempt_token=token AND settlement_status<>'SETTLED';
+          RETURN FOUND;
+        END $$""",
+        "REVOKE ALL ON FUNCTION gate_worker_publish(uuid,bigint,uuid,text) FROM PUBLIC",
+        f"""CREATE FUNCTION gate_worker_ack(resource uuid, target uuid, epoch bigint, token uuid,
+          kind text, exact_key text, upload_id text, physical_gen uuid, version text)
+          RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO "{schema}",pg_temp AS $$
+        BEGIN
+          IF NOT gate_worker_authorized(target,epoch,token) THEN
+            RAISE EXCEPTION 'worker has no assigned claim' USING ERRCODE='42501';
+          END IF;
+          PERFORM 1 FROM gate_sessions s JOIN gate_physical_operations o ON o.session_id=s.id
+            WHERE o.operation_uuid=target FOR NO KEY UPDATE OF s;
+          PERFORM 1 FROM gate_physical_operations WHERE operation_uuid=target AND claim_epoch=epoch
+            AND attempt_token=token AND settlement_status<>'SETTLED' FOR SHARE;
+          IF NOT FOUND THEN RETURN false; END IF;
+          INSERT INTO gate_resource_settlements(resource_uuid,operation_uuid,claim_epoch,attempt_token,
+            resource_kind,object_key,provider_upload_id,physical_generation,version_id)
+            VALUES(resource,target,epoch,token,kind,exact_key,upload_id,physical_gen,version);
+          RETURN true;
+        END $$""",
+        "REVOKE ALL ON FUNCTION gate_worker_ack(uuid,uuid,bigint,uuid,text,text,text,uuid,text) FROM PUBLIC",
         """CREATE FUNCTION gate_binding_release_guard() RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN
           PERFORM 1 FROM gate_sessions WHERE id=OLD.session_id FOR UPDATE;
