@@ -93,6 +93,11 @@ class ProviderDouble:
             self.markers.discard(pair)
         return {"ResponseMetadata": {"HTTPStatusCode": 204}}
 
+    def list_parts(self, **kwargs):
+        if (kwargs["Key"], kwargs["UploadId"]) not in self.uploads:
+            raise missing()
+        return {"Parts": [{"PartNumber": 1}], "IsTruncated": False}
+
     def head_object(self, **kwargs):
         if kwargs["Key"] not in self.objects:
             raise missing("NoSuchKey")
@@ -458,8 +463,8 @@ def test_explicit_rejection_is_not_ambiguous_side_effect(qualification, code, st
     assert outcome["outcome"] == "REJECTED" and not q.unsettled_io
 
 
-def setup_race(q, *, abort_error=None, opponent_error=None, object_exists=False):
-    key = q.key("race")
+def setup_race(q, *, abort_error=None, opponent_error=None, object_exists=False, suffix="race"):
+    key = q.key(suffix)
     q.start = Mock(return_value=(key, "handle"))
     q.put_part = Mock(return_value={"ETag": "etag"})
     q.client.abort_multipart_upload = Mock(side_effect=abort_error, return_value=sdk_success(204))
@@ -653,3 +658,134 @@ def test_browser_uncertain_upload_retains_cleanup_responsibility(
     assert q.report["checks"]["browser_access"]["status"] == "BLOCKED"
     assert q.unsettled_io and q.unsettled_operations[0]["operation"] == "UploadPart"
     assert "credential" not in json.dumps(q.report)
+
+
+@pytest.mark.parametrize(
+    "code,http,expected",
+    [
+        ("NoSuchUpload", 404, "PASS"),
+        ("NoSuchUpload", 500, "BLOCKED"),
+        ("NoSuchUpload", 403, "BLOCKED"),
+        ("NoSuchKey", 404, "BLOCKED"),
+        ("InternalError", 500, "BLOCKED"),
+    ],
+)
+def test_cleanup_abort_requires_exact_code_and_http_status_with_full_context(
+    qualification, code, http, expected
+):
+    q = qualification
+    key = q.key("cleanup-status")
+    q.uploads.add((key, "handle"))
+    q.client.abort_errors[(key, "handle")] = provider_error(code, http)
+    result = cleanup_result(q)
+    stage = result["stages"]["abort_registered"]
+    assert result["status"] == expected and stage["status"] == expected
+    if expected == "BLOCKED":
+        error = stage["failures"][0]
+        assert {k: error[k] for k in ("operation", "key", "generation", "http_status", "code")} == {
+            "operation": "AbortMultipartUpload",
+            "key": key,
+            "generation": q.generations[key],
+            "http_status": http,
+            "code": code,
+        }
+        assert error["error_category"] == (
+            "AMBIGUOUS_HTTP" if http == 500 else "EXPLICIT_REJECTION"
+        )
+    assert q.unsettled_io == (http == 500)
+
+
+def test_independent_races_do_not_inherit_each_others_failures_but_namespace_retains_responsibility(
+    qualification,
+):
+    q = qualification
+    first_key = setup_race(q, abort_error=provider_error("InternalError", 500), suffix="unknown-a")
+    q.abort_race("abort")
+    assert q.report["checks"]["abort"]["status"] == "BLOCKED"
+    second_key = setup_race(q, suffix="healthy-b")
+    q.abort_race("upload_abort_race")
+    second = q.report["checks"]["upload_abort_race"]
+    assert first_key != second_key and second["status"] == "PASS"
+    assert not second["unsettled_io"] and second["namespace_unsettled_io"]
+    assert second["race_unsettled_operations"] == []
+    assert cleanup_result(q)["status"] == "BLOCKED"
+    assert q.unsettled_operations[0]["key"] == first_key
+
+
+@pytest.mark.parametrize(
+    "abort_missing,name",
+    [(False, "COMPLETED_OBJECT_SURVIVED_ABORT"), (True, "COMPLETE_WON_ABORT_NO_SUCH_UPLOAD")],
+)
+def test_completed_object_race_name_identifies_whether_abort_actually_succeeded(
+    qualification, abort_missing, name
+):
+    q = qualification
+    setup_race(q, abort_error=missing() if abort_missing else None, object_exists=True)
+    q.abort_race("complete_abort_race")
+    result = q.report["checks"]["complete_abort_race"]
+    assert result["status"] == "PASS" and result["observation"] == name
+
+
+@pytest.mark.parametrize(
+    "physical,expected",
+    [
+        ({"mpu": "PRESENT", "parts": 1, "completed_object": "MISSING"}, "PASS"),
+        ({"mpu": "PRESENT", "parts": 0, "completed_object": "MISSING"}, "UNKNOWN"),
+        ({"mpu": "ABSENT", "parts": 0, "completed_object": "MISSING"}, "UNKNOWN"),
+        ({"mpu": "PRESENT", "parts": 1, "completed_object": "EXISTS"}, "UNKNOWN"),
+        ({"mpu": "ABSENT", "parts": 0, "completed_object": "EXISTS"}, "UNKNOWN"),
+        ({"mpu": "UNKNOWN", "parts": None, "completed_object": "UNKNOWN"}, "UNKNOWN"),
+    ],
+)
+def test_invalid_part_400_alone_does_not_qualify_inconsistent_physical_inventory(
+    qualification, physical, expected
+):
+    q = qualification
+    q.put_part = Mock(return_value=sdk_success())
+    q.client.complete_multipart_upload = Mock(side_effect=provider_error("InvalidPart", 400))
+    q.inspect_transfer = Mock(return_value=physical)
+    q.invalid_completion()
+    result = q.report["checks"]["invalid_completion"]
+    assert result["status"] == expected and result["final_inventory"] == physical
+    assert result["observed_error"] == "InvalidPart" and result["http_status"] == 400
+
+
+def test_raw_part_and_signed_browser_successes_have_full_correlation(qualification, monkeypatch):
+    q = qualification
+    key = setup_race(q, suffix="raw")
+
+    def body(target, sent, release):
+        sent.set()
+        assert release.wait(10)
+        return 200
+
+    monkeypatch.setattr(q, "send_partial_part", body)
+    q.abort_inflight_part()
+    raw = q.report["checks"]["abort_inflight_part"]["opponent_outcome"]
+    assert raw == q.success_evidence("UploadPart", key, 200)
+    # Exercise actual signed transport logic; only network responses are doubled.
+    q.start = Mock(return_value=(key, "handle"))
+    q.signing.generate_presigned_url.return_value = "https://signed.invalid/?secret=private"
+    response = SimpleNamespace(status=200, headers=HEADERS | {"ETag": "tag"})
+    transport = Mock()
+    transport.__enter__ = Mock(return_value=response)
+    transport.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(probe, "urlopen", Mock(return_value=transport))
+    monkeypatch.setattr(
+        probe.subprocess,
+        "run",
+        Mock(
+            return_value=SimpleNamespace(
+                returncode=0, stdout='{"status":"PASS","http_status":200,"etag_visible":true}'
+            )
+        ),
+    )
+    q.signed_transport(Path("browser.mjs"))
+    for check in ("signed_endpoint_http_access", "browser_access"):
+        report = q.report["checks"][check]
+        assert all(
+            report[k] == raw[k]
+            for k in ("operation", "key", "generation", "http_status", "outcome")
+        )
+        assert report["status"] == "PASS"
+    assert "secret=private" not in json.dumps(q.report)

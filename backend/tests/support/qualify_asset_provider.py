@@ -73,7 +73,7 @@ class Qualification:
         self.generations: dict[str, str] = {}
         self.unsettled_operations: list[dict[str, object]] = []
         self.report: dict[str, object] = {
-            "schema": 3,
+            "schema": 4,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             "provider_family": "Aliyun OSS" if "aliyuncs.com" in endpoint else "UNKNOWN",
             "provider_version": "UNKNOWN (managed service)",
@@ -136,6 +136,7 @@ class Qualification:
         scoped = key is not None and key.startswith(self.prefix)
         evidence = dict(
             facts,
+            http_status=facts.get("http_status"),
             operation=operation,
             key=key if scoped else None,
             generation=self.generations.get(key, "UNKNOWN") if scoped else None,
@@ -177,15 +178,21 @@ class Qualification:
     def request_outcome(self, operation: str, key: str, **kwargs: object) -> dict[str, object]:
         try:
             result = self.mutate(operation, key, **kwargs)
-            return {
-                "operation": operation,
-                "key": key,
-                "generation": self.generations.get(key, "UNKNOWN"),
-                "outcome": "SUCCESS",
-                "http_status": result["ResponseMetadata"]["HTTPStatusCode"],
-            }
+            return self.success_evidence(
+                operation, key, result["ResponseMetadata"]["HTTPStatusCode"]
+            )
         except Exception as error:
             return self.observe_error(error, operation=operation, key=key)
+
+    def success_evidence(self, operation: str, key: str, status: int) -> dict[str, object]:
+        self.require_scoped_key(key)
+        return {
+            "operation": operation,
+            "key": key,
+            "generation": self.generations.get(key, "UNKNOWN"),
+            "outcome": "SUCCESS",
+            "http_status": status,
+        }
 
     def require_scoped_key(self, key: str) -> None:
         if not key.startswith(self.prefix) or key == self.prefix:
@@ -391,11 +398,19 @@ class Qualification:
             UploadId=identity,
             MultipartUpload={"Parts": [{"PartNumber": 1, "ETag": '"' + "0" * 32 + '"'}]},
         )
+        physical = self.inspect_transfer(key, identity)
+        local_uncertain = [v for v in self.unsettled_operations if v["key"] == key]
         expected = {"code": "InvalidPart", "http_status": 400}
         if observed["outcome"] == "SUCCESS":
             status = "FAIL"
         elif observed.get("code") == "InvalidPart" and observed.get("http_status") == 400:
-            status = "PASS"
+            status = (
+                "PASS"
+                if physical == {"mpu": "PRESENT", "parts": 1, "completed_object": "MISSING"}
+                else "UNKNOWN"
+            )
+            if local_uncertain:
+                status = "BLOCKED"
         elif observed["outcome"] == "UNCERTAIN" or observed.get("code") in (
             "AccessDenied",
             "InvalidAccessKeyId",
@@ -410,6 +425,9 @@ class Qualification:
             observed_error=observed.get("code"),
             http_status=observed.get("http_status"),
             outcome=observed,
+            final_inventory=physical,
+            expected_inventory={"mpu": "PRESENT", "parts": 1, "completed_object": "MISSING"},
+            unsettled_operations=local_uncertain,
         )
         embedded = observed.get("http_status") == 200 and observed.get("code") == "InvalidPart"
         self.record(
@@ -492,14 +510,20 @@ class Qualification:
             observed["object_error"] = self.observe_error(error, operation="HeadObject", key=key)
         return observed
 
-    def record_race(self, name: str, abort, opponent, observed) -> None:
+    def record_race(self, name: str, abort, opponent, observed, *, key: str) -> None:
         outcomes = [abort] + ([opponent] if opponent else [])
         known = all(
             o["outcome"] == "SUCCESS"
             or (o.get("code") == "NoSuchUpload" and o.get("http_status") == 404)
             for o in outcomes
         )
-        if any(o["outcome"] == "UNCERTAIN" for o in outcomes) or self.unsettled_io:
+        local_uncertain = [
+            v
+            for v in self.unsettled_operations
+            if v["key"] == key and v["generation"] == self.generations.get(key, "UNKNOWN")
+        ]
+        race_unsettled = any(o["outcome"] == "UNCERTAIN" for o in outcomes) or bool(local_uncertain)
+        if race_unsettled:
             status, result = "BLOCKED", "UNCERTAIN_SIDE_EFFECT"
         elif observed["mpu"] != "ABSENT" or observed["completed_object"] == "UNKNOWN":
             status, result = "BLOCKED", "INCOMPLETE_INVENTORY"
@@ -513,7 +537,14 @@ class Qualification:
             status, result = "UNKNOWN", "ABORT_NOT_OBSERVED_SUCCESSFUL"
         elif name == "complete_abort_race":
             if opponent["outcome"] == "SUCCESS" and observed["completed_object"] == "EXISTS":
-                status, result = "PASS", "COMPLETED_OBJECT_SURVIVED_ABORT"
+                status, result = (
+                    "PASS",
+                    (
+                        "COMPLETED_OBJECT_SURVIVED_ABORT"
+                        if abort["outcome"] == "SUCCESS"
+                        else "COMPLETE_WON_ABORT_NO_SUCH_UPLOAD"
+                    ),
+                )
             elif (
                 opponent.get("code") == "NoSuchUpload" and observed["completed_object"] == "MISSING"
             ):
@@ -530,7 +561,11 @@ class Qualification:
             abort_outcome=abort,
             opponent_outcome=opponent,
             final_inventory=observed,
-            unsettled_io=self.unsettled_io,
+            unsettled_io=race_unsettled,
+            namespace_unsettled_io=self.unsettled_io,
+            race_unsettled_operations=local_uncertain,
+            key=key,
+            generation=self.generations.get(key, "UNKNOWN"),
             observation=result,
             boundary="bounded joined caller results; no permanent internal late-IO guarantee",
         )
@@ -566,7 +601,7 @@ class Qualification:
             operation = "UploadPart" if name == "upload_abort_race" else "CompleteMultipartUpload"
             with ThreadPoolExecutor(2) as pool:
                 abort, opponent = list(pool.map(compete, ("AbortMultipartUpload", operation)))
-        self.record_race(name, abort, opponent, self.inspect_transfer(key, identity))
+        self.record_race(name, abort, opponent, self.inspect_transfer(key, identity), key=key)
 
     def abort_and_races(self) -> None:
         for name in ("abort", "upload_abort_race", "complete_abort_race"):
@@ -625,13 +660,13 @@ class Qualification:
                         },
                         "UploadPart",
                     )
-                outcome = {"operation": "UploadPart", "outcome": "SUCCESS", "http_status": status}
+                outcome = self.success_evidence("UploadPart", key, status)
             except Exception as error:
                 outcome = self.observe_error(
                     error, operation="UploadPart", key=key, side_effect=True
                 )
         self.record_race(
-            "abort_inflight_part", abort, outcome, self.inspect_transfer(key, identity)
+            "abort_inflight_part", abort, outcome, self.inspect_transfer(key, identity), key=key
         )
 
     def checksums(self) -> None:
@@ -686,7 +721,7 @@ class Qualification:
                 self.record(
                     "signed_endpoint_http_access",
                     "PASS" if response.headers.get("ETag") else "UNKNOWN",
-                    http_status=response.status,
+                    **self.success_evidence("UploadPart", key, response.status),
                     etag_readable=bool(response.headers.get("ETag")),
                 )
         except Exception as error:
@@ -738,7 +773,9 @@ class Qualification:
                         },
                         "UploadPart",
                     )
-                self.report["checks"]["browser_access"] = {
+                self.report["checks"]["browser_access"] = self.success_evidence(
+                    "UploadPart", key, http_status
+                ) | {
                     k: v
                     for k, v in data.items()
                     if k
@@ -803,14 +840,31 @@ class Qualification:
                     if (
                         name.startswith("abort_")
                         and error.response["Error"]["Code"] == "NoSuchUpload"
+                        and error.response["ResponseMetadata"]["HTTPStatusCode"] == 404
                     ):
                         stage["succeeded"] += 1
                     else:
                         stage["status"] = "BLOCKED"
-                        stage["failures"].append(self.observe_error(error))
+                        stage["failures"].append(
+                            self.observe_error(
+                                error,
+                                operation="AbortMultipartUpload"
+                                if name.startswith("abort_")
+                                else "DeleteObject",
+                                key=item.get("Key"),
+                            )
+                        )
                 except Exception as error:
                     stage["status"] = "BLOCKED"
-                    stage["failures"].append(self.observe_error(error))
+                    stage["failures"].append(
+                        self.observe_error(
+                            error,
+                            operation="AbortMultipartUpload"
+                            if name.startswith("abort_")
+                            else "DeleteObject",
+                            key=item.get("Key"),
+                        )
+                    )
 
         def abort(item):
             self.mutate("AbortMultipartUpload", item["Key"], UploadId=item["UploadId"])

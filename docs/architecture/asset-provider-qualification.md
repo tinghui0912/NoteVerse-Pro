@@ -1,9 +1,9 @@
-# Asset Provider Qualification — Task 0.3
+# Asset Provider Qualification — Task 0.4
 
 状态：**部分开发环境能力已实测，完整实施门槛尚未关闭。**
-复核基准 `1f1a6496ac861c68f6cf58390b6863259f7e3728`，2026-11-26（Asia/Shanghai）。
-保留 Task 0.1/0.2 原始证据，不覆盖或删除。Task 0.3 工具输出 schema=3；
-**本批未执行真实 OSS，没有 schema=3 Provider 实测结果**。新增分类证据全部来自工具 doubles，不能替代真实资格。
+复核基准 `4edb9f71245cbeebf18a51e238548b551dbee782`，2026-11-26（Asia/Shanghai）。
+保留 Task 0.1/0.2 原始证据，不覆盖或删除。Task 0.4 工具输出 schema=4；
+**本批未执行真实 OSS，没有 schema=3 或 schema=4 Provider 实测结果**。新增分类证据全部来自工具 doubles，不能替代真实资格。
 本报告是 [RFC](asset-infrastructure-rfc.md) 的证据，不是 Accepted Provider Contract。
 
 ## 环境与凭据边界
@@ -47,7 +47,7 @@ Task 0.1 曾实际尝试 `docker pull minio/minio:RELEASE.2025-04-22T22-12-26Z`�
 - [Task 0.2 OSS 运行](evidence/asset-provider-oss-review-02.json)：UTC 2026-11-25 16:31（本地 11-26 00:31）；
   Task 0.2 的真实执行；下面的历史 cleanup/orphan/CORS/checksum 观察以此 schema=2 结果为准。
   schema=1/2 中 configuration_* 的旧 PASS 仅证明当时读取配置成功，不是 IAM/加密/完整清理能力已合格；
-  Task 0.3 的规范状态以本页新表和 schema=3 工具算法为准，不能重写历史 JSON 冒充新一次实验。
+  当前规范状态以本页表格和 schema=4 工具算法为准，不能重写历史 JSON 冒充新一次实验。
 
 Task 0.1 原始 JSON 的 cleanup PASS 只包含当时对象/MPU 观察，**未完整验证版本/Delete Marker**，
 旧 orphan 测试还保留了 self.uploads 中的原始 handle；不能把那些标签解释成 Task 0.2 新标准已经满足。
@@ -87,11 +87,11 @@ Upload/Abort 与 Complete/Abort 还分别使用并发 HTTP 请求和同步 Barri
 - lifecycle：读取成功观察 `NoSuchLifecycleConfiguration` / HTTP 404。
   **incomplete multipart 清理策略缺失，N3 BLOCKED**；schema=2 直接记录 BLOCKED，旧 schema=1 的 PASS 只是读配置结果。
 
-## Task 0.3 结果分类契约（仅独立工具）
+## Task 0.4 结果分类契约（仅独立工具）
 
 | 请求观察 | 工具结论 | unsettled / 责任 |
 | --- | --- | --- |
-| 错误 ETag → InvalidPart / 400 | invalid_completion PASS；同时记录 expected_error、observed_error、HTTP status | 明确预期拒绝，不推导写入发生 |
+| 错误 ETag → InvalidPart / 400 | 还需 MPU=PRESENT、parts=1、完整对象=MISSING 才 PASS；保留 expected/observed error 与最终 inventory | 其他物理状态组合 UNKNOWN；不证明 part 内容或永久终结 |
 | 错误 ETag → AccessDenied / InvalidAccessKeyId | BLOCKED | 不能证明错误 ETag 规则；4xx 明确拒绝不伪造未知写入 |
 | 错误 ETag → NoSuchUpload / 404 | UNKNOWN | 不是对 ETag 的有效验证；不等于已找到完整对象 |
 | 错误 ETag 被成功接受 | FAIL | 不能把上传成功当资格成功 |
@@ -118,16 +118,32 @@ read-only inspection 的网络错误使其观察 UNKNOWN，不据此声称有未
 | SUCCESS | Complete NoSuchUpload/404 | ABSENT / MISSING | PASS，明确拒绝且完整对象缺失 |
 | SUCCESS | Complete SUCCESS | ABSENT / MISSING | UNKNOWN，请求结果与对象观察不一致 |
 | SUCCESS | Complete NoSuchUpload/404 | ABSENT / EXISTS | UNKNOWN，不能将失配合并为普通成功 |
-| NoSuchUpload/404 | Complete SUCCESS | ABSENT / EXISTS | 记录 Complete 赢得竞态；不据此证明 Abort 独立能力 |
+| NoSuchUpload/404 | Complete SUCCESS | ABSENT / EXISTS | COMPLETE_WON_ABORT_NO_SUCH_UPLOAD；不能称为对象在成功 Abort 后仍存在 |
 | NoSuchUpload/404 | 无已证实成功的 Complete | ABSENT / 任意 | UNKNOWN，不把所有明确拒绝都当成功 |
 | 任一请求 408/5xx、断连或 timeout | 任意 | 即使 ABSENT / MISSING | BLOCKED；未知副作用 ledger 保留 |
 | 任意 | 任意 | PRESENT 或观察 UNKNOWN | BLOCKED，实验未收敛或无法核实 |
 
-每项记录两个实际 request outcome、MPU/parts、完整对象、unsettled 和观察边界。
+每项记录两个实际 request outcome、MPU/parts、完整对象、key/generation 与观察边界。
+`unsettled_io` / `race_unsettled_operations` 只表示当前实验的精确 key/gen；`namespace_unsettled_io` 与全局 ledger 独立保留。
+另一独立 key 的未知 IO 不伪装成本实验失败，但 namespace 最终 cleanup 仍 BLOCKED。
 Standalone Abort 与在途 PUT 同样必须验证实际 Abort outcome；在途 PUT 另外保留原始 HTTP status。
 不把 ListParts 零项等同于 MPU 不存在，也不把 NoSuchUpload 等同于完整对象缺失。
 所有 PASS 都是有界实验观察，不解决 N3 的永久迟到 IO 问题。
 工具逻辑测试覆盖 500/断连/库存零的组合；**这些不是新的 OSS 并发实测**。
+
+### Cleanup / raw PUT 的新增证据要求
+
+- 幂等 Abort 仅接受 **NoSuchUpload + HTTP404**；同 code 的 403/500、其他 404 都是清理失败。
+  500 保留未知副作用，403 是明确拒绝；两者都不能伪称已证明 MPU 不存在。
+- cleanup 的每次显式失败都保留 operation、当前 UUID namespace 的 exact test key、generation、错误类别、code 和 HTTP status。
+  不只在全局 uncertainty ledger 才有上下文；不输出 Signed URL、bucket、secret 或异常 Message。
+- raw in-flight PUT、signed_transport 和 browser_access 的成功结果均具 UploadPart operation / key / generation / actual HTTP status / SUCCESS。
+  签名 URL 仍只在内存/stdin 中传递，不重建文件出口。
+- InvalidPart/400 后重新观察 MPU、parts 和完整对象：PRESENT/1/MISSING 为本次预期，
+  ABSENT、零 part、对象存在或查询 UNKNOWN 均不能直接 PASS。这是状态观察，不是完整内容或永久 late-IO 证明。
+
+本批这些组合均由 doubles 测试；没有执行新的 OSS 请求，也没有生成 schema=3/4 Provider 资格 JSON。
+Task 0.2 的原始结果保持原样，不能以新工具的标签改写历史证据。
 
 ## Provider 文档与参数约束
 
