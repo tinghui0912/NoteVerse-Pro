@@ -22,28 +22,6 @@ x-backend-common: &backend-common
   restart: unless-stopped
 
 services:
-  object-store:
-    profiles: [object-storage]
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
-    command: server /data
-    environment:
-      MINIO_ROOT_USER: noteverse-dev
-      MINIO_ROOT_PASSWORD: noteverse-dev-secret
-    ports:
-      - "9010:9000"
-    volumes:
-      - durable_objects:/data
-  object-store-init:
-    profiles: [object-storage]
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
-    depends_on:
-      - object-store
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        until mc alias set dev http://object-store:9000 noteverse-dev noteverse-dev-secret; do sleep 1; done
-        mc mb --ignore-existing dev/noteverse-dev
-    restart: "no"
   api:
     <<: *backend-common
     image: noteverse-backend-api:dev
@@ -125,24 +103,45 @@ services:
       dockerfile: docker/backend/Dockerfile.beat
     command: beat
 
-  quality:
-    <<: *backend-common
+  quality-postgres:
+    image: postgres:17
+    profiles: [quality]
     environment:
-      PYTHONPATH: /app
+      POSTGRES_USER: noteverse
+      POSTGRES_PASSWORD: noteverse
+      POSTGRES_DB: noteverse_test_quality
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noteverse -d noteverse_test_quality"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  quality:
+    profiles: [quality]
+    <<: *backend-common
+    working_dir: /repo/backend
+    environment:
+      PYTHONPATH: /repo/backend
       NOTEVERSE_REPO_ROOT: /repo
-      S3_ENDPOINT_URL: http://object-store:9000
-      S3_SIGNED_ENDPOINT_URL: http://localhost:9010
-      S3_BUCKET: noteverse-dev
-      S3_ACCESS_KEY_ID: noteverse-dev
-      S3_SECRET_ACCESS_KEY: noteverse-dev-secret
+      CONTROL_PLANE_COOKIE_SECURE: "false"
+      CONTROL_PLANE_COOKIE_SAMESITE: lax
+      CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
+      CONTROL_PLANE_CORS_ORIGINS: '["http://localhost:3001"]'
+      DATABASE_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
+      SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
+      NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
+      PLAYBACK_SOUNDFONT_PATH: /usr/share/sounds/sf2/FluidR3_GM.sf2
+      LEGATO_REPO_PATH: /opt/noteverse/legato
     volumes:
-      - ./backend:/app
       - ./:/repo:ro
+      - ./backend:/repo/backend
     env_file:
       - path: backend/.env.docker
         required: true
       - path: backend/.env.docker.worker
         required: true
+    depends_on:
+      quality-postgres:
+        condition: service_healthy
     image: noteverse-backend-quality:dev
     build:
       context: .
@@ -150,6 +149,3 @@ services:
     entrypoint: []
     command: bash
     restart: "no"
-
-volumes:
-  durable_objects:

@@ -10,7 +10,7 @@ from __future__ import annotations
 from app.composition.media_resources import build_revision_writer
 from app.composition.storage_resources import build_object_write_coordinator
 from app.composition.storage_resources import storage_quota_service
-from uuid import uuid4
+from uuid import UUID, uuid4, uuid5
 from datetime import timedelta
 from app.shared.time import utc_now
 
@@ -38,8 +38,9 @@ from app.storage import object_storage
 
 INTEGRATION_EMAIL = "integration@example.com"
 INTEGRATION_PASSWORD_ENV = "NOTEVERSE_INTEGRATION_PASSWORD"
-INTEGRATION_PRACTICE_SCORE_ID = "integration-practice-score"
-INTEGRATION_PRACTICE_REVISION_ID = "integration-practice-revision"
+INTEGRATION_RUN_ID = os.environ.get("NOTEVERSE_INTEGRATION_RUN_ID", uuid4().hex)
+INTEGRATION_PRACTICE_SCORE_ID = str(uuid5(UUID(INTEGRATION_RUN_ID), "score"))
+INTEGRATION_PRACTICE_REVISION_ID = str(uuid5(UUID(INTEGRATION_RUN_ID), "revision"))
 INTEGRATION_MUSICXML = b"""<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
   <part-list><score-part id="P1"><part-name>Integration</part-name></score-part></part-list>

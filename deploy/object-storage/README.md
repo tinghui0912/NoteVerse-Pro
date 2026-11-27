@@ -1,34 +1,44 @@
-# Private object storage deployment
+# Private S3-compatible cloud storage
 
-API, Worker and Beat use one private bucket per environment. Runtime credentials
-have object read/write/copy/delete, multipart create/list/complete/abort, exact-key
-multipart discovery and required version-cleanup permissions. Bucket policy, CORS,
-lifecycle, encryption and IAM administration belong to the deployment operator.
-Runtime processes never change bucket configuration.
+Development and cross-end tests use the configured real cloud bucket. Unit tests
+and CI inject InMemoryObjectStorage or controlled SDK-boundary doubles. Each
+cross-end run has an isolated PostgreSQL/Redis stack and unique resource identities.
+No object-store container is part of the runtime or validation stack.
 
-The [OSS CORS example](oss-cors.example.xml) authorizes direct PUT and signed
-GET/HEAD. Replace the placeholder with each exact Customer Web origin, including
-local development origins as needed. Upload requests omit cookies. The browser
-sets Content-Length from the Blob; the server signs its exact value. ETag and
-transport headers are exposed. Verify real browser preflight and PUT using the
-external signing endpoint; a readable CORS document alone is not qualification.
-See [OSS CORS](https://www.alibabacloud.com/help/en/oss/user-guide/configure-cross-origin-resource-sharing/).
+## Connection policy
 
-The [OSS lifecycle example](oss-lifecycle.example.xml) uses a three-day operational
-safety window, exceeding the 24-hour session deadline and 15-minute capability TTL.
-It aborts incomplete MPU tasks and expires only disposable `transfers/` objects,
-including noncurrent staging versions. It never expires completed final object keys.
-Review the window against configured deadlines, maximum in-flight request duration,
-versioning, Object Lock and deployment policy before applying. Lifecycle is a
-secondary cleanup mechanism, not a replacement for persistent session cleanup.
-Daily provider execution is asynchronous; a lifecycle rule does not prove an unknown
-request has permanently stopped. See [OSS lifecycle](https://www.alibabacloud.com/help/en/oss/developer-reference/putbucketlifecycle).
+The same adapter accepts OSS, COS, AWS S3 and R2 connection settings without vendor
+branches. Each deployment supplies `S3_ENDPOINT_URL`, optional external
+`S3_SIGNED_ENDPOINT_URL`, `S3_REGION`, `S3_BUCKET`, credentials and
+`S3_FORCE_PATH_STYLE`. Use the provider's documented signing region and addressing
+style. SigV4 is mandatory. This interface contract does not claim that every cloud
+capability or bucket policy is qualified without real tests.
 
-These are deployment inputs, not evidence of applied bucket settings. Production
-provider, IAM, encryption/KMS, backup and legal retention remain operator-owned.
-Never apply a catch-all completed-object expiration rule to this bucket.
+`S3_CONNECT_TIMEOUT_SECONDS=10` and `S3_READ_TIMEOUT_SECONDS=45` bound each SDK
+attempt. Reads and idempotent abort/delete use standard transient retries with
+`S3_MAX_ATTEMPTS=3` including the initial attempt. Put, Copy, CreateMultipart and
+CompleteMultipart use one SDK attempt: their durable operation owner resolves any
+ambiguous side effect. SDK retries do not replace durable application recovery.
+See [SDK configuration](https://docs.aws.amazon.com/botocore/latest/reference/config.html).
 
-Celery Beat registers object-write cleanup, StoredObject retirement/session GC and
-Take media processing maintenance. API, Worker and Beat share transfer limits from
-the backend ConfigMap; Worker-specific model paths remain in the Worker ConfigMap.
-See [media recovery](../../docs/operations/runbooks/media-storage-recovery.md).
+## Browser and lifecycle policy
+
+The [CORS input](cors.example.json) and [lifecycle input](lifecycle.example.json)
+express standard S3 policy requirements. Operators apply the equivalent controls
+through the selected cloud's supported API or console and verify the result.
+Replace the example origin with exact Customer Web origins, including local test
+origin `http://localhost:3000`. Upload requests omit cookies. The browser derives
+Content-Length from Blob bytes; the server signs its exact value. Expose ETag and
+transport headers. Browser E2E executes real cross-origin PUT and checks readable
+ETag; request-library success alone does not establish browser CORS correctness.
+
+The three-day lifecycle example exceeds default 24-hour sessions and 15-minute
+capabilities. Review it against actual deadlines and maximum in-flight duration.
+It aborts incomplete MPU and expires only disposable `transfers/` staging objects
+and staging versions. It never expires completed final keys. Lifecycle is a
+secondary backstop, not proof that unknown IO has permanently stopped.
+
+These artifacts are deployment inputs, not evidence of applied bucket settings.
+Runtime credentials do not administer CORS, lifecycle, encryption or IAM. Production
+provider qualification, encryption/KMS, backup and legal retention remain separate
+operator responsibilities. See [media recovery](../../docs/operations/runbooks/media-storage-recovery.md).

@@ -83,6 +83,7 @@ class S3CompatibleObjectStorage:
         self.region = settings.S3_REGION
         self._client = None
         self._signing_client = None
+        self._mutation_client = None
 
     @property
     def client(self):
@@ -90,7 +91,14 @@ class S3CompatibleObjectStorage:
             self._client = self._make_client(self.endpoint_url)
         return self._client
 
-    def _make_client(self, endpoint_url: str):
+    @property
+    def mutation_client(self):
+        """Ambiguous side effects are recovered by their persistent operation owner."""
+        if self._mutation_client is None:
+            self._mutation_client = self._make_client(self.endpoint_url, total_max_attempts=1)
+        return self._mutation_client
+
+    def _make_client(self, endpoint_url: str, *, total_max_attempts: int | None = None):
         return boto3.client(
             "s3",
             endpoint_url=endpoint_url,
@@ -99,7 +107,14 @@ class S3CompatibleObjectStorage:
             aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
             config=Config(
                 signature_version="s3v4",
-                retries={"mode": "standard", "total_max_attempts": 1},
+                connect_timeout=settings.S3_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=settings.S3_READ_TIMEOUT_SECONDS,
+                retries={
+                    "mode": "standard",
+                    "total_max_attempts": settings.S3_MAX_ATTEMPTS
+                    if total_max_attempts is None
+                    else total_max_attempts,
+                },
                 request_checksum_calculation="when_required",
                 response_checksum_validation="when_required",
                 s3={
@@ -122,7 +137,7 @@ class S3CompatibleObjectStorage:
     ) -> ObjectWriteResult:
         key = self._normalize_key(key)
         with provider_operation():
-            self.client.put_object(
+            self.mutation_client.put_object(
                 Bucket=self.bucket,
                 Key=key,
                 Body=content,
@@ -188,7 +203,7 @@ class S3CompatibleObjectStorage:
     def create_multipart_upload(self, key: str, *, content_type: str) -> str:
         key = self._normalize_key(key)
         with provider_operation():
-            response = self.client.create_multipart_upload(
+            response = self.mutation_client.create_multipart_upload(
                 Bucket=self.bucket, Key=key, ContentType=content_type
             )
             if not response.get("UploadId"):
@@ -270,7 +285,7 @@ class S3CompatibleObjectStorage:
         if not parts or numbers != sorted(set(numbers)) or numbers[0] <= 0 or numbers[-1] > 10000:
             raise ValueError("Parts must have unique increasing numbers")
         with provider_operation():
-            response = self.client.complete_multipart_upload(
+            response = self.mutation_client.complete_multipart_upload(
                 Bucket=self.bucket,
                 Key=key,
                 UploadId=upload_id,
@@ -321,7 +336,7 @@ class S3CompatibleObjectStorage:
     def copy(self, source_key: str, target_key: str) -> None:
         source_key, target_key = self._normalize_key(source_key), self._normalize_key(target_key)
         with provider_operation():
-            response = self.client.copy_object(
+            response = self.mutation_client.copy_object(
                 CopySource={"Bucket": self.bucket, "Key": source_key},
                 Bucket=self.bucket,
                 Key=target_key,

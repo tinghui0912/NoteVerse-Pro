@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 import os
 
 for name, value in {
-    "S3_ENDPOINT_URL": "http://object-store.test:9000",
+    "S3_ENDPOINT_URL": "https://storage.example.test",
     "S3_BUCKET": "unit-tests",
     "S3_ACCESS_KEY_ID": "test-key",
     "S3_SECRET_ACCESS_KEY": "test-secret",

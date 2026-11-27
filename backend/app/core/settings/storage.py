@@ -17,6 +17,9 @@ class StorageSettings(BaseModel):
     S3_ACCESS_KEY_ID: Optional[str] = None
     S3_SECRET_ACCESS_KEY: Optional[str] = None
     S3_FORCE_PATH_STYLE: bool = True
+    S3_CONNECT_TIMEOUT_SECONDS: float = Field(default=10, gt=0, le=120)
+    S3_READ_TIMEOUT_SECONDS: float = Field(default=45, gt=0, le=300)
+    S3_MAX_ATTEMPTS: int = Field(default=3, ge=1, le=10)
     OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS: int = Field(default=900, gt=0)
     AVATAR_MAX_UPLOAD_BYTES: int = Field(default=5 * 1024 * 1024, gt=0, le=5 * 1024 * 1024)
     AVATAR_MAX_PIXELS: int = Field(default=16_000_000, gt=0)

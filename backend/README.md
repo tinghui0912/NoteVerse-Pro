@@ -169,8 +169,8 @@ Playback endpoints return short-lived signed JSON capabilities. Large-media Rang
 requests terminate at storage/CDN. Media processing readiness controls Take playback.
 
 Development runtime uses the bucket configured in `backend/.env.docker`; Compose
-does not override it. Optional local MinIO services require `--profile object-storage`
-and explicit matching endpoint/credential settings. Provider policy examples and
+does not override it. Development and cross-end tests use the configured
+S3-compatible cloud bucket. Unit and CI tests inject InMemoryObjectStorage. Provider policy examples and
 requirements are in [object-storage deployment](../deploy/object-storage/README.md).
 Recovery and operational metrics are in [media recovery](../docs/operations/runbooks/media-storage-recovery.md).
 

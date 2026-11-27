@@ -42,14 +42,6 @@ const nextConfig: NextConfig = {
         pathname: '/images/**',
       },
     ],
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.oss-cn-shenzhen.aliyuncs.com',
-        port: '',
-        pathname: '/**',
-      },
-    ],
   },
   async rewrites() {
     return [

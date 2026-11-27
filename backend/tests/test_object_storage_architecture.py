@@ -111,12 +111,10 @@ def test_capability_surface_and_write_observation():
     assert public_operations(ObjectStorage) == expected
     assert public_operations(S3CompatibleObjectStorage) == expected
     assert expected <= public_operations(InMemoryObjectStorage)
-    assert set(vars(S3CompatibleObjectStorage())) == {
+    assert {name for name in vars(S3CompatibleObjectStorage()) if not name.startswith("_")} == {
         "bucket",
         "endpoint_url",
         "region",
-        "_client",
-        "_signing_client",
     }
     assert [f.name for f in fields(ObjectWriteResult)] == ["object_key", "size_bytes"]
     written = ObjectWriteResult("objects/one", 3)

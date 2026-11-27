@@ -12,6 +12,9 @@ function Invoke-Quality {
     param([string] $Name, [string] $Command)
 
     Write-Host "==> backend:$Name"
+    if ($Command.StartsWith("python -m pytest ", [System.StringComparison]::Ordinal)) {
+        $Command = "python -m alembic upgrade head && $Command"
+    }
     docker compose -f $composeFile run --rm --build quality bash -c $Command
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE

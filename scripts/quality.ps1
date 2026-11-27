@@ -113,7 +113,10 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
 
     Invoke-Step "k8s:release-overlay-renderer" {
         if (Test-Path $OutputRoot) {
-            Remove-Item -Recurse -Force $OutputRoot
+            $resolvedOutput = (Resolve-Path -LiteralPath $OutputRoot).ProviderPath
+            $expectedOutput = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "build/k8s-release-check"))
+            if ($resolvedOutput -ne $expectedOutput) { throw "Unexpected release-check output directory." }
+            Remove-Item -LiteralPath $resolvedOutput -Recurse -Force
         }
 
         python $K8sReleaseOverlayRenderer `

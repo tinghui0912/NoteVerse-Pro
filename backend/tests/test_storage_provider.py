@@ -54,6 +54,7 @@ def test_every_wire_operation_sanitizes_provider_errors(operation, status, code,
     )
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     storage._signing_client = storage._client
     for method in (
         "put_object",
@@ -78,6 +79,7 @@ def test_every_wire_operation_sanitizes_provider_errors(operation, status, code,
 def test_network_failure_retains_uncertain_outcome_for_each_operation(operation):
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     storage._signing_client = storage._client
     for method in (
         "put_object",
@@ -101,6 +103,7 @@ def test_network_failure_retains_uncertain_outcome_for_each_operation(operation)
 def test_delete_is_one_idempotent_request_and_abort_requires_definitive_404():
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     storage.delete("k")
     storage.client.delete_object.assert_called_once_with(Bucket=storage.bucket, Key="k")
     storage.client.head_object.assert_not_called()
@@ -122,6 +125,7 @@ def test_delete_is_one_idempotent_request_and_abort_requires_definitive_404():
 def test_metadata_distinguishes_native_composite_checksum_from_user_metadata():
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     storage.client.head_object.return_value = {
         "ContentLength": 3,
         "ETag": "etag",
@@ -141,6 +145,7 @@ def test_pagination_and_embedded_completion_error():
 
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     storage.client.list_parts.side_effect = [
         {
             "Parts": [{"PartNumber": 1, "ETag": "a", "Size": 8}],
@@ -216,6 +221,7 @@ def test_signature_expiry_uses_settings_and_requires_integer_lengths(monkeypatch
     monkeypatch.setattr(settings, "OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS", 83)
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     storage.generate_put_upload_url("k", content_type="image/png", content_length=1)
     assert storage.client.generate_presigned_url.call_args.kwargs["ExpiresIn"] == 83
     for value in (True, 0, -1, 1.5):
@@ -229,6 +235,7 @@ def test_lazy_stream_error_is_normalized_and_body_closed(failure):
 
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     body = Mock()
 
     def chunks(**kwargs):
@@ -251,6 +258,7 @@ def test_lazy_stream_error_is_normalized_and_body_closed(failure):
 def test_multipart_discovery_paginates_and_matches_exact_key():
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     storage.client.list_multipart_uploads.side_effect = [
         {
             "Uploads": [
@@ -266,3 +274,47 @@ def test_multipart_discovery_paginates_and_matches_exact_key():
     assert storage.list_multipart_uploads("exact") == ("one", "two")
     assert storage.client.list_multipart_uploads.call_args.kwargs["UploadIdMarker"] == "one"
     assert storage.client.list_multipart_uploads.call_args.kwargs["Prefix"] == "exact"
+
+
+@pytest.mark.parametrize(
+    "endpoint,region,path_style",
+    [
+        ("https://oss.region.example", "region", False),
+        ("https://cos.region.example", "region", False),
+        ("https://s3.region.example", "region", False),
+        ("https://account.storage.example", "auto", True),
+    ],
+)
+def test_s3_connection_policy_is_configured_without_provider_branches(
+    monkeypatch, endpoint, region, path_style
+):
+    from app.core.config import settings
+
+    for name, value in {
+        "S3_ENDPOINT_URL": endpoint,
+        "S3_SIGNED_ENDPOINT_URL": None,
+        "S3_REGION": region,
+        "S3_BUCKET": "private-test",
+        "S3_ACCESS_KEY_ID": "test-key",
+        "S3_SECRET_ACCESS_KEY": "test-secret",
+        "S3_FORCE_PATH_STYLE": path_style,
+        "S3_CONNECT_TIMEOUT_SECONDS": 7,
+        "S3_READ_TIMEOUT_SECONDS": 31,
+        "S3_MAX_ATTEMPTS": 4,
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    storage = S3CompatibleObjectStorage()
+    try:
+        for client in (storage.client, storage.mutation_client):
+            config = client.meta.config
+            assert client.meta.endpoint_url == endpoint
+            assert client.meta.region_name == region
+            assert config.signature_version == "s3v4"
+            assert config.connect_timeout == 7 and config.read_timeout == 31
+            assert config.s3["addressing_style"] == ("path" if path_style else "virtual")
+            assert config.retries["mode"] == "standard"
+        assert storage.client.meta.config.retries["total_max_attempts"] == 4
+        assert storage.mutation_client.meta.config.retries["total_max_attempts"] == 1
+    finally:
+        storage.client.close()
+        storage.mutation_client.close()

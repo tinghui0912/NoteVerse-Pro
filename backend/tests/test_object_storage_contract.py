@@ -61,6 +61,7 @@ def storage(request):
         return InMemoryObjectStorage()
     adapter = S3CompatibleObjectStorage()
     adapter._client = ObjectClient()
+    adapter._mutation_client = adapter._client
     return adapter
 
 
@@ -102,14 +103,14 @@ def test_object_storage_capability_contract(storage):
 def test_concrete_adapter_issues_signed_upload_and_download(monkeypatch):
     from app.core.config import settings
 
-    monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", "http://localhost:9010")
+    monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", "https://signed.storage.example")
     monkeypatch.setattr(settings, "S3_FORCE_PATH_STYLE", True)
     storage = S3CompatibleObjectStorage()
     target = storage.generate_put_upload_url(
         "test/object", content_type="audio/webm", content_length=2
     )
     assert target.upload_method == "PUT"
-    assert target.upload_url.startswith("http://localhost:9010/")
+    assert target.upload_url.startswith("https://signed.storage.example/")
     assert "X-Amz-Signature=" in target.upload_url
     assert target.upload_headers == {"content-type": "audio/webm", "content-length": "2"}
     from urllib.parse import parse_qs, urlsplit

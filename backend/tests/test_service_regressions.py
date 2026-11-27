@@ -252,8 +252,9 @@ def test_s3_storage_put_and_materialize() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         storage = S3CompatibleObjectStorage()
         storage.bucket = "bucket"
-        storage.endpoint_url = "https://oss-cn-shenzhen.aliyuncs.com"
+        storage.endpoint_url = "https://storage.example.test"
         storage._client = FakeS3Client()
+        storage._mutation_client = storage._client
 
         with patch("app.storage.s3_compatible.settings.WORK_ROOT", temp_dir):
             stored = storage.put_bytes(key="objects/example.bin", content=b"score")

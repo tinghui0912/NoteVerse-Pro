@@ -309,6 +309,7 @@ def test_provider_get_failures_are_classified_without_preflight(code, expected):
 
     storage = S3CompatibleObjectStorage()
     storage._client = Mock()
+    storage._mutation_client = storage._client
     storage.client.get_object.side_effect = ClientError(
         {
             "Error": {"Code": code, "Message": "private-provider-detail"},

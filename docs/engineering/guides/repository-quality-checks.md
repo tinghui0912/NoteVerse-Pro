@@ -40,10 +40,15 @@ Available checks:
 | `docs-links` | Tests/enforces documentation structure and validates checked-in local Markdown links |
 | `k8s` | Kubernetes application manifest guard and release overlay renderer smoke test |
 | `observability` | Observability values guard |
-| `all` | Fast broad gate: backend ruff/mypy, customer-web lint/typecheck/i18n, platform-admin lint/typecheck/tests, K8s and observability guards |
+| `all` | Backend lint/type checks/pytest, Customer Web lint/API/type/i18n, Platform Admin lint/type/tests, documentation, K8s and observability checks |
 
 `all` intentionally does not run every long test suite. Full test suites should
 still run before release or in dedicated CI jobs.
+
+Backend pytest commands initialize the dedicated quality PostgreSQL database
+through Alembic before executing tests. The quality container runs from the
+mounted repository's backend directory so cross-end contract checks resolve the
+same repository paths as host tools.
 
 ## Customer Web and Backend Integration
 
@@ -59,14 +64,29 @@ Playwright test uses the browser-facing Customer Web origin, so calls traverse
 the Next rewrite before reaching the real API. It verifies login cookies, an
 authenticated profile read, rejected CSRF-less logout, accepted logout with the
 issued CSRF token, and the score-import entry flow: upload an input image,
-submit an import job, and read its pending status.
+submit an import job, and read its queued status.
 
-The stack uses only the `noteverse-integration` Compose project and removes its
-containers and named volumes on completion. It never uses the development
+The stack uses a `noteverse-integration-<run UUID>` Compose project and removes
+its own containers and named volumes on completion. It never uses the development
 database, synchronous database, scheduler-lock database, or Redis URLs from
-`backend/.env.docker`; all are overridden to isolated Compose services. Durable uploads use the isolated Compose object-storage service through the same
-ObjectStorage protocol as production. Worker scratch remains disposable. The seeded email and password exist
-only in the disposable test database and are not application credentials.
+`backend/.env.docker`; all are overridden to isolated Compose services. Durable uploads use the real S3-compatible development bucket injected through
+the ignored local environment file. Unit/CI storage is InMemoryObjectStorage.
+Worker scratch remains disposable. The seeded email and password exist only in
+the disposable test database and are not application credentials.
+
+Integration admission and seed use a fresh run UUID. Browser transfer uses actual
+cross-origin fetch and requires readable ETag. Bucket CORS must authorize
+`http://localhost:3000` for PUT, content-type and exposed ETag. No browser CORS
+bypass is enabled. A CORS rejection requires the bucket administrator to correct
+cloud policy before another run.
+
+Teardown resolves only exact locators registered in the isolated database and
+checks objects, multipart handles and versions. Unknown cleanup retains the test
+database for recovery. The test deployment uses 120-second transfer capabilities
+and a 600-second session deadline; teardown waits for issued capabilities to expire
+before deleting staging. These are injected test policies, not runtime defaults. Successful teardown
+removes only this Compose project's containers and volumes. Local secrets are
+excluded from Git and Docker build context.
 
 ## Kubernetes Manifest Guard
 
