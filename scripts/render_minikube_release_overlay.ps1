@@ -32,6 +32,7 @@ $backendWorkerImage = Get-RequiredEnv "NOTEVERSE_BACKEND_WORKER_IMAGE"
 $customerWebImage = Get-RequiredEnv "NOTEVERSE_CUSTOMER_WEB_IMAGE"
 $platformAdminImage = Get-RequiredEnv "NOTEVERSE_PLATFORM_ADMIN_IMAGE"
 
+$cspObjectStorageOrigins = Get-RequiredEnv "NOTEVERSE_CSP_OBJECT_STORAGE_ORIGINS"
 $s3EndpointUrl = Get-RequiredEnv "NOTEVERSE_S3_ENDPOINT_URL"
 $s3Region = Get-RequiredEnv "NOTEVERSE_S3_REGION"
 $s3Bucket = Get-RequiredEnv "NOTEVERSE_S3_BUCKET"
@@ -60,6 +61,7 @@ $args = @(
     "--trusted-proxy-cidrs", $trustedProxyCidrs,
     "--auth-cookie-secure", $AuthCookieSecure,
     "--mail-default-sender", $mailDefaultSender,
+    "--csp-object-storage-origins", $cspObjectStorageOrigins,
     "--s3-endpoint-url", $s3EndpointUrl,
     "--s3-region", $s3Region,
     "--s3-bucket", $s3Bucket,

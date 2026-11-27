@@ -136,6 +136,7 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --trusted-proxy-cidrs '["10.244.0.0/16"]' `
             --auth-cookie-secure true `
             --mail-default-sender "NoteVerse Pro <no-reply@staging.noteverse.test>" `
+            --csp-object-storage-origins "https://object-storage.noteverse.test" `
             --s3-endpoint-url "https://object-storage.noteverse.test" `
             --s3-region "auto" `
             --s3-bucket "noteverse-staging" `

@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from check_k8s_config_ownership import validate_rendered
+from browser_security_contract import validate_browser_documents
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGETS = (
@@ -133,6 +135,12 @@ def main() -> int:
         findings.extend(
             Finding(str(target), 1, "runtime-credential-contract", message)
             for message in validate_rendered(rendered, require_configuration=target.name != "base")
+        )
+        findings.extend(
+            Finding(str(target), 1, "browser-security-contract", message)
+            for message in validate_browser_documents(
+                [doc for doc in yaml.safe_load_all(rendered) if doc]
+            )
         )
         findings.extend(scan_text(f"{target} (rendered)", rendered, patterns))
         for rule, snippet in REQUIRED_RENDERED_SNIPPETS:

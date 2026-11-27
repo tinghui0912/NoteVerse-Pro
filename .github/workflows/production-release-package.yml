@@ -212,6 +212,7 @@ jobs:
             --trusted-proxy-cidrs '${{ vars.PRODUCTION_TRUSTED_PROXY_CIDRS }}' \
             --auth-cookie-secure "${{ vars.PRODUCTION_AUTH_COOKIE_SECURE }}" \
             --mail-default-sender "${{ vars.PRODUCTION_MAIL_DEFAULT_SENDER }}" \
+            --csp-object-storage-origins "${{ vars.PRODUCTION_CSP_OBJECT_STORAGE_ORIGINS }}" \
             --s3-endpoint-url "${{ vars.PRODUCTION_S3_ENDPOINT_URL }}" \
             --s3-region "${{ vars.PRODUCTION_S3_REGION }}" \
             --s3-bucket "${{ vars.PRODUCTION_S3_BUCKET }}" \

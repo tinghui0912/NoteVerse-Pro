@@ -71,3 +71,5 @@ accepted current decisions and their rationale.
 - [Score Access](../security/score-access-contract.md)
 
 - [Browser Request Security](browser-request-security.md): exact origins, JSON admission, trusted proxies and distributed Redis windows.
+
+See [Browser Security Baseline](browser-security-baseline.md) for per-request nonce CSP, route capabilities, header ownership and Gateway HSTS.

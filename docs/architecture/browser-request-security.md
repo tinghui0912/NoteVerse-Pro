@@ -108,3 +108,5 @@ Configure the shared namespace, proxy hops and origin allowlists identically on
 all replicas. Browser policy is defense in depth alongside authorization and
 session revocation. CSP, Permissions-Policy and gateway transport security have
 separate configuration ownership.
+
+See [Browser Security Baseline](browser-security-baseline.md) for per-request nonce CSP, route capabilities, header ownership and Gateway HSTS.

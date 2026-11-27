@@ -13,6 +13,7 @@ It intentionally does not generate Kubernetes Secrets or credentials.
 
 from __future__ import annotations
 
+from browser_security_contract import storage_origins
 import argparse
 import re
 import shutil
@@ -50,6 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trusted-proxy-cidrs", required=True)
     parser.add_argument("--auth-cookie-secure", choices=("true", "false"), required=True)
     parser.add_argument("--mail-default-sender", required=True)
+    parser.add_argument("--csp-object-storage-origins", required=True)
     parser.add_argument("--s3-endpoint-url", required=True)
     parser.add_argument("--s3-region", required=True)
     parser.add_argument("--s3-bucket", required=True)
@@ -98,12 +100,14 @@ def require_nonblank_arguments(args: argparse.Namespace) -> None:
         "trusted_proxy_cidrs",
         "auth_cookie_secure",
         "mail_default_sender",
+        "csp_object_storage_origins",
         "s3_endpoint_url",
         "s3_region",
         "s3_bucket",
         "s3_force_path_style",
         "s3_presign_expire_seconds",
     )
+    storage_origins(args.csp_object_storage_origins)
     missing = [field for field in required_fields if not str(getattr(args, field, "")).strip()]
     if missing:
         formatted = ", ".join(f"--{field.replace('_', '-')}" for field in missing)
@@ -266,6 +270,9 @@ def render_overlay(args: argparse.Namespace) -> Path:
             "AUTH_COOKIE_SECURE": args.auth_cookie_secure,
         },
         "worker-config.env": {"MAIL_DEFAULT_SENDER": args.mail_default_sender},
+    }
+    changes["customer-web-config.env"] = {
+        "CSP_OBJECT_STORAGE_ORIGINS": args.csp_object_storage_origins
     }
     storage_values = {
         "S3_ENDPOINT_URL": args.s3_endpoint_url,

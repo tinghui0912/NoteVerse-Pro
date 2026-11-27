@@ -98,3 +98,5 @@ Browser protocol checks validate both Python and TypeScript projections. Unit an
 component tests cover MFA, local QR output, recovery-code hygiene, session expiry,
 permissions, reason/password admission and administrative query/mutation surfaces.
 The repository's Platform Admin workflow runs the corresponding quality commands.
+
+See [Browser Security Baseline](../../docs/architecture/browser-security-baseline.md) for per-request nonce CSP, route capabilities, header ownership and Gateway HSTS.

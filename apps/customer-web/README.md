@@ -114,3 +114,5 @@ MediaStream/MIDIAccess objects. End and same-page Retry retain them; Setup, Revi
 leaving the flow and provider disposal release them. Full reload requires Setup again.
 Production Playwright tests witness physical acquisition counts, exact stream identity,
 Source handoff and the selection-only reservation/PUT/finalize protocol.
+
+See [Browser Security Baseline](../../docs/architecture/browser-security-baseline.md) for per-request nonce CSP, route capabilities, header ownership and Gateway HSTS.

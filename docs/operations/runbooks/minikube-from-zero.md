@@ -376,6 +376,7 @@ $env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker:
 $env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<owner>/noteverse/customer-web:<tag>"
 $env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<owner>/noteverse/platform-admin:<tag>"
 
+$env:NOTEVERSE_CSP_OBJECT_STORAGE_ORIGINS = "<public-storage-or-cdn-origin>"
 $env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"
 $env:NOTEVERSE_S3_REGION = "<s3-region>"
 $env:NOTEVERSE_S3_BUCKET = "<s3-bucket>"

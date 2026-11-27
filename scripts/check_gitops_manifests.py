@@ -7,6 +7,8 @@ dev endpoints, raw credentials, or mutable image tags.
 
 from __future__ import annotations
 
+from browser_security_contract import validate_browser_documents
+import yaml
 import argparse
 import json
 import re
@@ -184,6 +186,12 @@ def main() -> int:
     for target in args.targets:
         findings.extend(validate_files(target))
         rendered = render_kustomize(target)
+        findings.extend(
+            Finding(str(target), 1, "browser-security-contract", message)
+            for message in validate_browser_documents(
+                [doc for doc in yaml.safe_load_all(rendered) if doc]
+            )
+        )
         findings.extend(scan_text(f"{target} (rendered)", rendered))
         findings.extend(validate_rendered_images(f"{target} (rendered)", rendered))
         for snippet in REQUIRED_RENDERED_SNIPPETS:

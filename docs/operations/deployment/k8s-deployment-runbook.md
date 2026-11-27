@@ -86,6 +86,7 @@ python scripts/render_k8s_release_overlay.py \
   --trusted-proxy-cidrs '["<gateway-data-plane-cidr>"]' \
   --auth-cookie-secure true \
   --mail-default-sender 'NoteVerse Pro <no-reply@noteverse.example.com>' \
+  --csp-object-storage-origins https://media.example.com \
   --s3-endpoint-url https://object-storage.example.com \
   --s3-region auto \
   --s3-bucket noteverse-production \

@@ -222,6 +222,7 @@ jobs:
             --trusted-proxy-cidrs '${{ vars.STAGING_TRUSTED_PROXY_CIDRS }}' \
             --auth-cookie-secure "${{ vars.STAGING_AUTH_COOKIE_SECURE }}" \
             --mail-default-sender "${{ vars.STAGING_MAIL_DEFAULT_SENDER }}" \
+            --csp-object-storage-origins "${{ vars.STAGING_CSP_OBJECT_STORAGE_ORIGINS }}" \
             --s3-endpoint-url "${{ vars.STAGING_S3_ENDPOINT_URL }}" \
             --s3-region "${{ vars.STAGING_S3_REGION }}" \
             --s3-bucket "${{ vars.STAGING_S3_BUCKET }}" \
