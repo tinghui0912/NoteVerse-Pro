@@ -1,12 +1,14 @@
 """Isolated operator environment contract."""
 
-from pydantic import AnyHttpUrl, Field, field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from typing import Literal
 from app.platform.security.totp import validate_encryption_key
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.runtime.config_blocks import DatabaseConfig, RedisConfig, ObservabilityConfig
 from app.platform.config.service_identity import ServiceIdentitySettings
 from app.platform.config.trusted_proxy import TrustedProxySettings
+from app.platform.config.browser_abuse import OperatorRateLimitSettings
+from app.platform.security.origin_guard import normalize_origin
 from app.platform.config.delivery import OpsDeliveryConfig
 from app.platform.config.operator_session import OperatorSessionConfig
 
@@ -18,12 +20,13 @@ class ControlPlaneSettings(
     ObservabilityConfig,
     ServiceIdentitySettings,
     TrustedProxySettings,
+    OperatorRateLimitSettings,
     BaseSettings,
 ):
     """Required environment contract for the operator-only HTTP runtime."""
 
     CONTROL_PLANE_COOKIE_SECURE: bool
-    CONTROL_PLANE_CORS_ORIGINS: list[AnyHttpUrl]
+    CONTROL_PLANE_CORS_ORIGINS: list[str]
     OPERATOR_TOTP_ENCRYPTION_KEY: str = Field(repr=False)
     ENVIRONMENT: Literal["development", "test", "staging", "production"] = "development"
 
@@ -36,14 +39,16 @@ class ControlPlaneSettings(
     def secure_production_cookie(self):
         if self.ENVIRONMENT in {"staging", "production"} and not self.CONTROL_PLANE_COOKIE_SECURE:
             raise ValueError("Secure operator cookies are required in staging and production")
+        if self.TRUSTED_PROXY_HOPS and not self.TRUSTED_PROXY_CIDRS:
+            raise ValueError("Trusted proxy hops require an explicit peer allowlist")
         return self
 
     @field_validator("CONTROL_PLANE_CORS_ORIGINS")
     @classmethod
-    def validate_cors_origins(cls, value: list[AnyHttpUrl]) -> list[AnyHttpUrl]:
+    def validate_cors_origins(cls, value: list[str]) -> list[str]:
         if not value:
             raise ValueError("CONTROL_PLANE_CORS_ORIGINS must not be empty")
-        return value
+        return [normalize_origin(origin) for origin in value]
 
     model_config = SettingsConfigDict(
         case_sensitive=True, extra="ignore", frozen=False, hide_input_in_errors=True

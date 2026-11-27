@@ -72,7 +72,7 @@ Platform security primitives own Argon2id password hashing, CSPRNG opaque tokens
 and host-only cookies. Customer API owns session issuance, validation and
 revocation; other runtimes have no direct session-ledger privileges. See
 [Consumer Sessions](../architecture/consumer-sessions.md) for the executable
-HTTP, lifecycle and cache contract. Operator identity, CSRF and MusicXML each
+HTTP, lifecycle and cache contract. Operator identity, browser request admission and MusicXML each
 retain their independent domain contracts.
 
 ## Enforcement and acceptance

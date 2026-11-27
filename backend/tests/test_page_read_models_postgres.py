@@ -15,7 +15,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select, event
 from sqlalchemy.orm import Session
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.db.models import (
     User,

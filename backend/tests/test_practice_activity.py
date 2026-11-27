@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import ValidationError
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.db.models import (
     PracticeActivity,

@@ -95,7 +95,11 @@ async def test_owner_revoke_http_admits_effective_status_without_writing_rejecti
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             with observe_writes(session) as (writes, commits):
                 response = await client.post(
                     f"/api/v1/scores/{score.score_uuid}/invites/lifecycle/revoke"
@@ -179,7 +183,11 @@ async def test_expired_recipient_command_has_no_write_or_commit(collaboration, p
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             with observe_writes(session) as (writes, commits):
                 response = await client.post("/api/v1" + path)
                 assert response.status_code == 422
@@ -337,7 +345,11 @@ async def test_acceptance_returns_the_persisted_collaborator_identity(
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.post(path)
         assert response.status_code == 200, response.text
         returned_id = response.json()["membership_id"]

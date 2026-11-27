@@ -19,8 +19,6 @@ it("browser identities agree with the versioned authority", () => {
     OPERATOR_SECURE_AUTH_COOKIE_NAME: source.secure_auth_cookie_name,
     OPERATOR_CHALLENGE_COOKIE_NAME: source.challenge_cookie_name,
     OPERATOR_SECURE_CHALLENGE_COOKIE_NAME: source.secure_challenge_cookie_name,
-    OPERATOR_CSRF_COOKIE_NAME: source.csrf_cookie_name,
-    OPERATOR_CSRF_HEADER_NAME: source.csrf_header_name,
   });
 });
 it("the same-origin proxy uses the generated prefix and server topology", async () => {
@@ -44,7 +42,7 @@ it("browser policy declares its generated identity dependencies", () => {
     new URL("../next.config.ts", import.meta.url),
     "utf8",
   );
-  expect(transport).toContain('from "../generated/browser-protocol"');
+  expect(transport).toContain('credentials: "same-origin"');
   expect(proxy).toContain('from "./generated/browser-protocol"');
   for (const identity of Object.values(protocol)) {
     if (typeof identity !== "string") continue;

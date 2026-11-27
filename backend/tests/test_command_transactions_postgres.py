@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 

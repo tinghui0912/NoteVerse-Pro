@@ -1,30 +1,21 @@
 # Browser Protocols
 
-`customer-browser-protocol.json` owns the fixed Customer API prefix and
-Customer auth, refresh and CSRF cookie/header names. These versioned protocol
-identities are shared by Backend, Customer Web and the Next proxy. They are
-not environment configuration.
+`customer-browser-protocol.json` owns the Customer API prefix and host-only session
+cookie names. `control-plane-browser-protocol.json` owns the Control Plane API
+prefix, session cookies and MFA challenge cookies. Deployment configures explicit
+browser origins, transport security and lifetimes; protocol identities are fixed.
 
-`scripts/generate_customer_browser_protocol.py` projects this source into Python
-and TypeScript. It independently projects operationId, HTTP method and path
-from committed Customer OpenAPI into browser-native route metadata. Native
-image/audio/EventSource transports use that metadata with the generated client
-serializer. Avatar URLs come directly from Backend DTOs.
+The generators under `scripts/` produce Python and TypeScript projections. Customer
+route metadata comes from its OpenAPI snapshot; generated SDKs own methods, paths,
+request serialization and response types. Browser transports own credentials,
+session invalidation, cancellation and bounded error classification.
 
-Origins, service topology, secure-cookie/SameSite policy and session lifetimes
-are deployment/runtime policy. Control Plane owns an independent versioned browser protocol.
-Signed storage capabilities are opaque storage targets outside Customer routes.
+Both HTTP runtimes enforce [Browser Request Security](../../docs/architecture/browser-request-security.md).
+Commands use JSON, except the explicit Customer avatar Multipart endpoint. Empty
+commands need no content type. Browser-supplied Origin and Fetch Metadata protect
+requests without readable security cookies or caller-generated token headers.
 
-Run `npm run generate:browser-protocol` or `npm run check:browser-protocol` in
-Customer Web. Backend and frontend quality workflows check the same projections.
-
-`control-plane-browser-protocol.json` owns the Control Plane API prefix and
-operator auth/CSRF cookie and header identities. The dedicated
-`scripts/generate_control_plane_browser_protocol.py` generates Backend Python
-constants and Platform Admin TypeScript constants. Platform Admin's same-origin
-proxy consumes the generated prefix; its browser transport consumes the generated
-CSRF identity. Deployment owns origins, topology, Secure, SameSite and lifetime.
-
-Platform Admin runs `generate:browser-protocol` / `check:browser-protocol` and
-generates its SDK from committed Control Plane OpenAPI. Customer Web uses its own
-protocol and OpenAPI independently; authentication runtime code is not shared.
+```shell
+python scripts/generate_customer_browser_protocol.py --check
+python scripts/generate_control_plane_browser_protocol.py --check
+```

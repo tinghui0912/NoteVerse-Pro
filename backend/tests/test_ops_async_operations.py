@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import cast
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel, select

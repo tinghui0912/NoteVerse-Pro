@@ -12,7 +12,7 @@ it('uses the email JSON contract and returns the canonical login principal', asy
   const request = send.mock.calls[0][0] as Request;
   expect(request.headers.get('content-type')).toBe('application/json');
   expect(await request.json()).toEqual({email: principal.email, password: 'correct-password'});
-  expect(request.credentials).toBe('include');
+  expect(request.credentials).toBe('same-origin');
 });
 
 it('awaits the bodyless logout acknowledgment', async () => {

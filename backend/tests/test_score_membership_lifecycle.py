@@ -44,7 +44,11 @@ async def test_self_leave_http_revokes_each_member_role_idempotently(collaborati
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.delete(f"/api/v1/me/scores/{score.score_uuid}/membership")
             assert response.status_code == 204 and response.content == b""
             session.refresh(membership)
@@ -80,7 +84,11 @@ async def test_owner_and_never_member_cannot_leave_http(collaboration, user_id):
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=user_id)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             assert (
                 await client.delete(f"/api/v1/me/scores/{score.score_uuid}/membership")
             ).status_code == 403
@@ -157,7 +165,11 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.patch(
                 f"/api/v1/scores/{score.score_uuid}/members/{membership_id}",
                 json={"role": "VIEWER"},

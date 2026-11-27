@@ -258,7 +258,11 @@ async def test_http_collection_page_and_cursor_validation(collaboration, path):
     app.dependency_overrides[get_current_user] = current_user
     app.dependency_overrides[get_db] = database
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             first = await client.get("/api/v1" + path, params={"limit": 1})
             assert first.status_code == 200, first.text
             data = first.json()

@@ -27,18 +27,6 @@ def test_generated_protocol_matches_the_canonical_identity_and_composition(contr
         assert getattr(protocol, name) == identity[key]
     assert generator.generate(ROOT, check=True, target="backend") == 0
     assert control_app.openapi_url == protocol.CONTROL_PLANE_API_PREFIX + "/openapi.json"
-    csrf = next(
-        item.kwargs["csrf_settings"]
-        for item in control_app.user_middleware
-        if item.cls.__name__ == "CsrfProtectionMiddleware"
-    )
-    assert csrf.session_cookie_names == (
-        protocol.OPERATOR_AUTH_COOKIE_NAME,
-        protocol.OPERATOR_CHALLENGE_COOKIE_NAME,
-    )
-    assert csrf.csrf_cookie_name == protocol.OPERATOR_CSRF_COOKIE_NAME
-    assert csrf.csrf_header_name == protocol.OPERATOR_CSRF_HEADER_NAME
-    assert csrf.api_prefix == protocol.CONTROL_PLANE_API_PREFIX
     assert {
         name for name in ControlPlaneSettings.model_fields if name.startswith("CONTROL_PLANE_")
     } == {
@@ -71,11 +59,11 @@ def test_generation_is_deterministic_and_checks_drift_without_mutation(tmp_path)
         ("api_prefix", "relative"),
         ("api_prefix", "/api/v1/"),
         ("api_prefix", "/api?v=1"),
-        ("csrf_header_name", "X-CSRF"),
         ("auth_cookie_name", "invalid cookie"),
-        ("csrf_cookie_name", ""),
-        ("csrf_header_name", "x:test"),
-        ("csrf_cookie_name", 123),
+        ("auth_cookie_name", "invalid cookie"),
+        ("auth_cookie_name", ""),
+        ("auth_cookie_name", "x:test"),
+        ("auth_cookie_name", 123),
         ("extra", "value"),
     ],
 )
@@ -147,7 +135,9 @@ def test_check_rejects_stale_projection_without_rewriting(output, tmp_path):
 def test_protocol_requires_distinct_cookie_identities_and_complete_fields():
     identity = source()
     with pytest.raises(ValueError):
-        generator.validate_protocol({**identity, "csrf_cookie_name": identity["auth_cookie_name"]})
+        generator.validate_protocol(
+            {**identity, "challenge_cookie_name": identity["auth_cookie_name"]}
+        )
     identity.pop("api_prefix")
     with pytest.raises(ValueError):
         generator.validate_protocol(identity)

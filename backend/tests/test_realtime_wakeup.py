@@ -169,7 +169,7 @@ async def test_only_api_lifespan_owns_the_process_hub(monkeypatch):
 
 def test_api_lifespan_keeps_request_wakeup_state_with_its_own_event_loop(monkeypatch):
     from fastapi import FastAPI, Request
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.core import lifespan
     from app.platform.runtime import RuntimeRole
     from app.modules.realtime import wakeup

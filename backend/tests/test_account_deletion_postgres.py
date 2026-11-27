@@ -433,7 +433,7 @@ def test_final_erasure_yields_to_busy_accounting_without_parent_fk_deadlock(acco
 def test_http_admission_closes_session_without_waiting_for_physical_cleanup(
     account_database, monkeypatch
 ):
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.runtime.customer_api.main import app
     from app.platform.db.dependencies import get_db
     from app.runtime.customer_api.deps import get_current_user
@@ -608,14 +608,12 @@ def test_account_score_admission_serializes_with_pre_admitted_customer_deletion(
 def test_real_access_cookie_is_rejected_immediately_and_missed_dispatch_is_discoverable(
     account_database, monkeypatch
 ):
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.runtime.customer_api.main import app
     from app.platform.db.dependencies import get_db
     from app.modules.auth.sessions_service import SessionService
     from app.core.generated.customer_browser_protocol import (
         AUTH_COOKIE_NAME,
-        CSRF_COOKIE_NAME,
-        CSRF_HEADER_NAME,
     )
 
     with Session(account_database) as db:
@@ -639,13 +637,11 @@ def test_real_access_cookie_is_rejected_immediately_and_missed_dispatch_is_disco
     try:
         with TestClient(app) as client:
             client.cookies.set(AUTH_COOKIE_NAME, access)
-            client.cookies.set(CSRF_COOKIE_NAME, "csrf-test")
             assert client.get("/api/v1/me/profile").status_code == 200
             result = client.request(
                 "DELETE",
                 "/api/v1/me",
                 json={"current_password": "valid-secret123"},
-                headers={CSRF_HEADER_NAME: "csrf-test"},
             )
             assert result.status_code == 202, result.text
             assert "Max-Age=0" in result.headers["set-cookie"]

@@ -7,7 +7,7 @@ from tests.support.object_storage import InMemoryObjectStorage
 import pytest
 from pydantic import ValidationError
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from app.runtime.customer_api.deps import get_current_user
 from app.modules.model_assets.generated.practice_acoustic_model_asset import (
     MODEL_ASSET,

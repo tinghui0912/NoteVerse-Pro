@@ -16,7 +16,7 @@ from hashlib import sha256
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import func, select
 
 from app.api.storage_streaming import stream_storage_object

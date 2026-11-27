@@ -20,7 +20,7 @@ import hashlib
 from collections.abc import Iterator
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel

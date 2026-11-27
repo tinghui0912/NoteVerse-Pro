@@ -15,7 +15,7 @@ import pytest
 from pydantic import ValidationError
 
 from tests.support.object_storage import InMemoryObjectStorage
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from app.core.http_application import HttpApplication
 
 from app.runtime.customer_api.deps import get_current_user

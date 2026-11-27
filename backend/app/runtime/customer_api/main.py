@@ -1,13 +1,9 @@
 """FastAPI application entrypoint."""
 
-from app.platform.security.cookies import session_cookie_name
-
-
 from app.core.http_application import HttpApplication
 from app.core.http_error_policy import HttpRuntimeErrorCodes
 
 from app.api.runtime_endpoints import install_process_endpoints
-from app.api.customer_security import customer_csrf_exempt_operation
 from app.api.runtime_schemas import RootRead
 from app.runtime.customer_api.router import api_router
 from app.runtime.customer_api.context import get_context
@@ -15,13 +11,10 @@ from app.runtime.customer_api.settings import CustomerApiSettings
 
 from app.core.generated.customer_browser_protocol import (
     CUSTOMER_API_PREFIX,
-    CSRF_COOKIE_NAME,
-    CSRF_HEADER_NAME,
 )
 from app.core.http_runtime import install_http_runtime, normalized_cors_origins
 from app.core.lifespan import app_lifespan
 from app.core.logging_setup import configure_uvicorn_logging
-from app.core.middleware import CookieCsrfSettings
 from app.modules.guest_previews.http_policy import GuestPreviewCachePolicyMiddleware
 
 from app.shared.error_codes import CustomerErrorCode
@@ -38,18 +31,6 @@ configure_uvicorn_logging()
 
 def _cors_origins(config: CustomerApiSettings) -> list[str]:
     return normalized_cors_origins(config.BACKEND_CORS_ORIGINS)
-
-
-def _csrf_settings(config: CustomerApiSettings) -> CookieCsrfSettings:
-    return CookieCsrfSettings(
-        api_prefix=CUSTOMER_API_PREFIX,
-        session_cookie_names=(session_cookie_name(config.AUTH_COOKIE_SECURE),),
-        csrf_cookie_name=CSRF_COOKIE_NAME,
-        csrf_header_name=CSRF_HEADER_NAME,
-        exempt_operation=customer_csrf_exempt_operation,
-        allowed_origins=lambda: tuple(_cors_origins(config)),
-        debug=config.DEBUG,
-    )
 
 
 def create_app() -> HttpApplication:
@@ -69,6 +50,11 @@ def create_app() -> HttpApplication:
 
     from app.runtime.checks import RuntimeChecks
 
+    from app.runtime.browser_security import create_rate_limiter
+
+    app.state.rate_limiter = create_rate_limiter(
+        settings, redis_url=settings.REDIS_URL, surface="customer"
+    )
     app.state.settings = settings
     app.state.sessions_service = context.sessions_service
     app.state.runtime_checks = RuntimeChecks(
@@ -90,6 +76,7 @@ def create_app() -> HttpApplication:
     install_http_runtime(
         app,
         trusted_proxy_cidrs=tuple(settings.TRUSTED_PROXY_CIDRS),
+        trusted_proxy_hops=settings.TRUSTED_PROXY_HOPS,
         error_codes=HttpRuntimeErrorCodes(
             validation_error=CustomerErrorCode.VALIDATION_ERROR,
             auth_failed=CustomerErrorCode.AUTH_FAILED,
@@ -97,11 +84,14 @@ def create_app() -> HttpApplication:
             resource_not_found=CustomerErrorCode.RESOURCE_NOT_FOUND,
             internal_error=CustomerErrorCode.INTERNAL_ERROR,
             unknown_error=CustomerErrorCode.UNKNOWN_ERROR,
-            csrf_token_invalid=CustomerErrorCode.CSRF_TOKEN_INVALID,
+            unsupported_media_type=CustomerErrorCode.UNSUPPORTED_MEDIA_TYPE,
+            rate_limit_exceeded=CustomerErrorCode.RATE_LIMIT_EXCEEDED,
+            rate_limit_unavailable=CustomerErrorCode.RATE_LIMIT_UNAVAILABLE,
             request_origin_invalid=CustomerErrorCode.REQUEST_ORIGIN_INVALID,
         ),
         error_response_factory=error_response,
-        csrf_settings=_csrf_settings(settings),
+        allowed_origins=frozenset(_cors_origins(settings)),
+        multipart_allowed_paths=(f"{CUSTOMER_API_PREFIX}/me/avatar",),
         cors_origins=_cors_origins(settings),
     )
     app.add_middleware(GuestPreviewCachePolicyMiddleware, api_prefix=CUSTOMER_API_PREFIX)

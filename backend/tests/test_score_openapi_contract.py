@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 
 def test_score_genre_fields_reference_the_named_domain_enum(client: TestClient) -> None:

@@ -24,8 +24,7 @@ recovery-code count. A low count displays a dismissible warning.
 The shared session boundary removes authenticated page state on a 401 and routes
 to sign-in. A generation fence prevents a late session probe from restoring a
 cleared identity. MFA failures on the sign-in page preserve the active step until
-expiry, lockout or an explicit restart. The existing CSRF cookie/header transport
-applies to every mutating API command, including login and MFA.
+expiry, lockout or an explicit restart. Browser mutations require same-origin Fetch Metadata, an explicit configured Origin and JSON bodies.
 
 ## Console
 
@@ -79,7 +78,7 @@ key; the browser does not receive that key.
 `generated/api` is produced from the committed Control Plane OpenAPI snapshot.
 `lib/control-plane-api.ts` composes generated operations without duplicating paths
 or DTOs. `lib/control-plane-browser-transport.ts` owns same-origin credentials,
-CSRF and bounded error classification; request bodies and private server error
+bounded error classification; request bodies and private server error
 text are excluded from error presentation.
 
 ```text

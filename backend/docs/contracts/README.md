@@ -52,7 +52,7 @@ Customer Web generates TypeScript types, SDK operations and a bundled Fetch clie
 from this contract. Generated operations own HTTP method, path, path parameters,
 query serialization and body encoding. Feature adapters project generated results
 and perform frontend transformations; they do not define HTTP operations.
-The Customer browser transport owns credentials, CSRF, refresh/retry, redirect,
+The Customer browser transport owns credentials, session invalidation, redirect,
 cancellation and network observability.
 Frontend presentation, view-model state, and form state remain frontend-owned.
 Generic application realtime notifications use SSE under the normal API/auth
@@ -68,7 +68,7 @@ failure category. Internal exception details and server presentation copy are
 not part of this contract.
 
 The Customer API router declares this model once for default failures and 422
-validation failures. Exception handlers and CSRF rejection serialize the same
+validation failures. Exception handlers and Origin rejection serialize the same
 model. Generated OpenAPI and Customer Web types project that definition.
 Process readiness uses its own 200/503 dependency-check schemas. Redirects and
 bodyless HTTP byte-range rejection retain their protocol-specific contracts.
@@ -80,7 +80,7 @@ FastAPI stack, including server-error handling and OpenTelemetry instrumentation
 At HTTP ingress it validates the incoming `X-Request-ID` or generates a replacement,
 then binds the same ID to request state and the logging ContextVar. Every Customer
 application failure contains `{ code: string, request_id: string }`, and its body
-ID equals the `X-Request-ID` response header. CSRF, logging and exception handlers
+ID equals the `X-Request-ID` response header. Origin admission, logging and exception handlers
 consume that established identity. Correlation remains active through streaming
 and error presentation, then resets at request completion. Process-specific body
 contracts remain independent of the correlation response header.
@@ -101,12 +101,12 @@ operation input types and the Fetch client's URL serializer.
 Avatar presentation supplies an API-rooted browser resource URL directly.
 Signed object-storage uploads use opaque absolute target URLs and
 required headers with credentials omitted; they do not use Customer session
-refresh or CSRF policy.
+origin admission policy.
 
 ## Customer browser protocol identity
 
 [`contracts/http/customer-browser-protocol.json`](../../../contracts/http/customer-browser-protocol.json)
-owns the Customer API prefix and Customer session/CSRF cookie and header names.
+owns the Customer API prefix and Customer session cookie names.
 `scripts/generate_customer_browser_protocol.py` generates Backend Python and
 Customer Web TypeScript projections from it, and native route metadata from the
 committed Customer OpenAPI. Run it with `--check` to verify every projection.
@@ -114,15 +114,7 @@ Customer Web exposes `generate:browser-protocol` and `check:browser-protocol`.
 Origins, Secure/SameSite policy, lifetimes and backend service topology remain
 deployment settings. Control-plane protocol configuration is independent.
 
-Customer CSRF exemptions are Backend application security policy in
-`app/api/customer_security.py`. The generic middleware uses framework route
-matching to resolve the actual operation, then applies the composition's policy.
-Only explicit public credential/token or session-bootstrap operation identities
-skip the double-submit token check. Cookie-authenticated writes still undergo
-Origin/Referer validation. Unknown operations, missing identities and method
-mismatches require CSRF; logout also requires CSRF. Control Plane supplies its own
-independent matched-operation policy. Browser protocol projections own cookie and
-header identities rather than exemption decisions.
+Browser command admission belongs to the shared pure ASGI `BrowserOriginGuard`. Both HTTP runtimes require exact configured Origin or explicit same-origin Fetch Metadata, reject other Fetch Metadata values, and require JSON bodies. Customer avatar upload has the sole Multipart exception. Protocol projections own host-only session and challenge cookie identities. Redis admission policies are injected by runtime dependencies.
 
 ## Control Plane application contract
 
@@ -135,10 +127,10 @@ canonical UTC serialization through the shared ApiModel primitive.
 
 Control Plane owns `ControlPlaneErrorResponse { code, request_id }`, independently
 of the Customer error schema. Its aggregate router declares default and 422
-failures; exception handlers and CSRF rejection emit that representation with the
+failures; exception handlers and Origin rejection emit that representation with the
 same ingress correlation ID as the response header. Browser presentation belongs
 to Platform Admin. Its generated SDK owns methods, paths, query/body serialization
-and DTOs; the thin browser transport owns same-origin credentials, CSRF and bounded
+and DTOs; the thin browser transport owns same-origin credentials and bounded
 error normalization. Operator sessions have no refresh/replay protocol.
 
 The independently versioned browser protocols under `contracts/http/` own each

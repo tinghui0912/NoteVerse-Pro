@@ -43,7 +43,7 @@ Customer HTTP 请求通过 OpenAPI generated SDK operation 发起；method、pat
 path params、query 与 body encoding 由 generated code 拥有。Import、Library 与 Score 各生命周期的
 API adapter 位于各自 feature，其余领域使用各自明确的当前 adapter owner。
 Adapter 只进行前端语义适配和 generated result 投影。统一 browser transport 管理
-credentials、CSRF、session invalidation、redirect、AbortSignal、错误与 observability。
+credentials、session invalidation、redirect、AbortSignal、错误与 observability。
 下载和 stream 同样使用 generated operation；native media/EventSource 与
 外部 signed storage upload 使用各自明确的 browser transport。
 
@@ -90,7 +90,7 @@ Principal transition 先取消并移除 principal-sensitive queries，再发布�
 不能仅凭 public transport 判断 scope。
 
 Logout 成功、password reset 和 principal switch 按上述 scope 清理 server-state。Reset 撤销所有
-既有 sessions，并清除当前 browser session/CSRF cookies。returnUrl 必须是 URL parser 验证的
+既有 sessions，并清除当前 browser session cookie。returnUrl 必须是 URL parser 验证的
 same-origin app-relative path intent；拒绝 external/backslash open redirects。Next proxy 只作 cookie
 existence soft gate，不是 authenticated principal authority。QueryClient → Authentication → Realtime
 保持 provider 顺序；Realtime 只依赖 Authentication public state。

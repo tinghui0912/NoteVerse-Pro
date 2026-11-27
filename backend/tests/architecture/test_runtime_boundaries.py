@@ -116,3 +116,23 @@ def test_ocr_subprocess_settings_contain_only_model_inputs():
         "PADDLEOCR_RECOGNITION_MODEL_DIR",
         "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
     }
+
+
+def test_browser_admission_settings_belong_only_to_http_runtimes():
+    from app.platform.config.browser_abuse import (
+        CustomerRateLimitSettings,
+        OperatorRateLimitSettings,
+    )
+
+    assert set(CustomerRateLimitSettings.model_fields) <= set(CustomerApiSettings.model_fields)
+    assert set(OperatorRateLimitSettings.model_fields) <= set(ControlPlaneSettings.model_fields)
+    for model in (
+        WorkerSettings,
+        BeatSettings,
+        ObservabilitySettings,
+        MigrationSettings,
+        PaddleOcrSettings,
+    ):
+        assert not any(
+            "RATE_LIMIT" in name or name == "TRUSTED_PROXY_HOPS" for name in model.model_fields
+        )

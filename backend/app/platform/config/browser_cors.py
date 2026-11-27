@@ -1,12 +1,13 @@
 """Customer browser CORS origin settings."""
 
-from pydantic import AnyHttpUrl, BaseModel, field_validator
+from pydantic import BaseModel, field_validator
+from app.platform.security.origin_guard import normalize_origin
 
 
 class BrowserCorsSettings(BaseModel):
-    """CORS origins shared by customer API and Practice HTTP surfaces."""
+    """Exact browser origin allowlist for the Customer HTTP runtime."""
 
-    BACKEND_CORS_ORIGINS: list[AnyHttpUrl]
+    BACKEND_CORS_ORIGINS: list[str]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -14,5 +15,5 @@ class BrowserCorsSettings(BaseModel):
         if value in (None, ""):
             return []
         if isinstance(value, list):
-            return value
+            return [normalize_origin(origin) for origin in value]
         raise ValueError("BACKEND_CORS_ORIGINS must be a JSON array")

@@ -8,8 +8,6 @@ from app.composition import storage_resources as _resource_wiring
 
 from app.core.generated.customer_browser_protocol import (
     AUTH_COOKIE_NAME,
-    CSRF_COOKIE_NAME,
-    CSRF_HEADER_NAME,
 )
 
 import pytest
@@ -17,12 +15,12 @@ import pytest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.platform.db.dependencies import get_db
 from app.runtime.customer_api.deps import get_current_user
 from app.runtime.customer_api.main import app, create_app
-from app.core.middleware import normalize_origin
+from app.platform.security.origin_guard import normalize_origin
 from app.runtime.customer_api.resources import get_playback_delivery_service
 from app.modules.media_storage.reads import StoredObjectDelivery
 from app.runtime.customer_api.resources import get_practice_bundle_service
@@ -356,36 +354,20 @@ def test_legacy_profile_routes_are_absent(client: TestClient) -> None:
         assert response.status_code == 404, f"{method.upper()} {path}"
 
 
-def test_cookie_authenticated_writes_require_csrf_header(client: TestClient) -> None:
-    client.cookies.set(AUTH_COOKIE_NAME, "invalid-token")
-    client.cookies.set(CSRF_COOKIE_NAME, "csrf-token")
-
+def test_unsafe_writes_require_explicit_origin(client: TestClient) -> None:
+    original = client.headers.pop("Origin", None)
     try:
-        missing_header = client.put(
-            "/api/v1/me/profile",
-            json={"display_name": "New Name"},
-            headers={"X-Request-ID": "csrf-contract"},
-        )
-        assert missing_header.status_code == 403
-        missing_header_payload = missing_header.json()
-        assert missing_header_payload["code"] == "csrf_token_invalid"
-        assert missing_header_payload["request_id"] == "csrf-contract"
-        assert missing_header.headers["X-Request-ID"] == "csrf-contract"
-
-        matching_header = client.put(
-            "/api/v1/me/profile",
-            json={"display_name": "New Name"},
-            headers={CSRF_HEADER_NAME: "csrf-token"},
-        )
-        assert matching_header.status_code == 401
+        response = client.post("/api/v1/auth/logout", headers={"X-Request-ID": "origin-contract"})
+        assert response.status_code == 403
+        assert response.json()["code"] == "request_origin_invalid"
+        assert response.json()["request_id"] == "origin-contract"
     finally:
-        client.cookies.delete(AUTH_COOKIE_NAME)
-        client.cookies.delete(CSRF_COOKIE_NAME)
+        if original:
+            client.headers["Origin"] = original
 
 
 def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClient) -> None:
     client.cookies.set(AUTH_COOKIE_NAME, "invalid-session")
-    client.cookies.set(CSRF_COOKIE_NAME, "csrf-token")
 
     try:
         response = client.put(
@@ -394,13 +376,11 @@ def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClien
             headers={
                 "host": "localhost:8000",
                 "origin": "http://localhost:3000",
-                CSRF_HEADER_NAME: "csrf-token",
             },
         )
         assert response.status_code == 401
     finally:
         client.cookies.delete(AUTH_COOKIE_NAME)
-        client.cookies.delete(CSRF_COOKIE_NAME)
 
 
 def test_cors_origin_header_is_emitted_for_configured_frontend(client: TestClient) -> None:
@@ -411,7 +391,7 @@ def test_cors_origin_header_is_emitted_for_configured_frontend(client: TestClien
 
     assert response.status_code == 401
     assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
-    assert response.headers["access-control-allow-credentials"] == "true"
+    assert "access-control-allow-credentials" not in response.headers
 
 
 def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient) -> None:
@@ -437,16 +417,16 @@ def test_origin_normalization_collapses_default_ports() -> None:
     )
     assert normalize_origin("http://localhost:80") == "http://localhost"
     assert normalize_origin("http://localhost:3000") == "http://localhost:3000"
-    assert normalize_origin("not-a-url") is None
+    with pytest.raises(ValueError):
+        normalize_origin("not-a-url")
 
 
-def test_cookie_authenticated_writes_allow_configured_origin_with_default_port(
+def test_cookie_authenticated_writes_reject_unconfigured_wire_origin(
     client: TestClient,
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(settings, "BACKEND_CORS_ORIGINS", ["https://staging.johnabc.ccwu.cc"])
     client.cookies.set(AUTH_COOKIE_NAME, "invalid-session")
-    client.cookies.set(CSRF_COOKIE_NAME, "csrf-token")
 
     try:
         response = client.put(
@@ -454,13 +434,11 @@ def test_cookie_authenticated_writes_allow_configured_origin_with_default_port(
             json={"display_name": "New Name"},
             headers={
                 "origin": "https://staging.johnabc.ccwu.cc:443",
-                CSRF_HEADER_NAME: "csrf-token",
             },
         )
-        assert response.status_code == 401
+        assert response.status_code == 403
     finally:
         client.cookies.delete(AUTH_COOKIE_NAME)
-        client.cookies.delete(CSRF_COOKIE_NAME)
 
 
 def test_login_requires_request_body(client: TestClient) -> None:

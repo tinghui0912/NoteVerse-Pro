@@ -6,7 +6,7 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.db.models import (
@@ -24,10 +24,6 @@ from app.platform.security import totp
 from app.platform.security.opaque_tokens import token_digest
 from app.core.exceptions import AuthenticationException, AppException
 from app.shared.time import utc_now
-from app.core.generated.control_plane_browser_protocol import (
-    OPERATOR_CSRF_HEADER_NAME,
-    OPERATOR_CSRF_COOKIE_NAME,
-)
 from tests.support.control_plane import (
     control_app as control_app,
     control_db as control_db,
@@ -37,10 +33,6 @@ from tests.support.control_plane import (
 
 PASSWORD = "a-long-operator-password"
 EMAIL = "operator@example.com"
-
-
-def csrf(client):
-    return {OPERATOR_CSRF_HEADER_NAME: client.cookies.get(OPERATOR_CSRF_COOKIE_NAME)}
 
 
 def login(client):
@@ -105,7 +97,7 @@ def test_password_login_only_issues_challenge_and_protected_routes_reject_it(
             client.post(
                 "/api/v1/auth/login", data={"email": EMAIL, "password": PASSWORD}
             ).status_code
-            == 422
+            == 415
         )
         challenge = control_db.scalar(select(OperatorMfaChallenge))
         assert challenge.token_hash != client.cookies.get("nv_admin_mfa")
@@ -134,13 +126,12 @@ def test_enrollment_cookie_security_single_use_challenge_and_hashed_recovery(
             and "Domain=" not in cookie
         )
         old = client.cookies.get("__Host-nv_admin_mfa")
-        started = client.post("/api/v1/auth/mfa/enroll/start", headers=csrf(client))
+        started = client.post("/api/v1/auth/mfa/enroll/start")
         assert started.status_code == 200
         secret = started.json()["secret"]
         response = client.post(
             "/api/v1/auth/mfa/enroll/confirm",
             json={"code": totp.code_for_step(secret, int(utc_now().timestamp()) // 30)},
-            headers=csrf(client),
         )
         assert response.status_code == 200, response.text
         codes = response.json()["recovery_codes"]
@@ -161,9 +152,7 @@ def test_enrollment_cookie_security_single_use_challenge_and_hashed_recovery(
         assert row.totp_enabled_at and secret not in row.totp_secret_encrypted
         client.cookies.set("__Host-nv_admin_mfa", old)
         assert (
-            client.post(
-                "/api/v1/auth/mfa/enroll/confirm", json={"code": "000000"}, headers=csrf(client)
-            ).status_code
+            client.post("/api/v1/auth/mfa/enroll/confirm", json={"code": "000000"}).status_code
             == 401
         )
 
@@ -174,40 +163,25 @@ def test_totp_replay_and_recovery_code_reuse_are_rejected(control_app, control_d
         secret, codes = enroll_operator(client)
         login(client)
         code = totp.code_for_step(secret, int(utc_now().timestamp()) // 30)
-        assert (
-            client.post(
-                "/api/v1/auth/mfa/verify", json={"code": code}, headers=csrf(client)
-            ).status_code
-            == 401
-        )
+        assert client.post("/api/v1/auth/mfa/verify", json={"code": code}).status_code == 401
         now = utc_now() + timedelta(seconds=30)
         monkeypatch.setattr("app.modules.platform_operators.service.utc_now", lambda: now)
         code = totp.code_for_step(secret, int(now.timestamp()) // 30)
-        response = client.post("/api/v1/auth/mfa/verify", json={"code": code}, headers=csrf(client))
+        response = client.post("/api/v1/auth/mfa/verify", json={"code": code})
         assert response.status_code == 200, response.text
         login(client)
-        assert (
-            client.post(
-                "/api/v1/auth/mfa/verify", json={"code": code}, headers=csrf(client)
-            ).status_code
-            == 401
-        )
-        response = client.post(
-            "/api/v1/auth/mfa/verify", json={"recovery_code": codes[0]}, headers=csrf(client)
-        )
+        assert client.post("/api/v1/auth/mfa/verify", json={"code": code}).status_code == 401
+        response = client.post("/api/v1/auth/mfa/verify", json={"recovery_code": codes[0]})
         assert response.status_code == 200 and response.json()["recovery_codes_remaining"] == 9
         login(client)
         assert (
-            client.post(
-                "/api/v1/auth/mfa/verify", json={"recovery_code": codes[0]}, headers=csrf(client)
-            ).status_code
+            client.post("/api/v1/auth/mfa/verify", json={"recovery_code": codes[0]}).status_code
             == 401
         )
         assert (
             client.post(
                 "/api/v1/auth/mfa/verify",
                 json={"code": code, "recovery_code": codes[1]},
-                headers=csrf(client),
             ).status_code
             == 422
         )
@@ -258,7 +232,6 @@ def test_static_permissions_cover_read_retry_and_management(control_app, control
         response = client.post(
             f"/api/v1/ops/async-operations/mail/{row.outbox_uuid}/retry",
             json={"reason": "Investigate failure"},
-            headers=csrf(client),
         )
         assert response.status_code == (403 if role == OperatorRole.SUPPORT_READONLY else 200)
 
@@ -266,9 +239,7 @@ def test_static_permissions_cover_read_retry_and_management(control_app, control
 @pytest.mark.parametrize("body", [{}, {"reason": ""}, {"reason": "   "}, {"reason": "ab"}])
 def test_management_requires_nonblank_reason(control_db, operator_client, body):
     row = control_db.scalar(select(Operator))
-    response = operator_client.post(
-        f"/api/v1/operators/{row.operator_uuid}/mfa/reset", json=body, headers=csrf(operator_client)
-    )
+    response = operator_client.post(f"/api/v1/operators/{row.operator_uuid}/mfa/reset", json=body)
     assert response.status_code == 422
     control_db.refresh(row)
     assert row.totp_enabled_at
@@ -279,7 +250,6 @@ def test_last_administrator_continuity_and_atomic_operator_management(control_db
     response = operator_client.patch(
         f"/api/v1/operators/{row.operator_uuid}",
         json={"reason": "Reduce access", "role": "SUPPORT_READONLY", "status": "active"},
-        headers=csrf(operator_client),
     )
     assert response.status_code == 409
     created = operator_client.post(
@@ -291,7 +261,6 @@ def test_last_administrator_continuity_and_atomic_operator_management(control_db
             "role": "PLATFORM_OPERATOR",
             "reason": "Expand operations",
         },
-        headers=csrf(operator_client),
     )
     assert created.status_code == 201, created.text
     identity = created.json()["operator_id"]
@@ -302,7 +271,6 @@ def test_last_administrator_continuity_and_atomic_operator_management(control_db
     response = operator_client.post(
         f"/api/v1/operators/{row.operator_uuid}/mfa/reset",
         json={"reason": "Lost authenticator"},
-        headers=csrf(operator_client),
     )
     assert response.status_code == 204
     assert operator_client.get("/api/v1/auth/me").status_code == 401
@@ -335,7 +303,6 @@ def test_management_audit_failure_rolls_back_state(control_db, operator_client, 
             "role": "PLATFORM_OPERATOR",
             "reason": "Expand operations",
         },
-        headers=csrf(operator_client),
     )
     assert response.status_code == 500
     control_db.rollback()
@@ -391,7 +358,7 @@ def test_mfa_challenge_hard_deadline_and_attempt_budget(control_app, control_db,
     seed(control_db)
     with TestClient(control_app) as client:
         login(client)
-        response = client.post("/api/v1/auth/mfa/enroll/start", headers=csrf(client))
+        response = client.post("/api/v1/auth/mfa/enroll/start")
         secret = response.json()["secret"]
         row = control_db.scalar(select(OperatorMfaChallenge))
         if failure == "expired":
@@ -402,7 +369,6 @@ def test_mfa_challenge_hard_deadline_and_attempt_budget(control_app, control_db,
         result = client.post(
             "/api/v1/auth/mfa/enroll/confirm",
             json={"code": totp.code_for_step(secret, int(utc_now().timestamp()) // 30)},
-            headers=csrf(client),
         )
         assert result.status_code == 401
         assert control_db.scalar(select(func.count()).select_from(OperatorSession)) == 0

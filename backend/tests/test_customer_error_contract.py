@@ -4,7 +4,7 @@ from collections.abc import Generator
 from unittest.mock import Mock, AsyncMock
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from starlette.exceptions import HTTPException
 from pydantic import TypeAdapter, ValidationError
 

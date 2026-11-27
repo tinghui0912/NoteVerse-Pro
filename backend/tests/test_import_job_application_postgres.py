@@ -356,7 +356,11 @@ async def test_http_list_detail_submit_retry_use_only_injected_session(applicati
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.get("/api/v1/import-jobs")
             assert response.status_code == 200, response.text
             detail = await client.get("/api/v1/import-jobs/complete-0")
@@ -417,7 +421,11 @@ async def test_http_owned_job_authorization_precedes_projection_and_mutation(app
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             for method, path in [
                 ("GET", ""),
                 ("POST", "/retry"),

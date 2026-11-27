@@ -293,7 +293,7 @@ def test_meter_openapi_exposes_portable_integer_bounds():
 )
 def test_unsafe_musicxml_meter_is_invalid_score_over_http(tmp_path, numerator, denominator):
     from app.core.http_application import HttpApplication
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.platform.db.dependencies import get_db
     from app.runtime.customer_api.deps import get_current_user
     from app.core.exception_handlers import register_exception_handlers

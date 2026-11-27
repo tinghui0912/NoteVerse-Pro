@@ -4,7 +4,7 @@ from dataclasses import asdict, FrozenInstanceError
 from unittest.mock import Mock
 
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 import pytest
 
 from app.api.media_delivery import deliver_media_object

@@ -65,7 +65,7 @@ def test_oversized_avatar_stops_after_one_sentinel_byte_and_returns_413():
 
 
 def test_http_avatar_rejects_input_larger_than_budget():
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.runtime.customer_api.main import create_app
     from app.platform.db.dependencies import get_db
     from app.runtime.customer_api.deps import get_current_user

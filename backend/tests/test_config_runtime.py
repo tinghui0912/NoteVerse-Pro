@@ -43,7 +43,7 @@ def test_settings_compose_trusted_proxy_policy() -> None:
 def test_settings_compose_browser_cors_policy() -> None:
     settings = CustomerApiSettings(BACKEND_CORS_ORIGINS=["https://app.example.com"])
 
-    assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == ["https://app.example.com/"]
+    assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == ["https://app.example.com"]
 
 
 def test_settings_compose_session_policy() -> None:
@@ -205,7 +205,7 @@ def test_legato_repository_path_is_required() -> None:
 
 
 def test_app_main_import_exposes_routes() -> None:
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
 
     from app.runtime.customer_api.main import app
 

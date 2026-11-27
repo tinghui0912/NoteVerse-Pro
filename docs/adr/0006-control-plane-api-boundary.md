@@ -15,9 +15,9 @@ They share the modular backend, database and Alembic stream. The API image ships
 all three entrypoints, selected by runtime command. Customer OpenAPI excludes
 operator routes. The internal observability exporter owns database-backed metrics.
 
-Platform Admin is an independent Next.js application with a same-origin BFF.
-Its BFF calls the internal control-plane Service. Operator identity, sessions,
-cookie names, CSRF and authorization are separate from customer sessions.
+Platform Admin is an independent Next.js application. The same-origin gateway
+routes API commands to the internal control-plane Service. Operator identity, sessions,
+cookie names, origin policies and authorization are separate from customer sessions.
 Customer host-only cookies are not widened to a shared parent domain.
 
 The control-plane Deployment/Service is dark by default. A route prefix is not

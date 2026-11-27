@@ -5,7 +5,6 @@
   "business_rule_violation": "当前状态下无法完成该操作。",
   "auth_failed": "身份验证失败，请重新登录。",
   "unauthorized": "请先登录后再继续。",
-  "csrf_token_invalid": "登录安全校验失败，请刷新页面后重试。",
   "request_origin_invalid": "该请求已被安全策略拦截。",
   "token_invalid_expired": "登录状态已过期，请重新登录。",
   "account_inactive": "账号未启用，请联系管理员。",
@@ -77,5 +76,8 @@
   "guest_preview_not_enabled": "请先启用访客预览，再轮换链接。",
   "practice_activity_conflict": "此练习会话已有不同的完成记录。",
   "invite_recipient_account_closed": "该邀请的接收账户已注销。",
-  "invite_inviter_account_closed": "该邀请的创建账户已注销。"
+  "invite_inviter_account_closed": "该邀请的创建账户已注销。",
+  "unsupported_media_type": "请求格式不受支持。",
+  "rate_limit_exceeded": "操作过于频繁，请稍后重试。",
+  "rate_limit_unavailable": "安全验证暂时不可用，请稍后重试。"
 }

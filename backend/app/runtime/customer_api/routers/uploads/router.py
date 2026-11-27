@@ -1,3 +1,4 @@
+from app.runtime.customer_api.rate_limits import limit_upload
 from fastapi import Response, APIRouter, Depends, HTTPException
 
 from sqlalchemy.orm import Session
@@ -14,7 +15,12 @@ from app.modules.uploads.service import UploadService
 router = APIRouter()
 
 
-@router.post("", operation_id="uploadRequestsCreate", response_model=UploadAdmissionRead)
+@router.post(
+    "",
+    dependencies=[Depends(limit_upload)],
+    operation_id="uploadRequestsCreate",
+    response_model=UploadAdmissionRead,
+)
 def create_upload_request(
     payload: UploadCreateRequest,
     current_user: User = Depends(get_current_user),

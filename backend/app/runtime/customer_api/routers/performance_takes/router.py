@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.runtime.customer_api.rate_limits import limit_upload
 
 
 from typing import Optional
@@ -38,6 +39,7 @@ router = APIRouter()
 
 @router.post(
     "/upload-reservations",
+    dependencies=[Depends(limit_upload)],
     operation_id="performanceTakeUploadsReserve",
     response_model=PerformanceTakeUploadReservationRead,
 )

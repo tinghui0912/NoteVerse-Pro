@@ -6,7 +6,7 @@ from queue import Queue
 from time import monotonic
 from types import SimpleNamespace
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import select, func, text
 from sqlalchemy.orm import Session, sessionmaker
 from redis.exceptions import ConnectionError
@@ -63,10 +63,6 @@ def login(client):
     return response
 
 
-def csrf(client):
-    return {"x-csrf-token": client.cookies["noteverse_csrf"]}
-
-
 @pytest.mark.parametrize("secure", [False, True])
 def test_json_login_sets_host_cookie_and_never_returns_a_credential(auth_client, secure):
     client, app, _, _, engine = auth_client
@@ -109,7 +105,7 @@ def test_logout_invalidates_a_warmed_cache_on_the_next_request(auth_client):
     assert client.get("/api/v1/me/profile").status_code == 200
     key = "consumer-session:" + token_digest(token)
     assert key in redis.values
-    response = client.post("/api/v1/auth/logout", headers=csrf(client))
+    response = client.post("/api/v1/auth/logout")
     assert response.status_code == 204 and key in redis.deletes and key not in redis.values
     client.cookies.set("nv_session", token)
     assert client.get("/api/v1/me/profile").status_code == 401
@@ -125,7 +121,6 @@ def test_password_change_rotates_current_and_revokes_other_devices(auth_client):
         service.authenticate(db, other)
     changed = client.put(
         "/api/v1/me/password",
-        headers=csrf(client),
         json={"current_password": PASSWORD, "new_password": "new-password-123"},
     )
     assert changed.status_code == 204, changed.text
@@ -154,7 +149,6 @@ def test_wrong_current_password_preserves_credentials_and_session(auth_client):
     token = client.cookies["nv_session"]
     response = client.put(
         "/api/v1/me/password",
-        headers=csrf(client),
         json={"current_password": "wrong-password", "new_password": "new-password-123"},
     )
     assert response.status_code == 422
@@ -238,7 +232,7 @@ def test_session_devices_expose_uuid_and_revoke_only_selected_device(auth_client
     items = response.json()["sessions"]
     assert len(items) == 2 and sum(row["is_current"] for row in items) == 1
     assert all("token_hash" not in row and "token" not in row for row in items)
-    assert client.delete(f"/api/v1/me/sessions/{identity}", headers=csrf(client)).status_code == 204
+    assert client.delete(f"/api/v1/me/sessions/{identity}").status_code == 204
     assert client.get("/api/v1/me/profile").status_code == 200
 
 
@@ -249,7 +243,7 @@ def test_revoke_other_sessions_preserves_current_cookie(auth_client):
     with Session(engine) as db:
         other, _ = service.create_session(db, 1)
         db.commit()
-    assert client.delete("/api/v1/me/sessions", headers=csrf(client)).status_code == 204
+    assert client.delete("/api/v1/me/sessions").status_code == 204
     with Session(engine) as db:
         with pytest.raises(AuthenticationException):
             service.authenticate(db, other)
@@ -261,9 +255,9 @@ def test_revoking_current_device_clears_both_cookies_and_denies_reuse(auth_clien
     login(client)
     token = client.cookies["nv_session"]
     identity = client.get("/api/v1/me/sessions").json()["sessions"][0]["id"]
-    response = client.delete(f"/api/v1/me/sessions/{identity}", headers=csrf(client))
+    response = client.delete(f"/api/v1/me/sessions/{identity}")
     assert response.status_code == 204
-    assert not client.cookies.get("nv_session") and not client.cookies.get("noteverse_csrf")
+    assert not client.cookies.get("nv_session")
     client.cookies.set("nv_session", token)
     assert client.get("/api/v1/me/profile").status_code == 401
 
@@ -345,7 +339,7 @@ def test_active_sessions_use_postgres_when_redis_read_and_eviction_fail(auth_cli
     monkeypatch.setattr(redis, "get", unavailable)
     assert client.get("/api/v1/me/profile").status_code == 200
     monkeypatch.setattr(redis, "pipeline", unavailable)
-    assert client.post("/api/v1/auth/logout", headers=csrf(client)).status_code == 204
+    assert client.post("/api/v1/auth/logout").status_code == 204
     client.cookies.set("nv_session", token)
     assert client.get("/api/v1/me/profile").status_code == 401
 

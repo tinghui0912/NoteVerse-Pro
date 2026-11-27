@@ -5,7 +5,7 @@ from fastapi import Request
 
 from app.modules.account.deletion_service import AccountDeletionService
 from app.modules.account.schemas import DeleteAccountRequest, AccountDeletionRead
-from app.modules.auth.session_cookies import clear_session_cookies
+from app.modules.auth.session_cookies import clear_auth_session_cookie
 from fastapi import Response, APIRouter, Depends, File, UploadFile, BackgroundTasks, HTTPException
 
 
@@ -169,7 +169,7 @@ def delete_account(
         require_persisted_id(current_user.id, entity="user"),
         current_password=request.current_password,
     )
-    clear_session_cookies(response, config=http_request.app.state.settings)
+    clear_auth_session_cookie(response, config=http_request.app.state.settings)
     background_tasks.add_task(
         get_context().dispatches.account_deletion.dispatch_account_deletion_best_effort,
         operation_id,

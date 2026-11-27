@@ -1,175 +1,26 @@
-"""HTTP middleware used by the FastAPI application."""
+"""HTTP request lifecycle logging and metrics."""
 
 import time
-from dataclasses import dataclass
-from enum import StrEnum
-from collections.abc import Callable
-from urllib.parse import urlparse
-
 from fastapi import Request
-from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
-from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.routing import Match
-
-from app.core.http_error_policy import ErrorResponseFactory, HttpRuntimeErrorCodes
-from app.core.client_address import client_address, peer_address
+from app.platform.security.client_ip import client_ip
 from app.core.logger import logger
 from app.core.request_correlation import request_correlation_id
 from app.core.metrics import record_http_request
 from app.core.tracing import capture_current_trace_context
 
-
-SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 HEALTH_PATHS = {"/health/live", "/health/ready", "/metrics"}
-
-
-@dataclass(frozen=True, slots=True)
-class CookieCsrfSettings:
-    api_prefix: str
-    session_cookie_names: tuple[str, ...]
-    csrf_cookie_name: str
-    csrf_header_name: str
-    exempt_operation: Callable[[RouteContext], bool]
-    allowed_origins: tuple[str, ...] | Callable[[], tuple[str, ...]]
-    debug: bool
-
-
-def normalize_origin(origin: str) -> str | None:
-    """Return a canonical origin string for strict same-origin checks."""
-
-    parsed = urlparse(origin)
-    if not parsed.scheme or not parsed.hostname:
-        return None
-
-    scheme = parsed.scheme.lower()
-    hostname = parsed.hostname.lower()
-    port = parsed.port
-    if port is None or (scheme == "http" and port == 80) or (scheme == "https" and port == 443):
-        return f"{scheme}://{hostname}"
-    return f"{scheme}://{hostname}:{port}"
-
-
-class CsrfProtectionMiddleware(BaseHTTPMiddleware):
-    """Require a double-submit CSRF token for cookie-authenticated writes."""
-
-    def __init__(
-        self,
-        app,
-        *,
-        csrf_settings: CookieCsrfSettings,
-        error_response_factory: ErrorResponseFactory,
-        error_codes: HttpRuntimeErrorCodes,
-    ) -> None:
-        super().__init__(app)
-        self.csrf_settings = csrf_settings
-        self.error_response_factory = error_response_factory
-        self.error_codes = error_codes
-
-    async def dispatch(self, request: Request, call_next):
-        if self._is_cookie_authenticated_write(request) and not self._has_allowed_origin(request):
-            response = JSONResponse(
-                status_code=403,
-                content=self._error_payload(
-                    request,
-                    self.error_codes.request_origin_invalid,
-                ),
-            )
-            return response
-
-        if self._requires_csrf_token(request):
-            csrf_cookie = request.cookies.get(self.csrf_settings.csrf_cookie_name)
-            csrf_header = request.headers.get(self.csrf_settings.csrf_header_name)
-            if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
-                response = JSONResponse(
-                    status_code=403,
-                    content=self._error_payload(
-                        request,
-                        self.error_codes.csrf_token_invalid,
-                    ),
-                )
-                return response
-
-        return await call_next(request)
-
-    def _error_payload(
-        self,
-        request: Request,
-        code: StrEnum,
-    ):
-        return self.error_response_factory(code, request_correlation_id(request))
-
-    def _requires_csrf_token(self, request: Request) -> bool:
-        if not self._is_cookie_authenticated_write(request):
-            return False
-        # Match in framework routing order, including effective include-router
-        # prefixes/overrides. Partial matches (405) never grant an exemption.
-        # Do not mutate the live scope before the router handles the request.
-        for operation in iter_route_contexts(request.app.routes):
-            match, _ = operation.matches(dict(request.scope))
-            if match is Match.FULL:
-                return not (
-                    isinstance(operation.original_route, APIRoute)
-                    and self.csrf_settings.exempt_operation(operation)
-                )
-        return True
-
-    def _is_cookie_authenticated_write(self, request: Request) -> bool:
-        return (
-            request.method.upper() not in SAFE_METHODS
-            and request.url.path.startswith(self.csrf_settings.api_prefix)
-            and any(
-                request.cookies.get(cookie_name)
-                for cookie_name in self.csrf_settings.session_cookie_names
-            )
-        )
-
-    def _has_allowed_origin(self, request: Request) -> bool:
-        origin = request.headers.get("origin")
-        referer = request.headers.get("referer")
-        if not origin and not referer:
-            return True
-
-        source = origin or referer
-        if not source:
-            return True
-
-        parsed_source = urlparse(source)
-        if not parsed_source.scheme or not parsed_source.netloc:
-            return False
-
-        request_origin = normalize_origin(f"{request.url.scheme}://{request.url.netloc}")
-        source_origin = normalize_origin(source)
-        configured_origins = (
-            self.csrf_settings.allowed_origins()
-            if callable(self.csrf_settings.allowed_origins)
-            else self.csrf_settings.allowed_origins
-        )
-        allowed_origins = {
-            normalized
-            for origin in configured_origins
-            if (normalized := normalize_origin(str(origin).rstrip("/"))) is not None
-        }
-        if request_origin is not None:
-            allowed_origins.add(request_origin)
-        if source_origin is not None and source_origin in allowed_origins:
-            return True
-
-        return self.csrf_settings.debug and self._is_loopback_dev_origin(request, parsed_source)
-
-    def _is_loopback_dev_origin(self, request: Request, parsed_source) -> bool:
-        request_host = request.url.hostname
-        source_host = parsed_source.hostname
-        loopback_hosts = {"localhost", "127.0.0.1", "::1"}
-        return request_host in loopback_hosts and source_host in loopback_hosts
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Log request lifecycle events and attach tracing headers."""
 
-    def __init__(self, app, *, trusted_proxy_cidrs: tuple[str, ...]) -> None:
+    def __init__(
+        self, app, *, trusted_proxy_cidrs: tuple[str, ...], trusted_proxy_hops: int = 0
+    ) -> None:
         super().__init__(app)
         self.trusted_proxy_cidrs = trusted_proxy_cidrs
+        self.trusted_proxy_hops = trusted_proxy_hops
 
     async def dispatch(self, request: Request, call_next):
         # Record the start time for latency logging.
@@ -184,8 +35,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             request_id=request_id,
             method=request.method,
             http_path=request.url.path,
-            peer_address=peer_address(request) or "unknown",
-            client_address=client_address(request, trusted_proxy_cidrs=self.trusted_proxy_cidrs)
+            peer_address=request.client.host if request.client else "unknown",
+            client_address=client_ip(
+                request.scope,
+                trusted_proxy_cidrs=self.trusted_proxy_cidrs,
+                trusted_proxy_hops=self.trusted_proxy_hops,
+            )
             or "unknown",
         )
         try:

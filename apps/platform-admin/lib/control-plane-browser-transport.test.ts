@@ -1,8 +1,4 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
-import {
-  OPERATOR_CSRF_COOKIE_NAME,
-  OPERATOR_CSRF_HEADER_NAME,
-} from "../generated/browser-protocol";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -13,9 +9,6 @@ const json = (body: unknown, status = 200) =>
 beforeEach(() => {
   vi.resetModules();
   vi.stubGlobal("window", { location: { origin: "http://control.test" } });
-  vi.stubGlobal("document", {
-    cookie: `${OPERATOR_CSRF_COOKIE_NAME}=exact%20token`,
-  });
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -39,11 +32,9 @@ it("returns a generated direct page with same-origin credentials and generated f
   expect(new URL(request.url).searchParams.get("failure_class")).toBe(
     "system_error",
   );
-  expect(request.headers.has(OPERATOR_CSRF_HEADER_NAME)).toBe(false);
 });
 
-it("login submits JSON and receives an MFA challenge without a CSRF cookie", async () => {
-  document.cookie = "";
+it("login submits JSON and receives an MFA challenge", async () => {
   const fetch = vi.fn().mockResolvedValue(
     json({
       purpose: "ENROLLMENT_REQUIRED",
@@ -64,10 +55,9 @@ it("login submits JSON and receives an MFA challenge without a CSRF cookie", asy
     email: "operator@example.com",
     password: "a-long-password",
   });
-  expect(request.headers.has(OPERATOR_CSRF_HEADER_NAME)).toBe(false);
 });
 
-it("logout and retry inject the generated CSRF identity through authenticated transport", async () => {
+it("logout and retry use authenticated JSON transport", async () => {
   const take = { operation_id: "operation", status: "queued" };
   const fetch = vi
     .fn()
@@ -84,7 +74,6 @@ it("logout and retry inject the generated CSRF identity through authenticated tr
   ).resolves.toEqual(take);
   for (const [request] of fetch.mock.calls as [Request][]) {
     expect(request.credentials).toBe("same-origin");
-    expect(request.headers.get(OPERATOR_CSRF_HEADER_NAME)).toBe("exact token");
   }
 });
 
@@ -254,24 +243,26 @@ it.each([
     { recovery_code: "ABCDE-12345-ABCDE-12345" },
     "/api/v1/auth/mfa/verify",
   ],
-] as const)("preserves same-origin CSRF on %s", async (method, body, path) => {
-  const fetch = vi.fn().mockResolvedValue(json({}));
-  vi.stubGlobal("fetch", fetch);
-  const api = await import("./control-plane-api");
-  if (method === "startMfaEnrollment") await api.startMfaEnrollment();
-  else if (method === "login") await api.login(body);
-  else if (method === "confirmMfaEnrollment")
-    await api.confirmMfaEnrollment(body);
-  else await api.verifyMfa(body);
-  const request = fetch.mock.calls[0][0] as Request;
-  expect(new URL(request.url).pathname).toBe(path);
-  expect(request.headers.get(OPERATOR_CSRF_HEADER_NAME)).toBe("exact token");
-  expect(request.credentials).toBe("same-origin");
-  expect(request.method).toBe("POST");
-  if (body) expect(await request.json()).toEqual(body);
-  else expect(await request.text()).toBe("");
-});
-it("uses generated management commands with JSON reason and unchanged CSRF", async () => {
+] as const)(
+  "uses same-origin credentials on %s",
+  async (method, body, path) => {
+    const fetch = vi.fn().mockResolvedValue(json({}));
+    vi.stubGlobal("fetch", fetch);
+    const api = await import("./control-plane-api");
+    if (method === "startMfaEnrollment") await api.startMfaEnrollment();
+    else if (method === "login") await api.login(body);
+    else if (method === "confirmMfaEnrollment")
+      await api.confirmMfaEnrollment(body);
+    else await api.verifyMfa(body);
+    const request = fetch.mock.calls[0][0] as Request;
+    expect(new URL(request.url).pathname).toBe(path);
+    expect(request.credentials).toBe("same-origin");
+    expect(request.method).toBe("POST");
+    if (body) expect(await request.json()).toEqual(body);
+    else expect(await request.text()).toBe("");
+  },
+);
+it("uses generated management commands with JSON reason", async () => {
   const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
   vi.stubGlobal("fetch", fetch);
   const api = await import("./control-plane-api");
@@ -294,13 +285,12 @@ it("uses generated management commands with JSON reason and unchanged CSRF", asy
     fetch.mock.calls as [Request][]
   ).entries()) {
     expect(new URL(request.url).pathname).toBe(expected[index]);
-    expect(request.headers.get(OPERATOR_CSRF_HEADER_NAME)).toBe("exact token");
     expect(request.headers.get("content-type")).toBe("application/json");
     expect((await request.json()).reason).toMatch(/^Approved /);
   }
 });
 
-it("creates and updates operators with exact generated JSON commands and CSRF", async () => {
+it("creates and updates operators with exact generated JSON commands", async () => {
   const fetch = vi
     .fn()
     .mockImplementation(async () => json({ operator_id: "id" }));
@@ -323,9 +313,24 @@ it("creates and updates operators with exact generated JSON commands and CSRF", 
   for (const [index, [request]] of (
     fetch.mock.calls as [Request][]
   ).entries()) {
-    expect(request.headers.get(OPERATOR_CSRF_HEADER_NAME)).toBe("exact token");
     expect(request.credentials).toBe("same-origin");
     expect(request.method).toBe(index === 0 ? "POST" : "PATCH");
     expect(await request.json()).toEqual(index === 0 ? create : update);
   }
+});
+
+it("uses browser credentials without reading document cookies", async () => {
+  vi.stubGlobal("document", {
+    get cookie(): string {
+      throw new Error("HttpOnly credentials belong to the browser");
+    },
+  });
+  const send = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", send);
+  const api = await import("./control-plane-api");
+  await api.logout();
+  const request = send.mock.calls[0][0] as Request;
+  expect(request.credentials).toBe("same-origin");
+  expect([...request.headers.keys()]).toEqual([]);
+  expect(request.body).toBeNull();
 });

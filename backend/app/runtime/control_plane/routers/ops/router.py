@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.platform.db.dependencies import get_db
 from app.shared.durable_failure import DurableFailureClass
-from app.core.client_address import client_address
+from app.platform.security.client_ip import client_ip
 from app.core.exceptions import AppException
 from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.runtime.control_plane.deps import OperatorPrincipal
@@ -191,8 +191,10 @@ def retry_async_operation(
             reason=command.reason,
             request_id=getattr(request.state, "request_id", None),
             user_agent=request.headers.get("user-agent", "")[:512] or None,
-            ip_address=client_address(
-                request, trusted_proxy_cidrs=request.app.state.settings.TRUSTED_PROXY_CIDRS
+            ip_address=client_ip(
+                request.scope,
+                trusted_proxy_cidrs=request.app.state.settings.TRUSTED_PROXY_CIDRS,
+                trusted_proxy_hops=request.app.state.settings.TRUSTED_PROXY_HOPS,
             ),
         )
         db.commit()
@@ -207,8 +209,10 @@ def retry_async_operation(
         reason=command.reason,
         request_id=getattr(request.state, "request_id", None),
         user_agent=request.headers.get("user-agent", "")[:512] or None,
-        ip_address=client_address(
-            request, trusted_proxy_cidrs=request.app.state.settings.TRUSTED_PROXY_CIDRS
+        ip_address=client_ip(
+            request.scope,
+            trusted_proxy_cidrs=request.app.state.settings.TRUSTED_PROXY_CIDRS,
+            trusted_proxy_hops=request.app.state.settings.TRUSTED_PROXY_HOPS,
         ),
         previous_state=result.previous_state,
         new_state=result.operation.status.value,

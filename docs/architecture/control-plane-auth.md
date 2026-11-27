@@ -38,9 +38,7 @@ role/status changes, password reset and MFA reset revoke affected sessions;
 management changes also invalidate pending challenges. MFA reset removes the
 secret and recovery codes and requires enrollment at the next login.
 
-The CSRF cookie/header contract applies to authenticated mutations and challenge
-mutations. Login is the explicitly exempt authentication endpoint. Cookie names
-and the MFA token are separate from the readable CSRF cookie.
+All browser mutations, including password login and MFA, pass [Browser Request Security](browser-request-security.md). Control Plane permits JSON bodies and bodyless mutations; its Multipart allowlist is empty. Authentication and MFA admission use fail-closed Redis limits.
 
 ## Authentication API
 

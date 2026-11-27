@@ -5,7 +5,6 @@
   "business_rule_violation": "This action cannot be completed in the current state.",
   "auth_failed": "Authentication failed. Please sign in again.",
   "unauthorized": "Please sign in to continue.",
-  "csrf_token_invalid": "Your session security check failed. Please refresh and try again.",
   "request_origin_invalid": "This request was blocked for security reasons.",
   "token_invalid_expired": "Your session has expired. Please sign in again.",
   "account_inactive": "This account is inactive. Please contact support.",
@@ -77,5 +76,8 @@
   "guest_preview_not_enabled": "Enable Guest Preview before rotating the link.",
   "practice_activity_conflict": "This Practice session already has a different completion record.",
   "invite_recipient_account_closed": "The account targeted by this invitation was closed.",
-  "invite_inviter_account_closed": "The account that created this invitation was closed."
+  "invite_inviter_account_closed": "The account that created this invitation was closed.",
+  "unsupported_media_type": "Submit a supported request format.",
+  "rate_limit_exceeded": "Too many attempts. Please wait before trying again.",
+  "rate_limit_unavailable": "Security verification is temporarily unavailable. Please try again shortly."
 }

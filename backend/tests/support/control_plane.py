@@ -1,7 +1,7 @@
 """Fixtures for the isolated Control Plane HTTP contract."""
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 from app.platform.db.dependencies import get_db
@@ -16,7 +16,7 @@ from app.runtime.control_plane.context import get_context as get_control_context
 def control_app(monkeypatch):
     for key, value in {
         "CONTROL_PLANE_COOKIE_SECURE": "false",
-        "CONTROL_PLANE_CORS_ORIGINS": '["http://testserver"]',
+        "CONTROL_PLANE_CORS_ORIGINS": '["http://testserver", "https://testserver"]',
     }.items():
         monkeypatch.setenv(key, value)
     get_control_context.cache_clear()
@@ -61,12 +61,8 @@ def enroll_operator(client, *, email="operator@example.com", password="a-long-op
     response = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert response.status_code == 200, response.text
     assert response.json()["purpose"] == "ENROLLMENT_REQUIRED"
-    from app.core.generated.control_plane_browser_protocol import (
-        OPERATOR_CSRF_COOKIE_NAME,
-        OPERATOR_CSRF_HEADER_NAME,
-    )
 
-    headers = {OPERATOR_CSRF_HEADER_NAME: client.cookies.get(OPERATOR_CSRF_COOKIE_NAME)}
+    headers = {}
     response = client.post("/api/v1/auth/mfa/enroll/start", headers=headers)
     assert response.status_code == 200, response.text
     secret = response.json()["secret"]

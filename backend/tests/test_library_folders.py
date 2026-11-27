@@ -362,7 +362,11 @@ async def test_workspace_http_routes_use_current_access_and_score_identity(works
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.get("/api/v1/library/scores")
             assert response.status_code == 200, response.text
             assert {row["score_id"] for row in response.json()["items"]} == {"A", "B"}

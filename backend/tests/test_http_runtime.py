@@ -4,7 +4,7 @@ from app.core.http_application import HttpApplication
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.http_runtime import install_http_runtime, normalized_cors_origins
-from app.core.middleware import CsrfProtectionMiddleware, LoggingMiddleware
+from app.core.middleware import LoggingMiddleware
 
 
 def test_normalized_cors_origins_strips_trailing_slashes() -> None:
@@ -34,7 +34,7 @@ def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatc
     assert traced_apps == [app]
 
 
-def test_install_http_runtime_preserves_explicit_cors_and_csrf_policy(monkeypatch) -> None:
+def test_install_http_runtime_preserves_explicit_cors_policy(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.core.http_runtime.register_exception_handlers", lambda _, **kwargs: None
     )
@@ -54,5 +54,4 @@ def test_install_http_runtime_preserves_explicit_cors_and_csrf_policy(monkeypatc
     ]
     cors_options = app.user_middleware[0].kwargs
     assert cors_options["allow_origins"] == ["https://app.example"]
-    assert cors_options["allow_credentials"] is True
-    assert CsrfProtectionMiddleware not in [middleware.cls for middleware in app.user_middleware]
+    assert cors_options["allow_credentials"] is False

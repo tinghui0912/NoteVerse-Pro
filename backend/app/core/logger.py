@@ -172,6 +172,8 @@ class StructuredLogFieldPolicy:
             "failure_classification",
             "evaluation_profile",
             "event",
+            "rate_limit_policy",
+            "failure_mode",
             "event_type",
             "exception_type",
             "exit_code",

@@ -12,7 +12,7 @@ from app.runtime.customer_api import deps
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.runtime.customer_api.auth_services import get_session_service
-from app.modules.auth.session_cookies import clear_session_cookies
+from app.modules.auth.session_cookies import clear_auth_session_cookie
 from app.modules.auth.schemas import SessionsRead
 from app.modules.auth.sessions_service import SessionService
 
@@ -63,7 +63,7 @@ def revoke_my_session(
         current_token=session_token(http_request),
     )
     if revoked_current:
-        clear_session_cookies(response, config=http_request.app.state.settings)
+        clear_auth_session_cookie(response, config=http_request.app.state.settings)
     response.status_code = 204
     return response
 

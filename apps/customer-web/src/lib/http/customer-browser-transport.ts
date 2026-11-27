@@ -2,7 +2,6 @@
 
 import { type CustomerErrorCode, type ApiErrorResponse } from '@/generated/api';
 import { createClient, type RequestResult } from '@/generated/api/client';
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/generated/browser-protocol';
 import { isCustomerErrorCode } from '@/lib/i18n/customer-error-codes';
 import { getCurrentLoginHref } from '@/features/authentication/return-url';
 import { invalidateSession } from './session-invalidation';
@@ -40,12 +39,6 @@ function isApplicationError(value: unknown): value is ApiErrorResponse {
   );
 }
 
-function cookie(name: string): string | undefined {
-  if (typeof document === 'undefined') return undefined;
-  const value = document.cookie.split('; ').find((part) => part.startsWith(`${name}=`));
-  return value ? decodeURIComponent(value.slice(name.length + 1)) : undefined;
-}
-
 function redirectToLogin(): void {
   if (typeof window !== 'undefined' && !window.location.pathname.endsWith('/auth/login')) {
     window.location.href = getCurrentLoginHref();
@@ -72,14 +65,14 @@ export function createCustomerBrowserTransport(
   function makeClient(authenticated: boolean) {
     const client = createClient({
       baseUrl,
-      credentials: 'include',
+      credentials: 'same-origin',
       fetch: async (input, init) => {
-        const request = new Request(input, { ...init, credentials: 'include' });
+        const request = new Request(input, {
+          ...init,
+          credentials: 'same-origin',
+        });
         const signal = request.signal;
         signal.throwIfAborted();
-        const unsafe = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(request.method);
-        const csrf = cookie(CSRF_COOKIE_NAME);
-        if (unsafe && csrf) request.headers.set(CSRF_HEADER_NAME, csrf);
         const observedSend = async (outgoing: Request) => {
           signal.throwIfAborted();
           try {

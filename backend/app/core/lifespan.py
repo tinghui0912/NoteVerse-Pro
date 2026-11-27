@@ -40,6 +40,9 @@ def create_app_lifespan(
         try:
             yield state
         finally:
+            limiter = getattr(app.state, "rate_limiter", None)
+            if limiter is not None:
+                limiter.client.close()
             if hub is not None:
                 await hub.stop()
             logger.bind(

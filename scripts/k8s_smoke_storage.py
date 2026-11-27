@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from urllib import parse
 import http.cookiejar
 import json
 import mimetypes
@@ -19,7 +20,6 @@ from urllib import error, request
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-from app.core.generated.customer_browser_protocol import CSRF_COOKIE_NAME, CSRF_HEADER_NAME  # noqa: E402
 
 
 DEFAULT_EMAIL = "k8s-smoke@example.com"
@@ -98,11 +98,6 @@ with sessions() as db:
     kubectl_exec_python(namespace, deployment, code)
 
 
-def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
-    token = next((cookie.value for cookie in cookie_jar if cookie.name == CSRF_COOKIE_NAME), None)
-    return {CSRF_HEADER_NAME: token} if token else {}
-
-
 def request_json(
     opener: request.OpenerDirector,
     url: str,
@@ -113,7 +108,13 @@ def request_json(
     timeout: int = 30,
 ) -> dict[str, object]:
     req = request.Request(url, data=data, headers=headers or {}, method=method)
+    if data is not None and not req.has_header("Content-type"):
+        req.add_header("Content-Type", "application/json")
     try:
+        req.add_header(
+            "Origin",
+            f"{parse.urlsplit(req.full_url).scheme}://{parse.urlsplit(req.full_url).netloc}",
+        )
         with opener.open(req, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
@@ -165,11 +166,8 @@ def main() -> int:
         data=login_body,
         headers=login_headers,
     )
-    headers = csrf_headers(cookie_jar)
-
     before = quota_used(opener, args.api_base)
     upload_body, upload_headers = encode_multipart_file("file", image_path)
-    upload_headers.update(headers)
     uploaded = request_json(
         opener,
         f"{args.api_base}/uploads",
@@ -185,7 +183,6 @@ def main() -> int:
         opener,
         f"{args.api_base}/uploads/{upload_id}",
         method="DELETE",
-        headers=headers,
         timeout=60,
     )
     after_delete = quota_used(opener, args.api_base)

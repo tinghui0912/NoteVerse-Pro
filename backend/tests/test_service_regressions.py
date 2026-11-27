@@ -588,7 +588,10 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
     capabilities = ["https://objects.example/lease-one", "https://objects.example/lease-two"]
     storage.download_url = Mock(side_effect=[*capabilities, "https://objects.example/after-loss"])
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://testserver", follow_redirects=False
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
+        follow_redirects=False,
     ) as client:
         if source == "profile":
             response = await client.get("/api/v1/me/profile")

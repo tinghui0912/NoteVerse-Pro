@@ -543,7 +543,7 @@ Expected result:
 - the browser URL has no explicit port;
 - TLS is issued by Let's Encrypt for `staging.johnabc.ccwu.cc`;
 - frontend calls `/api/v1/*` through the same origin;
-- CSRF/CORS checks use `https://staging.johnabc.ccwu.cc`, not
+- Origin/CORS checks use `https://staging.johnabc.ccwu.cc`, not
   `https://staging.johnabc.ccwu.cc:8443` or a Service port-forward host.
 
 ## 11. Smoke Test

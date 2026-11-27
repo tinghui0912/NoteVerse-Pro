@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from fastapi.routing import iter_route_contexts
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy.orm import Session
 
 from app.platform.db.dependencies import get_db
@@ -223,7 +223,7 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
     sessions = SimpleNamespace(revoke_user_session=Mock(return_value=True))
     app.dependency_overrides[get_password_service] = lambda: password
     app.dependency_overrides[get_session_service] = lambda: sessions
-    expected = {protocol.AUTH_COOKIE_NAME, protocol.CSRF_COOKIE_NAME}
+    expected = {protocol.AUTH_COOKIE_NAME}
 
     def cookies(response):
         result = SimpleCookie()
@@ -241,7 +241,6 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
         assert client.cookies[protocol.AUTH_COOKIE_NAME] == "rotated-session"
         revoked = client.delete(
             "/api/v1/me/sessions/00000000-0000-0000-0000-000000000001",
-            headers={protocol.CSRF_HEADER_NAME: client.cookies[protocol.CSRF_COOKIE_NAME]},
         )
         assert revoked.status_code == 204 and revoked.content == b""
         assert set(cookies(revoked)) == expected

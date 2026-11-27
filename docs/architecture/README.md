@@ -69,3 +69,5 @@ accepted current decisions and their rationale.
 
 - [Control-Plane Identity](../security/control-plane-identity-contract.md)
 - [Score Access](../security/score-access-contract.md)
+
+- [Browser Request Security](browser-request-security.md): exact origins, JSON admission, trusted proxies and distributed Redis windows.

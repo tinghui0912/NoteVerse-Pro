@@ -268,7 +268,7 @@ invalidation and credential lifecycle.
 
 Logout success and password-reset completion clear the principal. Identity switches clear
 prior principal-sensitive server-state using the same scope rules. Reset revokes existing
-sessions and clears this browser's session/CSRF cookies before returning 204.
+sessions and clears this browser's session cookie before returning 204.
 Authentication owns parser-validated same-origin app-relative `returnUrl` intent, including
 backslash/open-redirect rejection. Next proxy's cookie-existence check is only a soft routing
 gate; backend authentication and the canonical principal read remain authoritative.
@@ -308,7 +308,7 @@ TypeScript types, flat SDK operations and the bundled Fetch runtime. SDK calls
 receive an explicit browser policy client. Generated operations own method,
 path, path parameters, query serialization and request body encoding.
 
-`src/lib/http/customer-browser-transport.ts` owns credentials, CSRF injection,
+`src/lib/http/customer-browser-transport.ts` owns credentials,
 session invalidation, login redirects, cancellation and network
 observability. Feature adapters return direct generated representations or apply
 frontend transformations. `responseBody` extracts the HTTP body from SDK result
@@ -332,7 +332,7 @@ passes through the domain command. The browser owns Content-Length. Static FIR a
 are resource reads outside Customer HTTP operations.
 
 `contracts/http/customer-browser-protocol.json` owns the fixed Customer API prefix
-and session/CSRF cookie and header identities. Generated TypeScript constants are
+and session cookie identities. Generated TypeScript constants are
 shared by browser transport, Next proxy and Next rewrites; Backend consumes the
 Python projection. `NEXT_BACKEND_ORIGIN`, public origins, cookie Secure policy, fixed SameSite=Lax
 semantics and session lifetimes remain deployment policy. Generated SDK paths already

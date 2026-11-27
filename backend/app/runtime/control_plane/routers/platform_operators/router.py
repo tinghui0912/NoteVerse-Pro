@@ -1,11 +1,13 @@
 """Mandatory password challenge and MFA authentication endpoints."""
 
+from app.runtime.control_plane.rate_limits import limit_login, limit_mfa
+
 from collections.abc import Callable
 from typing import TypeVar
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 from app.platform.db.dependencies import get_db
-from app.core.client_address import client_address
+from app.platform.security.client_ip import client_ip
 from app.core.exceptions import AuthenticationException
 from app.runtime.control_plane.deps import (
     OperatorPrincipal,
@@ -36,8 +38,10 @@ T = TypeVar("T")
 
 def audit_context(request: Request) -> AuditContext:
     return AuditContext(
-        ip_address=client_address(
-            request, trusted_proxy_cidrs=request.app.state.settings.TRUSTED_PROXY_CIDRS
+        ip_address=client_ip(
+            request.scope,
+            trusted_proxy_cidrs=request.app.state.settings.TRUSTED_PROXY_CIDRS,
+            trusted_proxy_hops=request.app.state.settings.TRUSTED_PROXY_HOPS,
         ),
         user_agent=request.headers.get("user-agent", "")[:512] or None,
         request_id=getattr(request.state, "request_id", None),
@@ -54,7 +58,12 @@ def authenticate(db: Session, action: Callable[[], T]) -> T:
     return result
 
 
-@router.post("/login", response_model=MfaChallengeRead, operation_id="operatorLogin")
+@router.post(
+    "/login",
+    response_model=MfaChallengeRead,
+    dependencies=[Depends(limit_login)],
+    operation_id="operatorLogin",
+)
 def login_operator(
     command: OperatorLoginCommand,
     request: Request,
@@ -76,6 +85,7 @@ def login_operator(
 @router.post(
     "/mfa/enroll/start",
     response_model=TotpEnrollmentRead,
+    dependencies=[Depends(limit_mfa)],
     operation_id="operatorMfaEnrollmentStart",
 )
 def start_enrollment(
@@ -97,6 +107,7 @@ def start_enrollment(
 @router.post(
     "/mfa/enroll/confirm",
     response_model=MfaEnrollmentRead,
+    dependencies=[Depends(limit_mfa)],
     operation_id="operatorMfaEnrollmentConfirm",
 )
 def confirm_enrollment(
@@ -120,7 +131,12 @@ def confirm_enrollment(
     return MfaEnrollmentRead(operator=operator_read(operator), recovery_codes=list(codes))
 
 
-@router.post("/mfa/verify", response_model=MfaVerifiedRead, operation_id="operatorMfaVerify")
+@router.post(
+    "/mfa/verify",
+    response_model=MfaVerifiedRead,
+    dependencies=[Depends(limit_mfa)],
+    operation_id="operatorMfaVerify",
+)
 def verify_mfa(
     command: TotpCodeCommand | RecoveryCodeCommand,
     request: Request,

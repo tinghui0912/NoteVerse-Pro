@@ -29,6 +29,7 @@ from app.platform.config.fingering_execution import FingeringExecutionSettings
 from app.platform.config.model_asset_delivery import ModelAssetDeliverySettings
 from app.platform.config.realtime_stream import RealtimeStreamSettings
 from app.platform.config.trusted_proxy import TrustedProxySettings
+from app.platform.config.browser_abuse import CustomerRateLimitSettings
 
 
 class CustomerApiSettings(
@@ -57,6 +58,7 @@ class CustomerApiSettings(
     ModelAssetDeliverySettings,
     RealtimeStreamSettings,
     TrustedProxySettings,
+    CustomerRateLimitSettings,
     BaseSettings,
 ):
     model_config = SettingsConfigDict(case_sensitive=True, extra="ignore", frozen=False)
@@ -67,4 +69,8 @@ class CustomerApiSettings(
     def validate_cookie_transport(self):
         if self.ENVIRONMENT in {"staging", "production"} and not self.AUTH_COOKIE_SECURE:
             raise ValueError("Secure session cookies are required in staging and production")
+        if self.ENVIRONMENT in {"staging", "production"} and not self.BACKEND_CORS_ORIGINS:
+            raise ValueError("Explicit browser origins are required in production")
+        if self.TRUSTED_PROXY_HOPS and not self.TRUSTED_PROXY_CIDRS:
+            raise ValueError("Trusted proxy hops require an explicit peer allowlist")
         return self

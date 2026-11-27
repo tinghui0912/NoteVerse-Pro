@@ -7,26 +7,19 @@ import type {
   UploadAdmissionRead,
   UploadRead,
 } from '../../src/generated/api';
-import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '../../src/generated/browser-protocol';
 
-if (!process.env.NOTEVERSE_INTEGRATION_PASSWORD) throw new Error('Integration password is required');
+if (!process.env.NOTEVERSE_INTEGRATION_PASSWORD)
+  throw new Error('Integration password is required');
 const integrationUser = {
   email: 'integration@example.com',
   password: process.env.NOTEVERSE_INTEGRATION_PASSWORD!,
 };
 
-function currentCsrfToken(page: import('@playwright/test').Page): Promise<string> {
-  return page.context().cookies().then((cookies) => {
-    const csrfCookie = cookies.find((cookie) => cookie.name === CSRF_COOKIE_NAME);
-    expect(csrfCookie).toBeDefined();
-    return csrfCookie!.value;
-  });
-}
-
-async function login(page: import('@playwright/test').Page): Promise<string> {
+async function login(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/en/auth/login');
 
   const loginResponse = await page.request.post('/api/v1/auth/login', {
+    headers: { origin: new URL(page.url()).origin },
     data: {
       email: integrationUser.email,
       password: integrationUser.password,
@@ -36,12 +29,12 @@ async function login(page: import('@playwright/test').Page): Promise<string> {
   const principal: ProfileUserRead = await loginResponse.json();
   expect(principal.email).toBe(integrationUser.email);
   expect(principal.id).toBeGreaterThan(0);
-
-  return currentCsrfToken(page);
 }
 
-test('Next proxy carries real auth cookies and enforces CSRF', async ({ page }) => {
-  const csrfToken = await login(page);
+test('Same-origin gateway carries auth cookies and requires an explicit origin', async ({
+  page,
+}) => {
+  await login(page);
 
   const profile = await page.request.get('/api/v1/me/profile');
   expect(profile.status()).toBe(200);
@@ -49,11 +42,10 @@ test('Next proxy carries real auth cookies and enforces CSRF', async ({ page }) 
 
   const rejectedLogout = await page.request.post('/api/v1/auth/logout');
   expect(rejectedLogout.status()).toBe(403);
-  expect((await rejectedLogout.json()).code).toBe('csrf_token_invalid');
+  expect((await rejectedLogout.json()).code).toBe('request_origin_invalid');
 
   const logout = await page.request.post('/api/v1/auth/logout', {
     headers: {
-      [CSRF_HEADER_NAME]: csrfToken,
       origin: new URL(page.url()).origin,
     },
   });
@@ -61,10 +53,11 @@ test('Next proxy carries real auth cookies and enforces CSRF', async ({ page }) 
   expect((await logout.body()).byteLength).toBe(0);
 });
 
-test('Next proxy submits and reads an authenticated score import job', async ({ page }) => {
-  const csrfToken = await login(page);
-  const csrfHeaders = {
-    [CSRF_HEADER_NAME]: csrfToken,
+test('Same-origin gateway submits and reads an authenticated score import job', async ({
+  page,
+}) => {
+  await login(page);
+  const originHeaders = {
     origin: new URL(page.url()).origin,
   };
 
@@ -73,7 +66,7 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
     'base64',
   );
   const admission = await page.request.post('/api/v1/uploads', {
-    headers: csrfHeaders,
+    headers: originHeaders,
     data: {
       client_request_id: crypto.randomUUID(),
       filename: 'score.png',
@@ -90,40 +83,56 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
   const browserErrors: string[] = [];
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
-    const safe = message.text().replace(/https?:\/\/[^\s'"]+/g, (value) => (
-      value.startsWith('http://localhost:3000') ? 'http://localhost:3000' : '[storage-url]'
-    ));
+    const safe = message
+      .text()
+      .replace(/https?:\/\/[^\s'"]+/g, (value) =>
+        value.startsWith('http://localhost:3000') ? 'http://localhost:3000' : '[storage-url]',
+      );
     if (/CORS|cross-origin|Access-Control/i.test(safe)) browserErrors.push(safe);
   });
-  const put = await page.evaluate(async ({ target, content }) => {
-    const headers = Object.fromEntries(
-      Object.entries(target.headers as Record<string, string>)
-        .filter(([name]) => name.toLowerCase() !== 'content-length'),
-    );
-    try {
-      const response = await fetch(target.url, {
-        method: 'PUT',
-        headers,
-        body: new Blob([new Uint8Array(content)], { type: 'image/png' }),
-        credentials: 'omit',
-      });
-      return { status: response.status, etag: response.headers.get('etag'), error: null };
-    } catch (error) {
-      return { status: 0, etag: null, error: error instanceof Error ? error.name : 'NetworkError' };
-    }
-  }, { target, content: [...bytes] });
-  expect(put.status, JSON.stringify({
-    origin: new URL(page.url()).origin,
-    transport: put,
-    browserErrors,
-  })).toBe(200);
+  const put = await page.evaluate(
+    async ({ target, content }) => {
+      const headers = Object.fromEntries(
+        Object.entries(target.headers as Record<string, string>).filter(
+          ([name]) => name.toLowerCase() !== 'content-length',
+        ),
+      );
+      try {
+        const response = await fetch(target.url, {
+          method: 'PUT',
+          headers,
+          body: new Blob([new Uint8Array(content)], { type: 'image/png' }),
+          credentials: 'omit',
+        });
+        return { status: response.status, etag: response.headers.get('etag'), error: null };
+      } catch (error) {
+        return {
+          status: 0,
+          etag: null,
+          error: error instanceof Error ? error.name : 'NetworkError',
+        };
+      }
+    },
+    { target, content: [...bytes] },
+  );
+  expect(
+    put.status,
+    JSON.stringify({
+      origin: new URL(page.url()).origin,
+      transport: put,
+      browserErrors,
+    }),
+  ).toBe(200);
   expect(put.etag, 'Bucket CORS must expose ETag to the browser').toBeTruthy();
-  const complete = await page.request.post(`/api/v1/upload-sessions/${session.session_id}/complete`, {
-    headers: csrfHeaders,
-  });
+  const complete = await page.request.post(
+    `/api/v1/upload-sessions/${session.session_id}/complete`,
+    {
+      headers: originHeaders,
+    },
+  );
   expect(complete.status()).toBe(200);
   const upload = await page.request.post(`/api/v1/uploads/${session.session_id}/finalize`, {
-    headers: csrfHeaders,
+    headers: originHeaders,
   });
   expect(upload.status()).toBe(200);
   const uploadBody: UploadRead = await upload.json();
@@ -137,7 +146,7 @@ test('Next proxy submits and reads an authenticated score import job', async ({ 
     },
   };
   const importJob = await page.request.post('/api/v1/import-jobs', {
-    headers: csrfHeaders,
+    headers: originHeaders,
     data: requestBody,
   });
   const importJobBody: ImportJobSubmitRead = await importJob.json();

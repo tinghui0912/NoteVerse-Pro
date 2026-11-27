@@ -7,8 +7,8 @@ and observability blocks. Domain constructors receive explicit policy values.
 
 | Process | Settings | Entrypoint | Inputs |
 | --- | --- | --- | --- |
-| Customer API | `CustomerApiSettings` | `app.runtime.customer_api.main:app` | DB, Redis/dispatch, object storage, observability, customer opaque session policy, public links, resource policies, fingering |
-| Control Plane | `ControlPlaneSettings` | `app.runtime.control_plane.main:app` | DB, Redis connection, observability, operator MFA encryption key, cookie/origin policy, Ops delivery policies |
+| Customer API | `CustomerApiSettings` | `app.runtime.customer_api.main:app` | DB, Redis/dispatch, object storage, observability, customer opaque session/origin/abuse policy, public links, resource policies, fingering |
+| Control Plane | `ControlPlaneSettings` | `app.runtime.control_plane.main:app` | DB, Redis connection, observability, operator MFA encryption key, cookie/origin/abuse policy, Ops delivery policies |
 | Worker | `WorkerSettings` | `app.runtime.worker.main:celery_app` | DB, Redis/dispatch, object storage, mail transport, observability, processing/work directories, delivery/retention/scheduler policies |
 | Beat | `BeatSettings` | `app.runtime.beat.main:celery_app` | DB, Redis, observability, schedule/reliability and scheduler-lock policies |
 | Beat supervisor | `BeatSettings` | `python -m app.runtime.beat.leader` | Beat configuration and dedicated scheduler-lock connection |
@@ -38,7 +38,7 @@ fixed to Lax. Session credentials have no deployment signing secret. See
 [Consumer Sessions](../consumer-sessions.md) for lifetimes, Redis failure behavior
 and commit-owned revocation.
 
-Customer and operator cookie/header identities come from their generated browser
+Customer and operator cookie identities come from their generated browser
 protocol contracts. Deployment inputs configure origins, cookie policy, connection
 URLs and resource policy; they do not redefine protocol identities.
 
@@ -100,3 +100,14 @@ production environment requires secure cookies; operator cookies use Strict
 SameSite with 2-hour idle and 12-hour absolute session lifetimes. See
 [Control Plane Authentication](../control-plane-auth.md) for challenge, enrollment,
 recovery and permission contracts.
+
+## Browser command admission
+
+Only Customer API and Control Plane load typed browser rate policies, Redis admission
+timeouts/namespaces and `TRUSTED_PROXY_HOPS`. Authentication/MFA policies are
+fail-closed; upload/revision bursts have explicit configurable outage behavior.
+Origins are exact normalized HTTP(S) authorities. Kubernetes uses an explicit
+gateway hop and site-owned trusted peer CIDRs; local HTTP defaults to zero hops.
+These are public ConfigMap inputs, not new Secrets. The existing per-runtime
+Redis URLs remain isolated. See [Browser Request Security](../browser-request-security.md)
+for the exact endpoint, media-type, rate and client-IP contracts.

@@ -177,7 +177,7 @@ async def test_replay_reads_bounded_pages_in_short_off_loop_sessions(realtime_se
 
 
 def test_sse_authentication_releases_its_session_before_streaming(realtime_session, monkeypatch):
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.runtime.customer_api.main import create_app
     from tests.support.authentication import issue_session
     from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME

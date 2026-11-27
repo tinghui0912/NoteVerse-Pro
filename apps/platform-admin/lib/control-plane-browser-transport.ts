@@ -4,10 +4,6 @@ import {
   ControlPlaneErrorCodeSchema,
   ControlPlaneErrorResponseSchema,
 } from "../generated/api/schemas.gen";
-import {
-  OPERATOR_CSRF_COOKIE_NAME,
-  OPERATOR_CSRF_HEADER_NAME,
-} from "../generated/browser-protocol";
 
 const requestFailureMessage = "Control Plane request failed.";
 
@@ -78,22 +74,6 @@ function isControlPlaneError(
   );
 }
 
-function csrfToken(): string | undefined {
-  if (typeof document === "undefined") return;
-  const entry = document.cookie
-    .split(";")
-    .map((value) => value.trim())
-    .find((value) => value.startsWith(`${OPERATOR_CSRF_COOKIE_NAME}=`));
-  if (!entry) return;
-  try {
-    return decodeURIComponent(
-      entry.slice(OPERATOR_CSRF_COOKIE_NAME.length + 1),
-    );
-  } catch {
-    return;
-  }
-}
-
 const unauthorizedListeners = new Set<() => void>();
 export function onUnauthorized(listener: () => void): () => void {
   unauthorizedListeners.add(listener);
@@ -121,8 +101,10 @@ export function requestErrorMessage(error: unknown): string {
       auth_failed: "Authentication failed. Sign in again.",
       validation_error: "Check the submitted fields and reason.",
       resource_not_found: "The requested resource is not available.",
-      csrf_token_invalid:
-        "The security check failed. Reload the page and try again.",
+      unsupported_media_type: "Submit a supported request format.",
+      rate_limit_exceeded: "Too many attempts. Wait before trying again.",
+      rate_limit_unavailable:
+        "Sign-in protection is temporarily unavailable. Try again shortly.",
       request_origin_invalid: "The request origin is not allowed.",
       unknown_error: "The request could not be completed.",
       internal_error: "The service is temporarily unavailable.",
@@ -137,17 +119,6 @@ export function createControlPlaneBrowserClient() {
     baseUrl: typeof window === "undefined" ? "" : window.location.origin,
     credentials: "same-origin",
     fetch: (request) => globalThis.fetch(request),
-  });
-  client.interceptors.request.use((request) => {
-    if (
-      !["GET", "HEAD", "OPTIONS", "TRACE"].includes(
-        request.method.toUpperCase(),
-      )
-    ) {
-      const token = csrfToken();
-      if (token) request.headers.set(OPERATOR_CSRF_HEADER_NAME, token);
-    }
-    return request;
   });
   client.interceptors.error.use((error, response) => {
     if (error instanceof Error && error.name === "AbortError") return error;

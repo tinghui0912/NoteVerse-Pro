@@ -74,10 +74,7 @@ closed-account history erasure. Migrator owns the schema. See
 
 Staging and production settings require secure cookies. The cookie maximum age
 is the absolute session lifetime; server-side deadlines remain authoritative.
-Clearing uses identical attributes. The readable `noteverse_csrf` cookie and
-`x-csrf-token` double-submit header remain the command protection contract.
-Session issuance rotates the CSRF value; logout and successful password reset
-clear both cookies. Browser API calls use same-origin credentials.
+Clearing uses identical attributes. Browser commands pass the shared [Browser Request Security](browser-request-security.md) policy: exact configured Origin, same-origin Fetch Metadata and JSON bodies. Avatar uploads use the single explicit Multipart route. Browser API calls use same-origin credentials.
 
 ## HTTP contract
 
@@ -86,7 +83,7 @@ the table specifies a response. All command payloads are JSON.
 
 | Method / path | Input | Success / behavior |
 | --- | --- | --- |
-| POST `/auth/login` | `{email,password}` | 200 `ProfileUserRead` identity object, fresh session and CSRF cookies |
+| POST `/auth/login` | `{email,password}` | 200 `ProfileUserRead` identity object, fresh session cookie |
 | POST `/auth/logout` | No body | 204, revoke presented session and clear cookies; idempotent |
 | GET `/me/profile` | Session cookie | 200 `{user: ProfileUserRead}` |
 | GET `/me/sessions?limit=100` | Session cookie; limit 1–100 | 200 `{sessions:[SessionSummary]}` |

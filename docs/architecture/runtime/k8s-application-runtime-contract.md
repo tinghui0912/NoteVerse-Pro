@@ -150,7 +150,7 @@ Development-only environment variables:
 - polling variables such as `WATCHPACK_POLLING` and `CHOKIDAR_USEPOLLING`.
 
 Production frontend builds must fail fast when required runtime config is
-missing. Customer API prefix and session/CSRF names come from the generated
+missing. Customer API prefix and session names come from the generated
 versioned browser protocol, not environment variables. OpenAPI route metadata
 owns browser-native realtime and media paths.
 

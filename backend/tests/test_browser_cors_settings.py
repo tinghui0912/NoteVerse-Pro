@@ -10,8 +10,8 @@ def test_browser_cors_settings_accept_url_array() -> None:
     )
 
     assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == [
-        "https://app.example.com/",
-        "http://localhost:3000/",
+        "https://app.example.com",
+        "http://localhost:3000",
     ]
 
 

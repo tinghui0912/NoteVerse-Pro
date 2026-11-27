@@ -276,7 +276,11 @@ async def test_bearer_routes_are_anonymous_inline_private_and_disclosure_safe(pr
     app.dependency_overrides[get_optional_current_user] = no_account_authorization
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_guest_preview_service] = lambda: service
-    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client = AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Origin": "http://testserver"},
+    )
     try:
         for cookies in [{}, {AUTH_COOKIE_NAME: "ambient-invalid-login"}]:
             client.cookies.update(cookies)
@@ -330,7 +334,11 @@ async def test_owner_settings_http_state_and_authorization(preview_context):
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_guest_preview_service] = lambda: service
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             url = f"/api/v1/scores/{score.score_uuid}/guest-preview"
             response = await client.get(url)
             assert response.status_code == 200
@@ -409,7 +417,9 @@ async def test_unavailable_bearer_responses_are_not_cacheable(
         score.deleted_at = utc_now()
     session.commit()
     async with AsyncClient(
-        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+        transport=ASGITransport(app=preview_http_app),
+        base_url="http://test",
+        headers={"Origin": "http://testserver"},
     ) as client:
         response = await client.get(f"/api/v1/guest-previews/{token}{suffix}")
     assert response.status_code == 404
@@ -427,7 +437,9 @@ async def test_current_head_delivery_failures_are_not_cacheable(preview_context,
     token = service.issue_credential(db, score.score_uuid, 1).token
     add_head_b(session, score)
     async with AsyncClient(
-        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+        transport=ASGITransport(app=preview_http_app),
+        base_url="http://test",
+        headers={"Origin": "http://testserver"},
     ) as client:
         for suffix in ["/render-assets/page-a/view", "/playback"]:
             response = await client.get(f"/api/v1/guest-previews/{token}{suffix}")
@@ -454,6 +466,7 @@ async def test_unhandled_bearer_errors_are_not_cacheable(
     async with AsyncClient(
         transport=ASGITransport(app=preview_http_app, raise_app_exceptions=False),
         base_url="http://test",
+        headers={"Origin": "http://testserver"},
     ) as client:
         response = await client.get(f"/api/v1/guest-previews/{issue_guest_preview_token()}{suffix}")
     assert response.status_code == 500
@@ -475,7 +488,9 @@ async def test_bearer_dependency_validation_response_is_not_cacheable(
 
     preview_http_app.dependency_overrides[get_guest_preview_service] = validated_service
     async with AsyncClient(
-        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+        transport=ASGITransport(app=preview_http_app),
+        base_url="http://test",
+        headers={"Origin": "http://testserver"},
     ) as client:
         response = await client.get(
             f"/api/v1/guest-previews/{issue_guest_preview_token()}?required_number=invalid"
@@ -496,7 +511,9 @@ async def test_owner_settings_errors_share_policy_without_affecting_other_routes
         return Response(headers={"Cache-Control": "public, max-age=60"})
 
     async with AsyncClient(
-        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+        transport=ASGITransport(app=preview_http_app),
+        base_url="http://test",
+        headers={"Origin": "http://testserver"},
     ) as client:
         for method, suffix in [
             (client.get, ""),
@@ -524,7 +541,9 @@ async def test_alternate_profile_image_is_unavailable_over_http(preview_context,
     add_page(db, storage, 901, "alternate", render_profile="profile-b")
     token = service.issue_credential(db, score.score_uuid, 1).token
     async with AsyncClient(
-        transport=ASGITransport(app=preview_http_app), base_url="http://test"
+        transport=ASGITransport(app=preview_http_app),
+        base_url="http://test",
+        headers={"Origin": "http://testserver"},
     ) as client:
         response = await client.get(f"/api/v1/guest-previews/{token}")
         assert response.json()["render_assets"] == [{"asset_id": "canonical", "page_number": 1}]
@@ -600,6 +619,7 @@ async def test_owner_command_failure_responses_are_private(
     async with AsyncClient(
         transport=ASGITransport(app=preview_http_app, raise_app_exceptions=False),
         base_url="http://test",
+        headers={"Origin": "http://testserver"},
     ) as client:
         response = await client.request(
             method, "/api/v1/scores/preview-score/guest-preview" + suffix

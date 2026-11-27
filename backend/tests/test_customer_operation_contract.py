@@ -268,7 +268,7 @@ def test_password_reset_completes_without_a_representation(client):
     service = SimpleNamespace(reset_password=Mock())
 
     def database():
-        yield object()
+        yield Mock()
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_password_reset_service] = lambda: service

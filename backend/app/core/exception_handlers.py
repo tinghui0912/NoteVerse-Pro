@@ -11,7 +11,11 @@ from starlette.exceptions import HTTPException
 from app.core.exceptions import AppException
 from app.core.logger import logger
 from app.core.request_correlation import request_correlation_id
-from app.core.http_error_policy import ErrorResponseFactory, HttpRuntimeErrorCodes
+from app.core.http_error_policy import (
+    ErrorResponseFactory,
+    HttpRuntimeErrorCodes,
+    RateLimitHttpException,
+)
 
 
 def _error_payload(request: Request, *, code: StrEnum, request_id: str) -> dict[str, object]:
@@ -130,6 +134,8 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         403: codes.unauthorized,
         404: codes.resource_not_found,
         422: codes.validation_error,
+        415: codes.unsupported_media_type,
+        429: codes.rate_limit_exceeded,
     }.get(
         exc.status_code,
         codes.internal_error if exc.status_code >= 500 else codes.unknown_error,
@@ -138,6 +144,18 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         status_code=exc.status_code,
         content=_error_payload(request, code=code, request_id=request_correlation_id(request)),
         headers=exc.headers,
+    )
+
+
+async def rate_limit_exception_handler(
+    request: Request, exc: RateLimitHttpException
+) -> JSONResponse:
+    codes: HttpRuntimeErrorCodes = request.app.state.http_error_codes
+    code = codes.rate_limit_exceeded if exc.status_code == 429 else codes.rate_limit_unavailable
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=_error_payload(request, code=code, request_id=request_correlation_id(request)),
+        headers={"Retry-After": str(exc.retry_after_seconds)},
     )
 
 
@@ -151,6 +169,7 @@ def register_exception_handlers(
 
     app.state.error_response_factory = error_response_factory
     app.state.http_error_codes = error_codes
+    app.add_exception_handler(RateLimitHttpException, rate_limit_exception_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(AppException, app_exception_handler)
     app.add_exception_handler(

@@ -3,12 +3,13 @@
 import json
 from ipaddress import ip_network
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 
 
 class TrustedProxySettings(BaseModel):
     """Forwarded-header trust boundary for immediate reverse-proxy peers."""
 
+    TRUSTED_PROXY_HOPS: int = Field(default=0, ge=0, le=16)
     TRUSTED_PROXY_CIDRS: list[str]
 
     @field_validator("TRUSTED_PROXY_CIDRS", mode="before")

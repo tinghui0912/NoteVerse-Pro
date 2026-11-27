@@ -16,10 +16,6 @@ from app.db.models import OpsAuditEvent
 from tests.support.runtime_resources import deliveries
 from app.modules.ops.command_service import OpsAsyncOperationCommandService
 from app.modules.ops.schemas import AsyncOperationKind
-from app.core.generated.control_plane_browser_protocol import (
-    OPERATOR_CSRF_HEADER_NAME,
-    OPERATOR_CSRF_COOKIE_NAME,
-)
 from app.shared.error_codes import CustomerErrorCode
 from tests.support.control_plane import (
     control_app as control_app,
@@ -82,7 +78,6 @@ def test_retry_http_and_audit_use_admitted_operator_code(
     response = operator_client.post(
         f"/api/v1/ops/async-operations/{kind.value}/operation/retry",
         json={"reason": "Inspect current retry eligibility"},
-        headers={OPERATOR_CSRF_HEADER_NAME: operator_client.cookies.get(OPERATOR_CSRF_COOKIE_NAME)},
     )
     assert response.status_code == status
     assert response.json()["code"] == code.value
@@ -122,7 +117,6 @@ def test_unexpected_domain_code_is_private_in_http_and_audit(
     response = operator_client.post(
         "/api/v1/ops/async-operations/mail/operation/retry",
         json={"reason": "Inspect current retry eligibility"},
-        headers={OPERATOR_CSRF_HEADER_NAME: operator_client.cookies.get(OPERATOR_CSRF_COOKIE_NAME)},
     )
     assert response.status_code == 400
     assert set(response.json()) == {"code", "request_id"}

@@ -13,7 +13,7 @@ enable_uvicorn_reload() {
 
 case "${1:-api}" in
   api)
-    uvicorn_args=(app.runtime.customer_api.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
+    uvicorn_args=(app.runtime.customer_api.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log --no-proxy-headers)
     if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
       enable_uvicorn_reload
     fi
@@ -21,7 +21,7 @@ case "${1:-api}" in
     ;;
   control)
     python scripts/check_runtime.py --role control
-    uvicorn_args=(app.runtime.control_plane.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
+    uvicorn_args=(app.runtime.control_plane.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log --no-proxy-headers)
     if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
       enable_uvicorn_reload
     fi
@@ -29,7 +29,7 @@ case "${1:-api}" in
     ;;
   observability-exporter)
     python scripts/check_runtime.py --role observability-exporter
-    uvicorn_args=(app.runtime.observability.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
+    uvicorn_args=(app.runtime.observability.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log --no-proxy-headers)
     exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
   worker)

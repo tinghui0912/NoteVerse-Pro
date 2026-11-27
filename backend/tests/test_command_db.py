@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from fastapi import Depends, FastAPI
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy.orm import Session
 
 from app.platform.db.dependencies import get_command_db

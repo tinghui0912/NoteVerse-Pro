@@ -886,7 +886,7 @@ def test_default_expiry_uses_the_configured_policy(collaboration_accounts, monke
 
 
 def test_owner_history_http_serializes_anonymous_contact_and_system_outcome(collaboration_accounts):
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.runtime.customer_api.main import create_app
     from app.platform.db.dependencies import get_db
     from app.runtime.customer_api.deps import get_current_user

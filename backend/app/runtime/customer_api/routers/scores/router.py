@@ -1,3 +1,4 @@
+from app.runtime.customer_api.rate_limits import limit_revision
 from app.modules.scores.schemas import ScoreBatchDeleteRead
 
 from fastapi.responses import Response
@@ -96,6 +97,7 @@ def download_score_input_asset(
 
 @router.post(
     "/{score_id}/revisions",
+    dependencies=[Depends(limit_revision)],
     operation_id="scoreRevisionsCreate",
     response_model=RevisionRead,
 )
@@ -131,6 +133,7 @@ def list_revisions(
 
 @router.post(
     "/{score_id}/revisions/{revision_id}/restore",
+    dependencies=[Depends(limit_revision)],
     operation_id="scoreRevisionRestore",
     response_model=RevisionRead,
 )

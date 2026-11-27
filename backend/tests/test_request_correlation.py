@@ -6,7 +6,7 @@ import json
 import httpx
 import pytest
 from fastapi import Request
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException
 
@@ -42,7 +42,7 @@ def runtime():
             observations.append((request_correlation_id(request), get_request_id()))
             return await call_next(request)
 
-    # Added after CORS/CSRF/logging to observe the outermost user middleware.
+    # Added after CORS/Origin/logging to observe the outermost user middleware.
     app.add_middleware(IngressProbe)
 
     @app.get(f"{CUSTOMER_API_PREFIX}/correlation/fail/{{kind}}")
@@ -116,9 +116,10 @@ def test_early_security_failures_have_correlation_independently_of_logging(
     with TestClient(app) as client:
         client.cookies.set(AUTH_COOKIE_NAME, "session")
         headers = {"Origin": origin} if origin else {}
+        client.headers.pop("Origin", None)
         response = client.post(f"{CUSTOMER_API_PREFIX}/correlation/write", headers=headers)
     assert response.status_code == 403
-    assert response.json()["code"] == ("request_origin_invalid" if origin else "csrf_token_invalid")
+    assert response.json()["code"] == "request_origin_invalid"
     identity = response.json()["request_id"]
     assert REQUEST_ID_PATTERN.fullmatch(identity)
     assert observations == [(identity, identity)]
@@ -162,6 +163,7 @@ async def test_sequential_requests_reset_context_and_do_not_reuse_generated_iden
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
         base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
     ) as client:
         first = await client.get(f"{CUSTOMER_API_PREFIX}/correlation/fail/unhandled")
         assert get_request_id() is None
@@ -192,7 +194,9 @@ async def test_concurrent_requests_keep_state_and_log_context_isolated(runtime):
         raise AppException(code=CustomerErrorCode.VALIDATION_ERROR)
 
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
     ) as client:
         responses = await asyncio.gather(
             *[
@@ -230,7 +234,9 @@ async def test_detached_task_cannot_retain_ambient_correlation_after_request_fin
         return {"ok": True}
 
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
     ) as client:
         response = await client.get(f"{CUSTOMER_API_PREFIX}/correlation/detached")
     assert response.status_code == 200 and get_request_id() is None

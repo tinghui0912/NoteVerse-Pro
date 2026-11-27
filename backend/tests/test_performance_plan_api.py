@@ -3,7 +3,7 @@
 from fractions import Fraction
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.platform.db.dependencies import get_db
 from app.runtime.customer_api.deps import get_current_user

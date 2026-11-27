@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.runtime.customer_api import deps
-from app.core.client_address import client_address
+from app.platform.security.client_ip import client_ip
 from app.db.models import User
 from app.runtime.customer_api.auth_services import get_password_service
 from app.modules.auth.password_service import PasswordService
 from app.modules.auth.schemas import ChangePasswordRequest
-from app.modules.auth.session_cookies import set_session_cookies
+from app.modules.auth.session_cookies import set_auth_session_cookie
 
 
 router = APIRouter()
@@ -37,11 +37,12 @@ def change_my_password(
         current_user,
         request,
         user_agent=request_context.headers.get("user-agent"),
-        ip_address=client_address(
-            request_context,
+        ip_address=client_ip(
+            request_context.scope,
             trusted_proxy_cidrs=request_context.app.state.settings.TRUSTED_PROXY_CIDRS,
+            trusted_proxy_hops=request_context.app.state.settings.TRUSTED_PROXY_HOPS,
         ),
     )
-    set_session_cookies(response, token, config=request_context.app.state.settings)
+    set_auth_session_cookie(response, token, config=request_context.app.state.settings)
     response.status_code = 204
     return response

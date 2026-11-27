@@ -62,8 +62,8 @@ The command starts a dedicated PostgreSQL database, Redis, migration job,
 deterministic integration user, backend API, and Customer Web container. Its
 Playwright test uses the browser-facing Customer Web origin, so calls traverse
 the Next rewrite before reaching the real API. It verifies login cookies, an
-authenticated profile read, rejected CSRF-less logout, accepted logout with the
-issued CSRF token, and the score-import entry flow: upload an input image,
+authenticated profile read, rejected originless logout, accepted logout with the
+explicit configured Origin, and the score-import entry flow: upload an input image,
 submit an import job, and read its queued status.
 
 The stack uses a `noteverse-integration-<run UUID>` Compose project and removes

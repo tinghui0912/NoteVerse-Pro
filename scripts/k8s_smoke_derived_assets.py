@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from urllib import parse
 import http.cookiejar
 import json
 import re
@@ -22,7 +23,6 @@ from urllib import error, request
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-from app.core.generated.customer_browser_protocol import CSRF_COOKIE_NAME, CSRF_HEADER_NAME  # noqa: E402
 
 
 DEFAULT_EMAIL = "k8s-smoke@example.com"
@@ -205,15 +205,6 @@ class HttpError(RuntimeError):
         self.body = body
 
 
-def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
-    token = next((cookie.value for cookie in cookie_jar if cookie.name == CSRF_COOKIE_NAME), None)
-    return (
-        {CSRF_HEADER_NAME: token, "content-type": "application/json"}
-        if token
-        else {"content-type": "application/json"}
-    )
-
-
 def request_json(
     opener: request.OpenerDirector,
     url: str,
@@ -224,7 +215,13 @@ def request_json(
     timeout: int = 30,
 ) -> dict[str, Any]:
     req = request.Request(url, data=data, headers=headers or {}, method=method)
+    if data is not None and not req.has_header("Content-type"):
+        req.add_header("Content-Type", "application/json")
     try:
+        req.add_header(
+            "Origin",
+            f"{parse.urlsplit(req.full_url).scheme}://{parse.urlsplit(req.full_url).netloc}",
+        )
         with opener.open(req, timeout=timeout) as response:
             return dict(json.loads(response.read().decode("utf-8")))
     except error.HTTPError as exc:
@@ -242,16 +239,20 @@ def request_status(
     timeout: int = 30,
 ) -> int:
     req = request.Request(url, data=data, headers=headers or {}, method=method)
+    if data is not None and not req.has_header("Content-type"):
+        req.add_header("Content-Type", "application/json")
     try:
+        req.add_header(
+            "Origin",
+            f"{parse.urlsplit(req.full_url).scheme}://{parse.urlsplit(req.full_url).netloc}",
+        )
         with opener.open(req, timeout=timeout) as response:
             return int(response.status)
     except error.HTTPError as exc:
         return exc.code
 
 
-def login(
-    api_base: str, email: str, password: str
-) -> tuple[request.OpenerDirector, http.cookiejar.CookieJar]:
+def login(api_base: str, email: str, password: str) -> request.OpenerDirector:
     cookie_jar = http.cookiejar.CookieJar()
     opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
     body = json.dumps({"email": email, "password": password}).encode("utf-8")
@@ -264,7 +265,7 @@ def login(
         headers=headers,
         timeout=30,
     )
-    return opener, cookie_jar
+    return opener
 
 
 def get_score(opener: request.OpenerDirector, api_base: str, score_id: str) -> dict[str, Any]:
@@ -300,17 +301,14 @@ def wait_for_assets(
 def assert_external_access(
     api_base: str,
     opener: request.OpenerDirector,
-    cookie_jar: http.cookiejar.CookieJar,
     score: dict[str, Any],
 ) -> dict[str, str]:
     score_id = str(score["score_id"])
-    headers = csrf_headers(cookie_jar)
     preview = request_json(
         opener,
         f"{api_base}/scores/{score_id}/guest-previews",
         method="POST",
         data=b"{}",
-        headers=headers,
         timeout=30,
     )
     token = preview["data"]["token"]
@@ -328,7 +326,6 @@ def assert_external_access(
 
 def delete_score(
     opener: request.OpenerDirector,
-    cookie_jar: http.cookiejar.CookieJar,
     api_base: str,
     score_id: str,
 ) -> None:
@@ -337,7 +334,6 @@ def delete_score(
         f"{api_base}/scores/batch-delete",
         method="POST",
         data=json.dumps({"score_ids": [score_id]}).encode("utf-8"),
-        headers=csrf_headers(cookie_jar),
         timeout=30,
     )
     removed = response["data"]["removed"]
@@ -401,14 +397,13 @@ with sessions() as db:
 
 def cleanup_score(
     opener: request.OpenerDirector,
-    cookie_jar: http.cookiejar.CookieJar,
     api_base: str,
     namespace: str,
     worker_deployment: str,
     score_id: str,
 ) -> None:
     try:
-        delete_score(opener, cookie_jar, api_base, score_id)
+        delete_score(opener, api_base, score_id)
     except HttpError as exc:
         if exc.status_code not in {404, 410, 422}:
             raise
@@ -420,7 +415,7 @@ def main() -> int:
     if args.ensure_user:
         ensure_user(args.namespace, args.backend_deployment, args.email, args.password)
 
-    opener, cookie_jar = login(args.api_base, args.email, args.password)
+    opener = login(args.api_base, args.email, args.password)
     created = create_and_dispatch_score(args.namespace, args.backend_deployment, args.email)
     score_id = created["score_id"]
     try:
@@ -431,10 +426,8 @@ def main() -> int:
             timeout_seconds=args.timeout_seconds,
             poll_seconds=args.poll_seconds,
         )
-        external = assert_external_access(args.api_base, opener, cookie_jar, score)
-        cleanup_score(
-            opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id
-        )
+        external = assert_external_access(args.api_base, opener, score)
+        cleanup_score(opener, args.api_base, args.namespace, args.worker_deployment, score_id)
         assert_owner_usage_zero(args.namespace, args.backend_deployment, args.email)
     except Exception:
         print(json.dumps({"score_id": score_id, "created": created}, indent=2), file=sys.stderr)
@@ -442,7 +435,6 @@ def main() -> int:
             try:
                 cleanup_score(
                     opener,
-                    cookie_jar,
                     args.api_base,
                     args.namespace,
                     args.worker_deployment,

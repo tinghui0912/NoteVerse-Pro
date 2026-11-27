@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.db.models import SchedulerHeartbeat, SchedulerLeaderStatus
 from app.observability.async_operation_metrics import (

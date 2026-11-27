@@ -1,5 +1,7 @@
 """Routes for authenticated email change requests and confirmation links."""
 
+from app.runtime.customer_api.rate_limits import limit_recovery
+
 from app.platform.db.dependencies import get_db
 
 from fastapi import Response, APIRouter, Depends, Request
@@ -8,7 +10,7 @@ from fastapi import Response, APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.runtime.customer_api import deps
-from app.core.client_address import client_address
+from app.platform.security.client_ip import client_ip
 from app.db.models import User
 from app.runtime.customer_api.auth_services import get_email_change_service
 from app.modules.auth.email_change_service import EmailChangeService
@@ -25,6 +27,7 @@ auth_router = APIRouter()
 
 @me_router.post(
     "/email/change",
+    dependencies=[Depends(limit_recovery)],
     operation_id="accountEmailChangeRequest",
     status_code=204,
     response_model=None,
@@ -42,9 +45,10 @@ def request_my_email_change(
         current_user,
         request,
         user_agent=request_context.headers.get("user-agent"),
-        ip_address=client_address(
-            request_context,
+        ip_address=client_ip(
+            request_context.scope,
             trusted_proxy_cidrs=request_context.app.state.settings.TRUSTED_PROXY_CIDRS,
+            trusted_proxy_hops=request_context.app.state.settings.TRUSTED_PROXY_HOPS,
         ),
     )
     return Response(status_code=204)
@@ -52,6 +56,7 @@ def request_my_email_change(
 
 @auth_router.post(
     "/email/change/confirm",
+    dependencies=[Depends(limit_recovery)],
     operation_id="authEmailChangeConfirm",
     response_model=EmailChangeConfirmedRead,
 )

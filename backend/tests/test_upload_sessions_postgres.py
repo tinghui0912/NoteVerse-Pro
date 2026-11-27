@@ -416,7 +416,7 @@ def test_account_closure_preserves_unsettled_transfer_and_restricts_user_deletio
 
 
 def test_http_capability_signing_releases_authentication_connection(transfers, monkeypatch):
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.runtime.customer_api.main import app
     from app.platform.db.dependencies import get_db
     from app.runtime.customer_api.deps import get_current_user

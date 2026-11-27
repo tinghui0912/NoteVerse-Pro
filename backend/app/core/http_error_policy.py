@@ -15,5 +15,15 @@ class HttpRuntimeErrorCodes:
     resource_not_found: StrEnum
     internal_error: StrEnum
     unknown_error: StrEnum
-    csrf_token_invalid: StrEnum
+    unsupported_media_type: StrEnum
+    rate_limit_exceeded: StrEnum
+    rate_limit_unavailable: StrEnum
     request_origin_invalid: StrEnum
+
+
+class RateLimitHttpException(Exception):
+    """HTTP admission failure has an explicit status and retry delay."""
+
+    def __init__(self, *, status_code: int, retry_after_seconds: int):
+        self.status_code = status_code
+        self.retry_after_seconds = retry_after_seconds

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 
 def test_liveness_does_not_check_external_dependencies(client: TestClient) -> None:

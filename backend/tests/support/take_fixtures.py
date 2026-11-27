@@ -21,7 +21,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel

@@ -5,10 +5,6 @@ import pytest
 from app.core.control_plane_errors import ControlPlaneErrorCode, ControlPlaneErrorResponse
 from app.core.exceptions import AppException
 from app.shared.error_codes import CustomerErrorCode
-from app.core.generated.control_plane_browser_protocol import (
-    OPERATOR_CSRF_COOKIE_NAME,
-    OPERATOR_CSRF_HEADER_NAME,
-)
 from app.db.models import MailOutbox, MailOutboxStatus
 from app.runtime.control_plane.deps import get_current_operator
 from app.runtime.control_plane.routers.ops.router import get_ops_async_operation_query_service
@@ -27,7 +23,7 @@ from tests.support.control_plane import (
         ("authorization", 403),
         ("missing", 404),
         ("retry_state", 422),
-        ("csrf", 403),
+        ("origin", 403),
         ("unhandled", 500),
     ],
 )
@@ -37,7 +33,6 @@ def test_failures_share_the_typed_request_correlated_contract(
     client = operator_client
     headers = {
         "X-Request-ID": "control-error-test",
-        OPERATOR_CSRF_HEADER_NAME: client.cookies.get(OPERATOR_CSRF_COOKIE_NAME),
     }
     path, method, body = "/api/v1/ops/async-operations", "get", None
     if case == "validation":
@@ -69,9 +64,9 @@ def test_failures_share_the_typed_request_correlated_contract(
             "post",
             {"reason": "Inspect retry eligibility"},
         )
-    elif case == "csrf":
+    elif case == "origin":
         path, method = "/api/v1/auth/logout", "post"
-        headers.pop(OPERATOR_CSRF_HEADER_NAME)
+        headers["Origin"] = "https://untrusted.example"
     else:
 
         def fail(*args, **kwargs):
@@ -93,7 +88,7 @@ def test_failures_share_the_typed_request_correlated_contract(
             "authorization": "no_access",
             "missing": "resource_not_found",
             "retry_state": "validation_error",
-            "csrf": "csrf_token_invalid",
+            "origin": "request_origin_invalid",
             "unhandled": "internal_error",
         }[case]
     )

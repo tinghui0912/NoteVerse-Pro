@@ -195,7 +195,11 @@ async def test_http_delete_hides_resource_before_cleanup(score_db):
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.post(
                 "/api/v1/scores/batch-delete", json={"score_ids": ["deletion-score"]}
             )

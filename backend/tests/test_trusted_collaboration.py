@@ -238,7 +238,11 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
     can_practice = ScoreAction.PRACTICE in ALLOWED[role]
     can_download = role == "OWNER"
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             detail = await client.get("/api/v1/scores/trusted-score")
             assert detail.status_code == 200
             assert bool(detail.json()["input_assets"]) == can_edit

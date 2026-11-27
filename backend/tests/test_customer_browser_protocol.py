@@ -1,7 +1,5 @@
 """Customer browser identity and HTTP route projections have explicit source owners."""
 
-from app.runtime.customer_api.context import get_context
-
 from tests.support.runtime_resources import resources_for
 
 
@@ -18,7 +16,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.core.generated import customer_browser_protocol as protocol
 from app.platform.config.customer_session_security import CustomerSessionSecuritySettings
@@ -48,15 +46,10 @@ def test_identity_projections_match_the_canonical_browser_protocol():
 
 
 def test_customer_composition_uses_the_generated_protocol():
-    from app.runtime.customer_api.main import _csrf_settings, create_app
+    from app.runtime.customer_api.main import create_app
 
     app = create_app()
     assert app.openapi_url == f"{protocol.CUSTOMER_API_PREFIX}/openapi.json"
-    csrf = _csrf_settings(get_context().settings)
-    assert csrf.api_prefix == protocol.CUSTOMER_API_PREFIX
-    assert csrf.session_cookie_names == (protocol.AUTH_COOKIE_NAME,)
-    assert csrf.csrf_cookie_name == protocol.CSRF_COOKIE_NAME
-    assert csrf.csrf_header_name == protocol.CSRF_HEADER_NAME
     _, committed = sources()
     assert generator.operation_routes(app.openapi()) == generator.operation_routes(committed)
 
@@ -117,8 +110,8 @@ def test_source_loading_rejects_noncanonical_json(tmp_path, text):
         {"api_prefix": "https://host/api"},
         {"api_prefix": "/api/"},
         {"auth_cookie_name": ""},
-        {"csrf_header_name": "Header"},
-        {"csrf_cookie_name": "a;b"},
+        {"secure_auth_cookie_name": "invalid header"},
+        {"auth_cookie_name": "a;b"},
     ],
 )
 def test_fixed_identity_source_rejects_unhandled_or_invalid_protocol(change):
