@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from app.core.security import get_password_hash
+from app.platform.security.passwords import hash_password
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import (
     User,
@@ -64,7 +64,7 @@ def collaboration_accounts(postgres_engine):
                 User(
                     email=f"{name}@example.com",
                     display_name=name,
-                    password_hash=get_password_hash("secret123"),
+                    password_hash=hash_password("valid-secret123"),
                 )
             )
         db.flush()
@@ -212,7 +212,7 @@ def close_account(engine):
             session_service=SessionService(
                 config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
             )
-        ).request_deletion(db, 1, current_password="secret123")
+        ).request_deletion(db, 1, current_password="valid-secret123")
         db.commit()
         return identity
 
@@ -406,7 +406,7 @@ def test_same_email_registration_gets_only_new_invitation_and_role(
             db,
             RegisterRequest(
                 email="alice@example.com",
-                password="newsecret123",
+                password="newvalid-secret123",
                 display_name="New Alice",
                 locale="en",
             ),
@@ -476,7 +476,7 @@ def test_closure_rollback_preserves_invite_and_mail(collaboration_accounts):
             session_service=SessionService(
                 config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
             )
-        ).request_deletion(db, 1, current_password="secret123")
+        ).request_deletion(db, 1, current_password="valid-secret123")
         db.rollback()
         row = db.get(ScoreInvite, row_id)
         assert row.terminal_outcome is None and row.email == "alice@example.com" and row.token_hash
@@ -694,7 +694,7 @@ def test_closure_processes_contact_batches_in_one_atomic_request(collaboration_a
             session_service=SessionService(
                 config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
             )
-        ).request_deletion(db, 1, current_password="secret123")
+        ).request_deletion(db, 1, current_password="valid-secret123")
         assert (
             db.scalar(
                 select(func.count())
@@ -717,7 +717,7 @@ def test_closure_processes_contact_batches_in_one_atomic_request(collaboration_a
             session_service=SessionService(
                 config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
             )
-        ).request_deletion(db, 1, current_password="secret123")
+        ).request_deletion(db, 1, current_password="valid-secret123")
         db.commit()
     drain(collaboration_accounts, identity)
     with Session(collaboration_accounts) as db:

@@ -18,7 +18,7 @@ import pytest
 from sqlalchemy import select, func, text
 from sqlalchemy.orm import Session
 from app.core.exceptions import ValidationException
-from app.core.security import verify_password
+from app.platform.security.passwords import verify_password
 from app.db.models import User, Score, ScoreInvite, MailOutbox, MailOutboxStatus, MembershipRole
 from app.db.models.auth import AuthToken, EmailChangeRequest
 from app.db.models.mail_outbox import MailSourceKind
@@ -79,10 +79,10 @@ def issue_reset(engine):
             .order_by(MailOutbox.id.desc())
         )
         url = re.search(r"https?://[^\s<>]+", row.text_body).group()
-        return parse_qs(urlsplit(url).query)["token"][0]
+        return parse_qs(urlsplit(url).fragment)["token"][0]
 
 
-def close(db, password="secret123"):
+def close(db, password="valid-secret123"):
     AccountDeletionService(
         session_service=SessionService(
             config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
@@ -96,7 +96,9 @@ def reset(db, token):
         session_service=SessionService(
             config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
         ),
-    ).reset_password(db, ResetPasswordRequest(token=token, new_password="changed123", locale="en"))
+    ).reset_password(
+        db, ResetPasswordRequest(token=token, new_password="changed-password-123", locale="en")
+    )
 
 
 def test_closure_invalidates_auth_and_email_tokens_without_erasing_history(credential_database):
@@ -108,7 +110,7 @@ def test_closure_invalidates_auth_and_email_tokens_without_erasing_history(crede
             db,
             db.get(User, 1),
             RequestEmailChangeRequest(
-                new_email="future@example.com", current_password="secret123", locale="en"
+                new_email="future@example.com", current_password="valid-secret123", locale="en"
             ),
         )
         close(db)
@@ -119,7 +121,7 @@ def test_closure_invalidates_auth_and_email_tokens_without_erasing_history(crede
         with pytest.raises(ValidationException):
             reset(db, token)
         db.rollback()
-        assert verify_password("secret123", db.get(User, 1).password_hash)
+        assert verify_password("valid-secret123", db.get(User, 1).password_hash)
         assert (
             db.scalar(
                 select(func.count())
@@ -143,7 +145,7 @@ def test_closure_rollback_restores_credentials_and_mail(credential_database):
         assert db.scalar(select(AuthToken)).used_at is None
         assert db.scalar(select(MailOutbox)).status == MailOutboxStatus.PENDING
         reset(db, token)
-        assert verify_password("changed123", db.get(User, 1).password_hash)
+        assert verify_password("changed-password-123", db.get(User, 1).password_hash)
 
 
 @pytest.mark.parametrize("inactive,tombstone", [(False, False), (True, True)])
@@ -195,7 +197,9 @@ def test_closure_serializes_before_authentication_commands(credential_database, 
                         db,
                         db.get(User, 1),
                         RequestEmailChangeRequest(
-                            new_email="new@example.com", current_password="secret123", locale="en"
+                            new_email="new@example.com",
+                            current_password="valid-secret123",
+                            locale="en",
                         ),
                     )
             else:
@@ -222,7 +226,7 @@ def test_closure_serializes_before_authentication_commands(credential_database, 
     with Session(credential_database) as db:
         assert db.scalar(select(func.count()).select_from(AuthToken)) == 1
         assert db.scalar(select(func.count()).select_from(EmailChangeRequest)) == 0
-        assert verify_password("secret123", db.get(User, 1).password_hash)
+        assert verify_password("valid-secret123", db.get(User, 1).password_hash)
 
 
 def test_password_reset_commits_before_closure_and_its_notice_is_cancelled(credential_database):
@@ -232,7 +236,7 @@ def test_password_reset_commits_before_closure_and_its_notice_is_cancelled(crede
     def closure():
         with Session(credential_database) as db:
             ready.put(db.scalar(text("SELECT pg_backend_pid()")))
-            close(db, "changed123")
+            close(db, "changed-password-123")
             db.commit()
 
     with Session(credential_database) as resetting, ThreadPoolExecutor(1) as pool:
@@ -429,11 +433,11 @@ def test_email_change_token_cannot_change_closed_identity(credential_database):
             db,
             db.get(User, 1),
             RequestEmailChangeRequest(
-                new_email="future@example.com", current_password="secret123", locale="en"
+                new_email="future@example.com", current_password="valid-secret123", locale="en"
             ),
         )
         row = db.scalar(select(MailOutbox))
-        token = parse_qs(urlsplit(re.search(r"https?://[^\s<>]+", row.text_body).group()).query)[
+        token = parse_qs(urlsplit(re.search(r"https?://[^\s<>]+", row.text_body).group()).fragment)[
             "token"
         ][0]
         close(db)
@@ -626,7 +630,10 @@ def test_registration_mail_follows_replacement_verification_and_ttl(credential_d
     from app.db.models.auth import PendingRegistration
 
     registration = RegisterRequest(
-        email="applicant@example.com", password="secret123", display_name="Applicant", locale="en"
+        email="applicant@example.com",
+        password="valid-secret123",
+        display_name="Applicant",
+        locale="en",
     )
     with Session(credential_database) as db:
         service = EmailVerificationService(
@@ -642,9 +649,9 @@ def test_registration_mail_follows_replacement_verification_and_ttl(credential_d
         assert db.get(MailOutbox, first_id).recipient == ""
         active = db.scalar(select(MailOutbox).where(MailOutbox.status == MailOutboxStatus.PENDING))
         uuid = active.outbox_uuid
-        token = parse_qs(urlsplit(re.search(r"https?://[^\s<>]+", active.text_body).group()).query)[
-            "token"
-        ][0]
+        token = parse_qs(
+            urlsplit(re.search(r"https?://[^\s<>]+", active.text_body).group()).fragment
+        )["token"][0]
         assert validate_mail_source(db, uuid)
         user = service.verify_email(db, VerifyEmailRequest(token=token))
         assert user.email == registration.email
@@ -659,7 +666,7 @@ def test_registration_mail_follows_replacement_verification_and_ttl(credential_d
             db,
             RegisterRequest(
                 email="expired@example.com",
-                password="secret123",
+                password="valid-secret123",
                 display_name="Expired",
                 locale="en",
             ),

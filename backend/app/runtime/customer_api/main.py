@@ -1,5 +1,8 @@
 """FastAPI application entrypoint."""
 
+from app.platform.security.cookies import session_cookie_name
+
+
 from app.core.http_application import HttpApplication
 from app.core.http_error_policy import HttpRuntimeErrorCodes
 
@@ -12,8 +15,6 @@ from app.runtime.customer_api.settings import CustomerApiSettings
 
 from app.core.generated.customer_browser_protocol import (
     CUSTOMER_API_PREFIX,
-    AUTH_COOKIE_NAME,
-    REFRESH_COOKIE_NAME,
     CSRF_COOKIE_NAME,
     CSRF_HEADER_NAME,
 )
@@ -42,7 +43,7 @@ def _cors_origins(config: CustomerApiSettings) -> list[str]:
 def _csrf_settings(config: CustomerApiSettings) -> CookieCsrfSettings:
     return CookieCsrfSettings(
         api_prefix=CUSTOMER_API_PREFIX,
-        session_cookie_names=(AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME),
+        session_cookie_names=(session_cookie_name(config.AUTH_COOKIE_SECURE),),
         csrf_cookie_name=CSRF_COOKIE_NAME,
         csrf_header_name=CSRF_HEADER_NAME,
         exempt_operation=customer_csrf_exempt_operation,
@@ -69,6 +70,7 @@ def create_app() -> HttpApplication:
     from app.runtime.checks import RuntimeChecks
 
     app.state.settings = settings
+    app.state.sessions_service = context.sessions_service
     app.state.runtime_checks = RuntimeChecks(
         context.engine, work_root=settings.WORK_ROOT, broker_url=settings.CELERY_BROKER_URL
     )

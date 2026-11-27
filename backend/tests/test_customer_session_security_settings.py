@@ -1,32 +1,30 @@
+"""Consumer session lifetimes have bounded touch and cache policies."""
+
 import pytest
 from pydantic import ValidationError
-
 from app.platform.config.customer_session_security import CustomerSessionSecuritySettings
 
 
-def _settings(**overrides: object) -> CustomerSessionSecuritySettings:
-    values: dict[str, object] = {
-        "AUTH_COOKIE_SECURE": True,
-        "AUTH_COOKIE_SAMESITE": "lax",
-    }
-    values.update(overrides)
-    return CustomerSessionSecuritySettings(**values)
+def test_session_defaults():
+    config = CustomerSessionSecuritySettings(AUTH_COOKIE_SECURE=False)
+    assert config.SESSION_IDLE_DAYS == 14 and config.SESSION_ABSOLUTE_DAYS == 30
+    assert config.SESSION_TOUCH_INTERVAL_SECONDS == 600
+    assert config.SESSION_CACHE_TTL_SECONDS == 120
 
 
-def test_customer_session_security_settings_accept_default_lifetimes() -> None:
-    settings = _settings()
-
-    assert settings.ACCESS_TOKEN_EXPIRE_MINUTES == 15
-    assert settings.REFRESH_TOKEN_EXPIRE_DAYS == 30
-
-
-@pytest.mark.parametrize("field_name", ("ACCESS_TOKEN_EXPIRE_MINUTES", "REFRESH_TOKEN_EXPIRE_DAYS"))
-def test_customer_session_security_settings_reject_non_positive_lifetimes(field_name: str) -> None:
-    with pytest.raises(ValidationError, match="customer session lifetimes must be positive"):
-        _settings(**{field_name: 0})
-
-
-@pytest.mark.parametrize("value", ("Lax", "invalid"))
-def test_customer_session_security_settings_reject_invalid_samesite_values(value: str) -> None:
-    with pytest.raises(ValidationError, match="AUTH_COOKIE_SAMESITE"):
-        _settings(AUTH_COOKIE_SAMESITE=value)
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("SESSION_IDLE_DAYS", 0),
+        ("SESSION_IDLE_DAYS", 15),
+        ("SESSION_ABSOLUTE_DAYS", 0),
+        ("SESSION_ABSOLUTE_DAYS", 31),
+        ("SESSION_TOUCH_INTERVAL_SECONDS", 299),
+        ("SESSION_TOUCH_INTERVAL_SECONDS", 901),
+        ("SESSION_CACHE_TTL_SECONDS", 59),
+        ("SESSION_CACHE_TTL_SECONDS", 181),
+    ],
+)
+def test_session_settings_reject_unbounded_values(field, value):
+    with pytest.raises(ValidationError):
+        CustomerSessionSecuritySettings(AUTH_COOKIE_SECURE=False, **{field: value})

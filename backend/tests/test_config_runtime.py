@@ -19,7 +19,6 @@ WORKER_RUNTIME_BASE = {
 def test_settings_do_not_implicitly_load_an_env_file() -> None:
     loaded_settings = CustomerApiSettings()
 
-    assert loaded_settings.SECRET_KEY
     assert loaded_settings.DATABASE_URL
     assert loaded_settings.model_config.get("env_file") is None
 
@@ -47,8 +46,8 @@ def test_settings_compose_browser_cors_policy() -> None:
     assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == ["https://app.example.com/"]
 
 
-def test_settings_compose_token_signing_policy() -> None:
-    assert len(CustomerApiSettings().SECRET_KEY) >= 32
+def test_settings_compose_session_policy() -> None:
+    assert CustomerApiSettings().SESSION_IDLE_DAYS == 14
 
 
 def test_settings_compose_public_frontend_url_policy() -> None:
@@ -161,8 +160,8 @@ def test_settings_compose_fingering_execution_policy() -> None:
 def test_settings_compose_customer_session_security_policy() -> None:
     settings = CustomerApiSettings()
 
-    assert settings.ACCESS_TOKEN_EXPIRE_MINUTES > 0
-    assert settings.AUTH_COOKIE_SAMESITE in {"lax", "strict", "none"}
+    assert settings.SESSION_ABSOLUTE_DAYS == 30
+    assert settings.SESSION_CACHE_TTL_SECONDS == 120
 
 
 def test_settings_compose_account_email_link_policy() -> None:

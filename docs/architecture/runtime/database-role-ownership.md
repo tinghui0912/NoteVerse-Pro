@@ -80,7 +80,7 @@ authority; tests compare it with ORM metadata and exercise actual login roles.
 | `performance_take_manifests` | S, I | S, D | — | — | — |
 | `realtime_changes` | S, I | S, I, D | — | — | — |
 | `realtime_stream_state` | S, I, U, D | S, I, U | — | — | — |
-| `refresh_tokens` | S, I, U | — | — | — | — |
+| `user_sessions` | S, I, U | — | — | — | — |
 | `score_library_folders` | S, I, U, D | S, D | — | — | — |
 | `storage_quota_holds` | S, I, U | S, U, D | — | — | — |
 | `storage_usage_accounts` | S, I, U | S, U | — | — | — |
@@ -121,7 +121,7 @@ authority; tests compare it with ORM metadata and exercise actual login roles.
 
 Customer API cannot access operator identities, password credentials, sessions or
 Ops audit records. Control Plane cannot access customer User rows, credentials,
-registration, refresh tokens or email-change requests. Its audit rights are
+registration, opaque sessions or email-change requests. Its audit rights are
 SELECT and INSERT only; its resource writes are limited to delivery recovery
 columns. Import recovery also deletes `import_job_steps` by `job_id` through the
 existing domain reset. It cannot rewrite retirement fences or resource identity.
@@ -140,7 +140,7 @@ sequence, credential, session, payload or object-key access.
 | --- | --- | --- |
 | `nv_authentication_mail_source_active(text,bigint)` | Worker | Returns source liveness only; credential rows and hashes never leave the function |
 | `nv_mail_has_payload(text)` | Control Plane, Exporter | Returns a boolean for retry admission without exposing recipient, subject, credential links or body |
-| `nv_erase_closed_authentication_history(bigint,integer)` | Worker | Bounded deletion of AuthToken, RefreshToken and EmailChangeRequest history for a locked, inactive tombstoned User in a PROCESSING/FINALIZE deletion operation |
+| `nv_erase_closed_authentication_history(bigint,integer)` | Worker | Bounded deletion of AuthToken, UserSession and EmailChangeRequest history for a locked, inactive tombstoned User in a PROCESSING/FINALIZE deletion operation |
 | `nv_erase_closed_identity(bigint)` | Worker | Deletes only an inactive tombstoned User with PROCESSING/FINALIZE operation authority; existing FKs remain enforced |
 
 These functions express narrow capabilities instead of granting the Worker token
@@ -175,7 +175,7 @@ GitOps, exporter and release-package validators enforce the same contract.
 
 Kubernetes manifests define exact references; credentials must be provisioned by
 the environment administrator or secret-management system. Database passwords,
-cloud IAM policy, actual cluster Secret rotation and future session/MFA designs
+cloud IAM policy, actual cluster Secret rotation and operator MFA delivery
 are outside this contract's runtime implementation.
 
 See [Settings Ownership](settings-ownership.md).

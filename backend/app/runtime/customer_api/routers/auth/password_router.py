@@ -32,7 +32,7 @@ def change_my_password(
     current_user: User = Depends(deps.get_current_user),
     password_service: PasswordService = Depends(get_password_service),
 ) -> Response:
-    access_token, refresh_token = password_service.change_current_user_password(
+    token = password_service.change_current_user_password(
         db,
         current_user,
         request,
@@ -42,8 +42,6 @@ def change_my_password(
             trusted_proxy_cidrs=request_context.app.state.settings.TRUSTED_PROXY_CIDRS,
         ),
     )
-    set_session_cookies(
-        response, access_token, refresh_token, config=request_context.app.state.settings
-    )
+    set_session_cookies(response, token, config=request_context.app.state.settings)
     response.status_code = 204
     return response

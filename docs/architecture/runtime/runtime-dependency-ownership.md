@@ -24,7 +24,7 @@ changes rather than ordinary build side effects.
 | `tracing` | OpenTelemetry SDK and OTLP gRPC exporter |
 | `metrics` | Prometheus metric primitives |
 | `http` | FastAPI, Uvicorn, metrics/instrumentation |
-| `auth` | JWT and password hashing |
+| `auth` | Argon2id password hashing |
 | `storage` | Object storage clients |
 | `image` | Pillow operations |
 | `fingering` | NumPy and PianoPlayer |

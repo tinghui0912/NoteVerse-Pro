@@ -99,7 +99,7 @@ ACCOUNT_RESOURCE_POLICIES = (
         "CASCADE private replay cursor",
     ),
     AccountResourcePolicy(
-        "refresh_tokens",
+        "user_sessions",
         "user_id",
         "auth",
         "owned",

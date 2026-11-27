@@ -14,7 +14,7 @@ ROUTES = "apps/customer-web/src/generated/customer-routes.ts"
 EXPORTS = {
     "api_prefix": "CUSTOMER_API_PREFIX",
     "auth_cookie_name": "AUTH_COOKIE_NAME",
-    "refresh_cookie_name": "REFRESH_COOKIE_NAME",
+    "secure_auth_cookie_name": "SECURE_AUTH_COOKIE_NAME",
     "csrf_cookie_name": "CSRF_COOKIE_NAME",
     "csrf_header_name": "CSRF_HEADER_NAME",
 }
@@ -60,7 +60,7 @@ def validate_protocol(protocol):
         len(
             {
                 protocol[key]
-                for key in ("auth_cookie_name", "refresh_cookie_name", "csrf_cookie_name")
+                for key in ("auth_cookie_name", "secure_auth_cookie_name", "csrf_cookie_name")
             }
         )
         != 3
@@ -109,10 +109,12 @@ def projections(protocol, openapi):
     }
 
 
-def generate(root, *, check=False):
+def generate(root, *, check=False, target="all"):
     outputs = projections(load_json(root / PROTOCOL), load_json(root / OPENAPI))
     stale = []
     for relative, content in outputs.items():
+        if target == "backend" and not relative.startswith("backend/"):
+            continue
         path = root / relative
         if check:
             if not path.is_file() or path.read_text(encoding="utf-8") != content:
@@ -130,8 +132,9 @@ def generate(root, *, check=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--target", choices=("all", "backend"), default="all")
     args = parser.parse_args()
-    return generate(ROOT, check=args.check)
+    return generate(ROOT, check=args.check, target=args.target)
 
 
 if __name__ == "__main__":

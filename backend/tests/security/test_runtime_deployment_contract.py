@@ -85,7 +85,7 @@ def test_cross_runtime_and_unknown_credentials_are_rejected(mutation):
             {"secretRef": {"name": DEPLOYMENTS["customer_api"].secret_name}}
         )
     elif mutation == "secret_literal":
-        container["env"].append({"name": "SECRET_KEY", "value": "test"})
+        container["env"].append({"name": "DATABASE_URL", "value": "test"})
     elif mutation == "extra_declared_key":
         docs.append(
             {

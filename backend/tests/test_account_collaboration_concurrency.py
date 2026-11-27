@@ -94,7 +94,7 @@ def test_invitation_response_and_closure_serialize_without_reviving_access(
                 session_service=SessionService(
                     config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
                 )
-            ).request_deletion(owner_db, 1, current_password="secret123")
+            ).request_deletion(owner_db, 1, current_password="valid-secret123")
 
             def competing():
                 with Session(engine) as db:
@@ -116,7 +116,7 @@ def test_invitation_response_and_closure_serialize_without_reviving_access(
                                 get_context().settings.model_dump()
                             )
                         )
-                    ).request_deletion(db, 1, current_password="secret123")
+                    ).request_deletion(db, 1, current_password="valid-secret123")
                     db.commit()
                     return operation
 
@@ -192,7 +192,7 @@ def test_finalization_waits_for_pre_admitted_invitation_and_cleans_late_commit(
                                 get_context().settings.model_dump()
                             )
                         )
-                    ).request_deletion(db, 1, current_password="secret123")
+                    ).request_deletion(db, 1, current_password="valid-secret123")
                     db.commit()
                     return identity
 
@@ -348,7 +348,9 @@ def test_unregistered_invitation_cannot_cross_an_identity_lifetime(
                 verification.register(
                     db,
                     RegisterRequest(
-                        email="alice@example.com", password="secret123", display_name="New Alice"
+                        email="alice@example.com",
+                        password="valid-secret123",
+                        display_name="New Alice",
                     ),
                 )
                 user = verification.verify_email(
@@ -361,7 +363,7 @@ def test_unregistered_invitation_cannot_cross_an_identity_lifetime(
                             get_context().settings.model_dump()
                         )
                     )
-                ).request_deletion(db, user_id, current_password="secret123")
+                ).request_deletion(db, user_id, current_password="valid-secret123")
                 db.commit()
                 return user_id, identity
 
@@ -387,7 +389,7 @@ def test_unregistered_invitation_cannot_cross_an_identity_lifetime(
         verification.register(
             db,
             RegisterRequest(
-                email="alice@example.com", password="secret123", display_name="Latest Alice"
+                email="alice@example.com", password="valid-secret123", display_name="Latest Alice"
             ),
         )
         new_user = verification.verify_email(

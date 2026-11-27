@@ -66,7 +66,6 @@ services:
       FRONTEND_BASE_URL: http://localhost:3000
       BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
       AUTH_COOKIE_SECURE: 'false'
-      AUTH_COOKIE_SAMESITE: lax
       UPLOAD_URL_TTL_SECONDS: '120'
       UPLOAD_SESSION_TTL_SECONDS: '600'
       NOTEVERSE_INTEGRATION_RUN_ID: ${NOTEVERSE_INTEGRATION_RUN_ID:?Integration run identity is required}
@@ -106,7 +105,6 @@ services:
       FRONTEND_BASE_URL: http://localhost:3000
       BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
       AUTH_COOKIE_SECURE: 'false'
-      AUTH_COOKIE_SAMESITE: lax
       UPLOAD_URL_TTL_SECONDS: '120'
       UPLOAD_SESSION_TTL_SECONDS: '600'
       NOTEVERSE_INTEGRATION_RUN_ID: ${NOTEVERSE_INTEGRATION_RUN_ID:?Integration run identity is required}

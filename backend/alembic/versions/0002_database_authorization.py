@@ -1,4 +1,4 @@
-"""Bounded credential erasure and credential-free mail admission predicates."""
+"""Consumer session erasure and credential-free mail admission predicates."""
 
 from alembic import op
 from app.platform.db.authorization import install_security_functions

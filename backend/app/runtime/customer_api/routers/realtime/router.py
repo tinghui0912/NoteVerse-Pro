@@ -1,4 +1,4 @@
-from __future__ import annotations
+from app.core.exceptions import AuthenticationException
 
 
 import asyncio
@@ -31,6 +31,17 @@ def _format_resync(control: RealtimeResyncRequiredRead) -> str:
 
 def _fetch_page(request: Request, user_id: int, cursor: Cursor) -> ReplayPage:
     with request.app.state.session_factory() as db:
+        from app.runtime.customer_api.auth_services import get_session_service
+        from app.runtime.customer_api.deps import session_token
+
+        token = session_token(request)
+        if token is None:
+            from app.core.exceptions import AuthenticationException
+
+            raise AuthenticationException()
+        user, _ = get_session_service(request).authenticate(db, token)
+        if user.id != user_id:
+            raise RuntimeError("Realtime principal changed")
         return read_page(
             db, user_id, cursor, limit=request.app.state.settings.REALTIME_EVENT_BATCH_SIZE
         )
@@ -101,6 +112,8 @@ async def _event_stream(
                     last_sequence = page.cursor
                     for message in _page_messages(page):
                         yield message
+    except AuthenticationException:
+        return
     finally:
         realtime_connection_closed(channel="app_sse")
 

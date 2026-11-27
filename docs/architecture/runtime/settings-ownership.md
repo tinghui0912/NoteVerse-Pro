@@ -7,7 +7,7 @@ and observability blocks. Domain constructors receive explicit policy values.
 
 | Process | Settings | Entrypoint | Inputs |
 | --- | --- | --- | --- |
-| Customer API | `CustomerApiSettings` | `app.runtime.customer_api.main:app` | DB, Redis/dispatch, object storage, observability, customer cookie/signing policy, public links, resource policies, fingering |
+| Customer API | `CustomerApiSettings` | `app.runtime.customer_api.main:app` | DB, Redis/dispatch, object storage, observability, customer opaque session policy, public links, resource policies, fingering |
 | Control Plane | `ControlPlaneSettings` | `app.runtime.control_plane.main:app` | DB, Redis connection, observability, operator cookie/origin policy, Ops delivery policies |
 | Worker | `WorkerSettings` | `app.runtime.worker.main:celery_app` | DB, Redis/dispatch, object storage, mail transport, observability, processing/work directories, delivery/retention/scheduler policies |
 | Beat | `BeatSettings` | `app.runtime.beat.main:celery_app` | DB, Redis, observability, schedule/reliability and scheduler-lock policies |
@@ -20,7 +20,7 @@ and observability blocks. Domain constructors receive explicit policy values.
 | Metadata command | `MetadataCommandSettings` | `scripts/rebuild_score_metadata.py` | DB and metadata delivery policy |
 | Model preparation | `AssetCommandSettings` | `scripts/prepare_model_assets.py` | Model-engine and playback asset paths |
 
-Worker and Beat settings contain neither customer signing/session credentials nor
+Worker and Beat settings contain neither customer session policy nor
 operator identity configuration. Control Plane excludes customer credentials.
 Customer API excludes operator credentials. Worker owns notification, realtime
 retention and derived-asset maintenance policies; Customer API owns stream and
@@ -30,6 +30,13 @@ process launcher, never discovered implicitly by domain code.
 HTTP composition attaches its Engine, SessionFactory, settings and resource
 services to `app.state`. `app/platform/db/dependencies.py` selects that application's
 factory. CLI and background processes own independent factories.
+
+Customer API owns `SESSION_IDLE_DAYS`, `SESSION_ABSOLUTE_DAYS`,
+`SESSION_TOUCH_INTERVAL_SECONDS` and `SESSION_CACHE_TTL_SECONDS`. Its production
+and staging `ENVIRONMENT` requires `AUTH_COOKIE_SECURE=true`; cookie SameSite is
+fixed to Lax. Session credentials have no deployment signing secret. See
+[Consumer Sessions](../consumer-sessions.md) for lifetimes, Redis failure behavior
+and commit-owned revocation.
 
 Customer and operator cookie/header identities come from their generated browser
 protocol contracts. Deployment inputs configure origins, cookie policy, connection
@@ -58,7 +65,7 @@ accepted by that process's Settings and never credential fields.
 | --- | --- | --- | --- |
 | beat | nv_beat | noteverse-beat-secret | `DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` |
 | control_plane | nv_control_plane | noteverse-control-plane-secret | `DATABASE_URL`, `REDIS_URL` |
-| customer_api | nv_customer_api | noteverse-customer-api-secret | `DATABASE_URL`, `SECRET_KEY`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
+| customer_api | nv_customer_api | noteverse-customer-api-secret | `DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
 | migrator | nv_migrator | noteverse-migrator-secret | `DATABASE_URL` |
 | model_assets | none | noteverse-model-assets-secret | `HF_TOKEN` |
 | observability | nv_observability | noteverse-observability-secret | `DATABASE_URL` |
@@ -74,7 +81,7 @@ does not inherit the Worker credential environment. Registry image-pull, TLS and
 Loki/Tempo object-storage credentials have infrastructure ownership and do not
 enter application process environments.
 
-Control Plane requires no customer signing key, object-storage credentials or mail
+Control Plane requires no customer authentication credential, object-storage credentials or mail
 transport key: Ops retries update durable delivery records, and the Worker sends
 mail. Beat and Exporter require no object-storage, mail or authentication keys.
 The migrator receives only `DATABASE_URL` and runs as a short-lived Job.

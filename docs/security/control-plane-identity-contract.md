@@ -23,7 +23,7 @@ arbitrary task or state mutation.
 ## Sessions, cookies and bootstrap
 
 Only the one-way hash of the opaque session credential is stored. The raw
-credential belongs in a host-only HttpOnly cookie, never customer JWT/refresh
+credential belongs in a host-only HttpOnly cookie, separate from customer session
 tables or shared parent-domain cookies. The CSRF cookie/header contract is
 separate from customer CSRF. Production cookies require Secure, `/` scope and
 explicit SameSite policy.
@@ -35,7 +35,7 @@ these identities. Startup requires deployment policy: Secure, SameSite, session
 lifetime and CORS origins. Missing policy fails startup. Customer-only startup
 need not supply operator policy. Operator and Customer credentials remain separate.
 
-Local credentials use the approved adaptive password hash. Bootstrap uses the
+Local credentials use the Argon2id password hash. Bootstrap uses the
 TTY-only operator command with hidden input. Passwords do not belong in command
 arguments, environment values, logs or API response bodies. Inactive operators
 and revoked sessions are denied. Production exposure requires qualified login

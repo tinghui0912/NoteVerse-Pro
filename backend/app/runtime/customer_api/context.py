@@ -1,5 +1,13 @@
 """Process-owned configuration and database resources."""
 
+from app.modules.auth.sessions_service import SessionService
+from app.modules.auth.session_cache import SessionCache
+from app.platform.config.application import CustomerAuthConfig
+from redis import Redis
+from redis.retry import Retry
+from redis.backoff import NoBackoff
+
+
 from app.composition.media_resources import ResourceServices
 from app.platform.config.resources import ResourcePolicies
 from app.platform.config.storage import ObjectStorageConfig
@@ -27,6 +35,7 @@ class RuntimeContext:
     deliveries: DispatchDeliveries
     storage: ObjectStorage
     resources: ResourceServices
+    sessions_service: SessionService
 
 
 @lru_cache(maxsize=1)
@@ -51,4 +60,20 @@ def get_context() -> RuntimeContext:
         post_commit,
         dispatches.score_deletion.dispatch_score_deletion_best_effort,
     )
-    return RuntimeContext(config, engine, sessions, dispatches, deliveries, storage, resources)
+    session_cache = SessionCache(
+        Redis.from_url(
+            config.REDIS_URL,
+            socket_timeout=0.2,
+            socket_connect_timeout=0.2,
+            retry=Retry(NoBackoff(), 0),
+        ),
+        ttl_seconds=config.SESSION_CACHE_TTL_SECONDS,
+    )
+    sessions_service = SessionService(
+        config=CustomerAuthConfig.model_validate(config.model_dump()),
+        cache=session_cache,
+        sessions=sessions,
+    )
+    return RuntimeContext(
+        config, engine, sessions, dispatches, deliveries, storage, resources, sessions_service
+    )

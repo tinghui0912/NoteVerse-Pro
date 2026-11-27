@@ -46,8 +46,8 @@ BEGIN
     (SELECT id FROM __APP_SCHEMA__.auth_tokens WHERE user_id=identity ORDER BY id LIMIT batch_size);
   GET DIAGNOSTICS affected = ROW_COUNT;
   IF affected>0 THEN RETURN true; END IF;
-  DELETE FROM __APP_SCHEMA__.refresh_tokens WHERE id IN
-    (SELECT id FROM __APP_SCHEMA__.refresh_tokens WHERE user_id=identity ORDER BY id LIMIT batch_size);
+  DELETE FROM __APP_SCHEMA__.user_sessions WHERE id IN
+    (SELECT id FROM __APP_SCHEMA__.user_sessions WHERE user_id=identity ORDER BY id LIMIT batch_size);
   GET DIAGNOSTICS affected = ROW_COUNT;
   IF affected>0 THEN RETURN true; END IF;
   DELETE FROM __APP_SCHEMA__.email_change_requests WHERE id IN

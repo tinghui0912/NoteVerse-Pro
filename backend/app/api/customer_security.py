@@ -8,7 +8,6 @@ from fastapi.routing import RouteContext
 CUSTOMER_CSRF_EXEMPT_OPERATION_IDS = frozenset(
     {
         "authLogin",
-        "authRefresh",
         "authRegister",
         "authEmailVerify",
         "authEmailChangeConfirm",

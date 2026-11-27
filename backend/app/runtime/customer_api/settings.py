@@ -1,5 +1,7 @@
 """Scoped environment contract for this process."""
 
+from typing import Literal
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.runtime.config_blocks import (
     DatabaseConfig,
@@ -22,7 +24,6 @@ from app.platform.config.collaboration import CollaborationSettings
 from app.platform.config.account_email_link import AccountEmailLinkSettings
 from app.platform.config.browser_cors import BrowserCorsSettings
 from app.platform.config.customer_session_security import CustomerSessionSecuritySettings
-from app.platform.config.token_signing import TokenSigningSettings
 from app.platform.config.public_frontend_url import PublicFrontendUrlSettings
 from app.platform.config.fingering_execution import FingeringExecutionSettings
 from app.platform.config.model_asset_delivery import ModelAssetDeliverySettings
@@ -51,7 +52,6 @@ class CustomerApiSettings(
     AccountEmailLinkSettings,
     BrowserCorsSettings,
     CustomerSessionSecuritySettings,
-    TokenSigningSettings,
     PublicFrontendUrlSettings,
     FingeringExecutionSettings,
     ModelAssetDeliverySettings,
@@ -60,3 +60,11 @@ class CustomerApiSettings(
     BaseSettings,
 ):
     model_config = SettingsConfigDict(case_sensitive=True, extra="ignore", frozen=False)
+
+    ENVIRONMENT: Literal["development", "test", "staging", "production"] = "development"
+
+    @model_validator(mode="after")
+    def validate_cookie_transport(self):
+        if self.ENVIRONMENT in {"staging", "production"} and not self.AUTH_COOKIE_SECURE:
+            raise ValueError("Secure session cookies are required in staging and production")
+        return self

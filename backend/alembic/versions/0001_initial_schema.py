@@ -1055,31 +1055,57 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("recipient_user_id"),
     )
     op.create_table(
-        "refresh_tokens",
-        sa.Column("id", sa.BigInteger(), nullable=False),
+        "user_sessions",
+        sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("user_id", sa.BigInteger(), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
-        sa.Column("device_id", sa.String(length=64), nullable=True),
-        sa.Column("user_agent", sa.String(length=512), nullable=True),
-        sa.Column("ip_address", sa.String(length=64), nullable=True),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("replaced_by_token_id", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["replaced_by_token_id"],
-            ["refresh_tokens.id"],
+        sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("idle_expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("absolute_expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "revoked_reason",
+            sa.Enum(
+                "LOGOUT",
+                "DEVICE_REVOKED",
+                "OTHER_SESSIONS",
+                "PASSWORD_CHANGED",
+                "PASSWORD_RESET",
+                "ACCOUNT_CLOSED",
+                name="sessionrevocationreason",
+            ),
+            nullable=True,
+        ),
+        sa.Column("ip_address", sa.String(length=64), nullable=True),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.CheckConstraint(
+            "length(token_hash)=64 AND token_hash ~ '^[0-9a-f]+$'", name="ck_user_sessions_digest"
+        ),
+        sa.CheckConstraint(
+            "(revoked_at IS NULL AND revoked_reason IS NULL) OR (revoked_at IS NOT NULL AND revoked_reason IS NOT NULL)",
+            name="ck_user_sessions_revocation",
+        ),
+        sa.CheckConstraint(
+            "created_at <= last_seen_at AND last_seen_at < absolute_expires_at AND idle_expires_at <= absolute_expires_at",
+            name="ck_user_sessions_lifetime",
         ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("token_hash"),
     )
-    op.create_index("idx_refresh_tokens_expires", "refresh_tokens", ["expires_at"], unique=False)
-    op.create_index("idx_refresh_tokens_revoked", "refresh_tokens", ["revoked_at"], unique=False)
     op.create_index(
-        "idx_refresh_tokens_user_created", "refresh_tokens", ["user_id", "created_at"], unique=False
+        "idx_user_sessions_expiration",
+        "user_sessions",
+        ["idle_expires_at", "absolute_expires_at"],
+        unique=False,
     )
+    op.create_index(
+        "idx_user_sessions_user_created", "user_sessions", ["user_id", "created_at"], unique=False
+    )
+    op.create_index(
+        op.f("ix_user_sessions_token_hash"), "user_sessions", ["token_hash"], unique=True
+    )
+    op.create_index(op.f("ix_user_sessions_user_id"), "user_sessions", ["user_id"], unique=False)
     op.create_table(
         "score_library_folders",
         sa.Column(
@@ -2959,10 +2985,7 @@ def downgrade() -> None:
     op.drop_index("idx_storage_quota_holds_status_expiry", table_name="storage_quota_holds")
     op.drop_table("storage_quota_holds")
     op.drop_table("score_library_folders")
-    op.drop_index("idx_refresh_tokens_user_created", table_name="refresh_tokens")
-    op.drop_index("idx_refresh_tokens_revoked", table_name="refresh_tokens")
-    op.drop_index("idx_refresh_tokens_expires", table_name="refresh_tokens")
-    op.drop_table("refresh_tokens")
+    op.drop_table("user_sessions")
     op.drop_table("realtime_stream_state")
     op.drop_index("idx_realtime_changes_created", table_name="realtime_changes")
     op.drop_table("realtime_changes")
@@ -3051,3 +3074,4 @@ def downgrade() -> None:
     op.execute("DROP TYPE importjobstate")
     op.execute("DROP TYPE importdispatchstatus")
     op.execute("DROP TYPE importartifactkind")
+    op.execute("DROP TYPE sessionrevocationreason")

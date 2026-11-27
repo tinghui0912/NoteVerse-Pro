@@ -1,7 +1,7 @@
 """Dependency providers for the auth module."""
 
 from fastapi import Request
-from app.platform.config.application import AccountEmailConfig, CustomerAuthConfig
+from app.platform.config.application import AccountEmailConfig
 from app.platform.config.service_identity import ServiceIdentitySettings
 
 from app.modules.auth.service import AuthService
@@ -47,9 +47,7 @@ def get_password_reset_service(request: Request) -> PasswordResetService:
 def get_session_service(request: Request) -> SessionService:
     """Provide the session service from the auth module boundary."""
 
-    return SessionService(
-        config=CustomerAuthConfig.model_validate(request.app.state.settings.model_dump())
-    )
+    return request.app.state.sessions_service
 
 
 def get_security_service(request: Request) -> SecurityService:

@@ -67,11 +67,13 @@ MusicXML admission and process-specific database roles/secrets. Each capability
 has its own implementation and acceptance work. This decision does not claim
 that those capabilities are already implemented by configuration decoupling.
 
-JWT/session behavior, CSRF admission, MFA and MusicXML behavior retain their
-current executable contracts until their specifically authorized security work.
-The existing security helper accepts explicit signing inputs; process composition
-owns the secrets. No secret is made available to Worker or Beat merely to import
-a password-hashing helper.
+Customer identity uses PostgreSQL-backed opaque sessions and Redis identity hints.
+Platform security primitives own Argon2id password hashing, CSPRNG opaque tokens
+and host-only cookies. Customer API owns session issuance, validation and
+revocation; other runtimes have no direct session-ledger privileges. See
+[Consumer Sessions](../architecture/consumer-sessions.md) for the executable
+HTTP, lifecycle and cache contract. Operator identity, CSRF and MusicXML each
+retain their independent domain contracts.
 
 ## Enforcement and acceptance
 

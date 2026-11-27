@@ -196,6 +196,7 @@ def test_database_layer_only_imports_domain_owned_state_taxonomies():
             else:
                 continue
             allowed = {
+                "app.modules.auth.session_states",
                 "app.modules.media_storage.domain",
                 "app.modules.media_storage.upload_sessions.domain",
                 "app.modules.performance_takes.processing_states",

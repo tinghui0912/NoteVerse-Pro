@@ -31,9 +31,7 @@ def packaging_environment(role: str):
     with TemporaryDirectory(prefix="noteverse-image-contract-") as directory:
         root = Path(directory)
         env = {
-            "SECRET_KEY": "image-contract-only-not-a-production-secret",
             "AUTH_COOKIE_SECURE": "false",
-            "AUTH_COOKIE_SAMESITE": "lax",
             "DATABASE_URL": "postgresql+psycopg://contract:contract@127.0.0.1:1/contract",
             "SCHEDULER_LOCK_DATABASE_URL": "postgresql+psycopg://contract:contract@127.0.0.1:1/contract",
             "REDIS_URL": "redis://127.0.0.1:1/0",

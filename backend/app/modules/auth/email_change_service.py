@@ -1,19 +1,17 @@
 """Authenticated email-change workflow."""
 
-from __future__ import annotations
+from app.platform.security.opaque_tokens import generate_token, token_digest
 
 
 from app.platform.config.application import AccountEmailConfig
 
-import hashlib
-import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
 
 from sqlmodel import select
 from sqlalchemy.orm import Session
 
-from app.core import security
+from app.platform.security import passwords as security
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.model_utils import require_persisted_id
 from app.db.models.auth import EmailChangeRequest
@@ -38,14 +36,14 @@ class EmailChangeService:
         self.config = config
 
     def _hash_token(self, token: str) -> str:
-        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+        return token_digest(token)
 
     def _new_token(self) -> str:
-        return secrets.token_urlsafe(48)
+        return generate_token()
 
     def _frontend_url(self, path: str, token: str) -> str:
         base_url = self.config.FRONTEND_BASE_URL.rstrip("/")
-        return f"{base_url}{path}?{urlencode({'token': token})}"
+        return f"{base_url}{path}#{urlencode({'token': token})}"
 
     def request_email_change(
         self,

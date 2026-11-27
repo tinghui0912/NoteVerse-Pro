@@ -27,7 +27,6 @@ from app.api.customer_security import (
 from app.platform.db.dependencies import get_db
 from app.core.generated.customer_browser_protocol import (
     AUTH_COOKIE_NAME,
-    REFRESH_COOKIE_NAME,
     CSRF_COOKIE_NAME,
     CSRF_HEADER_NAME,
     CUSTOMER_API_PREFIX,
@@ -51,8 +50,7 @@ def customer():
     service = SimpleNamespace(
         login=Mock(
             return_value=LoginResult(
-                "access",
-                "refresh",
+                "session",
                 ProfileUserRead(
                     id=1,
                     email="member@example.com",
@@ -63,8 +61,7 @@ def customer():
                 ),
             )
         ),
-        refresh_session=Mock(return_value=("access-rotated", "refresh-rotated")),
-        revoke_refresh_token=Mock(),
+        revoke_session=Mock(),
         register=Mock(),
         verify_email=Mock(return_value={"email": "member@example.com"}),
         confirm_email_change=Mock(return_value=SimpleNamespace(email="new@example.com")),
@@ -94,12 +91,21 @@ def customer():
 
 
 PUBLIC_COMMANDS = [
-    ("authLogin", "login", {"data": {"username": "member@example.com", "password": "password"}}),
-    ("authRefresh", "refresh_session", {}),
+    (
+        "authLogin",
+        "login",
+        {"json": {"email": "member@example.com", "password": "correct-password-123"}},
+    ),
     (
         "authRegister",
         "register",
-        {"json": {"email": "member@example.com", "password": "password", "display_name": "Member"}},
+        {
+            "json": {
+                "email": "member@example.com",
+                "password": "correct-password-123",
+                "display_name": "Member",
+            }
+        },
     ),
     ("authEmailVerify", "verify_email", {"json": {"token": "one-time-token"}}),
     ("authEmailChangeConfirm", "confirm_email_change", {"json": {"token": "one-time-token"}}),
@@ -111,20 +117,18 @@ PUBLIC_COMMANDS = [
     (
         "authPasswordReset",
         "reset_password",
-        {"json": {"token": "one-time-token", "new_password": "password-new"}},
+        {"json": {"token": "one-time-token", "new_password": "password-new-123"}},
     ),
 ]
 
 
 @pytest.mark.parametrize("identity,method,payload", PUBLIC_COMMANDS)
-@pytest.mark.parametrize("cookie", [AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME])
+@pytest.mark.parametrize("cookie", [AUTH_COOKIE_NAME])
 def test_public_auth_operations_accept_stale_cookies_without_csrf(
     customer, identity, method, payload, cookie
 ):
     client, service, routes = customer
     client.cookies.set(cookie, "stale-cookie")
-    if identity == "authRefresh":
-        client.cookies.set(REFRESH_COOKIE_NAME, "refresh-cookie")
     response = client.post(routes[identity].path, **payload)
     expected_status = (
         200 if identity in {"authLogin", "authEmailVerify", "authEmailChangeConfirm"} else 204
@@ -133,17 +137,13 @@ def test_public_auth_operations_accept_stale_cookies_without_csrf(
     if expected_status == 204:
         assert response.content == b""
     getattr(service, method).assert_called_once()
-    if identity == "authRefresh":
-        assert client.cookies[CSRF_COOKIE_NAME]
-        assert response.cookies[AUTH_COOKIE_NAME] == "access-rotated"
-        assert service.refresh_session.call_args.args[1] == "refresh-cookie"
 
 
 @pytest.mark.parametrize("identity,method,payload", PUBLIC_COMMANDS)
 @pytest.mark.parametrize("origin_header", ["Origin", "Referer"])
 def test_exemption_preserves_origin_validation(customer, identity, method, payload, origin_header):
     client, service, routes = customer
-    client.cookies.set(REFRESH_COOKIE_NAME, "stale-cookie")
+    client.cookies.set(AUTH_COOKIE_NAME, "stale-cookie")
     response = client.post(
         routes[identity].path, headers={origin_header: "https://untrusted.example/"}, **payload
     )
@@ -152,7 +152,7 @@ def test_exemption_preserves_origin_validation(customer, identity, method, paylo
     getattr(service, method).assert_not_called()
 
 
-@pytest.mark.parametrize("cookie", [AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME])
+@pytest.mark.parametrize("cookie", [AUTH_COOKIE_NAME])
 def test_logout_requires_matching_csrf_with_customer_cookies(customer, cookie):
     client, service, routes = customer
     client.cookies.set(cookie, "session-cookie")
@@ -161,11 +161,11 @@ def test_logout_requires_matching_csrf_with_customer_cookies(customer, cookie):
         response = client.post(routes["authLogout"].path, headers=headers)
         assert response.status_code == 403
         assert response.json()["code"] == "csrf_token_invalid"
-    service.revoke_refresh_token.assert_not_called()
+    service.revoke_session.assert_not_called()
     response = client.post(routes["authLogout"].path, headers={CSRF_HEADER_NAME: "matching-token"})
     assert response.status_code == 204
     assert response.content == b""
-    service.revoke_refresh_token.assert_called_once()
+    service.revoke_session.assert_called_once()
 
 
 def admitted():

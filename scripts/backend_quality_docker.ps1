@@ -23,7 +23,7 @@ function Invoke-Quality {
 
 switch ($Check) {
     "contracts" {
-        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
+        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --target backend --check"
         Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --check"
         Invoke-Quality "realtime-contract" "python /repo/scripts/generate_realtime_contract.py --check"
         Invoke-Quality "runtime-deployment-contract" "python scripts/export_runtime_contract.py --check"
@@ -61,7 +61,7 @@ switch ($Check) {
         Invoke-Quality "critical-import-worker-service-coverage" "python -m pytest tests/test_import_execution_recorder.py tests/test_import_dispatch.py tests/test_import_lifecycle_postgres.py tests/test_score_revision_services.py -q --cov=app.modules.import_jobs.execution_recorder --cov-report=term-missing --cov-fail-under=80"
     }
     "all" {
-        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
+        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --target backend --check"
         Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --check"
         Invoke-Quality "realtime-contract" "python /repo/scripts/generate_realtime_contract.py --check"
         Invoke-Quality "compile" "python -m compileall -q app scripts tests"

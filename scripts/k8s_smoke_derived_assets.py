@@ -18,7 +18,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
-from urllib import error, parse, request
+from urllib import error, request
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
@@ -74,7 +74,7 @@ def kubectl_exec_python(namespace: str, deployment: str, code: str) -> str:
 def ensure_user(namespace: str, deployment: str, email: str, password: str) -> None:
     code = f"""
 from sqlalchemy import select
-from app.core.security import get_password_hash
+from app.platform.security.passwords import hash_password
 from app.runtime.cli.settings import DatabaseCommandSettings
 from app.platform.db.engine import build_engine, build_session_factory
 sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
@@ -90,7 +90,7 @@ with sessions() as db:
         user = User(
             email=email,
             display_name="K8s Smoke",
-            password_hash=get_password_hash(password),
+            password_hash=hash_password(password),
             is_active=True,
             email_verified_at=now,
             password_changed_at=now,
@@ -99,7 +99,7 @@ with sessions() as db:
         )
         db.add(user)
     else:
-        user.password_hash = get_password_hash(password)
+        user.password_hash = hash_password(password)
         user.is_active = True
         user.email_verified_at = user.email_verified_at or utc_now()
     db.commit()
@@ -249,17 +249,13 @@ def request_status(
         return exc.code
 
 
-def encode_form(data: dict[str, str]) -> tuple[bytes, dict[str, str]]:
-    body = parse.urlencode(data).encode("utf-8")
-    return body, {"Content-Type": "application/x-www-form-urlencoded"}
-
-
 def login(
     api_base: str, email: str, password: str
 ) -> tuple[request.OpenerDirector, http.cookiejar.CookieJar]:
     cookie_jar = http.cookiejar.CookieJar()
     opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
-    body, headers = encode_form({"username": email, "password": password})
+    body = json.dumps({"email": email, "password": password}).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
     request_json(
         opener,
         f"{api_base}/auth/login",

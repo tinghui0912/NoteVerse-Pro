@@ -63,9 +63,7 @@ def test_runtime_import_needs_only_its_own_configuration(role, tmp_path):
         )
     if role == "customer_api":
         env.update(
-            SECRET_KEY="test-only-customer-key-which-is-long-enough",
             AUTH_COOKIE_SECURE="false",
-            AUTH_COOKIE_SAMESITE="lax",
             FRONTEND_BASE_URL="https://app.example.test",
         )
     if role == "control_plane":

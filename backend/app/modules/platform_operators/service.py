@@ -10,7 +10,7 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core import security
+from app.platform.security import passwords as security
 from app.platform.config.operator_session import OperatorSessionConfig
 from app.core.exceptions import AuthenticationException
 from app.db.model_utils import require_persisted_id
@@ -75,7 +75,7 @@ class OperatorAuthenticationService:
         db.add(
             OperatorPasswordCredential(
                 identity_id=require_persisted_id(identity.id, entity="operator identity"),
-                password_hash=security.get_password_hash(password),
+                password_hash=security.hash_password(password),
             )
         )
         db.commit()

@@ -155,13 +155,17 @@ async def test_replay_reads_bounded_pages_in_short_off_loop_sessions(realtime_se
             finally:
                 closed.append(self)
 
+    from tests.support.authentication import issue_session, session_service
+
     request = SimpleNamespace(
+        cookies={"nv_session": issue_session(realtime_session, 7)},
         app=SimpleNamespace(
             state=SimpleNamespace(
+                sessions_service=session_service(),
                 settings=get_context().settings.model_copy(update={"REALTIME_EVENT_BATCH_SIZE": 2}),
                 session_factory=lambda: CatchupSession(bind),
             )
-        )
+        ),
     )
     pages = [page async for page in router._replay_pages(request, 7, 1)]
     assert pages[-1].cursor == 5
@@ -175,7 +179,7 @@ async def test_replay_reads_bounded_pages_in_short_off_loop_sessions(realtime_se
 def test_sse_authentication_releases_its_session_before_streaming(realtime_session, monkeypatch):
     from fastapi.testclient import TestClient
     from app.runtime.customer_api.main import create_app
-    from app.core.security import create_access_token
+    from tests.support.authentication import issue_session
     from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
     from app.runtime.customer_api.routers.realtime import router as stream_router
 
@@ -205,9 +209,7 @@ def test_sse_authentication_releases_its_session_before_streaming(realtime_sessi
     application = create_app()
     application.state.session_factory = sessions
     with TestClient(application) as client:
-        client.cookies.set(
-            AUTH_COOKIE_NAME, create_access_token("7", secret_key=get_context().settings.SECRET_KEY)
-        )
+        client.cookies.set(AUTH_COOKIE_NAME, issue_session(realtime_session, 7))
         response = client.get("/api/v1/realtime/events", headers={"Last-Event-ID": "12"})
     assert response.status_code == 200
     assert response.content == b": authenticated\n\n"

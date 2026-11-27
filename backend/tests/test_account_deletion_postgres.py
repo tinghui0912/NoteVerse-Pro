@@ -8,7 +8,7 @@ from tests.support.uploads import settled_upload_session
 import pytest
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from app.core.security import get_password_hash
+from app.platform.security.passwords import hash_password
 from app.core.exceptions import ValidationException, ResourceNotFoundException
 from app.db.models import (
     User,
@@ -49,7 +49,7 @@ def account_database(postgres_engine):
                 User(
                     id=n,
                     email=f"erase{n}@example.test",
-                    password_hash=get_password_hash("secret123"),
+                    password_hash=hash_password("valid-secret123"),
                 )
                 for n in (1, 2)
             ]
@@ -66,7 +66,7 @@ def request(engine):
             session_service=SessionService(
                 config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
             )
-        ).request_deletion(db, 1, current_password="secret123")
+        ).request_deletion(db, 1, current_password="valid-secret123")
         db.commit()
         return uuid
 
@@ -101,7 +101,7 @@ def test_admission_rejects_password_and_rolls_back_with_caller(account_database)
             session_service=SessionService(
                 config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
             )
-        ).request_deletion(db, 1, current_password="secret123")
+        ).request_deletion(db, 1, current_password="valid-secret123")
         db.rollback()
         assert db.get(User, 1).deleted_at is None
         assert db.scalar(select(func.count()).select_from(AccountDeletionOperation)) == 0
@@ -122,7 +122,7 @@ def test_tombstone_immediately_extinguishes_owned_score_authority(account_databa
                 session_service=SessionService(
                     config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
                 )
-            ).request_deletion(db, 1, current_password="secret123")
+            ).request_deletion(db, 1, current_password="valid-secret123")
             == uuid
         )
     for _ in range(15):
@@ -244,7 +244,7 @@ def test_session_revocation_and_foreign_actor_history_survive_correctly(account_
     with Session(account_database) as db:
         SessionService(
             config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
-        ).create_token_pair(db, 1)
+        ).create_session(db, 1)
         score = Score(score_uuid="other-owner", owner_user_id=2, display_title="Retained")
         db.add(score)
         db.flush()
@@ -273,16 +273,16 @@ def test_session_revocation_and_foreign_actor_history_survive_correctly(account_
         )
         db.commit()
     uuid = request(account_database)
-    from app.db.models.auth import RefreshToken
+    from app.db.models import UserSession
 
     with Session(account_database) as db:
-        assert db.scalar(select(RefreshToken)).revoked_at is not None
+        assert db.scalar(select(UserSession)).revoked_at is not None
     for _ in range(15):
         if unit(account_database, uuid):
             break
     with Session(account_database) as db:
         assert db.get(User, 1) is None
-        assert db.scalar(select(RefreshToken)) is None
+        assert db.scalar(select(UserSession)) is None
         assert db.scalar(select(ScoreInvite)).terminal_actor_user_id is None
         assert db.scalar(select(Notification)).actor_user_id == 1
         assert db.scalar(select(Score)).owner_user_id == 2
@@ -359,7 +359,7 @@ def test_tombstone_and_final_erasure_use_distinct_user_lock_strength(account_dat
                 session_service=SessionService(
                     config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
                 )
-            ).request_deletion(closing, 1, current_password="secret123")
+            ).request_deletion(closing, 1, current_password="valid-secret123")
             closing.commit()
         with Session(account_database) as late:
             with pytest.raises(ResourceNotFoundException):
@@ -453,7 +453,7 @@ def test_http_admission_closes_session_without_waiting_for_physical_cleanup(
         try:
             with TestClient(app) as client:
                 response = client.request(
-                    "DELETE", "/api/v1/me", json={"current_password": "secret123"}
+                    "DELETE", "/api/v1/me", json={"current_password": "valid-secret123"}
                 )
         finally:
             app.dependency_overrides.pop(get_db, None)
@@ -531,7 +531,7 @@ def test_delivery_recovery_is_bounded_and_attempt_exhaustion_stays_visible(
             session_service=SessionService(
                 config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
             )
-        ).request_deletion(db, 2, current_password="secret123")
+        ).request_deletion(db, 2, current_password="valid-secret123")
         db.commit()
         assert len(deliveries().account_deletion.recover_and_list_due(db)) == 1
         lease = deliveries().account_deletion.claim(db, first)
@@ -620,9 +620,9 @@ def test_real_access_cookie_is_rejected_immediately_and_missed_dispatch_is_disco
 
     with Session(account_database) as db:
         db.get(User, 1).email = "closed@example.com"
-        access, _, _ = SessionService(
+        access, _ = SessionService(
             config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
-        ).create_token_pair(db, 1)
+        ).create_session(db, 1)
         db.commit()
 
     def database():
@@ -644,7 +644,7 @@ def test_real_access_cookie_is_rejected_immediately_and_missed_dispatch_is_disco
             result = client.request(
                 "DELETE",
                 "/api/v1/me",
-                json={"current_password": "secret123"},
+                json={"current_password": "valid-secret123"},
                 headers={CSRF_HEADER_NAME: "csrf-test"},
             )
             assert result.status_code == 202, result.text

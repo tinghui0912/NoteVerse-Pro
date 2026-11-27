@@ -13,7 +13,6 @@ import json
 import os
 import re
 from copy import deepcopy
-from http.cookies import SimpleCookie
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -43,7 +42,7 @@ def test_identity_projections_match_the_canonical_browser_protocol():
     identity, _ = sources()
     for key, name in generator.EXPORTS.items():
         assert getattr(protocol, name) == identity[key]
-    assert generator.generate(ROOT, check=True) == 0
+    assert generator.generate(ROOT, check=True, target="backend") == 0
     for model in (CustomerSessionSecuritySettings, ServiceIdentitySettings):
         assert set(model.model_fields).isdisjoint(generator.EXPORTS.values())
 
@@ -55,7 +54,7 @@ def test_customer_composition_uses_the_generated_protocol():
     assert app.openapi_url == f"{protocol.CUSTOMER_API_PREFIX}/openapi.json"
     csrf = _csrf_settings(get_context().settings)
     assert csrf.api_prefix == protocol.CUSTOMER_API_PREFIX
-    assert csrf.session_cookie_names == (protocol.AUTH_COOKIE_NAME, protocol.REFRESH_COOKIE_NAME)
+    assert csrf.session_cookie_names == (protocol.AUTH_COOKIE_NAME,)
     assert csrf.csrf_cookie_name == protocol.CSRF_COOKIE_NAME
     assert csrf.csrf_header_name == protocol.CSRF_HEADER_NAME
     _, committed = sources()
@@ -233,69 +232,3 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
         assert response.content == (b": connected\n\n" if owner is None else b"native bytes")
     if owner:
         getattr(service, method).assert_called_once()
-
-
-def test_login_refresh_logout_use_canonical_customer_cookie_identity():
-    from app.platform.db.dependencies import get_db
-    from app.runtime.customer_api.main import create_app
-    from app.runtime.customer_api.auth_services import get_auth_service, get_session_service
-
-    app = create_app()
-    from app.modules.auth.service import LoginResult
-    from app.modules.account.schemas import ProfileUserRead
-
-    principal = ProfileUserRead(id=1, email="user@example.com", display_name="User", is_active=True)
-    auth = SimpleNamespace(
-        login=Mock(return_value=LoginResult("access-one", "refresh-one", principal))
-    )
-    sessions = SimpleNamespace(
-        refresh_session=Mock(return_value=("access-two", "refresh-two")),
-        revoke_refresh_token=Mock(),
-    )
-
-    def database():
-        yield object()
-
-    app.dependency_overrides[get_db] = database
-    app.dependency_overrides[get_auth_service] = lambda: auth
-    app.dependency_overrides[get_session_service] = lambda: sessions
-    expected = {protocol.AUTH_COOKIE_NAME, protocol.REFRESH_COOKIE_NAME, protocol.CSRF_COOKIE_NAME}
-
-    def cookies(response):
-        result = SimpleCookie()
-        for header in response.headers.get_list("set-cookie"):
-            result.load(header)
-        return result
-
-    with TestClient(app, base_url="https://testserver") as client:
-        login = client.post(
-            f"{protocol.CUSTOMER_API_PREFIX}/auth/login",
-            data={"username": "user@example.com", "password": "secret"},
-        )
-        assert login.status_code == 200
-        assert login.json() == principal.model_dump(mode="json")
-        assert set(cookies(login)) == expected
-        csrf_before = client.cookies[protocol.CSRF_COOKIE_NAME]
-        assert cookies(login)[protocol.AUTH_COOKIE_NAME]["httponly"]
-        assert cookies(login)[protocol.REFRESH_COOKIE_NAME]["httponly"]
-        assert not cookies(login)[protocol.CSRF_COOKIE_NAME]["httponly"]
-        refresh = client.post(f"{protocol.CUSTOMER_API_PREFIX}/auth/refresh")
-        assert refresh.status_code == 204
-        assert refresh.content == b""
-        assert set(cookies(refresh)) == expected
-        assert client.cookies[protocol.AUTH_COOKIE_NAME] == "access-two"
-        assert client.cookies[protocol.REFRESH_COOKIE_NAME] == "refresh-two"
-        assert client.cookies[protocol.CSRF_COOKIE_NAME] != csrf_before
-        assert sessions.refresh_session.call_args.args[1] == "refresh-one"
-        rejected = client.post(f"{protocol.CUSTOMER_API_PREFIX}/auth/logout")
-        assert rejected.status_code == 403
-        logout = client.post(
-            f"{protocol.CUSTOMER_API_PREFIX}/auth/logout",
-            headers={protocol.CSRF_HEADER_NAME: client.cookies[protocol.CSRF_COOKIE_NAME]},
-        )
-        assert logout.status_code == 204
-        assert logout.content == b""
-        assert set(cookies(logout)) == expected
-        assert all(cookies(logout)[name]["max-age"] == "0" for name in expected)
-        assert all(client.cookies.get(name) is None for name in expected)
-        assert sessions.revoke_refresh_token.call_args.args[1] == "refresh-two"

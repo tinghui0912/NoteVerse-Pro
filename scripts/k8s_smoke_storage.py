@@ -15,7 +15,7 @@ import mimetypes
 import subprocess
 import sys
 from pathlib import Path
-from urllib import error, parse, request
+from urllib import error, request
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
@@ -65,7 +65,7 @@ def kubectl_exec_python(namespace: str, deployment: str, code: str) -> None:
 def ensure_user(namespace: str, deployment: str, email: str, password: str) -> None:
     code = f"""
 from sqlalchemy import select
-from app.core.security import get_password_hash
+from app.platform.security.passwords import hash_password
 from app.runtime.cli.settings import DatabaseCommandSettings
 from app.platform.db.engine import build_engine, build_session_factory
 sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
@@ -81,7 +81,7 @@ with sessions() as db:
         user = User(
             email=email,
             display_name="K8s Smoke",
-            password_hash=get_password_hash(password),
+            password_hash=hash_password(password),
             is_active=True,
             email_verified_at=now,
             password_changed_at=now,
@@ -90,7 +90,7 @@ with sessions() as db:
         )
         db.add(user)
     else:
-        user.password_hash = get_password_hash(password)
+        user.password_hash = hash_password(password)
         user.is_active = True
         user.email_verified_at = user.email_verified_at or utc_now()
     db.commit()
@@ -119,11 +119,6 @@ def request_json(
     except error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"{method} {url} failed with HTTP {exc.code}: {body}") from exc
-
-
-def encode_form(data: dict[str, str]) -> tuple[bytes, dict[str, str]]:
-    body = parse.urlencode(data).encode("utf-8")
-    return body, {"Content-Type": "application/x-www-form-urlencoded"}
 
 
 def encode_multipart_file(field_name: str, file_path: Path) -> tuple[bytes, dict[str, str]]:
@@ -161,7 +156,8 @@ def main() -> int:
 
     cookie_jar = http.cookiejar.CookieJar()
     opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
-    login_body, login_headers = encode_form({"username": args.email, "password": args.password})
+    login_body = json.dumps({"email": args.email, "password": args.password}).encode("utf-8")
+    login_headers = {"Content-Type": "application/json"}
     request_json(
         opener,
         f"{args.api_base}/auth/login",

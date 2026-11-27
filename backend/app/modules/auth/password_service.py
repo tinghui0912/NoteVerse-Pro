@@ -1,10 +1,13 @@
 """Password management for authenticated users."""
 
+from app.modules.auth.session_states import SessionRevocationReason as Reason
+
+
 from app.platform.config.service_identity import ServiceIdentitySettings
 
 from sqlalchemy.orm import Session
 
-from app.core import security
+from app.platform.security import passwords as security
 from app.core.exceptions import ValidationException
 from app.db.model_utils import require_persisted_id
 from app.db.models.user import User
@@ -33,8 +36,7 @@ class PasswordService:
         *,
         user_agent: str | None = None,
         ip_address: str | None = None,
-        device_id: str | None = None,
-    ) -> tuple[str, str]:
+    ) -> str:
         user = lock_credential_user(db, require_persisted_id(user.id, entity="user"))
         if not security.verify_password(request.current_password, user.password_hash):
             raise ValidationException(
@@ -43,22 +45,22 @@ class PasswordService:
             )
 
         changed_at = utc_now()
-        user.password_hash = security.get_password_hash(request.new_password)
+        user.password_hash = security.hash_password(request.new_password)
         user.password_changed_at = changed_at
 
         user_id = require_persisted_id(user.id, entity="user")
-        self.session_service.revoke_user_refresh_tokens(
+        self.session_service.revoke_user_sessions(
             db,
             user_id,
+            reason=Reason.PASSWORD_CHANGED,
             revoked_at=changed_at,
             commit=False,
         )
-        access_token, refresh_token, _ = self.session_service.create_token_pair(
+        token, _ = self.session_service.create_session(
             db,
             user_id,
             user_agent=user_agent,
             ip_address=ip_address,
-            device_id=device_id,
         )
 
         email_content = build_password_changed_email(
@@ -77,4 +79,4 @@ class PasswordService:
             html_body=email_content.html_body,
         )
         db.commit()
-        return access_token, refresh_token
+        return token

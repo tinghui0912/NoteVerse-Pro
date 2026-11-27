@@ -1,26 +1,11 @@
-"""Deployment policy for Customer authentication sessions."""
+"""Consumer session lifetime and cookie transport policy."""
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field
 
 
 class CustomerSessionSecuritySettings(BaseModel):
-    """Customer session lifetimes and secure-cookie deployment policy."""
-
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     AUTH_COOKIE_SECURE: bool
-    AUTH_COOKIE_SAMESITE: str
-
-    @field_validator("ACCESS_TOKEN_EXPIRE_MINUTES", "REFRESH_TOKEN_EXPIRE_DAYS")
-    @classmethod
-    def validate_positive_session_lifetime(cls, value: int) -> int:
-        if value <= 0:
-            raise ValueError("customer session lifetimes must be positive integers")
-        return value
-
-    @field_validator("AUTH_COOKIE_SAMESITE")
-    @classmethod
-    def validate_cookie_samesite(cls, value: str) -> str:
-        if value not in {"lax", "strict", "none"}:
-            raise ValueError("AUTH_COOKIE_SAMESITE must be one of: lax, strict, none")
-        return value
+    SESSION_IDLE_DAYS: int = Field(default=14, gt=0, le=14)
+    SESSION_ABSOLUTE_DAYS: int = Field(default=30, gt=0, le=30)
+    SESSION_TOUCH_INTERVAL_SECONDS: int = Field(default=600, ge=300, le=900)
+    SESSION_CACHE_TTL_SECONDS: int = Field(default=120, ge=60, le=180)

@@ -17,9 +17,7 @@ services:
     environment:
       PYTHONPATH: /repo/backend
       NOTEVERSE_REPO_ROOT: /repo
-      SECRET_KEY: quality-only-customer-signing-key-at-least-32-characters
       AUTH_COOKIE_SECURE: "false"
-      AUTH_COOKIE_SAMESITE: lax
       FRONTEND_BASE_URL: http://localhost:3000
       BACKEND_CORS_ORIGINS: '[]'
       TRUSTED_PROXY_CIDRS: '[]'

@@ -93,7 +93,7 @@ def assert_denied(engine, statement):
     [
         ("nv_worker", "SELECT password_hash FROM users"),
         ("nv_worker", "SELECT * FROM users"),
-        ("nv_worker", "SELECT * FROM refresh_tokens"),
+        ("nv_worker", "SELECT * FROM user_sessions"),
         ("nv_worker", "SELECT * FROM auth_tokens"),
         ("nv_worker", "SELECT * FROM pending_registrations"),
         ("nv_worker", "SELECT * FROM email_change_requests"),
@@ -110,19 +110,19 @@ def assert_denied(engine, statement):
         ("nv_customer_api", "SELECT * FROM ops_audit_events"),
         ("nv_control_plane", "SELECT password_hash FROM users"),
         ("nv_control_plane", "SELECT * FROM users"),
-        ("nv_control_plane", "SELECT * FROM refresh_tokens"),
+        ("nv_control_plane", "SELECT * FROM user_sessions"),
         ("nv_control_plane", "SELECT * FROM auth_tokens"),
         ("nv_control_plane", "UPDATE ops_audit_events SET reason='changed'"),
         ("nv_control_plane", "DELETE FROM ops_audit_events"),
         ("nv_beat", "SELECT * FROM users"),
-        ("nv_beat", "SELECT * FROM refresh_tokens"),
+        ("nv_beat", "SELECT * FROM user_sessions"),
         ("nv_beat", "SELECT * FROM operators"),
         ("nv_beat", "SELECT * FROM operator_sessions"),
         ("nv_beat", "SELECT * FROM scores"),
         ("nv_beat", "SELECT * FROM score_revisions"),
         ("nv_beat", "SELECT * FROM mail_outbox"),
         ("nv_observability", "SELECT * FROM users"),
-        ("nv_observability", "SELECT * FROM refresh_tokens"),
+        ("nv_observability", "SELECT * FROM user_sessions"),
         ("nv_observability", "SELECT * FROM operator_sessions"),
         ("nv_observability", "SELECT text_body FROM mail_outbox"),
         ("nv_observability", "SELECT token_hash FROM auth_tokens"),
@@ -134,6 +134,35 @@ def assert_denied(engine, statement):
 )
 def test_cross_boundary_access_is_denied(roles, role, statement):
     assert_denied(roles[0][role], statement)
+
+
+@pytest.mark.parametrize("role", ["nv_worker", "nv_control_plane", "nv_beat", "nv_observability"])
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "INSERT INTO user_sessions DEFAULT VALUES",
+        "UPDATE user_sessions SET revoked_at=now()",
+        "DELETE FROM user_sessions",
+    ],
+)
+def test_session_mutations_are_exclusive_to_customer_api(roles, role, statement):
+    assert_denied(roles[0][role], statement)
+
+
+def test_customer_can_issue_authenticate_and_revoke_opaque_session(roles):
+    from app.modules.auth.sessions_service import SessionService
+    from app.modules.auth.session_states import SessionRevocationReason
+    from app.platform.config.application import CustomerAuthConfig
+    from app.core.exceptions import AuthenticationException
+
+    service = SessionService(config=CustomerAuthConfig(AUTH_COOKIE_SECURE=False))
+    with Session(roles[0]["nv_customer_api"]) as db:
+        token, row = service.create_session(db, 1)
+        db.commit()
+        assert service.authenticate(db, token)[1] == row.id
+        service.revoke_user_sessions(db, 1, reason=SessionRevocationReason.OTHER_SESSIONS)
+        with pytest.raises(AuthenticationException):
+            service.authenticate(db, token)
 
 
 @pytest.mark.parametrize("role", DATABASE_ROLES[1:])
@@ -182,6 +211,9 @@ def test_beat_can_upsert_only_its_leader_state(roles):
 def test_authentication_mail_returns_only_liveness_and_closed_cleanup_is_bounded(roles):
     engines, _ = roles
     now = utc_now()
+    from app.db.models import UserSession
+    from app.modules.auth.session_states import SessionRevocationReason
+
     with Session(engines["nv_customer_api"]) as db:
         db.add(
             User(
@@ -214,6 +246,18 @@ def test_authentication_mail_returns_only_liveness_and_closed_cleanup_is_bounded
             started_at=now,
         )
         db.add(operation)
+        db.add(
+            UserSession(
+                user_id=2,
+                token_hash="e" * 64,
+                created_at=now,
+                last_seen_at=now,
+                idle_expires_at=now + timedelta(days=14),
+                absolute_expires_at=now + timedelta(days=30),
+                revoked_at=now,
+                revoked_reason=SessionRevocationReason.ACCOUNT_CLOSED,
+            )
+        )
         db.commit()
     with Session(engines["nv_worker"]) as db:
         assert not authentication_mail_source_active(db, MailSourceKind.AUTH_TOKEN, 1)
@@ -227,6 +271,17 @@ def test_authentication_mail_returns_only_liveness_and_closed_cleanup_is_bounded
             == 1
         )
     assert_denied(engines["nv_worker"], "SELECT nv_erase_closed_authentication_history(1,1)")
+    with Session(engines["nv_worker"]) as db:
+        while db.scalar(sa.text("SELECT nv_erase_closed_authentication_history(2,1)")):
+            db.commit()
+        db.commit()
+    with Session(engines["nv_customer_api"]) as db:
+        assert (
+            db.scalar(
+                sa.select(sa.func.count()).select_from(UserSession).where(UserSession.user_id == 2)
+            )
+            == 0
+        )
 
 
 def test_new_tables_do_not_inherit_runtime_privileges(roles):
@@ -335,7 +390,7 @@ def test_control_plane_import_recovery_executes_domain_reset(roles):
 
 
 def test_worker_executes_account_erasure_without_credentials_table_access(roles):
-    from app.core.security import get_password_hash
+    from app.platform.security.passwords import hash_password
     from app.modules.account.deletion_service import AccountDeletionService
     from app.modules.auth.sessions_service import SessionService
     from app.platform.config.application import CustomerAuthConfig
@@ -351,7 +406,7 @@ def test_worker_executes_account_erasure_without_credentials_table_access(roles)
             User(
                 id=40,
                 email="closure-role@example.test",
-                password_hash=get_password_hash("secret123"),
+                password_hash=hash_password("valid-secret123"),
             )
         )
         db.flush()
@@ -361,12 +416,10 @@ def test_worker_executes_account_erasure_without_credentials_table_access(roles)
         identity = AccountDeletionService(
             SessionService(
                 config=CustomerAuthConfig(
-                    SECRET_KEY="test-role-key-32-characters-long-enough",
                     AUTH_COOKIE_SECURE=False,
-                    AUTH_COOKIE_SAMESITE="lax",
                 )
             )
-        ).request_deletion(db, 40, current_password="secret123")
+        ).request_deletion(db, 40, current_password="valid-secret123")
         db.commit()
     delivery = deliveries().account_deletion
     executor = AccountDeletionExecutor(

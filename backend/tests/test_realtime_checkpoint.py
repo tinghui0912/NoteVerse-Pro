@@ -12,6 +12,7 @@ from app.runtime.customer_api.routers.realtime import router
 from app.modules.realtime.wakeup import RealtimeWakeupHub
 from tests.test_realtime_changes import realtime_session as realtime_session, change
 from app.runtime.customer_api.context import get_context
+from tests.support.authentication import issue_session, session_service
 
 
 def payload(message):
@@ -21,6 +22,7 @@ def payload(message):
 def request(hub, application):
     return SimpleNamespace(
         app=application,
+        cookies={"nv_session": application.state.session_token},
         is_disconnected=AsyncMock(return_value=False),
         state=SimpleNamespace(realtime_wakeup_hub=hub),
     )
@@ -38,7 +40,12 @@ def streams(realtime_session, monkeypatch):
         }
     )
     application = SimpleNamespace(
-        state=SimpleNamespace(settings=config, session_factory=lambda: Session(bind))
+        state=SimpleNamespace(
+            settings=config,
+            session_factory=lambda: Session(bind),
+            sessions_service=session_service(),
+            session_token=issue_session(realtime_session, 7),
+        )
     )
     return realtime_session, hub, application
 

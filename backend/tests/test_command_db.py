@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from app.platform.db.dependencies import get_command_db
 from app.platform.db.dependencies import get_db
 from app.runtime.customer_api.deps import get_current_user
-from app.core import security
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
 from app.db.models import User
 from app.runtime.customer_api.context import get_context
@@ -32,6 +31,8 @@ def test_command_uses_one_authenticated_session_and_finishes_before_response(mon
     app = FastAPI()
     app.state.settings = get_context().settings
     app.state.session_factory = factory
+    app.state.sessions_service = Mock()
+    app.state.sessions_service.authenticate.return_value = (user, __import__("uuid").uuid4())
 
     @app.post("/command", response_model=dict[str, int])
     def command(
@@ -46,12 +47,12 @@ def test_command_uses_one_authenticated_session_and_finishes_before_response(mon
     with TestClient(app, raise_server_exceptions=False) as client:
         client.cookies.set(
             AUTH_COOKIE_NAME,
-            security.create_access_token(subject="1", secret_key=get_context().settings.SECRET_KEY),
+            "opaque-session",
         )
         response = client.post("/command")
     assert response.status_code == (200 if outcome == "success" else 500)
     assert factory.call_count == 1
-    assert db.execute.call_count == 1  # Authentication used the same Session.
+    app.state.sessions_service.authenticate.assert_called_once_with(db, "opaque-session")
     assert db.commit.call_count == (1 if outcome in {"success", "commit_error"} else 0)
     assert db.rollback.call_count >= (0 if outcome == "success" else 1)
     if outcome == "success":

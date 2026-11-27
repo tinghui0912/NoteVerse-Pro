@@ -41,7 +41,6 @@ DEPLOYMENTS = {
         "noteverse-customer-api-secret",
         (
             "DATABASE_URL",
-            "SECRET_KEY",
             "REDIS_URL",
             "CELERY_BROKER_URL",
             "CELERY_RESULT_BACKEND",

@@ -1,3 +1,4 @@
+from .user_session import UserSession
 from .take_processing_outbox import TakeProcessingOutbox
 from .upload_session import UploadSession
 from .practice_activity import PracticeActivity
@@ -6,7 +7,7 @@ from .import_dispatch import ImportDispatch, ImportDispatchStatus
 from .stored_object import StoredObject
 from .performance_take_manifest import PerformanceTakeManifest
 from .user import User
-from .auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
+from .auth import AuthToken, EmailChangeRequest, PendingRegistration
 from .upload import Upload
 from .notification import Notification, NotificationKind
 from .ops_audit import OpsAuditEvent
@@ -58,6 +59,7 @@ from .performance_take_upload_reservation import (
 from .stored_object_retirement import StoredObjectRetirement
 
 __all__ = [
+    "UserSession",
     "TakeProcessingOutbox",
     "UploadSession",
     "UploadCreationRequest",
@@ -67,7 +69,6 @@ __all__ = [
     "PracticeActivity",
     "GuestPreviewCredential",
     "User",
-    "RefreshToken",
     "AuthToken",
     "PendingRegistration",
     "EmailChangeRequest",

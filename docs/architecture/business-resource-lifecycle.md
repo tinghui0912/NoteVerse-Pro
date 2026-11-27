@@ -62,7 +62,7 @@ deactivation must not erase the rows that still own that cleanup.
 ## Account deletion
 
 `DELETE /me` verifies the current password and returns 202 with an operation identity.
-Its request transaction tombstones User, disables authentication, invalidates AuthToken and EmailChangeRequest credentials, revokes refresh tokens
+Its request transaction tombstones User, disables authentication, invalidates AuthToken and EmailChangeRequest credentials, revokes opaque sessions
 and persists AccountDeletionOperation. Owned Scores cease active authority through the
 canonical active-parent predicate. Request admission does not enumerate the graph.
 
@@ -135,7 +135,7 @@ covers all nine semantic StoredObject FKs, including both shared Bundle represen
 | `practice_activities.user_id` | practice | owned | Bounded Practice activity erasure | No direct counted allocation | Removed with its owned lifecycle |
 | `realtime_changes.recipient_user_id` | realtime | owned | Bounded recipient replay erasure | No direct counted allocation | Removed with its owned lifecycle |
 | `realtime_stream_state.recipient_user_id` | realtime | owned | CASCADE private replay cursor | No direct counted allocation | Removed with its owned lifecycle |
-| `refresh_tokens.user_id` | auth | owned | revoke immediately; bounded credential erasure | No direct counted allocation | Removed with its owned lifecycle |
+| `user_sessions.user_id` | auth | owned | revoke immediately; bounded credential erasure | No direct counted allocation | Removed with its owned lifecycle |
 | `score_invites.created_by_user_id` | collaboration | history | Close issuer pending invites, scrub contact and SET NULL creator; preserve foreign Score history | No direct counted allocation | Anonymized business outcome/time follows owning Score lifecycle |
 | `score_library_folders.user_id` | library | owned | erase_user_state | No direct counted allocation | Removed with its owned lifecycle |
 | `score_library_organizations.user_id` | library | owned | erase_user_state without deleting foreign Scores | No direct counted allocation | Removed with its owned lifecycle |
@@ -204,7 +204,7 @@ committed note edit and erasure to verify that no new attribution is overwritten
 Authentication credential mutation serializes User → AuthToken/EmailChangeRequest →
 MailOutbox. Credential commands and Account Closure use User NO KEY UPDATE locks,
 which serialize with one another and remain compatible with resource KEY SHARE admission. Closure invalidates
-all unused AuthTokens and unconsumed email changes, revokes refresh tokens and cancels
+all unused AuthTokens and unconsumed email changes, revokes opaque sessions and cancels
 its source-owned mail in the same transaction as the tombstone and erasure operation.
 Password reset discovers the token without mutation, locks and refreshes the User,
 requires active/not-deleted state, then locks and rechecks the token. Token issuance,
@@ -225,7 +225,7 @@ application cleanup never discovers ownership by reflection or recipient matchin
 | Password reset / email-change / verification URLs | Auth owns credentials; Mail holds a temporary delivery copy | Token consumption/replacement/closure or verification cancels the exact source delivery. Worker validates domain source before claim and before provider handoff. TTL also bounds validity. | No URL is copied into Ops or a new deletion ledger. Credential history follows its domain cleanup; bodies follow Mail retention. |
 | `EmailChangeRequest.new_email`, token hash, IP/User-Agent | Authenticated requester, not the owner of the proposed address | Closure invalidates immediately, cancels source mail, and bounded Account security erasure removes history. Completed old-address notices belong to ACCOUNT source identity and are scrubbed on closure. | Removed before User erasure completes. A matching third-party address never grants ownership of that third party's data. |
 | `PendingRegistration.email`, display name, password/token hashes, IP/User-Agent | Independent unverified applicant | Verification consumes and removes the row and cancels its source mail; re-registration replaces the credential and cancels previous delivery. TTL makes expired tokens unusable. It is not assigned to an existing User merely by email equality. | Successful verification removes it. Expired pending-registration row retention has no configured purge policy in this repository; a product/deployment retention decision is still required. |
-| AuthToken/RefreshToken hashes and client metadata | Auth; explicit User ownership | Immediate credential invalidation/revocation, then bounded erasure | Removed before User deletion; never restored by mail retry. |
+| AuthToken/UserSession hashes and client metadata | Auth; explicit User ownership | Immediate credential invalidation/revocation, then bounded erasure | Removed before User deletion; never restored by mail retry. |
 | Foreign-owner content and minimal actor snapshots | Owning Score/Notification domain | Departing actor attribution is anonymized where nullable; content is not deleted merely because it mentions a person. Numeric historical actor snapshots reveal no email/name. | Surviving resource lifecycle and existing Notification retention apply; no blanket legal-retention claim. |
 | Ops operator identity and audit reason | Platform operator / Ops | Operator identity is separate from customer User. Erasure audit uses stable internal IDs; customer mail content and credential URLs are not operation payloads. | Existing operational policy applies; legal retention periods are not configured here. |
 

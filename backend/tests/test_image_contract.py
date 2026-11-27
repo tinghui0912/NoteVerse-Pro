@@ -139,16 +139,16 @@ def test_programmatic_unknown_role_is_rejected():
 
 
 def test_cli_reports_failure_and_restores_ci_environment(monkeypatch, capsys):
-    previous = os.environ.get("SECRET_KEY")
+    previous = os.environ.get("AUTH_COOKIE_SECURE")
 
     def fail(_):
-        assert os.environ["SECRET_KEY"] == "image-contract-only-not-a-production-secret"
+        assert os.environ["AUTH_COOKIE_SECURE"] == "false"
         raise ImportError("missing runtime package")
 
     monkeypatch.setattr(contract, "run_contract", fail)
     assert contract.main(["--role", "worker"]) == 1
     assert "missing runtime package" in capsys.readouterr().err
-    assert os.environ.get("SECRET_KEY") == previous
+    assert os.environ.get("AUTH_COOKIE_SECURE") == previous
 
 
 def test_dependency_check_uses_approved_uv_against_current_interpreter(imports):

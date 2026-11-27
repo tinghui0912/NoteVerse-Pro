@@ -19,7 +19,7 @@ import os
 
 from sqlmodel import select
 
-from app.core.security import get_password_hash
+from app.platform.security.passwords import hash_password
 from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User
 from app.db.model_utils import require_persisted_id
 from app.modules.revisions.domain import RevisionOrigin
@@ -61,7 +61,7 @@ def seed_user() -> None:
             user = User(
                 email=INTEGRATION_EMAIL,
                 display_name="Integration User",
-                password_hash=get_password_hash(password),
+                password_hash=hash_password(password),
                 is_active=True,
             )
             session.add(user)

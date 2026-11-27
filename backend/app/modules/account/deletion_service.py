@@ -1,7 +1,10 @@
 """Authenticated permanent account-deletion admission, in the caller transaction."""
 
+from app.modules.auth.session_states import SessionRevocationReason as Reason
+
+
 from sqlalchemy.orm import Session
-from app.core import security
+from app.platform.security import passwords as security
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
@@ -39,7 +42,9 @@ class AccountDeletionService:
         invalidate_user_credentials(db, user_id, now=now)
         cancel_user_authentication_mail(db, user_id)
         close_account_collaboration_data(db, user_id=user_id, email=user.email, closed_at=now)
-        self.sessions.revoke_user_refresh_tokens(db, user_id, revoked_at=now, commit=False)
+        self.sessions.revoke_user_sessions(
+            db, user_id, reason=Reason.ACCOUNT_CLOSED, revoked_at=now, commit=False
+        )
         operation = AccountDeletionOperation(
             user_id=user_id,
             user_id_snapshot=user_id,

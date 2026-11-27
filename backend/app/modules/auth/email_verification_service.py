@@ -1,16 +1,17 @@
 """Registration and email verification workflow."""
 
+from app.platform.security.opaque_tokens import generate_token, token_digest
+
+
 from app.platform.config.application import AccountEmailConfig
 
-import hashlib
-import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
 
 from sqlmodel import select
 from sqlalchemy.orm import Session
 
-from app.core import security
+from app.platform.security import passwords as security
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.models.auth import PendingRegistration
 from app.db.models.user import User
@@ -35,14 +36,14 @@ class EmailVerificationService:
         self.provision_storage = provision_storage
 
     def _hash_token(self, token: str) -> str:
-        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+        return token_digest(token)
 
     def _new_token(self) -> str:
-        return secrets.token_urlsafe(48)
+        return generate_token()
 
     def _frontend_url(self, path: str, token: str) -> str:
         base_url = self.config.FRONTEND_BASE_URL.rstrip("/")
-        return f"{base_url}{path}?{urlencode({'token': token})}"
+        return f"{base_url}{path}#{urlencode({'token': token})}"
 
     def register(
         self,
@@ -64,7 +65,7 @@ class EmailVerificationService:
         ttl_seconds = self.config.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
         token = self._new_token()
         now = utc_now()
-        password_hash = security.get_password_hash(request.password)
+        password_hash = security.hash_password(request.password)
         pending_result = db.execute(
             select(PendingRegistration)
             .where(PendingRegistration.email == email)

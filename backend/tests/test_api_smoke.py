@@ -8,7 +8,6 @@ from app.composition import storage_resources as _resource_wiring
 
 from app.core.generated.customer_browser_protocol import (
     AUTH_COOKIE_NAME,
-    REFRESH_COOKIE_NAME,
     CSRF_COOKIE_NAME,
     CSRF_HEADER_NAME,
 )
@@ -384,27 +383,24 @@ def test_cookie_authenticated_writes_require_csrf_header(client: TestClient) -> 
         client.cookies.delete(CSRF_COOKIE_NAME)
 
 
-def test_refresh_endpoint_is_csrf_exempt(client: TestClient) -> None:
-    client.cookies.set(REFRESH_COOKIE_NAME, "invalid-refresh-token")
-
-    try:
-        response = client.post("/api/v1/auth/refresh")
-        assert response.status_code == 401
-    finally:
-        client.cookies.delete(REFRESH_COOKIE_NAME)
-
-
 def test_cookie_authenticated_writes_allow_loopback_dev_origin(client: TestClient) -> None:
-    client.cookies.set(REFRESH_COOKIE_NAME, "invalid-refresh-token")
+    client.cookies.set(AUTH_COOKIE_NAME, "invalid-session")
+    client.cookies.set(CSRF_COOKIE_NAME, "csrf-token")
 
     try:
-        response = client.post(
-            "/api/v1/auth/refresh",
-            headers={"host": "localhost:8000", "origin": "http://localhost:3000"},
+        response = client.put(
+            "/api/v1/me/profile",
+            json={"display_name": "New Name"},
+            headers={
+                "host": "localhost:8000",
+                "origin": "http://localhost:3000",
+                CSRF_HEADER_NAME: "csrf-token",
+            },
         )
         assert response.status_code == 401
     finally:
-        client.cookies.delete(REFRESH_COOKIE_NAME)
+        client.cookies.delete(AUTH_COOKIE_NAME)
+        client.cookies.delete(CSRF_COOKIE_NAME)
 
 
 def test_cors_origin_header_is_emitted_for_configured_frontend(client: TestClient) -> None:
@@ -419,11 +415,11 @@ def test_cors_origin_header_is_emitted_for_configured_frontend(client: TestClien
 
 
 def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient) -> None:
-    client.cookies.set(REFRESH_COOKIE_NAME, "invalid-refresh-token")
+    client.cookies.set(AUTH_COOKIE_NAME, "invalid-session")
 
     try:
         response = client.post(
-            "/api/v1/auth/refresh",
+            "/api/v1/auth/logout",
             headers={"origin": "https://evil.example", "X-Request-ID": "origin-contract"},
         )
         assert response.status_code == 403
@@ -432,7 +428,7 @@ def test_cookie_authenticated_writes_reject_cross_site_origin(client: TestClient
         assert payload["request_id"] == "origin-contract"
         assert response.headers["X-Request-ID"] == "origin-contract"
     finally:
-        client.cookies.delete(REFRESH_COOKIE_NAME)
+        client.cookies.delete(AUTH_COOKIE_NAME)
 
 
 def test_origin_normalization_collapses_default_ports() -> None:
@@ -449,7 +445,7 @@ def test_cookie_authenticated_writes_allow_configured_origin_with_default_port(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(settings, "BACKEND_CORS_ORIGINS", ["https://staging.johnabc.ccwu.cc"])
-    client.cookies.set(REFRESH_COOKIE_NAME, "invalid-refresh-token")
+    client.cookies.set(AUTH_COOKIE_NAME, "invalid-session")
     client.cookies.set(CSRF_COOKIE_NAME, "csrf-token")
 
     try:
@@ -463,7 +459,7 @@ def test_cookie_authenticated_writes_allow_configured_origin_with_default_port(
         )
         assert response.status_code == 401
     finally:
-        client.cookies.delete(REFRESH_COOKIE_NAME)
+        client.cookies.delete(AUTH_COOKIE_NAME)
         client.cookies.delete(CSRF_COOKIE_NAME)
 
 

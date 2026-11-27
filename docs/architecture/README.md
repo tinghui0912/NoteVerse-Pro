@@ -64,5 +64,7 @@ accepted current decisions and their rationale.
 
 ## Security Boundaries
 
+- [Consumer Sessions](consumer-sessions.md)
+
 - [Control-Plane Identity](../security/control-plane-identity-contract.md)
 - [Score Access](../security/score-access-contract.md)

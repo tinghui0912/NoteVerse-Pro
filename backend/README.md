@@ -18,9 +18,9 @@ profile management, and Celery-based background workflows.
 Canonical structure:
 
 - `app/modules/*` for feature code
-- `app/platform/*` for configuration values and database factories
+- `app/platform/*` for configuration values, database factories and security primitives
 - `app/runtime/*` for isolated process composition and HTTP adapters
-- `app/core/*` for shared HTTP, logging and security primitives
+- `app/core/*` for shared HTTP and logging infrastructure
 - `app/db/*` for ORM models and persistence contracts
 - `app/shared/*` for shared helpers and enums
 - `app/worker/*` for task registration and execution handlers
@@ -30,6 +30,10 @@ Canonical structure:
 `scripts/` owns runtime and operational tools; `tests/` owns core backend behavior
 tests. [Research](research/README.md) owns experiments, qualification, datasets and
 scientific tests, independently of the core quality image.
+
+Customer authentication uses PostgreSQL-backed opaque sessions, Redis identity
+hints and Argon2id passwords. The [Consumer Session Contract](../docs/architecture/consumer-sessions.md)
+defines JSON endpoints, host-only cookies, device revocation and email fragments.
 
 Application modules:
 

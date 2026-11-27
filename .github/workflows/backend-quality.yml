@@ -104,9 +104,7 @@ jobs:
     env:
       QUALITY_IMAGE: noteverse-backend-quality:ci
       QUALITY_ENV_FILE: /tmp/backend-quality.env
-      SECRET_KEY: ci-test-secret-key-that-is-long-enough
       AUTH_COOKIE_SECURE: "false"
-      AUTH_COOKIE_SAMESITE: lax
       CONTROL_PLANE_COOKIE_SECURE: "false"
       CONTROL_PLANE_COOKIE_SAMESITE: lax
       CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
@@ -150,9 +148,7 @@ jobs:
       - name: Write backend quality environment
         run: |
           cat > "$QUALITY_ENV_FILE" <<EOF
-          SECRET_KEY=$SECRET_KEY
           AUTH_COOKIE_SECURE=$AUTH_COOKIE_SECURE
-          AUTH_COOKIE_SAMESITE=$AUTH_COOKIE_SAMESITE
           CONTROL_PLANE_COOKIE_SECURE=$CONTROL_PLANE_COOKIE_SECURE
           CONTROL_PLANE_COOKIE_SAMESITE=$CONTROL_PLANE_COOKIE_SAMESITE
           CONTROL_PLANE_SESSION_EXPIRE_MINUTES=$CONTROL_PLANE_SESSION_EXPIRE_MINUTES
@@ -179,7 +175,7 @@ jobs:
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
           python scripts/generate_realtime_contract.py --check &&
-          python scripts/generate_customer_browser_protocol.py --check &&
+          python scripts/generate_customer_browser_protocol.py --target backend --check &&
           python scripts/generate_control_plane_browser_protocol.py --check &&
           python scripts/generate_practice_acoustic_runtime.py --check &&
           python scripts/verify_practice_acoustic_implementation.py &&

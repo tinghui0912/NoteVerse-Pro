@@ -28,7 +28,6 @@ from app.shared.api_model import ApiModel
 
 BODYLESS_COMMANDS = {
     "authLogout",
-    "authRefresh",
     "authRegister",
     "authPasswordResetRequest",
     "authPasswordReset",
@@ -220,13 +219,11 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
-    password = SimpleNamespace(
-        change_current_user_password=Mock(return_value=("rotated-access", "rotated-refresh"))
-    )
+    password = SimpleNamespace(change_current_user_password=Mock(return_value="rotated-session"))
     sessions = SimpleNamespace(revoke_user_session=Mock(return_value=True))
     app.dependency_overrides[get_password_service] = lambda: password
     app.dependency_overrides[get_session_service] = lambda: sessions
-    expected = {protocol.AUTH_COOKIE_NAME, protocol.REFRESH_COOKIE_NAME, protocol.CSRF_COOKIE_NAME}
+    expected = {protocol.AUTH_COOKIE_NAME, protocol.CSRF_COOKIE_NAME}
 
     def cookies(response):
         result = SimpleCookie()
@@ -241,10 +238,9 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
         )
         assert changed.status_code == 204 and changed.content == b""
         assert set(cookies(changed)) == expected
-        assert client.cookies[protocol.AUTH_COOKIE_NAME] == "rotated-access"
-        assert client.cookies[protocol.REFRESH_COOKIE_NAME] == "rotated-refresh"
+        assert client.cookies[protocol.AUTH_COOKIE_NAME] == "rotated-session"
         revoked = client.delete(
-            "/api/v1/me/sessions/1",
+            "/api/v1/me/sessions/00000000-0000-0000-0000-000000000001",
             headers={protocol.CSRF_HEADER_NAME: client.cookies[protocol.CSRF_COOKIE_NAME]},
         )
         assert revoked.status_code == 204 and revoked.content == b""
