@@ -42,6 +42,9 @@ def create_app() -> HttpApplication:
     )
     from app.runtime.checks import RuntimeChecks
 
+    from app.modules.platform_operators.service import OperatorAuthenticationService
+
+    app.state.operator_authentication = OperatorAuthenticationService(control_settings)
     app.state.settings = settings
     app.state.runtime_checks = RuntimeChecks(
         context.engine, broker_url=settings.REDIS_URL, control=settings.to_security_settings()
@@ -86,7 +89,10 @@ def create_app() -> HttpApplication:
         ),
         csrf_settings=CookieCsrfSettings(
             api_prefix=CONTROL_PLANE_API_PREFIX,
-            session_cookie_names=(control_settings.auth_cookie_name,),
+            session_cookie_names=(
+                control_settings.auth_cookie_name,
+                control_settings.challenge_cookie_name,
+            ),
             csrf_cookie_name=control_settings.csrf_cookie_name,
             csrf_header_name=control_settings.csrf_header_name,
             exempt_operation=lambda operation: operation.endpoint is login_operator,

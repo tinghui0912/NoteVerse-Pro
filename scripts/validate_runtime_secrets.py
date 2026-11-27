@@ -15,6 +15,13 @@ def validate_values(runtime: str, values: dict[str, str]) -> None:
     contract = json.loads(CONTRACT.read_text())[runtime]
     if set(values) != set(contract["secret_keys"]):
         raise ValueError("Credential keys must exactly match the runtime contract")
+    if runtime == "control_plane":
+        try:
+            decoded = base64.b64decode(values["OPERATOR_TOTP_ENCRYPTION_KEY"], altchars=b"-_", validate=True)
+            if len(decoded) != 32:
+                raise ValueError("Invalid key length")
+        except (ValueError, KeyError):
+            raise ValueError("A valid operator TOTP encryption key is required") from None
     if contract["database_role"]:
         for key in ("DATABASE_URL", "SCHEDULER_LOCK_DATABASE_URL"):
             if key in values:

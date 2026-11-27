@@ -69,9 +69,8 @@ def test_runtime_import_needs_only_its_own_configuration(role, tmp_path):
     if role == "control_plane":
         env.update(
             REDIS_URL="redis://127.0.0.1:1/0",
+            OPERATOR_TOTP_ENCRYPTION_KEY="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
             CONTROL_PLANE_COOKIE_SECURE="true",
-            CONTROL_PLANE_COOKIE_SAMESITE="strict",
-            CONTROL_PLANE_SESSION_EXPIRE_MINUTES="30",
             CONTROL_PLANE_CORS_ORIGINS='["https://admin.example.test"]',
         )
     forbidden = {

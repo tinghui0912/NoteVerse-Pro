@@ -105,9 +105,8 @@ jobs:
       QUALITY_IMAGE: noteverse-backend-quality:ci
       QUALITY_ENV_FILE: /tmp/backend-quality.env
       AUTH_COOKIE_SECURE: "false"
+      OPERATOR_TOTP_ENCRYPTION_KEY: "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
       CONTROL_PLANE_COOKIE_SECURE: "false"
-      CONTROL_PLANE_COOKIE_SAMESITE: lax
-      CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
       CONTROL_PLANE_CORS_ORIGINS: '["http://localhost:3001"]'
       LOG_FORMAT: json
       FRONTEND_BASE_URL: http://localhost:3000
@@ -149,9 +148,8 @@ jobs:
         run: |
           cat > "$QUALITY_ENV_FILE" <<EOF
           AUTH_COOKIE_SECURE=$AUTH_COOKIE_SECURE
+          OPERATOR_TOTP_ENCRYPTION_KEY=$OPERATOR_TOTP_ENCRYPTION_KEY
           CONTROL_PLANE_COOKIE_SECURE=$CONTROL_PLANE_COOKIE_SECURE
-          CONTROL_PLANE_COOKIE_SAMESITE=$CONTROL_PLANE_COOKIE_SAMESITE
-          CONTROL_PLANE_SESSION_EXPIRE_MINUTES=$CONTROL_PLANE_SESSION_EXPIRE_MINUTES
           CONTROL_PLANE_CORS_ORIGINS=$CONTROL_PLANE_CORS_ORIGINS
           LOG_FORMAT=$LOG_FORMAT
           FRONTEND_BASE_URL=$FRONTEND_BASE_URL
@@ -176,7 +174,7 @@ jobs:
           "cd /repo &&
           python scripts/generate_realtime_contract.py --check &&
           python scripts/generate_customer_browser_protocol.py --target backend --check &&
-          python scripts/generate_control_plane_browser_protocol.py --check &&
+          python scripts/generate_control_plane_browser_protocol.py --target backend --check &&
           python scripts/generate_practice_acoustic_runtime.py --check &&
           python scripts/verify_practice_acoustic_implementation.py &&
           python scripts/generate_score_tempo_policy.py --check &&

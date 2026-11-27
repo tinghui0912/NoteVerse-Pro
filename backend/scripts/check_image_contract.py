@@ -56,9 +56,8 @@ def packaging_environment(role: str):
         if role == "api":
             env.update(
                 {
+                    "OPERATOR_TOTP_ENCRYPTION_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                     "CONTROL_PLANE_COOKIE_SECURE": "false",
-                    "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
-                    "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",
                     "CONTROL_PLANE_CORS_ORIGINS": '["http://localhost:3001"]',
                 }
             )

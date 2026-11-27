@@ -248,3 +248,9 @@ It runs the same baseline checks for pushes and pull requests that touch
 - [Docker backend runtime runbook](../docs/operations/runbooks/docker-backend-runtime-runbook.md)
 
 Durable object ownership and development configuration are described in [ObjectStorage](../docs/architecture/object-storage.md).
+
+Control Plane requires a dedicated generated `OPERATOR_TOTP_ENCRYPTION_KEY` in
+its isolated environment file. Operator bootstrap uses email and a TTY password;
+the first login requires TOTP enrollment. See
+[Control Plane Authentication](../docs/architecture/control-plane-auth.md) for the
+API, role, recovery and audit contracts.

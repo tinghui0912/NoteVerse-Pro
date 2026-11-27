@@ -122,6 +122,10 @@ def test_secret_templates_have_exact_keys_and_explicit_role(runtime):
         if line and not line.startswith("#") and "=" in line
     )
     assert set(values) == set(contract.secret_keys)
+    if runtime == "control_plane":
+        from cryptography.fernet import Fernet
+
+        values["OPERATOR_TOTP_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
     secrets.validate_values(runtime, values)
     values["DATABASE_URL"] = "postgresql+psycopg://test:placeholder@db/noteverse"
     with pytest.raises(ValueError):
@@ -142,3 +146,26 @@ def test_quality_compose_is_self_contained_and_uses_no_runtime_secret_files():
     for service in compose["services"].values():
         assert "env_file" not in service
     assert compose["services"]["quality"]["environment"]["S3_ACCESS_KEY_ID"] == "quality"
+
+
+def test_totp_encryption_key_is_exclusive_and_validated():
+    from app.runtime.deployment import DEPLOYMENTS
+    from cryptography.fernet import Fernet
+
+    for runtime, contract in DEPLOYMENTS.items():
+        assert ("OPERATOR_TOTP_ENCRYPTION_KEY" in contract.settings.model_fields) == (
+            runtime == "control_plane"
+        )
+        assert ("OPERATOR_TOTP_ENCRYPTION_KEY" in contract.secret_keys) == (
+            runtime == "control_plane"
+        )
+    values = {
+        "DATABASE_URL": "postgresql+psycopg://nv_control_plane:placeholder@db/noteverse",
+        "REDIS_URL": "redis://db/0",
+        "OPERATOR_TOTP_ENCRYPTION_KEY": "invalid-private-value",
+    }
+    with pytest.raises(ValueError) as failure:
+        secrets.validate_values("control_plane", values)
+    assert "invalid-private-value" not in str(failure.value)
+    values["OPERATOR_TOTP_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
+    secrets.validate_values("control_plane", values)

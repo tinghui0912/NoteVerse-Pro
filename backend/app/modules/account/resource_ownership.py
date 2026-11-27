@@ -231,6 +231,13 @@ class AccountContactDataPolicy:
 # Reviewed non-FK contact/payload facts. This is a review contract, not cleanup dispatch.
 ACCOUNT_CONTACT_DATA_POLICIES = (
     AccountContactDataPolicy(
+        "operators",
+        ("email",),
+        "platform_operators",
+        "Independent operator identity; an equal Consumer email does not establish ownership",
+        "Operator disable, role change and MFA reset revoke operator access; Consumer closure does not alter operator identity or security evidence",
+    ),
+    AccountContactDataPolicy(
         "users",
         ("email",),
         "account",

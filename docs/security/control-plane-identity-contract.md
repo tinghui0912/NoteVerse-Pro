@@ -1,63 +1,31 @@
-# Control-Plane Identity Contract
+# Control Plane Identity Contract
 
-## Identity boundary
+Operator identity uses local email/password authentication and mandatory TOTP MFA.
+`operators` owns email, Argon2id password, encrypted TOTP material, role and status.
+`operator_mfa_challenges` owns hashed, single-use, five-minute admission tokens;
+`operator_recovery_codes` owns single-use hashed recovery credentials;
+`operator_sessions` owns revocable full sessions. Consumer sessions cannot satisfy
+operator dependencies, and operator credentials cannot authenticate Consumer routes.
 
-The operator surface uses a dedicated local-password identity domain. Platform
-Admin's same-origin BFF reaches the internal control-plane Service. Customer
-sessions and account attributes cannot satisfy operator dependencies, and
-operator credentials cannot authenticate customer routes. Public exposure is
-not implied by the presence of the internal Service.
+A password success issues only an enrollment/verification challenge. MFA completion
+issues a host-only HttpOnly Strict session with two-hour idle and twelve-hour
+absolute expiration. Six named permissions map to three code-owned roles:
+SUPPORT_READONLY, PLATFORM_OPERATOR and SUPER_ADMIN. Every privileged route checks
+its exact permission. Management preserves the last active SUPER_ADMIN.
 
-`operators` owns authorization principal and lifecycle state;
-`operator_identities` owns provider/issuer/subject binding;
-`operator_password_credentials` owns password verification; and
-`operator_sessions` owns opaque revocable sessions. Email is not a cross-provider
-primary key. The implemented provider is `local_password`.
+The Control Plane alone receives `OPERATOR_TOTP_ENCRYPTION_KEY`. PostgreSQL grants
+isolate operator credentials from all other runtimes. `ops_audit_events` is the
+single append-only security/operations ledger. Operational and management commands
+require a trimmed reason; authentication events use server-generated reasons.
+Mutation and audit persistence share one transaction. Audit UPDATE/DELETE are
+rejected by the runtime's PostgreSQL permissions.
 
-Every request resolves an `OperatorPrincipal` with operator identity, provider,
-issuer, subject and session context. Action policy maps `platform_operator` to
-`operations.read` and `operations.retry`. Retry remains bounded by the operation's
-allowlist, current state and audit requirements; a role does not authorize an
-arbitrary task or state mutation.
-
-## Sessions, cookies and bootstrap
-
-Only the one-way hash of the opaque session credential is stored. The raw
-credential belongs in a host-only HttpOnly cookie, separate from customer session
-tables or shared parent-domain cookies. The CSRF cookie/header contract is
-separate from customer CSRF. Production cookies require Secure, `/` scope and
-explicit SameSite policy.
-
-The versioned `contracts/http/control-plane-browser-protocol.json` owns the API
-prefix, `noteverse_operator_session`, `noteverse_operator_csrf` and
-`x-operator-csrf-token`. Generated Python and Platform Admin constants consume
-these identities. Startup requires deployment policy: Secure, SameSite, session
-lifetime and CORS origins. Missing policy fails startup. Customer-only startup
-need not supply operator policy. Operator and Customer credentials remain separate.
-
-Local credentials use the Argon2id password hash. Bootstrap uses the
-TTY-only operator command with hidden input. Passwords do not belong in command
-arguments, environment values, logs or API response bodies. Inactive operators
-and revoked sessions are denied. Production exposure requires qualified login
-throttling and MFA; local-password support alone does not establish that readiness.
-
-## Authorization, audit and privacy
-
-Endpoints enforce named actions server-side. Domain modules own the business
-transaction; control-plane adapters own bounded management DTOs and audit
-orchestration. Sensitive commands require a reason, state validation and
-appropriate idempotency. Durable audit records identify the operator and
-authenticated identity binding, not a customer `users.id` impersonation.
-
-Authentication/authorization failures use request-correlated bounded security
-events. Email, raw provider claims, credentials, cookies, provider responses and
-implementation diagnostics do not belong in ordinary responses/logs/audit payloads.
-Sensitive diagnostics use their explicit privileged data contract.
-
-## Verification contract
-
-Tests reject customer credentials, inactive operators, revoked sessions, missing
-CSRF and insufficient actions; they verify cookie audience separation, bounded
-retry and audit evidence. Network isolation, public-host routing, MFA and
-independent rollback additionally require environment qualification.
-See [Control-Plane Boundary](../adr/0006-control-plane-api-boundary.md).
+The exact endpoints, cookies, challenge flow, role registry, transaction boundaries
+and bootstrap procedure are specified in
+[Control Plane Authentication](../architecture/control-plane-auth.md).
+Secret and DB ownership follow
+[Settings Ownership](../architecture/runtime/settings-ownership.md) and
+[Database Role Ownership](../architecture/runtime/database-role-ownership.md).
+Gateway, network exposure, deployment clocks and login throttling have separate
+runtime/deployment ownership. An internal Service is not proof of production
+network isolation.

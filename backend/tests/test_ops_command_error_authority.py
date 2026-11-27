@@ -86,7 +86,9 @@ def test_retry_http_and_audit_use_admitted_operator_code(
     )
     assert response.status_code == status
     assert response.json()["code"] == code.value
-    event = control_db.scalars(select(OpsAuditEvent)).one()
+    event = control_db.scalars(
+        select(OpsAuditEvent).where(OpsAuditEvent.action == "retry_async_operation")
+    ).one()
     assert event.outcome == "failed"
     assert type(event.error_code) is str and event.error_code == code.value
 
@@ -125,7 +127,9 @@ def test_unexpected_domain_code_is_private_in_http_and_audit(
     assert response.status_code == 400
     assert set(response.json()) == {"code", "request_id"}
     assert response.json()["code"] == "internal_error"
-    event = control_db.scalars(select(OpsAuditEvent)).one()
+    event = control_db.scalars(
+        select(OpsAuditEvent).where(OpsAuditEvent.action == "retry_async_operation")
+    ).one()
     assert type(event.error_code) is str and event.error_code == "internal_error"
 
 

@@ -348,3 +348,8 @@ not runtime discovery or automatic deletion registries.
 Backups, provider-held email copies, legal retention and personal information in
 another owner's free text require independent governance decisions. This implementation
 does not invent legal deadlines or claim to erase backups or arbitrary free text.
+
+Operator email belongs to the independent Control Plane identity authority. A
+matching Consumer email does not transfer ownership or authorize deletion of an
+operator or its security audit evidence. Operator access revocation and MFA reset
+follow [Control Plane Authentication](control-plane-auth.md).

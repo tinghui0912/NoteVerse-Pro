@@ -25,14 +25,17 @@ def test_generated_protocol_matches_the_canonical_identity_and_composition(contr
     identity = source()
     for key, name in generator.EXPORTS.items():
         assert getattr(protocol, name) == identity[key]
-    assert generator.generate(ROOT, check=True) == 0
+    assert generator.generate(ROOT, check=True, target="backend") == 0
     assert control_app.openapi_url == protocol.CONTROL_PLANE_API_PREFIX + "/openapi.json"
     csrf = next(
         item.kwargs["csrf_settings"]
         for item in control_app.user_middleware
         if item.cls.__name__ == "CsrfProtectionMiddleware"
     )
-    assert csrf.session_cookie_names == (protocol.OPERATOR_AUTH_COOKIE_NAME,)
+    assert csrf.session_cookie_names == (
+        protocol.OPERATOR_AUTH_COOKIE_NAME,
+        protocol.OPERATOR_CHALLENGE_COOKIE_NAME,
+    )
     assert csrf.csrf_cookie_name == protocol.OPERATOR_CSRF_COOKIE_NAME
     assert csrf.csrf_header_name == protocol.OPERATOR_CSRF_HEADER_NAME
     assert csrf.api_prefix == protocol.CONTROL_PLANE_API_PREFIX
@@ -40,18 +43,8 @@ def test_generated_protocol_matches_the_canonical_identity_and_composition(contr
         name for name in ControlPlaneSettings.model_fields if name.startswith("CONTROL_PLANE_")
     } == {
         "CONTROL_PLANE_COOKIE_SECURE",
-        "CONTROL_PLANE_COOKIE_SAMESITE",
-        "CONTROL_PLANE_SESSION_EXPIRE_MINUTES",
         "CONTROL_PLANE_CORS_ORIGINS",
     }
-    cookies = [
-        parameter["name"]
-        for parameter in control_app.openapi()["paths"][identity["api_prefix"] + "/auth/me"]["get"][
-            "parameters"
-        ]
-        if parameter["in"] == "cookie"
-    ]
-    assert cookies == [identity["auth_cookie_name"]]
 
 
 def test_generation_is_deterministic_and_checks_drift_without_mutation(tmp_path):

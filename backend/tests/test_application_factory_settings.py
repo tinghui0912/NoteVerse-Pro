@@ -12,8 +12,6 @@ def test_application_factories_apply_shared_service_identity_settings(monkeypatc
     monkeypatch.setattr(control_context().settings, "PROJECT_NAME", "NoteVerse Test")
     monkeypatch.setattr(exporter_context().settings, "PROJECT_NAME", "NoteVerse Test")
     monkeypatch.setenv("CONTROL_PLANE_COOKIE_SECURE", "true")
-    monkeypatch.setenv("CONTROL_PLANE_COOKIE_SAMESITE", "strict")
-    monkeypatch.setenv("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "60")
     monkeypatch.setenv("CONTROL_PLANE_CORS_ORIGINS", '["https://control.example.test"]')
 
     from app.runtime.control_plane.main import create_app as create_control_plane_app

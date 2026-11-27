@@ -1,4 +1,4 @@
-"""Consumer session erasure and credential-free mail admission predicates."""
+"""Runtime authorization interfaces for credentials, directory and account lifecycle."""
 
 from alembic import op
 from app.platform.db.authorization import install_security_functions
@@ -15,6 +15,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     for signature in (
+        "nv_customer_directory(integer,integer)",
+        "nv_set_customer_active(bigint,bigint,boolean)",
         "nv_erase_closed_identity(bigint)",
         "nv_erase_closed_authentication_history(bigint,integer)",
         "nv_mail_has_payload(text)",

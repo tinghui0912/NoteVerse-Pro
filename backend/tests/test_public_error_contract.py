@@ -98,8 +98,6 @@ def test_control_plane_errors_do_not_expose_internal_details_before_authorizatio
     monkeypatch,
 ) -> None:
     monkeypatch.setenv("CONTROL_PLANE_COOKIE_SECURE", "false")
-    monkeypatch.setenv("CONTROL_PLANE_COOKIE_SAMESITE", "lax")
-    monkeypatch.setenv("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
     monkeypatch.setenv("CONTROL_PLANE_CORS_ORIGINS", '["http://testserver"]')
 
     from app.runtime.control_plane.main import create_app

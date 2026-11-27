@@ -348,8 +348,8 @@ def test_control_plane_queries_and_mail_retry_do_not_load_payload(roles):
         OpsAuditService().record_event(
             db,
             action="retry",
-            operation_kind=AsyncOperationKind.MAIL,
-            operation_id=identity,
+            target_type=AsyncOperationKind.MAIL.value,
+            target_id=identity,
             outcome=OpsAuditOutcome.SUCCEEDED.value,
             reason="Role-isolation verification",
         )
@@ -617,3 +617,65 @@ def test_runtime_database_owner_is_rejected_before_credentials_change(roles):
         admin.dispose()
     with roles[0]["nv_customer_api"].connect() as connection:
         assert connection.scalar(sa.text("SELECT current_user")) == "nv_customer_api"
+
+
+@pytest.mark.parametrize("role", ["nv_customer_api", "nv_worker", "nv_beat", "nv_observability"])
+@pytest.mark.parametrize("table", ["operator_mfa_challenges", "operator_recovery_codes"])
+@pytest.mark.parametrize("verb", ["SELECT", "INSERT", "UPDATE", "DELETE"])
+def test_mfa_credentials_are_exclusive_to_control_plane(roles, role, table, verb):
+    statements = {
+        "SELECT": f"SELECT * FROM {table}",
+        "INSERT": f"INSERT INTO {table} DEFAULT VALUES",
+        "UPDATE": f"UPDATE {table} SET consumed_at=now()",
+        "DELETE": f"DELETE FROM {table}",
+    }
+    assert_denied(roles[0][role], statements[verb])
+
+
+def test_control_plane_executes_enrollment_with_real_role_and_append_only_audit(roles):
+    from app.modules.platform_operators.management_service import create_operator
+    from app.modules.platform_operators.domain import OperatorRole
+    from app.modules.platform_operators.service import OperatorAuthenticationService, AuditContext
+    from app.platform.config.operator_session import OperatorSessionConfig
+    from app.platform.security.totp import code_for_step
+    from cryptography.fernet import Fernet
+
+    service = OperatorAuthenticationService(
+        OperatorSessionConfig(
+            cookie_secure=False,
+            encryption_key=Fernet.generate_key().decode(),
+            cors_origins=("http://testserver",),
+        )
+    )
+    with Session(roles[0]["nv_control_plane"]) as db:
+        assert db.scalar(sa.text("SHOW server_version_num")) == "170011"
+        operator = create_operator(
+            db,
+            email="roles-admin@example.com",
+            password="a-long-operator-password",
+            display_name="Admin",
+            role=OperatorRole.SUPER_ADMIN,
+        )
+        context = AuditContext()
+        raw, _ = service.start_login(
+            db, email=operator.email, password="a-long-operator-password", context=context
+        )
+        secret, _ = service.start_enrollment(db, raw, context)
+        _, session, codes = service.confirm_enrollment(
+            db, raw, code_for_step(secret, int(utc_now().timestamp()) // 30), context
+        )
+        db.commit()
+        assert len(codes) == 10 and service.resolve_session(db, token=session)[0].id == operator.id
+        assert db.scalar(sa.text("SELECT count(*) FROM operator_recovery_codes")) == 10
+        assert (
+            db.scalar(
+                sa.text("SELECT count(*) FROM ops_audit_events WHERE action='auth.mfa_enrolled'")
+            )
+            == 1
+        )
+        users = db.execute(sa.text("SELECT * FROM nv_customer_directory(10,0)")).mappings().all()
+        assert set(users[0]) == {"user_id", "email", "display_name", "is_active"}
+        db.execute(sa.text("SELECT nv_set_customer_active(:actor,1,false)"), {"actor": operator.id})
+        db.commit()
+    assert_denied(roles[0]["nv_control_plane"], "UPDATE ops_audit_events SET outcome='changed'")
+    assert_denied(roles[0]["nv_control_plane"], "DELETE FROM ops_audit_events")

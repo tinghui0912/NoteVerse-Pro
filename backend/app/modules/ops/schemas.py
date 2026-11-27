@@ -37,7 +37,7 @@ class AsyncOperationFailure(BaseModel):
     detail: str | None
 
 
-class RetryAsyncOperationCommand(BaseModel):
+class ReasonCommand(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
     @field_validator("reason")
@@ -47,6 +47,10 @@ class RetryAsyncOperationCommand(BaseModel):
         if len(value) < 3:
             raise ValueError("A meaningful recovery reason is required")
         return value
+
+
+class RetryAsyncOperationCommand(ReasonCommand):
+    pass
 
 
 class AsyncOperationRead(ApiModel):
@@ -92,14 +96,15 @@ class OpsAuditEventRead(ApiModel):
     event_id: str
     actor_operator_id: int | None
     action: str
-    operation_kind: AsyncOperationKind
-    operation_id: str
+    target_type: str
+    target_id: str
     outcome: OpsAuditOutcome
     error_code: str | None
-    reason: str | None
+    reason: str
     request_id: str | None
-    peer_address: str | None
-    client_address: str | None
+    user_agent: str | None
+    ip_address: str | None
     previous_state: str | None
     new_state: str | None
+    metadata_json: dict
     created_at: Instant

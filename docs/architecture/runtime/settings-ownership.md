@@ -8,7 +8,7 @@ and observability blocks. Domain constructors receive explicit policy values.
 | Process | Settings | Entrypoint | Inputs |
 | --- | --- | --- | --- |
 | Customer API | `CustomerApiSettings` | `app.runtime.customer_api.main:app` | DB, Redis/dispatch, object storage, observability, customer opaque session policy, public links, resource policies, fingering |
-| Control Plane | `ControlPlaneSettings` | `app.runtime.control_plane.main:app` | DB, Redis connection, observability, operator cookie/origin policy, Ops delivery policies |
+| Control Plane | `ControlPlaneSettings` | `app.runtime.control_plane.main:app` | DB, Redis connection, observability, operator MFA encryption key, cookie/origin policy, Ops delivery policies |
 | Worker | `WorkerSettings` | `app.runtime.worker.main:celery_app` | DB, Redis/dispatch, object storage, mail transport, observability, processing/work directories, delivery/retention/scheduler policies |
 | Beat | `BeatSettings` | `app.runtime.beat.main:celery_app` | DB, Redis, observability, schedule/reliability and scheduler-lock policies |
 | Beat supervisor | `BeatSettings` | `python -m app.runtime.beat.leader` | Beat configuration and dedicated scheduler-lock connection |
@@ -64,7 +64,7 @@ accepted by that process's Settings and never credential fields.
 | Process | PostgreSQL role | Secret | Exact keys |
 | --- | --- | --- | --- |
 | beat | nv_beat | noteverse-beat-secret | `DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` |
-| control_plane | nv_control_plane | noteverse-control-plane-secret | `DATABASE_URL`, `REDIS_URL` |
+| control_plane | nv_control_plane | noteverse-control-plane-secret | `DATABASE_URL`, `REDIS_URL`, `OPERATOR_TOTP_ENCRYPTION_KEY` |
 | customer_api | nv_customer_api | noteverse-customer-api-secret | `DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
 | migrator | nv_migrator | noteverse-migrator-secret | `DATABASE_URL` |
 | model_assets | none | noteverse-model-assets-secret | `HF_TOKEN` |
@@ -94,3 +94,9 @@ script validates the six runtime Secrets before applying workloads.
 
 See [Database Role Ownership](database-role-ownership.md) for table/column grants,
 bootstrap, migration and administrative command identities.
+
+Control Plane owns `OPERATOR_TOTP_ENCRYPTION_KEY` exclusively. Its staging and
+production environment requires secure cookies; operator cookies use Strict
+SameSite with 2-hour idle and 12-hour absolute session lifetimes. See
+[Control Plane Authentication](../control-plane-auth.md) for challenge, enrollment,
+recovery and permission contracts.

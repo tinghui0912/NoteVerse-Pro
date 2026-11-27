@@ -13,9 +13,8 @@ from .notification import Notification, NotificationKind
 from .ops_audit import OpsAuditEvent
 from .operator import (
     Operator,
-    OperatorIdentity,
-    OperatorIdentityProvider,
-    OperatorPasswordCredential,
+    OperatorMfaChallenge,
+    OperatorRecoveryCode,
     OperatorRole,
     OperatorSession,
     OperatorStatus,
@@ -80,9 +79,8 @@ __all__ = [
     "NotificationKind",
     "OpsAuditEvent",
     "Operator",
-    "OperatorIdentity",
-    "OperatorIdentityProvider",
-    "OperatorPasswordCredential",
+    "OperatorMfaChallenge",
+    "OperatorRecoveryCode",
     "OperatorRole",
     "OperatorSession",
     "OperatorStatus",

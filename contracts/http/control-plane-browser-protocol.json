@@ -1,6 +1,9 @@
 {
   "api_prefix": "/api/v1",
-  "auth_cookie_name": "noteverse_operator_session",
+  "auth_cookie_name": "nv_admin_session",
   "csrf_cookie_name": "noteverse_operator_csrf",
-  "csrf_header_name": "x-operator-csrf-token"
+  "csrf_header_name": "x-operator-csrf-token",
+  "secure_auth_cookie_name": "__Host-nv_admin_session",
+  "challenge_cookie_name": "nv_admin_mfa",
+  "secure_challenge_cookie_name": "__Host-nv_admin_mfa"
 }

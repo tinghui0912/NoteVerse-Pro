@@ -56,7 +56,7 @@ DEPLOYMENTS = {
         ControlPlaneSettings,
         "nv_control_plane",
         "noteverse-control-plane-secret",
-        ("DATABASE_URL", "REDIS_URL"),
+        ("DATABASE_URL", "REDIS_URL", "OPERATOR_TOTP_ENCRYPTION_KEY"),
         "noteverse-control-plane-config",
         "control-plane-config.env",
         "noteverse-control-plane",

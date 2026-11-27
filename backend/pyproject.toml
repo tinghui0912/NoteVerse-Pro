@@ -44,6 +44,7 @@ http = [
 auth = [
   { include-group = "core" },
   "argon2-cffi==25.1.0",
+  "cryptography==50.0.2",
 ]
 storage = [
   { include-group = "core" },

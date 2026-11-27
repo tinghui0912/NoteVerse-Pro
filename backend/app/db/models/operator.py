@@ -1,12 +1,7 @@
-"""Persistent identity and session records for the control-plane audience."""
+"""Control Plane password identities, MFA challenges and authenticated sessions."""
 
-from __future__ import annotations
-
-import enum
-import uuid
 from datetime import datetime
-from typing import Optional
-
+from uuid import uuid4
 from sqlalchemy import (
     BigInteger,
     Column,
@@ -16,196 +11,140 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    UniqueConstraint,
+    CheckConstraint,
 )
 from sqlmodel import Field, SQLModel
-
+from app.modules.platform_operators.domain import OperatorRole, OperatorStatus, ChallengePurpose
 from app.shared.time import utc_now
 
 
-bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
-
-
-def _enum_values(enum_class: type[enum.Enum]) -> list[str]:
-    """Persist explicit enum values so ORM bindings match PostgreSQL enum types."""
-    return [str(member.value) for member in enum_class]
-
-
-class OperatorRole(str, enum.Enum):
-    PLATFORM_OPERATOR = "platform_operator"
-
-
-class OperatorStatus(str, enum.Enum):
-    ACTIVE = "active"
-    DISABLED = "disabled"
-
-
-class OperatorIdentityProvider(str, enum.Enum):
-    LOCAL_PASSWORD = "local_password"
-    OIDC = "oidc"
+def enum_values(kind):
+    return [item.value for item in kind]
 
 
 class Operator(SQLModel, table=True):  # type: ignore[call-arg]
-    """Authorization principal for a person operating the platform."""
-
     __tablename__ = "operators"
-    __table_args__ = (Index("idx_operators_status", "status"),)
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    __table_args__ = (
+        Index("idx_operators_status_role", "status", "role"),
+        CheckConstraint(
+            "(totp_enabled_at IS NULL AND totp_secret_encrypted IS NULL AND totp_last_used_step IS NULL) OR (totp_enabled_at IS NOT NULL AND totp_secret_encrypted IS NOT NULL AND totp_last_used_step IS NOT NULL)",
+            name="ck_operators_totp_facts",
+        ),
     )
+    id: int | None = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
     operator_uuid: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
+        default_factory=lambda: str(uuid4()),
         sa_column=Column(String(36), unique=True, nullable=False),
     )
+    email: str = Field(sa_column=Column(String(255), unique=True, nullable=False))
     display_name: str = Field(sa_column=Column(String(128), nullable=False))
+    password_hash: str = Field(sa_column=Column(String(255), nullable=False))
     role: OperatorRole = Field(
         default=OperatorRole.PLATFORM_OPERATOR,
         sa_column=Column(
-            SAEnum(OperatorRole, name="operatorrole", values_callable=_enum_values),
-            default=OperatorRole.PLATFORM_OPERATOR,
-            nullable=False,
+            SAEnum(OperatorRole, name="operatorrole", values_callable=enum_values), nullable=False
         ),
     )
     status: OperatorStatus = Field(
         default=OperatorStatus.ACTIVE,
         sa_column=Column(
-            SAEnum(OperatorStatus, name="operatorstatus", values_callable=_enum_values),
-            default=OperatorStatus.ACTIVE,
+            SAEnum(OperatorStatus, name="operatorstatus", values_callable=enum_values),
             nullable=False,
         ),
     )
-    created_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
-    )
-    updated_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(
-            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
-        ),
-    )
-
-
-class OperatorIdentity(SQLModel, table=True):  # type: ignore[call-arg]
-    """Provider binding for an operator; authorization never depends on its provider."""
-
-    __tablename__ = "operator_identities"
-    __table_args__ = (
-        UniqueConstraint(
-            "provider", "issuer", "subject", name="uq_operator_identities_provider_issuer_subject"
-        ),
-        Index("idx_operator_identities_operator", "operator_id"),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    identity_uuid: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), unique=True, nullable=False),
-    )
-    operator_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("operators.id", ondelete="CASCADE"), nullable=False)
-    )
-    provider: OperatorIdentityProvider = Field(
-        sa_column=Column(
-            SAEnum(
-                OperatorIdentityProvider,
-                name="operatoridentityprovider",
-                values_callable=_enum_values,
-            ),
-            nullable=False,
-        )
-    )
-    issuer: str = Field(sa_column=Column(String(255), nullable=False))
-    subject: str = Field(sa_column=Column(String(255), nullable=False))
-    created_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
-    )
-    last_authenticated_at: Optional[datetime] = Field(
+    totp_secret_encrypted: str | None = Field(default=None, sa_column=Column(String(512)))
+    totp_enabled_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )
-
-
-class OperatorPasswordCredential(SQLModel, table=True):  # type: ignore[call-arg]
-    """Argon2id verifier for a local-password identity only."""
-
-    __tablename__ = "operator_password_credentials"
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    identity_id: int = Field(
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("operator_identities.id", ondelete="CASCADE"),
-            unique=True,
-            nullable=False,
-        )
-    )
-    password_hash: str = Field(sa_column=Column(String(255), nullable=False))
-    password_changed_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
-    )
+    totp_last_used_step: int | None = Field(default=None, sa_column=Column(BigInteger))
     created_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     updated_at: datetime = Field(
         default_factory=utc_now,
-        sa_column=Column(
-            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
-        ),
+        sa_column=Column(DateTime(timezone=True), onupdate=utc_now, nullable=False),
     )
 
 
 class OperatorSession(SQLModel, table=True):  # type: ignore[call-arg]
-    """Opaque, revocable session for the control-plane browser surface."""
-
     __tablename__ = "operator_sessions"
     __table_args__ = (
         Index("idx_operator_sessions_operator_created", "operator_id", "created_at"),
-        Index("idx_operator_sessions_expires", "expires_at"),
-        Index("idx_operator_sessions_revoked", "revoked_at"),
+        Index("idx_operator_sessions_expiry", "idle_expires_at", "absolute_expires_at"),
+        CheckConstraint(
+            "created_at <= last_seen_at AND last_seen_at < absolute_expires_at AND idle_expires_at <= absolute_expires_at",
+            name="ck_operator_sessions_lifetime",
+        ),
     )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
+    id: int | None = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
     session_uuid: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
+        default_factory=lambda: str(uuid4()),
         sa_column=Column(String(36), unique=True, nullable=False),
     )
-    identity_id: int = Field(
+    operator_id: int = Field(
         sa_column=Column(
-            BigInteger,
-            ForeignKey("operator_identities.id", ondelete="CASCADE"),
+            BigInteger, ForeignKey("operators.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    token_hash: str = Field(sa_column=Column(String(64), unique=True, nullable=False))
+    ip_address: str | None = Field(default=None, sa_column=Column(String(64)))
+    user_agent: str | None = Field(default=None, sa_column=Column(String(512)))
+    created_at: datetime = Field(
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    last_seen_at: datetime = Field(
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    idle_expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    absolute_expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
+
+class OperatorMfaChallenge(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "operator_mfa_challenges"
+    __table_args__ = (
+        Index("idx_operator_mfa_challenges_operator_expiry", "operator_id", "expires_at"),
+        CheckConstraint(
+            "attempt_count >= 0 AND attempt_count <= 5", name="ck_operator_mfa_attempts"
+        ),
+    )
+    id: int | None = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    challenge_uuid: str = Field(
+        default_factory=lambda: str(uuid4()),
+        sa_column=Column(String(36), unique=True, nullable=False),
+    )
+    operator_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("operators.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    token_hash: str = Field(sa_column=Column(String(64), unique=True, nullable=False))
+    purpose: ChallengePurpose = Field(
+        sa_column=Column(
+            SAEnum(ChallengePurpose, name="operatorchallengepurpose", values_callable=enum_values),
             nullable=False,
         )
     )
-    operator_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("operators.id", ondelete="CASCADE"), nullable=False)
-    )
-    token_hash: str = Field(sa_column=Column(String(64), unique=True, nullable=False))
-    user_agent: Optional[str] = Field(default=None, sa_column=Column(String(512)))
-    ip_address: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    authenticated_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
+    pending_secret_encrypted: str | None = Field(default=None, sa_column=Column(String(512)))
+    attempt_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    created_at: datetime = Field(
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    consumed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
+
+class OperatorRecoveryCode(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "operator_recovery_codes"
+    __table_args__ = (Index("idx_operator_recovery_codes_owner", "operator_id"),)
+    id: int | None = Field(default=None, sa_column=Column(BigInteger, primary_key=True))
+    operator_id: int = Field(
+        sa_column=Column(
+            BigInteger, ForeignKey("operators.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    code_hash: str = Field(sa_column=Column(String(64), unique=True, nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now,
-        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
+        default_factory=utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
     )
-    last_used_at: Optional[datetime] = Field(
-        default=None, sa_column=Column(DateTime(timezone=True))
-    )
+    consumed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))

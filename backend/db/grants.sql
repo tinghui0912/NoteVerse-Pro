@@ -27,12 +27,6 @@ GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.object_write_intents TO nv_
 GRANT SELECT (created_at, status) ON TABLE __APP_SCHEMA__.object_write_intents TO nv_observability;
 REVOKE ALL ON SEQUENCE __APP_SCHEMA__.object_write_intents_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.object_write_intents_id_seq TO nv_customer_api, nv_worker;
--- TABLE operators
-REVOKE ALL ON TABLE __APP_SCHEMA__.operators FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, operator_uuid, display_name, role, status, created_at, updated_at), INSERT (id, operator_uuid, display_name, role, status, created_at, updated_at), UPDATE (id, operator_uuid, display_name, role, status, created_at, updated_at), REFERENCES (id, operator_uuid, display_name, role, status, created_at, updated_at) ON TABLE __APP_SCHEMA__.operators FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.operators TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operators_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operators_id_seq TO nv_control_plane;
 -- TABLE pending_registrations
 REVOKE ALL ON TABLE __APP_SCHEMA__.pending_registrations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 REVOKE SELECT (id, email, display_name, password_hash, token_hash, resend_count, attempt_count, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), INSERT (id, email, display_name, password_hash, token_hash, resend_count, attempt_count, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), UPDATE (id, email, display_name, password_hash, token_hash, resend_count, attempt_count, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), REFERENCES (id, email, display_name, password_hash, token_hash, resend_count, attempt_count, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at) ON TABLE __APP_SCHEMA__.pending_registrations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
@@ -64,18 +58,6 @@ GRANT SELECT, INSERT, UPDATE (sha256) ON TABLE __APP_SCHEMA__.stored_objects TO 
 GRANT SELECT, INSERT, DELETE, UPDATE (sha256) ON TABLE __APP_SCHEMA__.stored_objects TO nv_worker;
 REVOKE ALL ON SEQUENCE __APP_SCHEMA__.stored_objects_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.stored_objects_id_seq TO nv_customer_api, nv_worker;
--- TABLE operator_identities
-REVOKE ALL ON TABLE __APP_SCHEMA__.operator_identities FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, identity_uuid, operator_id, provider, issuer, subject, created_at, last_authenticated_at), INSERT (id, identity_uuid, operator_id, provider, issuer, subject, created_at, last_authenticated_at), UPDATE (id, identity_uuid, operator_id, provider, issuer, subject, created_at, last_authenticated_at), REFERENCES (id, identity_uuid, operator_id, provider, issuer, subject, created_at, last_authenticated_at) ON TABLE __APP_SCHEMA__.operator_identities FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.operator_identities TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_identities_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_identities_id_seq TO nv_control_plane;
--- TABLE ops_audit_events
-REVOKE ALL ON TABLE __APP_SCHEMA__.ops_audit_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, event_uuid, actor_operator_id, actor_identity_provider, actor_identity_issuer, actor_identity_subject, action, operation_kind, operation_id, outcome, error_code, reason, request_id, peer_address, client_address, previous_state, new_state, created_at), INSERT (id, event_uuid, actor_operator_id, actor_identity_provider, actor_identity_issuer, actor_identity_subject, action, operation_kind, operation_id, outcome, error_code, reason, request_id, peer_address, client_address, previous_state, new_state, created_at), UPDATE (id, event_uuid, actor_operator_id, actor_identity_provider, actor_identity_issuer, actor_identity_subject, action, operation_kind, operation_id, outcome, error_code, reason, request_id, peer_address, client_address, previous_state, new_state, created_at), REFERENCES (id, event_uuid, actor_operator_id, actor_identity_provider, actor_identity_issuer, actor_identity_subject, action, operation_kind, operation_id, outcome, error_code, reason, request_id, peer_address, client_address, previous_state, new_state, created_at) ON TABLE __APP_SCHEMA__.ops_audit_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.ops_audit_events TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.ops_audit_events_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT USAGE ON SEQUENCE __APP_SCHEMA__.ops_audit_events_id_seq TO nv_control_plane;
 -- TABLE practice_bundles
 REVOKE ALL ON TABLE __APP_SCHEMA__.practice_bundles FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 REVOKE SELECT (id, bundle_id, artifact_id, artifact_schema_version, prepared_musicxml_object_id, artifact_object_id, status, creation_expires_at, created_at), INSERT (id, bundle_id, artifact_id, artifact_schema_version, prepared_musicxml_object_id, artifact_object_id, status, creation_expires_at, created_at), UPDATE (id, bundle_id, artifact_id, artifact_schema_version, prepared_musicxml_object_id, artifact_object_id, status, creation_expires_at, created_at), REFERENCES (id, bundle_id, artifact_id, artifact_schema_version, prepared_musicxml_object_id, artifact_object_id, status, creation_expires_at, created_at) ON TABLE __APP_SCHEMA__.practice_bundles FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
@@ -136,18 +118,6 @@ GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.notifications TO nv_custome
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.notifications TO nv_worker;
 REVOKE ALL ON SEQUENCE __APP_SCHEMA__.notifications_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.notifications_id_seq TO nv_customer_api, nv_worker;
--- TABLE operator_password_credentials
-REVOKE ALL ON TABLE __APP_SCHEMA__.operator_password_credentials FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, identity_id, password_hash, password_changed_at, created_at, updated_at), INSERT (id, identity_id, password_hash, password_changed_at, created_at, updated_at), UPDATE (id, identity_id, password_hash, password_changed_at, created_at, updated_at), REFERENCES (id, identity_id, password_hash, password_changed_at, created_at, updated_at) ON TABLE __APP_SCHEMA__.operator_password_credentials FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.operator_password_credentials TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_password_credentials_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_password_credentials_id_seq TO nv_control_plane;
--- TABLE operator_sessions
-REVOKE ALL ON TABLE __APP_SCHEMA__.operator_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, session_uuid, identity_id, operator_id, token_hash, user_agent, ip_address, authenticated_at, expires_at, revoked_at, created_at, last_used_at), INSERT (id, session_uuid, identity_id, operator_id, token_hash, user_agent, ip_address, authenticated_at, expires_at, revoked_at, created_at, last_used_at), UPDATE (id, session_uuid, identity_id, operator_id, token_hash, user_agent, ip_address, authenticated_at, expires_at, revoked_at, created_at, last_used_at), REFERENCES (id, session_uuid, identity_id, operator_id, token_hash, user_agent, ip_address, authenticated_at, expires_at, revoked_at, created_at, last_used_at) ON TABLE __APP_SCHEMA__.operator_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.operator_sessions TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_sessions_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_sessions_id_seq TO nv_control_plane;
 -- TABLE performance_take_manifests
 REVOKE ALL ON TABLE __APP_SCHEMA__.performance_take_manifests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 REVOKE SELECT (id, user_id, take_uuid, manifest_json, manifest_sha256, created_at), INSERT (id, user_id, take_uuid, manifest_json, manifest_sha256, created_at), UPDATE (id, user_id, take_uuid, manifest_json, manifest_sha256, created_at), REFERENCES (id, user_id, take_uuid, manifest_json, manifest_sha256, created_at) ON TABLE __APP_SCHEMA__.performance_take_manifests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
@@ -421,6 +391,36 @@ GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.take_processing_outbox TO nv_worker
 GRANT SELECT (created_at, started_at, status) ON TABLE __APP_SCHEMA__.take_processing_outbox TO nv_observability;
 REVOKE ALL ON SEQUENCE __APP_SCHEMA__.take_processing_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.take_processing_outbox_id_seq TO nv_customer_api;
+-- TABLE operators
+REVOKE ALL ON TABLE __APP_SCHEMA__.operators FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE SELECT (id, operator_uuid, email, display_name, password_hash, role, status, totp_secret_encrypted, totp_enabled_at, totp_last_used_step, created_at, updated_at), INSERT (id, operator_uuid, email, display_name, password_hash, role, status, totp_secret_encrypted, totp_enabled_at, totp_last_used_step, created_at, updated_at), UPDATE (id, operator_uuid, email, display_name, password_hash, role, status, totp_secret_encrypted, totp_enabled_at, totp_last_used_step, created_at, updated_at), REFERENCES (id, operator_uuid, email, display_name, password_hash, role, status, totp_secret_encrypted, totp_enabled_at, totp_last_used_step, created_at, updated_at) ON TABLE __APP_SCHEMA__.operators FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.operators TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operators_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operators_id_seq TO nv_control_plane;
+-- TABLE operator_sessions
+REVOKE ALL ON TABLE __APP_SCHEMA__.operator_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE SELECT (id, session_uuid, operator_id, token_hash, ip_address, user_agent, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at), INSERT (id, session_uuid, operator_id, token_hash, ip_address, user_agent, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at), UPDATE (id, session_uuid, operator_id, token_hash, ip_address, user_agent, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at), REFERENCES (id, session_uuid, operator_id, token_hash, ip_address, user_agent, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at) ON TABLE __APP_SCHEMA__.operator_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.operator_sessions TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_sessions_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_sessions_id_seq TO nv_control_plane;
+-- TABLE operator_mfa_challenges
+REVOKE ALL ON TABLE __APP_SCHEMA__.operator_mfa_challenges FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE SELECT (id, challenge_uuid, operator_id, token_hash, purpose, pending_secret_encrypted, attempt_count, created_at, expires_at, consumed_at), INSERT (id, challenge_uuid, operator_id, token_hash, purpose, pending_secret_encrypted, attempt_count, created_at, expires_at, consumed_at), UPDATE (id, challenge_uuid, operator_id, token_hash, purpose, pending_secret_encrypted, attempt_count, created_at, expires_at, consumed_at), REFERENCES (id, challenge_uuid, operator_id, token_hash, purpose, pending_secret_encrypted, attempt_count, created_at, expires_at, consumed_at) ON TABLE __APP_SCHEMA__.operator_mfa_challenges FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.operator_mfa_challenges TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_mfa_challenges_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_mfa_challenges_id_seq TO nv_control_plane;
+-- TABLE operator_recovery_codes
+REVOKE ALL ON TABLE __APP_SCHEMA__.operator_recovery_codes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE SELECT (id, operator_id, code_hash, created_at, consumed_at), INSERT (id, operator_id, code_hash, created_at, consumed_at), UPDATE (id, operator_id, code_hash, created_at, consumed_at), REFERENCES (id, operator_id, code_hash, created_at, consumed_at) ON TABLE __APP_SCHEMA__.operator_recovery_codes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.operator_recovery_codes TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_recovery_codes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_recovery_codes_id_seq TO nv_control_plane;
+-- TABLE ops_audit_events
+REVOKE ALL ON TABLE __APP_SCHEMA__.ops_audit_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE SELECT (id, event_uuid, actor_operator_id, action, target_type, target_id, outcome, error_code, reason, request_id, user_agent, ip_address, previous_state, new_state, metadata_json, created_at), INSERT (id, event_uuid, actor_operator_id, action, target_type, target_id, outcome, error_code, reason, request_id, user_agent, ip_address, previous_state, new_state, metadata_json, created_at), UPDATE (id, event_uuid, actor_operator_id, action, target_type, target_id, outcome, error_code, reason, request_id, user_agent, ip_address, previous_state, new_state, metadata_json, created_at), REFERENCES (id, event_uuid, actor_operator_id, action, target_type, target_id, outcome, error_code, reason, request_id, user_agent, ip_address, previous_state, new_state, metadata_json, created_at) ON TABLE __APP_SCHEMA__.ops_audit_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.ops_audit_events TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.ops_audit_events_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT USAGE ON SEQUENCE __APP_SCHEMA__.ops_audit_events_id_seq TO nv_control_plane;
 ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE ALL ON TABLES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE ALL ON SEQUENCES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
@@ -435,3 +435,7 @@ REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_erase_closed_authentication_history(big
 GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_erase_closed_authentication_history(bigint,integer) TO nv_worker;
 REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_erase_closed_identity(bigint) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
 GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_erase_closed_identity(bigint) TO nv_worker;
+REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_customer_directory(integer,integer) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_customer_directory(integer,integer) TO nv_control_plane;
+REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_set_customer_active(bigint,bigint,boolean) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_set_customer_active(bigint,bigint,boolean) TO nv_control_plane;

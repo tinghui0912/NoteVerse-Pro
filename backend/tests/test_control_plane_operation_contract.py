@@ -26,28 +26,43 @@ def test_operations_declare_unique_semantic_ids_matching_the_committed_contract(
                 == committed["paths"][context.path_format][method.lower()]["operationId"]
             )
             identities.append(identity)
-    assert len(identities) == len(set(identities)) == 10
+    assert len(identities) == len(set(identities)) == 20
 
 
 def test_success_schema_owns_the_direct_representation_or_bodyless_acknowledgement(control_app):
     spec = control_app.openapi()
     refs = {
         "operatorCurrentGet": "OperatorRead",
+        "operatorLogin": "MfaChallengeRead",
+        "operatorMfaEnrollmentStart": "TotpEnrollmentRead",
+        "operatorMfaEnrollmentConfirm": "MfaEnrollmentRead",
+        "operatorMfaVerify": "MfaVerifiedRead",
+        "operatorsList": "OffsetPage_OperatorRead_",
+        "operatorCreate": "OperatorRead",
+        "operatorUpdate": "OperatorRead",
+        "customersList": "OffsetPage_CustomerDirectoryRead_",
         "opsAsyncOperationsList": "OffsetPage_AsyncOperationRead_",
         "opsAsyncOperationsSummaryGet": "AsyncOperationsSummaryRead",
         "opsAsyncOperationRetry": "AsyncOperationRead",
         "opsAsyncOperationGet": "AsyncOperationRead",
-        "opsAuditEventsList": "OffsetPage_OpsAuditEventRead_",
+        "auditLogsList": "OffsetPage_OpsAuditEventRead_",
         "healthLive": "LivenessRead",
         "healthReady": "ReadinessRead",
     }
     for path, methods in spec["paths"].items():
         for operation in methods.values():
             identity = operation["operationId"]
-            if identity in {"operatorLogin", "operatorLogout"}:
+            if identity in {
+                "operatorLogout",
+                "operatorMfaReset",
+                "operatorPasswordReset",
+                "customerStatusUpdate",
+            }:
                 assert operation["responses"]["204"] == {"description": "Successful Response"}
             else:
-                assert operation["responses"]["200"]["content"]["application/json"]["schema"] == {
+                assert operation["responses"]["201" if identity == "operatorCreate" else "200"][
+                    "content"
+                ]["application/json"]["schema"] == {
                     "$ref": "#/components/schemas/" + refs[identity]
                 }
             if path.startswith("/api/v1/"):

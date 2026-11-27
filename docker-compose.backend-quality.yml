@@ -32,9 +32,8 @@ services:
       REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS: "60"
       REALTIME_EVENT_RETENTION_DAYS: "7"
       WORK_ROOT: /tmp/noteverse-quality/work
+      OPERATOR_TOTP_ENCRYPTION_KEY: "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
       CONTROL_PLANE_COOKIE_SECURE: "false"
-      CONTROL_PLANE_COOKIE_SAMESITE: lax
-      CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
       CONTROL_PLANE_CORS_ORIGINS: '["http://localhost:3001"]'
       DATABASE_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
       SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality

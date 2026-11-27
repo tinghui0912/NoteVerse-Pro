@@ -26,7 +26,7 @@ from tests.support.control_plane import (
 )
 
 
-def test_login_and_logout_are_bodyless_cookie_transitions(operator_client, control_db):
+def test_authenticated_profile_and_logout_cookie_transitions(operator_client, control_db):
     client = operator_client
     assert client.cookies.get(OPERATOR_AUTH_COOKIE_NAME)
     csrf = client.cookies.get(OPERATOR_CSRF_COOKIE_NAME)
@@ -42,7 +42,7 @@ def test_login_and_logout_are_bodyless_cookie_transitions(operator_client, contr
     assert control_db.scalar(select(OperatorSession)).revoked_at is not None
     assert client.get("/api/v1/auth/me").status_code == 401
     for cookie in response.headers.get_list("set-cookie"):
-        assert "Max-Age=0" in cookie and "Path=/" in cookie and "SameSite=lax" in cookie
+        assert "Max-Age=0" in cookie and "Path=/" in cookie and "SameSite=strict" in cookie
 
 
 def test_ops_representations_are_direct_and_utc_in_nested_pages(operator_client, control_db):
@@ -89,7 +89,7 @@ def test_ops_representations_are_direct_and_utc_in_nested_pages(operator_client,
         == response.json()
     )
     assert response.json()["status"] == "queued"
-    response = operator_client.get("/api/v1/ops/audit-events")
+    response = operator_client.get("/api/v1/audit-logs", params={"action": "retry_async_operation"})
     audit = response.json()
     assert OffsetPage[OpsAuditEventRead].model_validate(audit).model_dump(mode="json") == audit
     assert len(audit["items"]) == 1

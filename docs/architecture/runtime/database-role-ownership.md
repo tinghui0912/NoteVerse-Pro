@@ -65,7 +65,6 @@ authority; tests compare it with ORM metadata and exercise actual login roles.
 | `scheduler_leader_statuses` | — | — | — | S, I, U | S (scheduler_name, last_acquired_at, last_heartbeat_at, last_standby_at, last_child_exit_at, acquired_count, standby_count, child_exit_count, last_error, created_at, updated_at) |
 | `storage_plan_policies` | S | S | S | — | — |
 | `stored_objects` | S, I, U (sha256) | S, I, D, U (sha256) | — | — | — |
-| `operator_identities` | — | — | S, I, U | — | — |
 | `ops_audit_events` | — | — | S, I | — | — |
 | `practice_bundles` | S, I, U, D | S, D, U (creation_expires_at) | — | — | — |
 | `stored_object_retirements` | S, I, U | S, I, U | S, U (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, retirement_uuid, started_at, status, updated_at) |
@@ -75,8 +74,9 @@ authority; tests compare it with ORM metadata and exercise actual login roles.
 | `email_change_requests` | S, I, U | — | — | — | — |
 | `import_jobs` | S, I, U, D | S, U, D | S, U (state, progress, current_step, processing_started_at, processing_last_heartbeat_at, processing_finished_at, confirmed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, id, job_uuid, processing_finished_at, processing_started_at, state, updated_at) |
 | `notifications` | S, I, U | S, I, D | — | — | — |
-| `operator_password_credentials` | — | — | S, I, U | — | — |
 | `operator_sessions` | — | — | S, I, U | — | — |
+| `operator_mfa_challenges` | — | — | S, I, U, D | — | — |
+| `operator_recovery_codes` | — | — | S, I, U, D | — | — |
 | `performance_take_manifests` | S, I | S, D | — | — | — |
 | `realtime_changes` | S, I | S, I, D | — | — | — |
 | `realtime_stream_state` | S, I, U, D | S, I, U | — | — | — |
@@ -179,3 +179,13 @@ cloud IAM policy, actual cluster Secret rotation and operator MFA delivery
 are outside this contract's runtime implementation.
 
 See [Settings Ownership](settings-ownership.md).
+
+Control Plane customer metadata access is restricted to
+`nv_customer_directory(integer,integer)` and
+`nv_set_customer_active(bigint,bigint,boolean)`. The latter requires an active,
+MFA-enrolled SUPER_ADMIN, locks the User and expires customer session idle
+deadlines on suspension. Neither function returns credential material or grants
+direct table access. Operator challenge/recovery/session tables have no grants to
+other runtimes. Audit SELECT/INSERT permits append-only events in the mutation
+transaction; UPDATE/DELETE remain denied. See
+[Control Plane Authentication](../control-plane-auth.md).

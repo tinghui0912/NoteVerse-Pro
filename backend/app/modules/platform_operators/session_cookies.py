@@ -1,53 +1,75 @@
-"""Host-only opaque-session cookies for the control-plane surface."""
-
-import secrets
+"""Host-only Strict cookies isolate MFA challenges from authenticated operator sessions."""
 
 from fastapi import Response
-
 from app.platform.config.operator_session import OperatorSessionConfig
+from app.platform.security.opaque_tokens import generate_token
+
+
+def _set(
+    response: Response,
+    name: str,
+    value: str,
+    security: OperatorSessionConfig,
+    *,
+    max_age: int,
+    httponly: bool = True,
+) -> None:
+    response.set_cookie(
+        name,
+        value,
+        max_age=max_age,
+        secure=security.cookie_secure,
+        httponly=httponly,
+        samesite="strict",
+        path="/",
+        domain=None,
+    )
+
+
+def clear_challenge_cookie(response: Response, security: OperatorSessionConfig) -> None:
+    response.delete_cookie(
+        security.challenge_cookie_name,
+        secure=security.cookie_secure,
+        httponly=True,
+        samesite="strict",
+        path="/",
+        domain=None,
+    )
+
+
+def set_challenge_cookie(response: Response, token: str, security: OperatorSessionConfig) -> None:
+    clear_control_plane_session_cookies(response, security=security)
+    _set(response, security.challenge_cookie_name, token, security, max_age=300)
+    _set(
+        response, security.csrf_cookie_name, generate_token(), security, max_age=300, httponly=False
+    )
 
 
 def set_control_plane_session_cookies(
-    response: Response,
-    *,
-    session_token: str,
-    security: OperatorSessionConfig,
+    response: Response, *, session_token: str, security: OperatorSessionConfig
 ) -> None:
-    max_age = security.session_expire_minutes * 60
-    response.set_cookie(
-        key=security.auth_cookie_name,
-        value=session_token,
-        max_age=max_age,
-        httponly=True,
-        secure=security.cookie_secure,
-        samesite=security.cookie_samesite,
-        path="/",
-    )
-    response.set_cookie(
-        key=security.csrf_cookie_name,
-        value=secrets.token_urlsafe(32),
-        max_age=max_age,
+    clear_challenge_cookie(response, security)
+    _set(response, security.auth_cookie_name, session_token, security, max_age=43200)
+    _set(
+        response,
+        security.csrf_cookie_name,
+        generate_token(),
+        security,
+        max_age=43200,
         httponly=False,
-        secure=security.cookie_secure,
-        samesite=security.cookie_samesite,
-        path="/",
     )
 
 
 def clear_control_plane_session_cookies(
     response: Response, *, security: OperatorSessionConfig
 ) -> None:
-    response.delete_cookie(
-        key=security.auth_cookie_name,
-        path="/",
-        secure=security.cookie_secure,
-        samesite=security.cookie_samesite,
-        httponly=True,
-    )
-    response.delete_cookie(
-        key=security.csrf_cookie_name,
-        path="/",
-        secure=security.cookie_secure,
-        samesite=security.cookie_samesite,
-        httponly=False,
-    )
+    for name, httponly in ((security.auth_cookie_name, True), (security.csrf_cookie_name, False)):
+        response.delete_cookie(
+            name,
+            secure=security.cookie_secure,
+            httponly=httponly,
+            samesite="strict",
+            path="/",
+            domain=None,
+        )
+    clear_challenge_cookie(response, security)

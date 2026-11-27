@@ -42,6 +42,11 @@ spec:
                 secretKeyRef:
                   name: noteverse-control-plane-secret
                   key: REDIS_URL
+            - name: OPERATOR_TOTP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-control-plane-secret
+                  key: OPERATOR_TOTP_ENCRYPTION_KEY
           readinessProbe:
             httpGet:
               path: /health/ready
