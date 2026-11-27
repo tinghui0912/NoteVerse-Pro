@@ -4,18 +4,20 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from .object_writes import ObjectWriteSettings
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .playback import PlaybackSettings
-from .performance_take_deletion import PerformanceTakeDeletionSettings
+from .stored_object_retirement import StoredObjectRetirementSettings
 from .task_reliability import TaskReliabilitySettings
 from .worker_model_engine import WorkerModelEngineSettings
 
 
 class WorkerRuntimeSettings(
+    ObjectWriteSettings,
     PlaybackSettings,
-    PerformanceTakeDeletionSettings,
+    StoredObjectRetirementSettings,
     WorkerModelEngineSettings,
     TaskReliabilitySettings,
     BaseSettings,

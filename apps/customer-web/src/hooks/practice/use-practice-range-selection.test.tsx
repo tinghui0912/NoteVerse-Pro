@@ -1,21 +1,15 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { ExpectedPracticeGroup } from '@/lib/practice/local-core/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
 import { usePracticeRangeSelection } from './use-practice-range-selection';
 
-const groups: ExpectedPracticeGroup[] = [1, 2, 3].map(number => ({
+const groups: PracticeMomentView[] = [1, 2, 3].map(number => ({
   groupId: `g${number}`,
-  onsetBeat: number - 1,
-  canonicalEndBeat: number,
-  pitches: ['C4'],
+  onsetTick: number - 1,
+  canonicalEndTick: number,
   renderNoteIds: number === 2 ? ['n2a', 'n2b'] : [`n${number}`],
   measureNumbers: [String(number)],
-  eventIds: [],
-  expectedNotes: [],
-  strikeTargets: [],
-  staffIds: ['1'],
-  voiceIds: ['1'],
 }));
 
 function selectRange(

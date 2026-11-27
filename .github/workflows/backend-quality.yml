@@ -4,24 +4,66 @@ on:
   push:
     branches: [main]
     paths:
+      - "contracts/http/customer-browser-protocol.json"
+      - "contracts/http/control-plane-browser-protocol.json"
+      - "scripts/generate_customer_browser_protocol.py"
+      - "contracts/realtime/events.schema.json"
+      - "scripts/generate_realtime_contract.py"
+      - "scripts/generate_control_plane_browser_protocol.py"
+      - "contracts/practice/acoustic/runtime-contract.json"
+      - "scripts/generate_practice_acoustic_runtime.py"
+      - "scripts/verify_practice_acoustic_implementation.py"
+      - "apps/customer-web/tests/attestations/practice-acoustic/**"
+      - "apps/customer-web/src/lib/practice/acoustic/**"
+      - "apps/customer-web/public/model-assets/practice-acoustic/**"
+      - "apps/customer-web/package.json"
+      - "contracts/practice/recording-timebase.schema.json"
+      - "scripts/generate_practice_recording_timebase.py"
+      - "contracts/practice/recording-media-admission.json"
+      - "scripts/generate_practice_recording_media_admission.py"
+      - "contracts/score/tempo-policy.json"
+      - "scripts/generate_score_tempo_policy.py"
       - "backend/**"
       - "!backend/research/**"
-      - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
+      - "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.quality.dockerignore"
-      - "scripts/check_practice_score_artifact_contract.py"
+      - "scripts/check_practice_score_artifact_fixture.py"
+      - "scripts/generate_practice_score_contract.py"
+      - "contracts/practice/score/**"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
       - ".github/workflows/backend-quality.yml"
       - ".github/scripts/*.py"
   pull_request:
     paths:
+      - "contracts/http/customer-browser-protocol.json"
+      - "contracts/http/control-plane-browser-protocol.json"
+      - "scripts/generate_customer_browser_protocol.py"
+      - "contracts/realtime/events.schema.json"
+      - "scripts/generate_realtime_contract.py"
+      - "scripts/generate_control_plane_browser_protocol.py"
+      - "contracts/practice/acoustic/runtime-contract.json"
+      - "scripts/generate_practice_acoustic_runtime.py"
+      - "scripts/verify_practice_acoustic_implementation.py"
+      - "apps/customer-web/tests/attestations/practice-acoustic/**"
+      - "apps/customer-web/src/lib/practice/acoustic/**"
+      - "apps/customer-web/public/model-assets/practice-acoustic/**"
+      - "apps/customer-web/package.json"
+      - "contracts/practice/recording-timebase.schema.json"
+      - "scripts/generate_practice_recording_timebase.py"
+      - "contracts/practice/recording-media-admission.json"
+      - "scripts/generate_practice_recording_media_admission.py"
+      - "contracts/score/tempo-policy.json"
+      - "scripts/generate_score_tempo_policy.py"
       - "backend/**"
       - "!backend/research/**"
-      - "apps/customer-web/src/lib/practice/local-core/__fixtures__/canonical-practice-score-artifact.json"
+      - "apps/customer-web/src/lib/practice/__fixtures__/canonical-practice-score-artifact.json"
       - "docker/backend/Dockerfile.quality"
       - "docker/backend/Dockerfile.quality.dockerignore"
-      - "scripts/check_practice_score_artifact_contract.py"
+      - "scripts/check_practice_score_artifact_fixture.py"
+      - "scripts/generate_practice_score_contract.py"
+      - "contracts/practice/score/**"
       - "scripts/backend_quality_docker.ps1"
       - "scripts/quality.ps1"
       - ".github/workflows/backend-quality.yml"
@@ -63,15 +105,8 @@ jobs:
       QUALITY_IMAGE: noteverse-backend-quality:ci
       QUALITY_ENV_FILE: /tmp/backend-quality.env
       SECRET_KEY: ci-test-secret-key-that-is-long-enough
-      AUTH_COOKIE_NAME: noteverse_session
-      REFRESH_COOKIE_NAME: noteverse_refresh
-      CSRF_COOKIE_NAME: noteverse_csrf
-      CSRF_HEADER_NAME: x-csrf-token
       AUTH_COOKIE_SECURE: "false"
       AUTH_COOKIE_SAMESITE: lax
-      CONTROL_PLANE_AUTH_COOKIE_NAME: noteverse_control_session
-      CONTROL_PLANE_CSRF_COOKIE_NAME: noteverse_control_csrf
-      CONTROL_PLANE_CSRF_HEADER_NAME: x-control-csrf-token
       CONTROL_PLANE_COOKIE_SECURE: "false"
       CONTROL_PLANE_COOKIE_SAMESITE: lax
       CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
@@ -83,8 +118,7 @@ jobs:
       REALTIME_EVENT_RETENTION_DAYS: "7"
       BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
       TRUSTED_PROXY_CIDRS: '[]'
-      DATABASE_URL: postgresql+asyncpg://noteverse:noteverse@127.0.0.1:5432/noteverse_test
-      SYNC_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@127.0.0.1:5432/noteverse_test
+      DATABASE_URL: postgresql+psycopg://noteverse:noteverse@127.0.0.1:5432/noteverse_test
       SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@127.0.0.1:5432/noteverse_test
       REDIS_URL: redis://127.0.0.1:6379/0
       CELERY_BROKER_URL: redis://127.0.0.1:6379/1
@@ -117,15 +151,8 @@ jobs:
         run: |
           cat > "$QUALITY_ENV_FILE" <<EOF
           SECRET_KEY=$SECRET_KEY
-          AUTH_COOKIE_NAME=$AUTH_COOKIE_NAME
-          REFRESH_COOKIE_NAME=$REFRESH_COOKIE_NAME
-          CSRF_COOKIE_NAME=$CSRF_COOKIE_NAME
-          CSRF_HEADER_NAME=$CSRF_HEADER_NAME
           AUTH_COOKIE_SECURE=$AUTH_COOKIE_SECURE
           AUTH_COOKIE_SAMESITE=$AUTH_COOKIE_SAMESITE
-          CONTROL_PLANE_AUTH_COOKIE_NAME=$CONTROL_PLANE_AUTH_COOKIE_NAME
-          CONTROL_PLANE_CSRF_COOKIE_NAME=$CONTROL_PLANE_CSRF_COOKIE_NAME
-          CONTROL_PLANE_CSRF_HEADER_NAME=$CONTROL_PLANE_CSRF_HEADER_NAME
           CONTROL_PLANE_COOKIE_SECURE=$CONTROL_PLANE_COOKIE_SECURE
           CONTROL_PLANE_COOKIE_SAMESITE=$CONTROL_PLANE_COOKIE_SAMESITE
           CONTROL_PLANE_SESSION_EXPIRE_MINUTES=$CONTROL_PLANE_SESSION_EXPIRE_MINUTES
@@ -138,7 +165,6 @@ jobs:
           BACKEND_CORS_ORIGINS=$BACKEND_CORS_ORIGINS
           TRUSTED_PROXY_CIDRS=$TRUSTED_PROXY_CIDRS
           DATABASE_URL=$DATABASE_URL
-          SYNC_DATABASE_URL=$SYNC_DATABASE_URL
           SCHEDULER_LOCK_DATABASE_URL=$SCHEDULER_LOCK_DATABASE_URL
           REDIS_URL=$REDIS_URL
           CELERY_BROKER_URL=$CELERY_BROKER_URL
@@ -146,14 +172,23 @@ jobs:
           LEGATO_REPO_PATH=$LEGATO_REPO_PATH
           EOF
 
-      - name: Enforce Practice score artifact contract
+      - name: Verify Practice runtime projections, implementation evidence and producer fixture
         run: >-
           docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
           -v "$GITHUB_WORKSPACE:/repo:ro"
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
-          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py &&
-          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_contract.py --self-test-missing-fixture"
+          python scripts/generate_realtime_contract.py --check &&
+          python scripts/generate_customer_browser_protocol.py --check &&
+          python scripts/generate_control_plane_browser_protocol.py --check &&
+          python scripts/generate_practice_acoustic_runtime.py --check &&
+          python scripts/verify_practice_acoustic_implementation.py &&
+          python scripts/generate_score_tempo_policy.py --check &&
+          python scripts/generate_practice_recording_media_admission.py --check &&
+          python scripts/generate_practice_recording_timebase.py --check &&
+          python scripts/generate_practice_score_contract.py --check &&
+          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_fixture.py &&
+          PYTHONPATH=/repo/backend python scripts/check_practice_score_artifact_fixture.py --self-test-missing-fixture"
 
       - name: Run Ruff
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m ruff check app tests scripts"
@@ -194,6 +229,12 @@ jobs:
 
       - name: Run database migrations
         run: docker run --rm --network host --env-file "$QUALITY_ENV_FILE" "$QUALITY_IMAGE" bash -c "python -m alembic upgrade head"
+
+      - name: Verify fresh PostgreSQL schema contract
+        run: >-
+          docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
+          -e NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL="$DATABASE_URL"
+          "$QUALITY_IMAGE" python -m pytest tests/test_database_schema.py -q
 
       - name: Run full backend pytest
         run: >-

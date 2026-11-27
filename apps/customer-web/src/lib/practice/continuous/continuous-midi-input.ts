@@ -1,11 +1,14 @@
+import { isPracticePianoKey } from '@/lib/practice/score/piano-key';
 import type { ContinuousMidiPort, ContinuousPlatform, MidiConnection } from './continuous-input';
 
 export class ContinuousMidiInput {
   private readonly port: ContinuousMidiPort;
-  constructor(platform: ContinuousPlatform, connection: MidiConnection) {
-    this.port = platform.createMidi({ timebase: connection.timebase, onCapturedAttack: connection.observe, onStateChange: connection.onState });
+  constructor(platform: Pick<ContinuousPlatform, 'createMidi'>, connection: MidiConnection) {
+    this.port = platform.createMidi({ access: connection.access, timebase: connection.timebase, onAttack: fact => { if (isPracticePianoKey(fact.noteNumber)) connection.observe({
+      captureTime: fact.sessionTime, pianoKey: fact.noteNumber, confidence: fact.confidence,
+    }); } });
   }
   prepare(): Promise<void> { return this.port.start(); }
-  assertConnected(): void { if (this.port.getState().connectedInputCount === 0) throw new Error('NO_CONNECTED_INPUT'); }
+  refreshInputs(): void { this.port.refreshInputs(); }
   dispose(): void { this.port.dispose(); }
 }

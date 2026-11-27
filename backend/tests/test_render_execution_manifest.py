@@ -1,8 +1,9 @@
-from sqlmodel import SQLModel, Session, create_engine, select
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, select
 
 from app.db.execution_manifests import get_or_create_execution_manifest, manifest_sha256
 from app.db.models import ExecutionManifest
-from app.modules.score_assets.render_execution_manifest import build_render_execution_manifest
+from app.modules.rendering.execution_manifest import build_render_execution_manifest
 
 
 def test_render_execution_manifest_is_stable_and_content_addressed() -> None:
@@ -13,8 +14,10 @@ def test_render_execution_manifest_is_stable_and_content_addressed() -> None:
     assert manifest_sha256(manifest) == manifest_sha256(dict(reversed(list(manifest.items()))))
 
 
-def test_render_execution_manifest_reuses_the_normalized_record() -> None:
-    engine = create_engine("sqlite:///:memory:")
+def test_render_execution_manifest_reuses_the_normalized_record(
+    postgres_engine,
+) -> None:
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
@@ -23,4 +26,4 @@ def test_render_execution_manifest_reuses_the_normalized_record() -> None:
         session.commit()
 
         assert first.id == second.id
-        assert len(list(session.exec(select(ExecutionManifest)))) == 1
+        assert len(list(session.scalars(select(ExecutionManifest)))) == 1

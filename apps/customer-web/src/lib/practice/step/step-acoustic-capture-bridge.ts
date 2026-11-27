@@ -1,6 +1,6 @@
-import { SourceChronology } from '../acoustic/source/source-chronology';
-import type { CaptureChunk, CaptureConsumer } from '../acoustic/source/capture-types';
-import type { SourceAnalysisRuntime } from '../acoustic/runtime/source-analysis-runtime';
+import { SourceChronology } from '@/lib/practice/acoustic/source/source-chronology';
+import type { CaptureChunk, CaptureConsumer } from '@/lib/practice/acoustic/source/capture-types';
+import type { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
 
 /** Physical capture accounting only. Acoustic processed coverage is deliberately absent. */
 export class StepAcousticCaptureBridge implements CaptureConsumer {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import escape
+from app.db.models.score_access import MembershipRole
 
 from app.modules.mail.templates.base import MailContent, build_html_shell
 
@@ -10,7 +11,7 @@ def build_invite_email(
     locale: str,
     project_name: str,
     inviter_name: str,
-    score_title: str,
+    score_display_title: str,
     role_label: str,
     invite_url: str,
 ) -> MailContent:
@@ -18,14 +19,14 @@ def build_invite_email(
         return _build_en_invite_email(
             project_name=project_name,
             inviter_name=inviter_name,
-            score_title=score_title,
+            score_display_title=score_display_title,
             role_label=role_label,
             invite_url=invite_url,
         )
     return _build_zh_invite_email(
         project_name=project_name,
         inviter_name=inviter_name,
-        score_title=score_title,
+        score_display_title=score_display_title,
         role_label=role_label,
         invite_url=invite_url,
     )
@@ -35,13 +36,13 @@ def _build_zh_invite_email(
     *,
     project_name: str,
     inviter_name: str,
-    score_title: str,
+    score_display_title: str,
     role_label: str,
     invite_url: str,
 ) -> MailContent:
-    subject = f"{inviter_name} 邀请你协作《{score_title}》"
+    subject = f"{inviter_name} 邀请你协作《{score_display_title}》"
     text_body = (
-        f"{inviter_name} 邀请你在 {project_name} 中协作乐谱《{score_title}》。\n"
+        f"{inviter_name} 邀请你在 {project_name} 中协作乐谱《{score_display_title}》。\n"
         f"权限：{role_label}\n\n"
         f"点击链接接受邀请：\n{invite_url}\n\n"
         "如果你不认识这次邀请，可以忽略这封邮件。"
@@ -51,7 +52,7 @@ def _build_zh_invite_email(
         heading=f"{escape(inviter_name)} 邀请你协作",
         body_html=(
             f"你被邀请在 <strong>{escape(project_name)}</strong> 中协作乐谱 "
-            f"<strong>《{escape(score_title)}》</strong>。"
+            f"<strong>《{escape(score_display_title)}》</strong>。"
         ),
         extra_html=_build_meta_html(label="权限", value=role_label),
         action_label="接受邀请",
@@ -66,13 +67,13 @@ def _build_en_invite_email(
     *,
     project_name: str,
     inviter_name: str,
-    score_title: str,
+    score_display_title: str,
     role_label: str,
     invite_url: str,
 ) -> MailContent:
-    subject = f"{inviter_name} invited you to collaborate on {score_title}"
+    subject = f"{inviter_name} invited you to collaborate on {score_display_title}"
     text_body = (
-        f"{inviter_name} invited you to collaborate on \"{score_title}\" in {project_name}.\n"
+        f'{inviter_name} invited you to collaborate on "{score_display_title}" in {project_name}.\n'
         f"Role: {role_label}\n\n"
         f"Open this link to accept the invite:\n{invite_url}\n\n"
         "If you were not expecting this invitation, you can ignore this email."
@@ -81,7 +82,7 @@ def _build_en_invite_email(
         project_name=project_name,
         heading=f"{escape(inviter_name)} invited you to collaborate",
         body_html=(
-            f"You were invited to collaborate on <strong>{escape(score_title)}</strong> "
+            f"You were invited to collaborate on <strong>{escape(score_display_title)}</strong> "
             f"in <strong>{escape(project_name)}</strong>."
         ),
         extra_html=_build_meta_html(label="Role", value=role_label),
@@ -99,3 +100,19 @@ def _build_meta_html(*, label: str, value: str) -> str:
                   <span style="color:#6b7280;">{escape(label)}：</span>
                   <strong style="color:#111827;">{escape(value)}</strong>
                 </div>"""
+
+
+def invite_role_label(role: MembershipRole, locale: str) -> str:
+    labels = {
+        "en": {
+            MembershipRole.VIEWER: "Can view",
+            MembershipRole.PRACTITIONER: "Can practice",
+            MembershipRole.EDITOR: "Can edit",
+        },
+        "zh": {
+            MembershipRole.VIEWER: "可查看",
+            MembershipRole.PRACTITIONER: "可练习",
+            MembershipRole.EDITOR: "可编辑",
+        },
+    }
+    return labels["en" if locale == "en" else "zh"][role]

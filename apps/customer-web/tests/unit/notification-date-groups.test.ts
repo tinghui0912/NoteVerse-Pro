@@ -3,17 +3,20 @@ import { describe, expect, it } from 'vitest';
 import {
   getNotificationDateGroupKey,
   groupNotificationsByDate,
-} from '@/lib/notifications/date-groups';
-import type { NotificationEventRead } from '@/generated/api';
+} from '@/features/notifications/date-groups';
+import type { NotificationRead } from '@/generated/api';
 
-const baseNotification: NotificationEventRead = {
+const baseNotification: NotificationRead = {
   notification_id: 'notification-1',
-  type: 'score_invite.accepted',
-  title: 'Invite accepted',
-  body: null,
+  kind: 'score_invite.accepted',
+  invite_id: 'invite-1',
+  score_display_title: 'Etudes',
   score_id: 'score-1',
-  actor: null,
-  data: {},
+  actor: {
+    display_name: 'Member',
+    email: 'member@example.test',
+    avatar_url: null,
+  },
   read_at: null,
   created_at: '2026-07-02T08:00:00Z',
 };
@@ -56,9 +59,6 @@ describe('notification date groups', () => {
     );
 
     expect(groups.map((group) => group.key)).toEqual(['today', 'yesterday', 'earlier']);
-    expect(groups[0].items.map((item) => item.notification_id)).toEqual([
-      'today-1',
-      'today-2',
-    ]);
+    expect(groups[0].items.map((item) => item.notification_id)).toEqual(['today-1', 'today-2']);
   });
 });

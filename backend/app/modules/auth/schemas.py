@@ -1,9 +1,10 @@
 """Canonical Pydantic schemas for the auth module."""
 
-from datetime import datetime
+from app.shared.time import Instant
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from app.shared.api_model import ApiModel
 
 
 class TokenPayload(BaseModel):
@@ -35,7 +36,7 @@ class ConfirmEmailChangeRequest(BaseModel):
     token: str = Field(..., min_length=1, description="Email change confirmation token")
 
 
-class EmailChangeConfirmedRead(BaseModel):
+class EmailChangeConfirmedRead(ApiModel):
     email: EmailStr
 
 
@@ -69,29 +70,29 @@ class SessionSummary(BaseModel):
     device_id: str | None = None
     user_agent: str | None = None
     ip_address: str | None = None
-    created_at: datetime
-    last_used_at: datetime | None = None
-    expires_at: datetime
+    created_at: Instant
+    last_used_at: Instant | None = None
+    expires_at: Instant
     is_current: bool = False
 
 
 class SecurityOverview(BaseModel):
     email: EmailStr
-    email_verified_at: datetime | None = None
-    password_changed_at: datetime | None = None
+    email_verified_at: Instant | None = None
+    password_changed_at: Instant | None = None
     mfa_enabled: bool = False
     mfa_available: bool = False
 
 
-class SessionsRead(BaseModel):
+class SessionsRead(ApiModel):
     sessions: list[SessionSummary]
 
 
-class SecurityRead(BaseModel):
+class SecurityRead(ApiModel):
     security: SecurityOverview
 
 
-class User(BaseModel):
+class User(ApiModel):
     """Customer identity returned after email verification.
 
     Platform authorization belongs exclusively to the isolated control-plane
@@ -104,10 +105,23 @@ class User(BaseModel):
     email: EmailStr | None = None
     display_name: str | None = None
     is_active: bool | None = True
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    created_at: Instant | None = None
+    updated_at: Instant | None = None
     avatar_url: str | None = None
-    email_verified_at: datetime | None = None
+    email_verified_at: Instant | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def project_user(cls, value):
+        from app.db.models import User as UserRecord
+        from app.modules.account.avatar_presentation import avatar_url_for_user
+
+        if isinstance(value, UserRecord):
+            return {
+                **{name: getattr(value, name) for name in cls.model_fields if name != "avatar_url"},
+                "avatar_url": avatar_url_for_user(value),
+            }
+        return value
 
 
 __all__ = [

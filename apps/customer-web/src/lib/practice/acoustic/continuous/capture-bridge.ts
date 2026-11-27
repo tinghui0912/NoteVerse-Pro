@@ -1,5 +1,6 @@
 import { ContinuousAcousticProjection } from './continuous-projection';
-import { fail, onlyFields, safeIndex } from '../model/model-contract';
+import { fail } from '../errors';
+import { onlyFields, safeIndex } from '../validation';
 import { ACOUSTIC_RESOURCES as R } from '../runtime/resource-policy';
 
 import type { CaptureChunk } from '../source/capture-types';
@@ -17,7 +18,17 @@ export class ContinuousCaptureBridge {
   private nextBoundaryId = 0;
   private readonly boundaryDiagnostics: Readonly<{ id: string; action: 'SCHEDULED' | 'APPLIED' | 'CANCELLED'; type: string; sourceSampleIndex: number; performanceTimeMs: number; nextSourceAtAction: number }>[] = [];
   private failed = false;
+  private readonly readinessListeners = new Set<() => void>();
   constructor(readonly runtime: ContinuousAcousticProjection, private readonly rate: number) { this.chronology = new SourceChronology(rate); }
+  /** Attempt-local observation of committed source/boundary activity, never transport control. */
+  subscribeReadiness(listener: () => void): () => void {
+    this.readinessListeners.add(listener); return () => { this.readinessListeners.delete(listener); };
+  }
+  private notifyReadiness(): void {
+    for (const listener of this.readinessListeners) {
+      try { listener(); } catch { /* Observers cannot undo committed capture/source state. */ }
+    }
+  }
   attachCaptureCleanup(cleanup: () => void): () => void { return this.runtime.attachCaptureCleanup(cleanup); }
   schedule(boundary: AcousticBoundary): string {
     try {
@@ -30,7 +41,7 @@ export class ContinuousCaptureBridge {
       const owned = Object.freeze({ ...boundary }), id = `boundary:${this.nextBoundaryId++}`;
       this.boundaries.push(owned); this.boundaryIds.set(owned, id); this.recordBoundary(owned, id, 'SCHEDULED');
       this.applyBoundaries();
-      return id;
+      this.notifyReadiness(); return id;
     } catch (error) { this.abort(error); throw error; }
   }
   isPending(id: string): boolean { return [...this.boundaryIds.values()].includes(id); }
@@ -55,10 +66,10 @@ export class ContinuousCaptureBridge {
           sourceEndSampleIndex: end, samples: chunk.samples.subarray(offset, offset + length) });
         offset += length; this.nextSource = end;
       }
-      this.applyBoundaries();
+      this.applyBoundaries(); this.notifyReadiness();
     } catch (error) { this.abort(error); throw error; }
   }
-  abort(error: unknown): void { this.failed = true; this.boundaries.length = 0; this.boundaryIds.clear(); this.runtime.failAnalysis(error); }
+  abort(error: unknown): void { this.failed = true; this.boundaries.length = 0; this.boundaryIds.clear(); this.runtime.failAnalysis(error); this.notifyReadiness(); }
   snapshot() { return Object.freeze({ nextSourceSampleIndex: this.nextSource, ...this.chronology.snapshot(), failed: this.failed,
     pendingBoundaryCount: this.boundaries.length, boundaryDiagnostics: Object.freeze([...this.boundaryDiagnostics]) }); }
   private recordBoundary(boundary: AcousticBoundary, id: string, action: 'SCHEDULED' | 'APPLIED' | 'CANCELLED'): void {

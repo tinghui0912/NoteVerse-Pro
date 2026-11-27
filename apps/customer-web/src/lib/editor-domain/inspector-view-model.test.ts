@@ -69,13 +69,13 @@ const restEvent = createExplicitRestEvent({
   rhythm: quarter,
 });
 
-const document: ScoreDocument = {
+const document: ScoreDocument = {metadata:{notationTitle:null,subtitle:null,composer:null,lyricist:null,copyright:null,tempoNotation:null},
   schemaVersion: 1,
   id: 'score-1' as ScoreDocumentId,
   parts: [{ id: partId, name: 'Piano' }],
   staves: [{ id: staffId, partId, index: 0 }],
-  voices: [{ id: voiceId, partId, homeStaffId: staffId, stemPolicy: 'automatic' }],
-  measures: [{ id: measureId, number: 1 }],
+  voices: [{number:1, id: voiceId, partId, homeStaffId: staffId, stemPolicy: 'automatic' }],
+  measures: [{attributes:{meter:{beats:4,beatType:4},clefs:[{staffId:staffId,clef:{sign:'G',line:2}}]},partId:partId, id: measureId, number: 1 }],
   events: [singleNoteEvent, chordEvent, restEvent],
   beamRelationships: [],
   tieRelationships: [],

@@ -62,6 +62,8 @@ describe('score preview playback ownership', () => {
 
     act(() => result.current.scoreContainerRef(document.createElement('div')));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(createController).toHaveBeenCalledWith(expect.any(HTMLDivElement));
+    expect(controller.setTempo).not.toHaveBeenCalled();
     rerender({ isOpen: false });
 
     await waitFor(() => expect(controller.dispose).toHaveBeenCalledTimes(1));

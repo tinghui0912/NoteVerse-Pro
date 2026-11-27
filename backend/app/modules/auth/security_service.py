@@ -1,6 +1,6 @@
 """Account security overview service."""
 
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.db.models.user import User
 from app.modules.auth.schemas import SecurityOverview
@@ -9,7 +9,7 @@ from app.modules.auth.schemas import SecurityOverview
 class SecurityService:
     """Read-only account security signals for the current user."""
 
-    async def overview(self, _db: AsyncSession, user: User) -> SecurityOverview:
+    def overview(self, _db: Session, user: User) -> SecurityOverview:
         return SecurityOverview(
             email=user.email,
             email_verified_at=user.email_verified_at,

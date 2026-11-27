@@ -1,104 +1,32 @@
 from __future__ import annotations
 
-from sqlalchemy import delete, func, select, tuple_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import (
-    ImportJob,
     Score,
-    ScoreDeletionStatus,
-    ScorePublication,
     ScoreRevision,
-    ScoreTaxonomyTag,
-    TaxonomyCategory,
-    TaxonomyTag,
-    LibraryEntrySourceType,
-    ScoreLibraryEntry,
 )
-from app.db.models.score_access import PublicationStatus
-from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
-from app.modules.scores.taxonomy import TAXONOMY_SORT_ORDER
 
-score_title_col = Score.__table__.c.title
-score_updated_col = Score.__table__.c.updated_at
-active_score_filter = col(Score.deletion_status) == ScoreDeletionStatus.ACTIVE
+active_score_filter = col(Score.deleted_at).is_(None)
 
 
 class ScoreRepository:
-    async def list_owned(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        *,
-        page: int,
-        page_size: int,
-        search: str | None = None,
-        view: MyScoresView = MyScoresView.ALL,
-        sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
-    ) -> tuple[list[Score], int]:
-        filters = [Score.owner_user_id == user_id, active_score_filter]
-        if search:
-            filters.append(score_title_col.ilike(f"%{search}%"))
-        if view == MyScoresView.PUBLISHED:
-            filters.append(
-                select(ScorePublication.id)
-                .where(
-                    ScorePublication.score_id == Score.id,
-                    ScorePublication.status == PublicationStatus.PUBLISHED,
-                )
-                .exists()
+    def lock_active_deletion_set(self, db: Session, score_uuids: list[str]) -> list[Score]:
+        return list(
+            db.scalars(
+                select(Score)
+                .where(Score.score_uuid.in_(score_uuids), active_score_filter)
+                .order_by(Score.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
             )
-        elif view == MyScoresView.PRIVATE:
-            filters.append(
-                ~select(ScorePublication.id)
-                .where(
-                    ScorePublication.score_id == Score.id,
-                    ScorePublication.status == PublicationStatus.PUBLISHED,
-                )
-                .exists()
-            )
-        total = int(
-            (
-                await db.execute(select(func.count(Score.id)).where(*filters))
-            ).scalar_one()
         )
-        order_by = {
-            MyScoresSort.UPDATED_DESC: [score_updated_col.desc()],
-            MyScoresSort.UPDATED_ASC: [score_updated_col.asc()],
-            MyScoresSort.NAME_ASC: [score_title_col.asc()],
-            MyScoresSort.NAME_DESC: [score_title_col.desc()],
-        }[sort]
-        rows = await db.execute(
-            select(Score)
-            .where(*filters)
-            .order_by(*order_by)
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
-        return list(rows.scalars().all()), total
 
-    async def active_library_score_ids(
+    def get(
         self,
-        db: AsyncSession,
-        user_id: int,
-        score_ids: list[int],
-    ) -> set[int]:
-        if not score_ids:
-            return set()
-        rows = await db.execute(
-            select(ScoreLibraryEntry.score_id).where(
-                ScoreLibraryEntry.user_id == user_id,
-                col(ScoreLibraryEntry.score_id).in_(score_ids),
-                ScoreLibraryEntry.source_type == LibraryEntrySourceType.SELF_ADDED,
-                col(ScoreLibraryEntry.deleted_at).is_(None),
-            )
-        )
-        return {int(score_id) for score_id in rows.scalars().all()}
-
-    async def get(
-        self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         *,
         lock: bool = False,
@@ -108,19 +36,17 @@ class ScoreRepository:
         if not include_deleted:
             statement = statement.where(active_score_filter)
         if lock:
-            statement = statement.with_for_update()
-        return (await db.execute(statement)).scalar_one_or_none()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
+        return (db.execute(statement)).scalar_one_or_none()
 
-    async def revision(self, db: AsyncSession, revision_uuid: str) -> ScoreRevision | None:
+    def revision(self, db: Session, revision_uuid: str) -> ScoreRevision | None:
         return (
-            await db.execute(
-                select(ScoreRevision).where(ScoreRevision.revision_uuid == revision_uuid)
-            )
+            db.execute(select(ScoreRevision).where(ScoreRevision.revision_uuid == revision_uuid))
         ).scalar_one_or_none()
 
-    async def revisions(
+    def revisions(
         self,
-        db: AsyncSession,
+        db: Session,
         score_id: int,
         *,
         limit: int,
@@ -131,85 +57,26 @@ class ScoreRepository:
             statement = statement.where(ScoreRevision.revision_number < cursor)
         rows = list(
             (
-                await db.execute(
+                db.execute(
                     statement.order_by(col(ScoreRevision.revision_number).desc()).limit(limit + 1)
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         items = rows[:limit]
         next_cursor = items[-1].revision_number if len(rows) > limit and items else None
         return items, next_cursor
 
-    async def all_revisions(self, db: AsyncSession, score_id: int) -> list[ScoreRevision]:
+    def all_revisions(self, db: Session, score_id: int) -> list[ScoreRevision]:
         return list(
             (
-                await db.execute(
+                db.execute(
                     select(ScoreRevision)
                     .where(ScoreRevision.score_id == score_id)
                     .order_by(col(ScoreRevision.revision_number).desc())
                 )
-            ).scalars().all()
-        )
-
-    async def originating_job(
-        self, db: AsyncSession, job_id: int | None
-    ) -> ImportJob | None:
-        if job_id is None:
-            return None
-        return await db.get(ImportJob, job_id)
-
-    async def publication(
-        self, db: AsyncSession, score_id: int
-    ) -> ScorePublication | None:
-        return (
-            await db.execute(
-                select(ScorePublication).where(ScorePublication.score_id == score_id)
             )
-        ).scalar_one_or_none()
-
-    async def taxonomy_tags(
-        self, db: AsyncSession, score_id: int
-    ) -> list[tuple[str, str, str, float | None]]:
-        rows = await db.execute(
-            select(
-                TaxonomyCategory.code,
-                TaxonomyTag.code,
-                ScoreTaxonomyTag.source,
-                ScoreTaxonomyTag.confidence,
-            )
-            .join(TaxonomyTag, ScoreTaxonomyTag.tag_id == TaxonomyTag.id)
-            .join(TaxonomyCategory, TaxonomyTag.category_id == TaxonomyCategory.id)
-            .where(ScoreTaxonomyTag.score_id == score_id)
-            .order_by(TaxonomyCategory.sort_order, TaxonomyTag.sort_order)
+            .scalars()
+            .all()
         )
-        return list(rows.all())
-
-    async def replace_taxonomy_tags(
-        self,
-        db: AsyncSession,
-        score_id: int,
-        tags: list[tuple[str, str]],
-    ) -> None:
-        await db.execute(delete(ScoreTaxonomyTag).where(ScoreTaxonomyTag.score_id == score_id))
-        if not tags:
-            return
-        rows = await db.execute(
-            select(TaxonomyCategory.code, TaxonomyTag.code, TaxonomyTag.id)
-            .join(TaxonomyCategory, TaxonomyTag.category_id == TaxonomyCategory.id)
-            .where(tuple_(TaxonomyCategory.code, TaxonomyTag.code).in_(tags))
-            .where(col(TaxonomyCategory.is_active).is_(True), col(TaxonomyTag.is_active).is_(True))
-        )
-        tag_ids = {
-            (category, code): tag_id
-            for category, code, tag_id in rows.all()
-        }
-        missing = [
-            f"{category}:{code}"
-            for category, code in tags
-            if (category, code) not in tag_ids
-        ]
-        if missing:
-            raise ValueError(f"Taxonomy tags are not seeded: {', '.join(missing)}")
-        for category, code in sorted(tags, key=lambda item: TAXONOMY_SORT_ORDER[item]):
-            tag_id = tag_ids[(category, code)]
-            db.add(ScoreTaxonomyTag(score_id=score_id, tag_id=tag_id, source="USER"))

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { Mic, Pause, Play, Repeat2, Settings, Square } from 'lucide-react';
+import { LoaderCircle, Pause, Play, Repeat2, Settings, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -11,15 +11,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { ContinuousPracticeLifecycle } from '@/lib/practice/local-core/session';
-import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
-import type { TempoSegment } from '@/lib/practice/local-core/artifact';
-import type { PracticeTempoSelection } from '@/lib/practice/local-core/practice-tempo';
+import type { PracticeExecutionLifecycle } from '@/lib/practice/application/execution-view';
+import type { TempoSegment } from '@/lib/practice/score/artifact';
+import type { PracticeTempoSelection } from '@/lib/practice/planning/tempo';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { PracticeTempoPopover } from './practice-tempo-popover';
 
 interface PracticeControlSurfaceProps {
-  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
+  lifecycle: PracticeExecutionLifecycle;
   isLoading: boolean;
   isPreparingSession: boolean;
   canPrepareSession: boolean;
@@ -30,24 +29,25 @@ interface PracticeControlSurfaceProps {
   canSelectRange: boolean;
   tempoSelection?: PracticeTempoSelection;
   scoreTempoSegments?: readonly TempoSegment[];
-  scopeStartBeat?: number;
+  scopeStartTick?: number;
   tempoLocked?: boolean;
   onTempoSelectionChange?: (selection: PracticeTempoSelection) => void;
   metronomeEnabled?: boolean;
   onMetronomeEnabledChange?: (enabled: boolean) => void;
+  recordingSeconds?: number | null;
   onStart: () => void;
   transportControl?: React.ReactNode;
-  onFinish: () => void;
-  onOpenSettings: () => void;
+  onEnd: () => void;
+  onOpenSettings?: () => void;
   onToggleRangeSelection: () => void;
 }
 
-export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: StepControllerState }) {
+export function StepPracticeControls(props: Omit<PracticeControlSurfaceProps, 'lifecycle' | 'transportControl'> & { lifecycle: PracticeExecutionLifecycle }) {
   return <PracticeControlSurface {...props} />;
 }
 
 export function ContinuousPracticeControls({ onPause, onResume, ...props }: Omit<PracticeControlSurfaceProps, 'transportControl' | 'lifecycle'> & {
-  lifecycle: ContinuousPracticeLifecycle;
+  lifecycle: PracticeExecutionLifecycle;
   onPause(): void; onResume(): void;
 }) {
   const t = useTranslations('practice');
@@ -72,24 +72,26 @@ function PracticeControlSurface({
   canSelectRange,
   tempoSelection,
   scoreTempoSegments,
-  scopeStartBeat,
+  scopeStartTick,
   tempoLocked,
   onTempoSelectionChange,
   metronomeEnabled = false,
   onMetronomeEnabledChange,
+  recordingSeconds = null,
   onStart,
   transportControl,
-  onFinish,
+  onEnd,
   onOpenSettings,
   onToggleRangeSelection,
 }: PracticeControlSurfaceProps) {
   const t = useTranslations('practice');
-  const isActive = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
+  const isActive = ['PREPARING', 'ACTIVE', 'PAUSED', 'FINALIZING'].includes(lifecycle);
+  const canEnd = isActive || lifecycle === 'ERROR';
   const isSelectedInputReady = selectedInputCapability
     ? selectedInputCapability.supported
     : (selectedInputSupported ?? audioWorkletSupported ?? true);
   const canStart =
-    (lifecycle === 'READY' || lifecycle === 'IDLE' || lifecycle === 'ENDED') &&
+    (lifecycle === 'READY' || lifecycle === 'ERROR') &&
     canPrepareSession &&
     !isLoading &&
     !isPreparingSession &&
@@ -99,34 +101,39 @@ function PracticeControlSurface({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex shrink-0 items-center gap-2">
-        {isActive ? transportControl : (
+        {isActive ? (lifecycle === 'PREPARING' ? <LoaderCircle aria-label={t('startingAttempt')} className="h-4 w-4 animate-spin" /> : transportControl) : (
           <Button
             type="button"
             onClick={onStart}
             size="lg"
             disabled={!canStart}
+            aria-busy={isPreparingSession}
             className={cn('bg-orange-500 font-semibold text-white hover:bg-orange-600', actionButtonClass)}
           >
-            <Mic className="mr-2 h-4 w-4" />
-            {t('start')}
+            <span aria-hidden="true">{isPreparingSession ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}</span>
+            {t(isPreparingSession ? 'startingAttempt' : 'start')}
           </Button>
         )}
         <Button
           type="button"
           onClick={() => {
-            if (isActive) {
-              onFinish();
+            if (canEnd) {
+              onEnd();
             }
           }}
           variant="destructive"
           size="lg"
-          disabled={!isActive}
+          disabled={!canEnd}
           className={actionButtonClass}
         >
           <Square className="mr-2 h-4 w-4" /> {t('finish')}
         </Button>
       </div>
 
+      {recordingSeconds !== null && <time data-testid="recording-indicator" aria-label={t('recordingDuration')} className="flex items-center gap-2 text-sm font-semibold tabular-nums text-slate-600">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-red-500" />
+        {`${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}`}
+      </time>}
       <div className="hidden h-8 w-px bg-slate-200 lg:block" aria-hidden="true" />
 
       <TooltipProvider>
@@ -135,7 +142,7 @@ function PracticeControlSurface({
             <PracticeTempoPopover
               tempoSelection={tempoSelection}
               scoreTempoSegments={scoreTempoSegments}
-              scopeStartBeat={scopeStartBeat}
+              scopeStartTick={scopeStartTick}
               tempoLocked={tempoLocked ?? isActive}
               onTempoSelectionChange={onTempoSelectionChange}
               metronomeEnabled={metronomeEnabled}
@@ -146,7 +153,7 @@ function PracticeControlSurface({
           <Button
             type="button"
             variant={rangeSelectionActive ? 'default' : 'outline'}
-            disabled={!canSelectRange || isActive}
+            disabled={!canSelectRange}
             onClick={onToggleRangeSelection}
             className={cn(
               'h-11 gap-2',
@@ -159,7 +166,7 @@ function PracticeControlSurface({
             {t('rangeSelectionStart')}
           </Button>
 
-          <Tooltip>
+          {onOpenSettings && <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
@@ -172,7 +179,7 @@ function PracticeControlSurface({
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t('settingsTitle')}</TooltipContent>
-          </Tooltip>
+          </Tooltip>}
         </div>
       </TooltipProvider>
     </div>

@@ -3,9 +3,6 @@ from app.core.config import settings
 
 def test_application_factories_apply_shared_service_identity_settings(monkeypatch) -> None:
     monkeypatch.setattr(settings, "PROJECT_NAME", "NoteVerse Test")
-    monkeypatch.setenv("CONTROL_PLANE_AUTH_COOKIE_NAME", "noteverse_control_session")
-    monkeypatch.setenv("CONTROL_PLANE_CSRF_COOKIE_NAME", "noteverse_control_csrf")
-    monkeypatch.setenv("CONTROL_PLANE_CSRF_HEADER_NAME", "X-Control-CSRF-Token")
     monkeypatch.setenv("CONTROL_PLANE_COOKIE_SECURE", "true")
     monkeypatch.setenv("CONTROL_PLANE_COOKIE_SAMESITE", "strict")
     monkeypatch.setenv("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "60")

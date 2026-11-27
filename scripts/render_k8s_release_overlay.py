@@ -55,7 +55,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--s3-endpoint-url", required=True)
     parser.add_argument("--s3-region", required=True)
     parser.add_argument("--s3-bucket", required=True)
-    parser.add_argument("--s3-public-base-url", required=True)
     parser.add_argument("--s3-force-path-style", choices=("true", "false"), required=True)
     parser.add_argument("--s3-presign-expire-seconds", required=True)
     parser.add_argument(
@@ -106,7 +105,6 @@ def require_nonblank_arguments(args: argparse.Namespace) -> None:
         "s3_endpoint_url",
         "s3_region",
         "s3_bucket",
-        "s3_public_base_url",
         "s3_force_path_style",
         "s3_presign_expire_seconds",
     )
@@ -310,17 +308,12 @@ def render_overlay(args: argparse.Namespace) -> Path:
     )
     backend_config = replace_env_value(
         backend_config,
-        "S3_PUBLIC_BASE_URL",
-        args.s3_public_base_url,
-    )
-    backend_config = replace_env_value(
-        backend_config,
         "S3_FORCE_PATH_STYLE",
         args.s3_force_path_style,
     )
     backend_config = replace_env_value(
         backend_config,
-        "S3_PRESIGN_EXPIRE_SECONDS",
+        "OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS",
         args.s3_presign_expire_seconds,
     )
     backend_config_path.write_text(backend_config, encoding="utf-8")

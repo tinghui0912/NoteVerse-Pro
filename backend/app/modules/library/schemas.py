@@ -1,24 +1,23 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from datetime import datetime
+
+from app.shared.time import Instant
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.db.models import LibraryEntrySourceType, LibraryPracticeState
+from app.db.models.score_access import AccessOrigin
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead
-from app.modules.scores.schemas import ScoreTaxonomyTagRead
+from app.modules.scores.genres import Genres
+from app.shared.api_model import ApiModel
 
 
 class LibraryView(str, Enum):
     ALL = "all"
     FAVORITES = "favorites"
-    RECENT_PRACTICE = "recent_practice"
-    TO_PRACTICE = "to_practice"
-    MASTERED = "mastered"
-    BOOKMARKS = "bookmarks"
-    TRASH = "trash"
+    CREATED_BY_ME = "created_by_me"
+    SHARED_WITH_ME = "shared_with_me"
 
 
 class LibrarySort(str, Enum):
@@ -26,128 +25,83 @@ class LibrarySort(str, Enum):
     UPDATED_ASC = "updated_asc"
     NAME_ASC = "name_asc"
     NAME_DESC = "name_desc"
-    PRACTICED_DESC = "practiced_desc"
-
-
-class FolderDeleteMode(str, Enum):
-    MOVE_CONTENTS_TO_PARENT = "MOVE_CONTENTS_TO_PARENT"
-    MOVE_CONTENTS_TO_ROOT = "MOVE_CONTENTS_TO_ROOT"
-    TRASH_CONTENTS = "TRASH_CONTENTS"
 
 
 class LibraryFolderCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=1, max_length=255)
-    parent_folder_id: str | None = None
 
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str) -> str:
-        return value.strip()
+        value = value.strip()
+        if not value:
+            raise ValueError("folder name must not be blank")
+        return value
 
 
 class LibraryFolderUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
-    parent_folder_id: str | None = None
     position: int | None = Field(default=None, ge=0)
 
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str | None) -> str | None:
-        return value.strip() if value is not None else None
+        if value is not None:
+            value = value.strip()
+            if not value:
+                raise ValueError("folder name must not be blank")
+        return value
 
 
-class LibraryFolderDeleteRequest(BaseModel):
-    mode: FolderDeleteMode = FolderDeleteMode.MOVE_CONTENTS_TO_PARENT
-
-
-class LibraryEntryBatchMoveRequest(BaseModel):
-    entry_ids: list[str] = Field(min_length=1)
+class LibraryScoreBatchMoveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    score_ids: list[str] = Field(min_length=1)
     target_folder_id: str | None = None
 
 
-class LibraryEntryBatchUpdateRequest(BaseModel):
-    entry_ids: list[str] = Field(min_length=1)
+class LibraryScoreBatchFavoriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    score_ids: list[str] = Field(min_length=1)
+    is_favorite: bool
 
 
-class LibraryBatchMoveRead(BaseModel):
+class LibraryBatchMoveRead(ApiModel):
     moved: int
 
 
-class LibraryBatchUpdateRead(BaseModel):
+class LibraryBatchUpdateRead(ApiModel):
     updated: int
 
 
-class LibraryOwnedScoreBatchRequest(BaseModel):
-    score_ids: list[str] = Field(min_length=1)
-
-
-class LibraryOwnedScoreBatchRead(BaseModel):
-    added: int
-
-
-class LibraryEntryBatchPracticeStateRequest(BaseModel):
-    entry_ids: list[str] = Field(min_length=1)
-    practice_state: LibraryPracticeState
-
-    @field_validator("practice_state")
-    @classmethod
-    def reject_system_practice_state(
-        cls, value: LibraryPracticeState
-    ) -> LibraryPracticeState:
-        if value == LibraryPracticeState.IN_PROGRESS:
-            raise ValueError("IN_PROGRESS is managed by practice activity")
-        return value
-
-
-class LibraryEntryUpdateRequest(BaseModel):
-    practice_state: LibraryPracticeState | None = None
-    is_favorite: bool | None = None
-
-    @field_validator("practice_state")
-    @classmethod
-    def reject_system_practice_state(
-        cls, value: LibraryPracticeState | None
-    ) -> LibraryPracticeState | None:
-        if value == LibraryPracticeState.IN_PROGRESS:
-            raise ValueError("IN_PROGRESS is managed by practice activity")
-        return value
-
-
-class LibraryFolderRead(BaseModel):
+class LibraryFolderRead(ApiModel):
     folder_id: str
-    parent_folder_id: str | None
     name: str
     position: int
-    direct_count: int
-    recursive_count: int
-    created_at: datetime
-    updated_at: datetime
+    score_count: int
+    created_at: Instant
+    updated_at: Instant
 
 
-class LibraryFolderTreeRead(BaseModel):
+class LibraryFolderOverviewRead(ApiModel):
     all_count: int
     favorite_count: int
-    recent_practice_count: int
-    to_practice_count: int
-    mastered_count: int
+    created_by_me_count: int
+    shared_with_me_count: int
     folders: list[LibraryFolderRead]
 
 
-class LibraryEntryRead(BaseModel):
-    entry_id: str
+class LibraryScoreRead(ApiModel):
     score_id: str
-    source_type: LibraryEntrySourceType
+    access_origin: AccessOrigin
     folder_id: str | None
-    title: str
+    display_title: str
     derived_assets: ScoreDerivedAssetsRead
-    taxonomy_tags: list[ScoreTaxonomyTagRead]
+    genres: Genres
     metadata: MetadataRead | None
     is_favorite: bool
-    practice_state: LibraryPracticeState
-    available: bool
-    unavailable_reason: str | None
-    last_practiced_at: datetime | None
-    created_at: datetime
-    updated_at: datetime
-
-
+    created_at: Instant
+    updated_at: Instant

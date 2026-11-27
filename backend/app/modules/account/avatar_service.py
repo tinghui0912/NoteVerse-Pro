@@ -1,26 +1,58 @@
 """Avatar service under the account module boundary."""
 
+from app.modules.media_storage.delivery import MediaDeliveryService
+
+from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
+
 import hashlib
 import io
+import warnings
+from typing import BinaryIO
+from uuid import uuid4
+from sqlalchemy import select
 
-from PIL import Image
-from sqlalchemy.ext.asyncio import AsyncSession
+from PIL import Image, UnidentifiedImageError
+from sqlalchemy.orm import Session
 
-from app.core.logger import logger
+from app.core.config import settings
 from app.db.model_utils import require_persisted_id
+from app.core.exceptions import ResourceNotFoundException
 from app.db.models import User
-from app.storage import FileStorage, file_storage
+
+from app.modules.media_storage.adoption import adopt_written_object
+from app.modules.account.avatar_presentation import avatar_url_for_user
+from app.modules.media_storage.retirement import retire_after_release
+
+
+def avatar_object_key(filename: str) -> str:
+    if not filename or filename in {".", ".."} or "/" in filename or "\\" in filename:
+        raise ValueError("Avatar filename must be a nonempty namespace segment")
+    return f"avatars/{filename}"
+
+
+class AvatarFileTooLargeError(ValueError):
+    """The avatar exceeds the bounded input budget."""
 
 
 class AvatarService:
     """Avatar image processing for account profile pictures."""
 
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
-    MAX_FILE_SIZE = 5 * 1024 * 1024
     AVATAR_SIZE = (200, 200)
 
-    def __init__(self, storage: FileStorage | None = None) -> None:
-        self.storage = storage or file_storage
+    def __init__(self, *, writes: ObjectWriteCoordinator, delivery: MediaDeliveryService) -> None:
+        self.delivery = delivery
+        self.writes = writes
+        self.storage = writes.storage
+
+    def read_upload(self, stream: BinaryIO) -> bytes:
+        limit = settings.AVATAR_MAX_UPLOAD_BYTES
+        content = bytearray()
+        while chunk := stream.read(min(64 * 1024, limit - len(content) + 1)):
+            content.extend(chunk)
+            if len(content) > limit:
+                raise AvatarFileTooLargeError("Avatar exceeds the upload limit")
+        return bytes(content)
 
     def is_allowed_extension(self, filename: str) -> bool:
         if "." not in filename:
@@ -29,29 +61,33 @@ class AvatarService:
         return ext in self.ALLOWED_EXTENSIONS
 
     def validate_file_size(self, file_bytes: bytes) -> bool:
-        return len(file_bytes) <= self.MAX_FILE_SIZE
-
-    def filename_from_url(self, avatar_url: str | None) -> str | None:
-        if not avatar_url:
-            return None
-        return avatar_url.split("/")[-1].split("?")[0] or None
+        return len(file_bytes) <= settings.AVATAR_MAX_UPLOAD_BYTES
 
     def process_avatar(
         self,
         file_bytes: bytes,
         filename: str,
         user_id: int,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, bytes]:
         if not self.is_allowed_extension(filename):
             raise ValueError("Unsupported file format")
         if not self.validate_file_size(file_bytes):
-            raise ValueError("File size exceeds the 5MB limit")
-
-        hash_input = f"{user_id}_{filename}".encode("utf-8")
-        file_hash = hashlib.md5(hash_input).hexdigest()
+            raise AvatarFileTooLargeError("Avatar exceeds the upload limit")
 
         try:
-            img = Image.open(io.BytesIO(file_bytes))
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(io.BytesIO(file_bytes)) as source:
+                    if source.format not in {"PNG", "JPEG", "GIF", "WEBP"}:
+                        raise ValueError("Unsupported image format")
+                    width, height = source.size
+                    if (
+                        width * height > settings.AVATAR_MAX_PIXELS
+                        or max(width, height) > settings.AVATAR_MAX_DIMENSION
+                    ):
+                        raise ValueError("Avatar dimensions exceed the decoding budget")
+                    source.load()
+                    img = source.copy()
             if img.mode not in ("RGB", "RGBA"):
                 img = img.convert("RGB")
 
@@ -61,105 +97,74 @@ class AvatarService:
                 (self.AVATAR_SIZE[0] - img.size[0]) // 2,
                 (self.AVATAR_SIZE[1] - img.size[1]) // 2,
             )
-            canvas.paste(img, offset)
+            canvas.paste(img, offset, img.getchannel("A") if img.mode == "RGBA" else None)
 
-            final_filename = f"{user_id}_{file_hash}.jpg"
             output = io.BytesIO()
             canvas.save(output, "JPEG", quality=85, optimize=True)
-            stored = self.storage.save_avatar(
-                content=output.getvalue(),
-                filename=final_filename,
-            )
+            content = output.getvalue()
+            final_filename = f"{user_id}_{hashlib.sha256(content).hexdigest()}_{uuid4().hex}.jpg"
+            return avatar_object_key(final_filename), content
+        except (
+            UnidentifiedImageError,
+            OSError,
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+        ) as exc:
+            raise ValueError("Invalid avatar image") from exc
 
-            logger.bind(
-                event="account.avatar.saved",
-                user_id=user_id,
-                filename=final_filename,
-            ).info("Avatar saved")
-            return final_filename, stored.public_url or self.storage.avatar_url(final_filename)
-        except Exception as exc:
-            logger.bind(
-                event="account.avatar.processing_failed",
-                user_id=user_id,
-                filename=filename,
-            ).opt(exception=exc).error("Avatar processing failed")
-            raise ValueError(f"Image processing failed: {str(exc)}")
-
-    async def replace_user_avatar(
+    def replace_user_avatar(
         self,
-        db: AsyncSession,
+        db: Session,
         user: User,
         *,
         file_bytes: bytes,
         filename: str,
     ) -> tuple[str, str]:
         user_id = require_persisted_id(user.id, entity="user")
-        old_filename = self.filename_from_url(user.avatar_url)
-        saved_filename, avatar_url = self.process_avatar(
-            file_bytes=file_bytes,
-            filename=filename,
-            user_id=user_id,
+        key, content = self.process_avatar(
+            file_bytes=file_bytes, filename=filename, user_id=user_id
         )
+        db.commit()
+        db.close()
+        written = self.writes.write_bytes(key=key, content=content, content_type="image/jpeg")
+        db.add(user)
+        user = (
+            db.execute(
+                select(User)
+                .where(User.id == user_id, User.is_active.is_(True), User.deleted_at.is_(None))
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        if user is None:
+            raise ResourceNotFoundException("user", str(user_id))
+        previous = user.avatar_object
+        try:
+            current = adopt_written_object(db, written)
+            user.avatar_object = current
+            db.add(user)
+            if previous is not None:
+                retire_after_release(db, previous.id)
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+            raise
+        return current.object_key.rsplit("/", 1)[-1], avatar_url_for_user(user) or ""
 
-        if old_filename and old_filename != saved_filename:
-            self.delete_avatar(old_filename)
-
-        user.avatar_url = avatar_url
-        await db.commit()
-        await db.refresh(user)
-        return saved_filename, avatar_url
-
-    async def clear_user_avatar(self, db: AsyncSession, user: User) -> bool:
-        old_filename = self.filename_from_url(user.avatar_url)
-        if old_filename:
-            self.delete_avatar(old_filename)
-
-        if user.avatar_url:
-            user.avatar_url = None
-            await db.commit()
-            return True
-
-        return False
-
-    async def clear_missing_avatar_reference(self, db: AsyncSession, user: User) -> bool:
-        avatar_filename = self.filename_from_url(user.avatar_url)
-        if not avatar_filename or self.avatar_exists(avatar_filename):
+    def clear_user_avatar(self, db: Session, user: User) -> bool:
+        user = db.scalar(
+            select(User)
+            .where(User.id == user.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if user is None:
             return False
-
-        user.avatar_url = None
-        await db.commit()
-        logger.bind(
-            event="account.avatar.missing_reference_cleared",
-            user_id=user.id,
-            filename=avatar_filename,
-        ).info("Missing avatar reference cleared")
+        previous = user.avatar_object
+        if previous is None:
+            return False
+        user.avatar_object = None
+        user.avatar_object_id = None
+        retire_after_release(db, previous.id)
         return True
-
-    def delete_avatar(self, filename: str) -> bool:
-        try:
-            deleted = self.storage.delete_avatar(filename)
-            if deleted:
-                logger.bind(
-                    event="account.avatar.deleted",
-                    filename=filename,
-                ).info("Avatar deleted")
-            return deleted
-        except Exception as exc:
-            logger.bind(
-                event="account.avatar.deletion_failed",
-                filename=filename,
-            ).opt(exception=exc).error("Avatar deletion failed")
-            return False
-
-    def avatar_exists(self, filename: str) -> bool:
-        try:
-            return self.storage.exists(f"avatars/{filename}")
-        except Exception as exc:
-            logger.bind(
-                event="account.avatar.exists_check_failed",
-                filename=filename,
-            ).opt(exception=exc).warning("Avatar existence check failed")
-            return True
-
-
-avatar_service = AvatarService()

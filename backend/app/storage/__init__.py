@@ -1,17 +1,30 @@
 """Storage adapters for uploaded and generated files."""
 
-from .base import DirectUploadTarget, FileStorage, StoredFile, StoredObjectMetadata
-from .factory import file_storage, get_file_storage
-from .local import (
-    LocalFileStorage,
+from .base import (
+    DirectUploadTarget,
+    ObjectStorage,
+    ObjectWriteResult,
+    ObjectMetadata,
+    UploadedPart,
+    MultipartUploadResult,
+    ObjectNotFoundError,
+    ObjectStorageUnavailableError,
+    ObjectStorageOperationFailedError,
 )
+from .factory import object_storage, get_object_storage
+from .async_reader import AsyncObjectReader
 
 __all__ = [
-    "FileStorage",
+    "ObjectStorage",
+    "AsyncObjectReader",
     "DirectUploadTarget",
-    "LocalFileStorage",
-    "StoredFile",
-    "StoredObjectMetadata",
-    "file_storage",
-    "get_file_storage",
+    "ObjectWriteResult",
+    "ObjectMetadata",
+    "UploadedPart",
+    "MultipartUploadResult",
+    "ObjectNotFoundError",
+    "ObjectStorageUnavailableError",
+    "ObjectStorageOperationFailedError",
+    "object_storage",
+    "get_object_storage",
 ]

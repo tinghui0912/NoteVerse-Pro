@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  applyMusicXmlCursorInstruction,
   createBeamRelationship,
   createExplicitRestEvent,
   createPitchedEvent,
@@ -187,30 +186,6 @@ describe('editor domain model invariants', () => {
         },
       },
     ]);
-  });
-
-  it('treats MusicXML forward and backup as cursor instructions only', () => {
-    const afterForward = applyMusicXmlCursorInstruction(
-      { numerator: 0, denominator: 1 },
-      {
-        kind: 'forward',
-        duration: {
-          numerator: 1,
-          denominator: 2,
-        },
-      }
-    );
-    const afterBackup = applyMusicXmlCursorInstruction(afterForward, {
-      kind: 'backup',
-      duration: {
-        numerator: 1,
-        denominator: 4,
-      },
-    });
-
-    expect(afterForward).toEqual({ numerator: 1, denominator: 2 });
-    expect(afterBackup).toEqual({ numerator: 1, denominator: 4 });
-    expect(isVoiceEvent({ kind: 'forward' })).toBe(false);
   });
 
   it('does not depend on a part id to decide event identity', () => {

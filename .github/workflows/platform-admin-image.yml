@@ -59,8 +59,6 @@ jobs:
             ${{ env.IMAGE_NAMESPACE }}/platform-admin:build-${{ github.run_id }}
           build-args: |
             NEXT_CONTROL_PLANE_ORIGIN=http://noteverse-control-plane:8000
-            NEXT_PUBLIC_CONTROL_PLANE_CSRF_COOKIE_NAME=noteverse_operator_csrf
-            NEXT_PUBLIC_CONTROL_PLANE_CSRF_HEADER_NAME=x-operator-csrf-token
 
       - name: Generate Platform Admin SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3

@@ -1,10 +1,14 @@
-import { SourceAnalysisRuntime } from '../acoustic/runtime/source-analysis-runtime';
-import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
-import { PracticeTimebase, type LocalClock, type SessionTime } from '../local-core/timebase';
-import type { StepAttemptEvidence } from '../local-core/step-attempt';
+import { acousticBoundaryFailure } from '@/lib/practice/acoustic/failure-boundary';
+import { AudioContextFailure, CaptureFailure } from '@/lib/practice/failure/causal-failure';
+import { PracticeStartupTimings } from '@/lib/practice/diagnostics/startup-timings';
+import type { AcousticInferencePort } from '@/lib/practice/acoustic/runtime/inference-types';
+import { SourceAnalysisRuntime } from '@/lib/practice/acoustic/runtime/source-analysis-runtime';
+import { isAcousticDomainIdentity, type SourceAcousticPublication } from '@/lib/practice/acoustic/runtime/source-publication';
+import { PracticeTimebase, type LocalClock, type SessionTime } from '@/lib/practice/session/timebase';
+import type { StepPianoKeyEvidence } from '@/lib/practice/step/domain/attempt';
 import { StepAcousticAttemptAssembler, type StepAcousticAttemptSink } from './step-acoustic-attempt-assembler';
 import { StepAcousticCaptureBridge } from './step-acoustic-capture-bridge';
-import type { StepMicrophonePlatform, StepMicrophoneWorker } from './step-microphone-platform';
+import type { StepMicrophonePlatform } from './step-microphone-platform';
 
 export type StepMicrophoneRetirementBoundary = Readonly<{
   sourceDomainId: string; sourceSampleRateHz: 44100 | 48000; capturedThroughSourceSample: number;
@@ -19,7 +23,7 @@ export type StepMicrophoneSink<Identity> = StepAcousticAttemptSink<Identity> & R
 export class StepMicrophoneInput<Identity> {
   private state: 'NEW' | 'PREPARING' | 'AVAILABLE' | 'FAILED' | 'DISPOSED' = 'NEW';
   private connection: StepMicrophoneConnection | null = null;
-  private worker: StepMicrophoneWorker | null = null;
+  private worker: AcousticInferencePort | null = null;
   private runtime: SourceAnalysisRuntime | null = null;
   private bridge: StepAcousticCaptureBridge | null = null;
   private assembler: StepAcousticAttemptAssembler<Identity> | null = null;
@@ -33,7 +37,7 @@ export class StepMicrophoneInput<Identity> {
   private captureConnected = false;
   private delivering = false;
   private notifying = false;
-  private completed: { identity: Identity; evidence: StepAttemptEvidence } | null = null;
+  private completed: { identity: Identity; evidence: StepPianoKeyEvidence } | null = null;
   private regionStarted = false;
   private publications = 0;
   private sequence = 0;
@@ -47,7 +51,7 @@ export class StepMicrophoneInput<Identity> {
     return this.connection.context.currentTime * 1000;
   } });
 
-  constructor(private readonly platform: StepMicrophonePlatform, private readonly sink: StepMicrophoneSink<Identity>) {
+  constructor(private readonly platform: StepMicrophonePlatform, private readonly sink: StepMicrophoneSink<Identity>, private readonly startup = new PracticeStartupTimings()) {
     void this.ready.catch(() => {});
   }
 
@@ -60,7 +64,7 @@ export class StepMicrophoneInput<Identity> {
     connection.context.addEventListener('statechange', this.contextChanged);
     this.setupTask = this.setup(signal);
     return this.setupTask.then(async () => {
-      this.check(); this.captureConnected = true; this.maybeReady(); await this.ready; this.check();
+      this.check(); this.captureConnected = true; this.maybeReady(); await this.startup.measure('acousticPreroll', () => this.ready); this.check();
       return this.retirementBoundary();
     }).catch(error => { this.fail(error); throw error; });
   }
@@ -78,6 +82,19 @@ export class StepMicrophoneInput<Identity> {
         capturedThroughSourceSample: sample, sessionTime: Object.freeze(this.timebase!.sampleIndexToSessionTime(sample)), sequence: ++this.sequence });
       return this.issued;
     } catch (error) { this.fail(error); throw error; }
+  }
+
+  /** Cancel unfinished physical input without losing publication identity or capture chronology. */
+  suspendInput(): void {
+    this.check();
+    this.assembler?.suspend();
+    this.completed = null;
+  }
+
+  /** Recovery retires all capture through the current physical frontier, including delayed analysis. */
+  recoveryBoundary(): StepMicrophoneRetirementBoundary {
+    this.suspendInput();
+    return this.retirementBoundary();
   }
 
   /** Retire an armed, idle input before an application target transition, never an active gesture. */
@@ -138,21 +155,19 @@ export class StepMicrophoneInput<Identity> {
   private async setup(signal: AbortSignal): Promise<void> {
     const c = this.connection!;
     if (signal.aborted || c.context.state !== 'running' || ![44100, 48000].includes(c.context.sampleRate)
-      || !c.localSessionId || !c.sourceDomainId || c.sourceDomainId.length > 192) throw new Error('STEP_MICROPHONE_CONNECTION_INVALID');
-    const url = await this.platform.modelUrl(signal); this.check();
-    this.worker = this.platform.createWorker();
+      || !c.localSessionId || !isAcousticDomainIdentity(c.sourceDomainId)) throw new Error('STEP_MICROPHONE_CONNECTION_INVALID');
+    this.worker = await this.platform.acquireInference(signal); this.check();
     this.detachWorker = this.worker.onFailure?.(error => this.fail(error));
-    await this.worker.load(url); this.check();
-    const coefficientBytes = await this.platform.coefficients(c.context.sampleRate); this.check();
+    const coefficientBytes = await this.startup.measure('firLoad', () => this.platform.coefficients(c.context.sampleRate)); this.check();
     this.runtime = await SourceAnalysisRuntime.create({ sourceDomainId: c.sourceDomainId, sourceSampleRateHz: c.context.sampleRate,
       coefficientBytes, worker: { run: input => this.worker!.run(input), dispose: () => this.worker!.dispose() },
-      nowAvailabilityMs: () => c.context.currentTime * 1000,
+      nowAvailabilityRuntimeMs: () => c.context.currentTime * 1000,
       onPublication: publication => this.publication(publication), onFailure: error => this.fail(error) });
     this.check();
     this.bridge = new StepAcousticCaptureBridge(this.runtime, c.context.sampleRate as 44100 | 48000,
       () => this.captured(), error => this.fail(error));
-    this.capture = await this.platform.connectCapture({ bridge: this.bridge, stream: c.stream, ownership: 'BORROWED_SESSION_STREAM',
-      context: c.context, workletUrl: this.platform.workletUrl });
+    this.capture = await this.startup.measure('captureConnect', () => this.platform.connectCapture({ bridge: this.bridge!, stream: c.stream, ownership: 'BORROWED_SESSION_STREAM',
+      context: c.context, workletUrl: this.platform.workletUrl }));
     if (this.closed()) this.capture.stop();
     this.check();
   }
@@ -160,7 +175,7 @@ export class StepMicrophoneInput<Identity> {
   private captured(): void {
     this.check();
     const c = this.connection!, capture = this.bridge!.snapshot(), origin = capture.audioContextOriginFrame;
-    if (origin === null || !Number.isSafeInteger(origin) || origin < 0) throw new Error('STEP_MICROPHONE_SOURCE_MAPPING_INVALID');
+    if (origin === null || !Number.isSafeInteger(origin) || origin < 0) throw new CaptureFailure('SOURCE_MAPPING_INVALID');
     if (!this.assembler) {
       const rate = capture.sourceSampleRateHz;
       this.timebase = new PracticeTimebase({ domainId: c.localSessionId, sampleRateHz: rate, anchorSampleIndex: 0,
@@ -206,13 +221,13 @@ export class StepMicrophoneInput<Identity> {
   }
 
   private readonly contextChanged = () => {
-    if (this.connection?.context.state !== 'running') this.fail(new Error('STEP_MICROPHONE_CONTEXT_INTERRUPTED'));
+    if (this.connection?.context.state !== 'running') this.fail(new AudioContextFailure(this.connection?.context.state === 'closed' ? 'CLOSED' : 'INTERRUPTED'));
   };
   private closed(): boolean { return this.state === 'FAILED' || this.state === 'DISPOSED'; }
   private check(): void { if (this.closed()) throw this.failure ?? new Error('STEP_MICROPHONE_DISPOSED'); }
   private fail(error: unknown): void {
     if (this.closed()) return;
-    this.failure = error instanceof Error ? error : new Error(String(error)); this.state = 'FAILED'; this.issued = null;
+    this.failure = acousticBoundaryFailure(error); this.state = 'FAILED'; this.issued = null;
     this.rejectReady(this.failure); void this.dispose();
     try { this.sink.failure(this.failure); } catch { /* Application notification cannot resurrect resources. */ }
   }

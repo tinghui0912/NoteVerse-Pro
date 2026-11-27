@@ -1,4 +1,4 @@
-import type { AccidentalValue, Duration, ParsedScoreEvent } from '@/types/score-types';
+import type { AccidentalValue, Duration } from './input-values';
 
 export type EditableEventDisplayKind = 'explicitRest' | 'singleNote' | 'chord';
 
@@ -43,39 +43,6 @@ export function createDefaultEditableEvent(): EditableEvent {
   return {
     duration: 'durationQuarter',
     dotted: false,
-    pitches: [],
-    stemDirection: 'none',
-    fingerings: [],
-    accidentals: [],
-  };
-}
-
-export function toEditableEvent(entity: ParsedScoreEvent): EditableEvent {
-  if (entity.type === 'chord') {
-    return {
-      duration: entity.duration,
-      dotted: Boolean(entity.dotted),
-      pitches: [...entity.pitches],
-      stemDirection: entity.stemDirection ?? 'none',
-      fingerings: entity.pitches.map((_, index) => entity.fingerings?.[index] ?? 'none'),
-      accidentals: entity.pitches.map((_, index) => entity.accidentals?.[index]),
-    };
-  }
-
-  if (entity.type === 'note') {
-    return {
-      duration: entity.duration,
-      dotted: Boolean(entity.dotted),
-      pitches: [entity.pitch],
-      stemDirection: entity.stemDirection ?? 'none',
-      fingerings: [entity.fingering ?? 'none'],
-      accidentals: [entity.accidental],
-    };
-  }
-
-  return {
-    duration: entity.duration,
-    dotted: Boolean(entity.dotted),
     pitches: [],
     stemDirection: 'none',
     fingerings: [],

@@ -1,3 +1,3 @@
 export { VerovioScoreAdapter } from './adapter';
-export { readNumericTimemapValue, sanitizeMusicXmlForVerovio } from './sanitize';
+export { prepareMusicXmlForVerovioRendering } from './prepare-rendering';
 export type { VerovioRenderedPage, VerovioToolkitLike } from './types';

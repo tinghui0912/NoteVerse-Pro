@@ -6,12 +6,12 @@ import type { ReactNode } from 'react';
 import { BrandLogo } from '@/components/brand';
 import { AuthenticatedNavActions, LanguageSwitcher } from '@/components/navigation';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { Link } from '@/i18n/routing';
 
 export function InviteShell({ children }: { children: ReactNode }) {
   const t = useTranslations('common');
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuthentication();
 
   return (
     <div className="min-h-screen bg-gray-50">

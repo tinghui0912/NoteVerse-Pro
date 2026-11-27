@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "originalRecordingContainers": [
+    {
+      "kind": "AUDIO",
+      "mimeType": "audio/webm",
+      "extension": "webm",
+      "signature": "EBML"
+    },
+    {
+      "kind": "AUDIO",
+      "mimeType": "audio/mp4",
+      "extension": "mp4",
+      "signature": "ISO_BMFF_FTYP"
+    },
+    {
+      "kind": "AUDIO",
+      "mimeType": "audio/ogg",
+      "extension": "ogg",
+      "signature": "OGG"
+    },
+    {
+      "kind": "AUDIO",
+      "mimeType": "audio/wav",
+      "extension": "wav",
+      "signature": "RIFF_WAVE"
+    },
+    {
+      "kind": "AUDIO",
+      "mimeType": "audio/x-wav",
+      "extension": "wav",
+      "signature": "RIFF_WAVE"
+    },
+    {
+      "kind": "VIDEO",
+      "mimeType": "video/webm",
+      "extension": "webm",
+      "signature": "EBML"
+    },
+    {
+      "kind": "VIDEO",
+      "mimeType": "video/mp4",
+      "extension": "mp4",
+      "signature": "ISO_BMFF_FTYP"
+    }
+  ]
+}

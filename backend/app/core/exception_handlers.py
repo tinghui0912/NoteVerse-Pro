@@ -1,34 +1,27 @@
 """Centralized FastAPI exception handlers."""
+
+from enum import StrEnum
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
+from starlette.exceptions import HTTPException
 
 from app.core.exceptions import AppException
-from app.core.logger import get_request_id, logger
-from app.shared.constants import ErrorCode
-from app.shared.responses import ErrorResponsePayload, error_response
+from app.core.logger import logger
+from app.core.request_correlation import request_correlation_id
+from app.core.http_error_policy import ErrorResponseFactory, HttpRuntimeErrorCodes
 
 
-def _error_payload(
-    *,
-    public_code: str,
-    request_id: str | None,
-) -> ErrorResponsePayload:
-    return error_response(
-        public_code=public_code,
-        public_message=public_code,
-        request_id=request_id,
-    )
-
-
-def _request_id(request: Request) -> str | None:
-    return get_request_id() or request.headers.get("X-Request-ID")
+def _error_payload(request: Request, *, code: StrEnum, request_id: str) -> dict[str, object]:
+    factory: ErrorResponseFactory = request.app.state.error_response_factory
+    return factory(code, request_id)
 
 
 def _request_log_context(request: Request) -> dict[str, object]:
     return {
-        "request_id": _request_id(request),
+        "request_id": request_correlation_id(request),
         "method": request.method,
         "http_path": request.url.path,
     }
@@ -55,8 +48,9 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     return JSONResponse(
         status_code=exc.status_code,
         content=_error_payload(
-            public_code=exc.code,
-            request_id=_request_id(request),
+            request,
+            code=exc.code,
+            request_id=request_correlation_id(request),
         ),
     )
 
@@ -65,10 +59,11 @@ async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
+    codes: HttpRuntimeErrorCodes = request.app.state.http_error_codes
     errors = exc.errors()
     logger.bind(
         event="http.request_validation_failed",
-        public_code=ErrorCode.VALIDATION_ERROR,
+        public_code=codes.validation_error,
         status_code=422,
         **_request_log_context(request),
         **_validation_error_summary(errors),
@@ -76,8 +71,9 @@ async def validation_exception_handler(
     return JSONResponse(
         status_code=422,
         content=_error_payload(
-            public_code=ErrorCode.VALIDATION_ERROR,
-            request_id=_request_id(request),
+            request,
+            code=codes.validation_error,
+            request_id=request_correlation_id(request),
         ),
     )
 
@@ -86,10 +82,11 @@ async def pydantic_validation_exception_handler(
     request: Request,
     exc: PydanticValidationError,
 ) -> JSONResponse:
+    codes: HttpRuntimeErrorCodes = request.app.state.http_error_codes
     errors = exc.errors()
     logger.bind(
         event="http.data_validation_failed",
-        public_code=ErrorCode.VALIDATION_ERROR,
+        public_code=codes.validation_error,
         status_code=422,
         **_request_log_context(request),
         **_validation_error_summary(errors),
@@ -97,16 +94,18 @@ async def pydantic_validation_exception_handler(
     return JSONResponse(
         status_code=422,
         content=_error_payload(
-            public_code=ErrorCode.VALIDATION_ERROR,
-            request_id=_request_id(request),
+            request,
+            code=codes.validation_error,
+            request_id=request_correlation_id(request),
         ),
     )
 
 
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    codes: HttpRuntimeErrorCodes = request.app.state.http_error_codes
     logger.bind(
         event="http.unhandled_exception",
-        public_code=ErrorCode.INTERNAL_ERROR,
+        public_code=codes.internal_error,
         status_code=500,
         exception_type=type(exc).__name__,
         **_request_log_context(request),
@@ -115,15 +114,44 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     return JSONResponse(
         status_code=500,
         content=_error_payload(
-            public_code=ErrorCode.INTERNAL_ERROR,
-            request_id=_request_id(request),
+            request,
+            code=codes.internal_error,
+            request_id=request_correlation_id(request),
         ),
     )
 
 
-def register_exception_handlers(app: FastAPI) -> None:
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Present framework request failures without forwarding exception details."""
+    codes: HttpRuntimeErrorCodes = request.app.state.http_error_codes
+    code = {
+        400: codes.validation_error,
+        401: codes.auth_failed,
+        403: codes.unauthorized,
+        404: codes.resource_not_found,
+        422: codes.validation_error,
+    }.get(
+        exc.status_code,
+        codes.internal_error if exc.status_code >= 500 else codes.unknown_error,
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=_error_payload(request, code=code, request_id=request_correlation_id(request)),
+        headers=exc.headers,
+    )
+
+
+def register_exception_handlers(
+    app: FastAPI,
+    *,
+    error_response_factory: ErrorResponseFactory,
+    error_codes: HttpRuntimeErrorCodes,
+) -> None:
     """Register all shared exception handlers on the FastAPI app."""
 
+    app.state.error_response_factory = error_response_factory
+    app.state.http_error_codes = error_codes
+    app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(AppException, app_exception_handler)
     app.add_exception_handler(
         RequestValidationError,

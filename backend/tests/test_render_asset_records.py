@@ -2,18 +2,18 @@ from types import SimpleNamespace
 from typing import cast
 
 from app.db.models import ScoreRenderAsset
-from app.db.models.score import RenderAssetKind
+from app.modules.score_assets.domain import RenderAssetKind
 from app.modules.score_assets.render_asset_records import (
     build_render_asset_record,
     render_asset_usage,
-    render_storage_key,
+    rendered_page_object_key,
 )
-from app.storage import StoredFile
+from app.modules.media_storage.persistence import object_from_bytes
 
 
-def test_render_storage_key_uses_profile_and_page_scoped_asset_path() -> None:
+def test_rendered_page_object_key_uses_profile_and_page_scoped_asset_path() -> None:
     assert (
-        render_storage_key(
+        rendered_page_object_key(
             score_uuid="score-1",
             revision_uuid="revision-1",
             profile="default",
@@ -32,8 +32,7 @@ def test_render_asset_usage_captures_replacement_release_fields() -> None:
                 ScoreRenderAsset,
                 SimpleNamespace(
                     asset_uuid="asset-old",
-                    storage_key="scores/old.svg",
-                    size_bytes=123,
+                    stored_object=SimpleNamespace(object_key="scores/old.svg", byte_size=123),
                 ),
             )
         ]
@@ -49,15 +48,11 @@ def test_build_render_asset_record_uses_storage_and_renderer_metadata() -> None:
     asset = build_render_asset_record(
         asset_uuid="asset-1",
         revision_id=17,
-        storage_backend="local",
-        stored=StoredFile(
-            storage_key="scores/score-1/revisions/revision-1/renders/default/001-asset-1.svg",
-            filename="001-asset-1.svg",
-            path="/tmp/001-asset-1.svg",
-            size_bytes=10,
+        stored_object=object_from_bytes(
+            object_key="scores/score-1/revisions/revision-1/renders/default/001-asset-1.svg",
+            content=b"<svg />",
+            content_type="image/svg+xml",
         ),
-        mime_type="image/svg+xml",
-        content=b"<svg />",
         execution_manifest_id=19,
         page_number=1,
         profile="default",
@@ -67,13 +62,12 @@ def test_build_render_asset_record_uses_storage_and_renderer_metadata() -> None:
     assert asset.asset_uuid == "asset-1"
     assert asset.revision_id == 17
     assert asset.kind == RenderAssetKind.RENDERED_PAGE
-    assert asset.storage_backend == "local"
-    assert asset.storage_key.endswith("/001-asset-1.svg")
-    assert asset.mime_type == "image/svg+xml"
-    assert asset.size_bytes == 10
+    assert asset.stored_object.object_key.endswith("/001-asset-1.svg")
+    assert asset.stored_object.content_type == "image/svg+xml"
+    assert asset.stored_object.byte_size == 7
     assert asset.execution_manifest_id == 19
     assert asset.page_number == 1
     assert asset.render_profile == "default"
     assert asset.generator == "test-renderer"
     assert asset.generator_version == "1"
-    assert len(asset.sha256) == 64
+    assert len(asset.stored_object.sha256) == 64

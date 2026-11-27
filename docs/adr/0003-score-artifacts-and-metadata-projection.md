@@ -11,23 +11,35 @@ Canonical source content, visual render output, playable output and queryable me
 ## Decision
 
 1. `ScoreRevisionSource` stores canonical source content for a revision. The current source
-   format is `MUSICXML`.
+   format is `MUSICXML`, with `score-partwise` bytes accepted by
+   [canonical document admission](../architecture/score-semantics.md#document-admission).
+   The source checksum and revision content hash describe those exact admitted bytes.
 2. `ScoreRenderAsset` stores visual derived assets for a revision. The current render kind is
    `RENDERED_PAGE`.
 3. `ScorePlaybackAsset` stores playable derived assets for a revision. The current playback
    kind is `AUDIO`.
-4. `ScoreRevisionMetadata` remains a typed relational projection keyed by revision.
+4. `ScoreRevisionMetadata` is a rebuildable projection of canonical MusicXML, keyed by
+   revision. `KeySignatureEvent`, `TimeSignatureEvent`, and `TempoEvent` in
+   `app.processing.musicxml.metadata` own the typed extraction and public read shapes.
+   JSONB is only persistence serialization: the metadata codec explicitly encodes typed
+   events and strictly decodes required fields, types, and exact shapes on read.
+   Event JSON is not a second musical authority and is not editable revision content.
+   Metadata answers written title, measure/part count, key, meter, and tempo facts; it does
+   not construct a PerformancePlan, expand navigation, or calculate performed duration.
+   `ScorePlaybackAsset.duration_ms` describes the actual generated audio.
 5. Revision creation stores the canonical source transactionally with the revision.
 6. Render assets, playback assets, and metadata are rebuildable from the canonical source and
    are produced asynchronously after revision creation.
-7. Score detail and list read models may expose the latest available derived assets, including
-   fallback assets from a previous revision when the current revision is still generating.
-8. External share and public score APIs expose only presentation-safe derived assets by
-   default. Revision source download is included only when policy grants download permission.
+7. Score detail and list read models expose only the current head's derived assets.
+   Missing head presentation uses neutral placeholders. Only the current head protects render/audio assets; other historical presentation is disposable.
+8. Guest Preview exposes only the current head’s rendered pages and generated audio.
+   It delivers no revision sources and never falls back to another revision. Guest Preview
+   does not retain historical presentation assets.
 9. Import-job review artifacts remain job-scoped pipeline artifacts until the user confirms
    the review and creates a score revision.
-10. Verovio page count is render/layout information. UI may display unknown while render and
-   metadata rebuilds are pending or failed.
+10. Verovio page count is render/layout information. Pending presentation uses a neutral
+    skeleton; unavailable presentation uses a dash. Derived status has no visible error,
+    preparation message or Retry action. Accessibility labels remain.
 
 ## Storage contract
 
@@ -59,7 +71,7 @@ jobs/{job_uuid}/{kind}/...
 ## Consequences
 
 - Canonical MusicXML is stored separately from derived images.
-- External sharing can play audio and show thumbnails without exposing score structure.
+- Guest Preview displays current-head rendered pages and audio without exposing score structure.
 - Render and playback retention can delete stale derived assets without deleting source
   history.
 - Metadata stays efficient to query and can be rebuilt independently.

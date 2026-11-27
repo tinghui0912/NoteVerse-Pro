@@ -1,8 +1,10 @@
 """Current-user profile management."""
 
+from app.modules.account.avatar_presentation import avatar_url_for_user
+
 from app.db.models import User
 from app.modules.account.schemas import ProfileRead, ProfileUserRead, UpdateProfileRequest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 
 class ProfileService:
@@ -19,13 +21,13 @@ class ProfileService:
                 display_name=user.display_name or user.email.split("@")[0],
                 created_at=user.created_at,
                 is_active=user.is_active,
-                avatar_url=user.avatar_url,
+                avatar_url=avatar_url_for_user(user),
             )
         )
 
-    async def update_profile(
+    def update_profile(
         self,
-        db: AsyncSession,
+        db: Session,
         user: User,
         request: UpdateProfileRequest,
     ) -> list[str]:
@@ -36,6 +38,6 @@ class ProfileService:
             updated_fields.append("display_name")
 
         if updated_fields:
-            await db.commit()
+            db.commit()
 
         return updated_fields

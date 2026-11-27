@@ -1,4 +1,5 @@
 {
+  "loadMore": "Load more",
   "title": "Collaborators",
   "scoreName": "Score: {name}",
   "inviteSection": "Invite collaborator",
@@ -9,8 +10,8 @@
   "emailInvalid": "Invalid email address",
   "emailInvalidDescription": "Enter a full email address, for example collaborator@example.com.",
   "role": "Role",
-  "editor": "Can edit",
-  "viewer": "View only",
+  "editor": "Editor",
+  "viewer": "Viewer",
   "createInvite": "Create invite",
   "inviteCreated": "Invite created",
   "inviteCreatedDescription": "The invite link is ready to send.",
@@ -19,7 +20,6 @@
   "members": "Members",
   "noMembers": "No collaborators yet.",
   "remove": "Remove",
-  "pendingInvites": "Invite history",
   "noInvites": "No invites yet.",
   "copy": "Copy",
   "copied": "Copied",
@@ -27,7 +27,6 @@
   "copyFailed": "Copy failed",
   "copyFailedDescription": "Copy the invite link manually and try again.",
   "revoke": "Revoke",
-  "delete": "Delete",
   "close": "Close",
   "invitePageTitle": "Collaboration Invite",
   "invitedBy": "{name} invited you to collaborate",
@@ -51,7 +50,7 @@
   "loadFailed": "Unable to load invite",
   "loadFailedDescription": "Check the invite link or ask the score owner to send a new one.",
   "notFoundTitle": "Invite not found",
-  "notFoundDescription": "This invite link does not exist or has been deleted.",
+  "notFoundDescription": "This invite link does not exist.",
   "revokedTitle": "Invite revoked",
   "revokedDescription": "The score owner has revoked this invite.",
   "expiredTitle": "Invite expired",
@@ -62,6 +61,15 @@
     "accepted": "Accepted",
     "revoked": "Revoked",
     "expired": "Expired",
-    "declined": "Declined"
-  }
+    "declined": "Declined",
+    "recipient_account_closed": "Recipient account closed",
+    "inviter_account_closed": "Inviter account closed"
+  },
+  "practitioner": "Practitioner",
+  "roleDescription": "Viewer: view. Practitioner: view and practice. Editor: view, practice, and edit. Only the owner can use explicit download actions.",
+  "invitations": "Invitations",
+  "anonymizedRecipient": "Recipient removed",
+  "closedInviter": "Closed account",
+  "invitationCreator": "Created by {name}",
+  "accountClosedTitle": "Invitation no longer available"
 }

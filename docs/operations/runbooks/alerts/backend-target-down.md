@@ -13,7 +13,7 @@ network path is unavailable.
 ## User Impact
 
 Users may see failed requests, broken realtime connections, or unavailable
-practice source flows.
+Practice bundle flows.
 
 ## First Checks
 

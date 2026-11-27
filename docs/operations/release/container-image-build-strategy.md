@@ -279,16 +279,14 @@ Customer Web runtime build:
 docker build \
   -f docker/customer-web/Dockerfile.runtime \
   --build-arg NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000 \
-  --build-arg SESSION_COOKIE_NAME=noteverse_session \
-  --build-arg SESSION_REFRESH_COOKIE_NAME=noteverse_refresh \
   -t <registry>/noteverse/customer-web:<git-sha> \
   .
 ```
 
-The Customer Web image build uses neutral build argument names for cookie names so
-Docker does not confuse runtime cookie naming with secret material. Real secrets
-must still be provided through Kubernetes Secrets and must not be passed as
-Docker build args.
+Customer Web uses generated browser protocol identity in both build and runtime.
+The backend service origin is deployment topology supplied through
+`NEXT_BACKEND_ORIGIN`. Secrets belong in Kubernetes Secrets rather than Docker
+build arguments.
 
 ## Build Cache Strategy
 

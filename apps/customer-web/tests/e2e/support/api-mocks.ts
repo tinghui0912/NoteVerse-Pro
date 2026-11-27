@@ -1,3 +1,4 @@
+import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../../../src/generated/browser-protocol';
 import type { Page } from '@playwright/test';
 
 const testUserProfile = {
@@ -16,9 +17,7 @@ export async function mockAnonymousSession(page: Page): Promise<void> {
       status: 401,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: false,
-        public_code: 'unauthorized',
-        public_message: 'Unauthorized',
+        code: 'unauthorized', request_id: null,
       }),
     })
   );
@@ -27,29 +26,22 @@ export async function mockAnonymousSession(page: Page): Promise<void> {
       status: 401,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: false,
-        public_code: 'unauthorized',
-        public_message: 'Unauthorized',
+        code: 'unauthorized', request_id: null,
       }),
     })
   );
 }
 
 export async function mockAuthenticatedSession(page: Page): Promise<void> {
-  const authCookieName = process.env.AUTH_COOKIE_NAME;
-  const refreshCookieName = process.env.REFRESH_COOKIE_NAME;
-  if (!authCookieName || !refreshCookieName) {
-    throw new Error('AUTH_COOKIE_NAME and REFRESH_COOKIE_NAME are required for authenticated E2E sessions.');
-  }
   await page.context().addCookies([
     {
-      name: authCookieName,
+      name: AUTH_COOKIE_NAME,
       value: 'test-session',
       domain: 'localhost',
       path: '/',
     },
     {
-      name: refreshCookieName,
+      name: REFRESH_COOKIE_NAME,
       value: 'test-refresh',
       domain: 'localhost',
       path: '/',
@@ -57,30 +49,29 @@ export async function mockAuthenticatedSession(page: Page): Promise<void> {
   ]);
   await page.route('**/api/v1/auth/refresh', (route) =>
     route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
+      status: 204,
+      body: '',
     })
   );
   await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: testUserProfile }),
+      body: JSON.stringify(testUserProfile),
     })
   );
   await page.route('**/api/v1/me/invites**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: [] }),
+      body: JSON.stringify({ items: [], next_cursor: null }),
     })
   );
   await page.route('**/api/v1/me/notifications/unread-count**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 0 } }),
+      body: JSON.stringify({ count: 0 }),
     })
   );
 }

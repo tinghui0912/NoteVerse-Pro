@@ -7,60 +7,57 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
-    Boolean,
-    CheckConstraint,
     Column,
+    CheckConstraint,
     DateTime,
     Enum as SAEnum,
     ForeignKey,
-    ForeignKeyConstraint,
     Index,
     Integer,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
 
 class MembershipRole(str, enum.Enum):
-    EDITOR = "EDITOR"
     VIEWER = "VIEWER"
+    PRACTITIONER = "PRACTITIONER"
+    EDITOR = "EDITOR"
 
 
-class InviteStatus(str, enum.Enum):
-    PENDING = "PENDING"
+class InviteTerminalOutcome(str, enum.Enum):
     ACCEPTED = "ACCEPTED"
-    REVOKED = "REVOKED"
-    EXPIRED = "EXPIRED"
     DECLINED = "DECLINED"
-
-
-class PublicationStatus(str, enum.Enum):
-    PUBLISHED = "PUBLISHED"
-    UNPUBLISHED = "UNPUBLISHED"
-
-
-class ScoreAudienceAccessMode(str, enum.Enum):
-    VIEW = "VIEW"
-    PRACTICE = "PRACTICE"
+    REVOKED = "REVOKED"
+    RECIPIENT_ACCOUNT_CLOSED = "RECIPIENT_ACCOUNT_CLOSED"
+    INVITER_ACCOUNT_CLOSED = "INVITER_ACCOUNT_CLOSED"
 
 
 class AccessOrigin(str, enum.Enum):
     OWNER = "OWNER"
     MEMBERSHIP = "MEMBERSHIP"
-    SHARE = "SHARE"
-    PUBLICATION = "PUBLICATION"
 
 
 class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_memberships"
     __table_args__ = (
         UniqueConstraint("score_id", "user_id", name="uq_score_memberships_score_user"),
+        Index(
+            "idx_score_memberships_score_active_created",
+            "score_id",
+            "created_at",
+            "id",
+            postgresql_where=text("revoked_at IS NULL"),
+            sqlite_where=text("revoked_at IS NULL"),
+        ),
         Index("idx_score_memberships_user_active", "user_id", "revoked_at"),
+        Index("idx_score_memberships_creator", "created_by_user_id", "id"),
     )
 
     id: Optional[int] = Field(
@@ -78,22 +75,45 @@ class ScoreMembership(SQLModel, table=True):  # type: ignore[call-arg]
     role: MembershipRole = Field(
         sa_column=Column(SAEnum(MembershipRole, name="membershiprole"), nullable=False)
     )
-    created_by_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    created_by_user_id: Optional[int] = Field(
+        default=None, sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
 
 class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_invites"
     __table_args__ = (
-        Index("idx_score_invites_score_created", "score_id", "created_at"),
+        Index("idx_score_invites_score_created", "score_id", "created_at", "id"),
         Index("idx_score_invites_token_hash", "token_hash", unique=True),
-        Index("idx_score_invites_email_status", "email", "status"),
+        Index("idx_score_invites_creator", "created_by_user_id", "id"),
+        Index("idx_score_invites_recipient_created", "email", "created_at", "id"),
+        Index("idx_score_invites_terminal_actor", "terminal_actor_user_id", "id"),
+        Index(
+            "idx_score_invites_email_unresolved_created",
+            "email",
+            "created_at",
+            "id",
+            postgresql_where=text("terminal_outcome IS NULL"),
+            sqlite_where=text("terminal_outcome IS NULL"),
+        ),
+        CheckConstraint(
+            "(terminal_outcome IS NULL AND terminal_at IS NULL AND terminal_actor_user_id IS NULL) OR "
+            "(terminal_outcome IS NOT NULL AND terminal_at IS NOT NULL)",
+            name="ck_score_invites_terminal_facts",
+        ),
+        CheckConstraint(
+            "(email IS NOT NULL AND token_hash IS NOT NULL) OR (terminal_outcome IS NOT NULL AND email IS NULL AND token_hash IS NULL)",
+            name="ck_score_invites_contact_facts",
+        ),
+        CheckConstraint(
+            "(terminal_outcome NOT IN ('RECIPIENT_ACCOUNT_CLOSED','INVITER_ACCOUNT_CLOSED') OR (email IS NULL AND token_hash IS NULL AND terminal_actor_user_id IS NULL)) AND (terminal_outcome != 'INVITER_ACCOUNT_CLOSED' OR created_by_user_id IS NULL)",
+            name="ck_score_invites_closed_facts",
+        ),
     )
 
     id: Optional[int] = Field(
@@ -111,165 +131,25 @@ class ScoreInvite(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    token_hash: str = Field(sa_column=Column(String(64), nullable=False))
+    token_hash: Optional[str] = Field(default=None, sa_column=Column(String(64)))
     email: Optional[str] = Field(default=None, sa_column=Column(String(255)))
     role: MembershipRole = Field(
         sa_column=Column(SAEnum(MembershipRole, name="membershiprole"), nullable=False)
     )
-    status: InviteStatus = Field(
-        default=InviteStatus.PENDING,
-        sa_column=Column(SAEnum(InviteStatus, name="invitestatus"), nullable=False),
-    )
-    created_by_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    )
-    accepted_by_user_id: Optional[int] = Field(
+    terminal_outcome: Optional[InviteTerminalOutcome] = Field(
         default=None,
-        sa_column=Column(BigInteger, ForeignKey("users.id")),
+        sa_column=Column(SAEnum(InviteTerminalOutcome, name="inviteterminaloutcome")),
+    )
+    created_by_user_id: Optional[int] = Field(
+        default=None, sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"))
+    )
+    terminal_actor_user_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(BigInteger),
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
-    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    accepted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    declined_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-
-
-class ScoreShareGrant(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "score_share_grants"
-    __table_args__ = (
-        Index("idx_score_share_grants_score_created", "score_id", "created_at"),
-        Index("idx_score_share_grants_token_hash", "token_hash", unique=True),
-        CheckConstraint(
-            "access_mode IN ('VIEW', 'PRACTICE')",
-            name="ck_score_share_grants_access_mode",
-        ),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    grant_uuid: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), unique=True, nullable=False),
-    )
-    score_id: int = Field(
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("scores.id", ondelete="CASCADE"),
-            nullable=False,
-        )
-    )
-    token_hash: str = Field(sa_column=Column(String(64), nullable=False))
-    allow_download: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, default=False, nullable=False),
-    )
-    access_mode: str = Field(
-        default=ScoreAudienceAccessMode.PRACTICE.value,
-        sa_column=Column(
-            String(16),
-            default=ScoreAudienceAccessMode.PRACTICE.value,
-            nullable=False,
-        ),
-    )
-    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    created_by_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    )
-    created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-
-
-
-class ShareGrantRedemption(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "share_grant_redemptions"
-    __table_args__ = (
-        UniqueConstraint("grant_id", "user_id", name="uq_share_grant_redemptions_grant_user"),
-        Index("idx_share_grant_redemptions_user_created", "user_id", "created_at"),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    grant_id: int = Field(
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("score_share_grants.id", ondelete="CASCADE"),
-            nullable=False,
-        )
-    )
-    user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
-    created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-
-
-class ScorePublication(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "score_publications"
-    __table_args__ = (
-        ForeignKeyConstraint(
-            ["score_id", "published_revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_score_publications_revision",
-        ),
-        Index("idx_score_publications_status", "status"),
-        CheckConstraint(
-            "access_mode IN ('VIEW', 'PRACTICE')",
-            name="ck_score_publications_access_mode",
-        ),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    score_id: int = Field(
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("scores.id", ondelete="CASCADE"),
-            unique=True,
-            nullable=False,
-        )
-    )
-    public_slug: str = Field(sa_column=Column(String(128), unique=True, nullable=False))
-    published_revision_id: int = Field(sa_column=Column(BigInteger, nullable=False))
-    status: PublicationStatus = Field(
-        sa_column=Column(SAEnum(PublicationStatus, name="publicationstatus"), nullable=False)
-    )
-    allow_download: bool = Field(
-        default=False,
-        sa_column=Column(Boolean, default=False, nullable=False),
-    )
-    access_mode: str = Field(
-        default=ScoreAudienceAccessMode.PRACTICE.value,
-        sa_column=Column(
-            String(16),
-            default=ScoreAudienceAccessMode.PRACTICE.value,
-            nullable=False,
-        ),
-    )
-    published_by_user_id: int = Field(
-        sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    )
-    published_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-    updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
-            nullable=False,
-        ),
-    )
+    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    terminal_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))

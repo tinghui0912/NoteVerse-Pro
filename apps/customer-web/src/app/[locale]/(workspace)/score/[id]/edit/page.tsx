@@ -1,35 +1,15 @@
 'use client';
-
-import { Suspense } from 'react';
-import { notFound, useParams, useSearchParams } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { EditorWorkspacePage } from '@/components/editor/editor-workspace-page';
 import { EditorProvider } from '@/contexts/editor-provider';
-import { useEditorDocument } from '@/hooks/editor/use-editor-document';
-
-function EditorPageContent({ scoreId, returnUrl }: { scoreId: string; returnUrl?: string }) {
-  const document = useEditorDocument({ scoreId, returnUrl });
-
-  return (
-    <EditorWorkspacePage
-      document={document}
-      scoreShell={{ scoreId, capabilities: document.scoreCapabilities }}
-    />
-  );
+import { useScoreEditorDocument } from '@/features/scores/core/editor/use-score-editor-document';
+function ScoreEditorContent({ scoreId }: { scoreId: string }) {
+  const document = useScoreEditorDocument({ scoreId });
+  return <EditorWorkspacePage document={document} />;
 }
-
-export default function EditorPage() {
+export default function ScoreEditorPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const returnUrl = searchParams.get('returnUrl') || undefined;
-
-  if (!id) {
-    notFound();
-  }
-
-  return (
-    <Suspense fallback={null}>
-      <EditorProvider><EditorPageContent scoreId={id} returnUrl={returnUrl} /></EditorProvider>
-    </Suspense>
-  );
+  if (!id) notFound();
+  return <EditorProvider><ScoreEditorContent scoreId={id} /></EditorProvider>;
 }

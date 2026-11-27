@@ -1,4 +1,4 @@
-import type { AccidentalValue, Duration } from '@/types/score-types';
+import type { AccidentalValue, Duration } from '@/components/editor/input-values';
 
 export const PITCH_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 

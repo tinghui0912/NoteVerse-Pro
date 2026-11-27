@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
+import {importEditorMusicXml} from '@/lib/editor-musicxml';
 
 import { describe, expect, it } from 'vitest';
 
-import { ensureGenericRenderMusicXmlIdsString, MusicXMLParser, parseXml } from '@/lib/musicxml';
+import { ensureGenericRenderMusicXmlIdsString, parseXml } from '@/lib/musicxml';
 
 const baseScore = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
@@ -32,11 +33,11 @@ const note = (attributes = '') => `<note ${attributes}>
 describe('generic render MusicXML ids', () => {
   it('preserves legal unique ids', () => {
     const normalized = ensureGenericRenderMusicXmlIdsString(baseScore(note('id="source-note-1"')));
-    const parsedNote = new MusicXMLParser(normalized).parse().measures[0]?.staves[0]?.voices[0]?.events[0];
+    const parsedNote = importEditorMusicXml(normalized).document.events[0];
 
     expect(normalized).toContain('id="source-note-1"');
     expect(parseXml(normalized).querySelector('note')?.hasAttribute('id')).toBe(true);
-    expect(parsedNote?.meta?.id).toBe('source-note-1');
+    expect(parsedNote?.source).toMatchObject({musicXmlElementIds:['source-note-1']});
   });
 
   it('adds app-owned ids to editable elements without source ids', () => {

@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl';
 import {
     Plus,
     Trash2,
-    Combine,
     Hand,
 } from 'lucide-react';
 import React, { useState, useSyncExternalStore } from 'react';
@@ -39,7 +38,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { type EditorMode, useEditorState } from '@/contexts/editor-provider';
 import type { FingeringRequest } from '@/generated/api';
-import type { Duration } from '@/types/score-types';
+import type { Duration } from '@/components/editor/input-values';
 import {
     createRhythmicGridResolution,
     type Rational,
@@ -207,13 +206,11 @@ export function EditorSidebar({
     fingeringPending = false,
     onGenerateFingering,
     onToolSelect,
-    onNormalizeVoices
 }: {
     editorMode: EditorMode,
     fingeringPending?: boolean,
     onGenerateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void,
     onToolSelect: (mode: EditorMode) => void,
-    onNormalizeVoices?: () => void
 }) {
     const t = useTranslations('editor');
     const common = useTranslations('common');
@@ -317,14 +314,7 @@ export function EditorSidebar({
             <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">{t('assistantTools')}</h3>
                 <div className="grid grid-cols-2 gap-2">
-                    <Button
-                        variant="outline"
-                        className="flex flex-col w-full h-20 items-center justify-center hover:bg-accent"
-                        onClick={onNormalizeVoices}
-                    >
-                        <div className="h-6 w-6 mb-1 flex items-center justify-center"><Combine /></div>
-                        <span className="text-xs text-center">{t('normalizeVoices')}</span>
-                    </Button>
+
                     <Button
                         variant="outline"
                         className="flex flex-col w-full h-20 items-center justify-center hover:bg-accent"

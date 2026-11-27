@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "scope": "Selected evidence-producing repository source implementations; not product runtime configuration or an executable dependency closure.",
+  "sourceFiles": {
+    "sourceAnalysis": {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-analysis-runtime.ts",
+      "byteSize": 13055,
+      "sha256": "01f0cea2c5335e295b2a88577e6b301439dfb6a101a5b6dc34bdb1cd954c224c",
+      "normalization": "UTF8_CRLF_TO_LF",
+      "scope": "Sequential source windows produce immutable all-pitch observations with source sample identity, half-open ownership and analyzed-through coverage. Source event time and publication availability use separate clocks. No score, target or verdict enters source analysis."
+    },
+    "sourcePublication": {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/source-publication.ts",
+      "byteSize": 8461,
+      "sha256": "5b01c9e2f4e05f31e96d67050d8dc0352de2b1659c916422d758980c40001dfc",
+      "normalization": "UTF8_CRLF_TO_LF",
+      "scope": "Immutable source observations use half-open ownership and a publication clock independent of source event time."
+    },
+    "decoder": {
+      "path": "apps/customer-web/src/lib/practice/acoustic/model/robust-piano-decoder.ts",
+      "byteSize": 2963,
+      "sha256": "fbe70e5a64dac97cb3109fabef88b13d79548f1bfc62b815d5720ae38feb82cf",
+      "normalization": "UTF8_CRLF_TO_LF",
+      "scope": "Contiguous onset regions choose the first maximum, gate on frame support and retain the minimum confidence. Events sort by time then pitch."
+    },
+    "windowPlanner": {
+      "path": "apps/customer-web/src/lib/practice/acoustic/runtime/window-planner.ts",
+      "byteSize": 2260,
+      "sha256": "6e3cd261465b8517a02c4a82aaac8e2b8306e5a9cc86201de7a58690587a663b",
+      "normalization": "UTF8_CRLF_TO_LF",
+      "scope": "Half-open sample ownership uses real past and future context; final partial ownership shifts the full input without padding."
+    },
+    "sourceAdapter": {
+      "path": "apps/customer-web/src/lib/practice/acoustic/source/source-adapter.ts",
+      "byteSize": 2788,
+      "sha256": "0a35ad923f30e70abe8c7a7f2d2d3cc7ffd708356e0ad960a9a48bdda42670b5",
+      "normalization": "UTF8_CRLF_TO_LF",
+      "scope": "Rational FIR uses float32 products and each accumulation, persistent bounded source state, origin zeros only and no fitted shift or gain normalization."
+    }
+  }
+}

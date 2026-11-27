@@ -17,13 +17,13 @@ import {
   validateDomainTieCreation,
 } from './use-connection-operations';
 
-const document: ScoreDocument = {
+const document: ScoreDocument = {metadata:{notationTitle:null,subtitle:null,composer:null,lyricist:null,copyright:null,tempoNotation:null},
   schemaVersion: 1,
   id: 'score-1' as ScoreDocumentId,
   parts: [{ id: 'P1' as PartId, name: 'Piano' }],
   staves: [{ id: 'staff-1' as StaffId, partId: 'P1' as PartId, index: 0 }],
-  voices: [{ id: 'voice-1' as VoiceId, partId: 'P1' as PartId, homeStaffId: 'staff-1' as StaffId, stemPolicy: 'automatic' }],
-  measures: [{ id: 'measure-1' as MeasureId, number: 1 }],
+  voices: [{number:1, id: 'voice-1' as VoiceId, partId: 'P1' as PartId, homeStaffId: 'staff-1' as StaffId, stemPolicy: 'automatic' }],
+  measures: [{attributes:{meter:{beats:4,beatType:4},clefs:[{staffId:'P1:staff-1' as import('@/lib/editor-domain').StaffId,clef:{sign:'G',line:2}}]},partId:'P1' as import('@/lib/editor-domain').PartId, id: 'measure-1' as MeasureId, number: 1 }],
   events: [
     {
       id: 'event-a' as EventId,

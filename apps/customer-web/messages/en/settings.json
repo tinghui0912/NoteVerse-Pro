@@ -1,15 +1,14 @@
 {
-  "title": "Account Settings",
-  "tabsLabel": "Account settings sections",
+  "title": "Settings",
+  "tabsLabel": "Settings sections",
   "breadcrumb": {
-    "settings": "Settings",
-    "account": "Account"
+    "settings": "Settings"
   },
   "tabs": {
     "profile": "Profile",
     "security": "Security",
     "sessions": "Sessions",
-    "billing": "Billing"
+    "storage": "Storage"
   },
   "profile": {
     "heading": "Profile",
@@ -70,23 +69,6 @@
     "actionFailed": "Action failed",
     "actionFailedDesc": "Unable to update device sessions."
   },
-  "billing": {
-    "heading": "Billing",
-    "description": "Your account billing, current plan, and subscription management will live here. Public plan information remains on the subscriptions page.",
-    "viewPlans": "View public plans",
-    "storage": {
-      "title": "Storage usage",
-      "description": "Counts your uploads and score revision sources. Preview images and listening audio do not count toward your user quota yet.",
-      "refresh": "Refresh",
-      "loadFailed": "Unable to load storage usage",
-      "loadFailedDesc": "Please try again later or refresh the page.",
-      "usedOfLimit": "{used} / {limit}",
-      "nearLimit": "Storage is almost full. Delete unused content or upgrade your plan.",
-      "used": "Used",
-      "reserved": "Processing",
-      "available": "Available"
-    }
-  },
   "currentPassword": "Current password",
   "newPassword": "New password",
   "cropAvatar": "Crop avatar",
@@ -105,5 +87,31 @@
   "passwordSuccess": "Password updated successfully",
   "passwordUpdated": "Your password has been updated",
   "passwordFailed": "Update failed",
-  "passwordFailedDesc": "Unable to change password"
+  "passwordFailedDesc": "Unable to change password",
+  "storage": {
+    "title": "Storage usage",
+    "description": "Your current storage quota, used bytes, processing capacity and available space.",
+    "refresh": "Refresh",
+    "loadFailed": "Unable to load storage usage",
+    "loadFailedDesc": "Please try again later or refresh the page.",
+    "usedOfLimit": "{used} / {limit} allocated",
+    "nearLimit": "Storage is almost full. Remove unused content to free capacity.",
+    "used": "Used",
+    "reserved": "Processing",
+    "available": "Available",
+    "full": "Storage is full. Remove unused content to free capacity.",
+    "noCapacity": "No storage capacity is currently available.",
+    "loading": "Loading storage usage"
+  },
+  "deletion": {
+    "title": "Delete account",
+    "description": "Account access ends immediately. Your owned business resources will continue to be erased in the background. This action cannot be undone.",
+    "password": "Current password",
+    "confirm": "I understand that my account and owned content will be permanently deleted.",
+    "submit": "Delete my account",
+    "pending": "Closing account…",
+    "retention": "Records retained under applicable policy, backups and storage versions follow their respective retention policies; physical erasure is not immediate."
+  },
+  "avatarTooLarge": "Choose an avatar no larger than 5 MiB.",
+  "avatarInvalid": "This image cannot be used. Choose a valid PNG, JPEG or WebP image."
 }

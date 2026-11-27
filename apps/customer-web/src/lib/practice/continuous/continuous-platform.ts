@@ -1,28 +1,17 @@
-import { getPracticeAcousticModelAccess } from '../../api/practice-acoustic-model-asset';
-import { createAcousticModelWorker } from '../acoustic/model/worker-client';
-import { BrowserAcousticCapture } from '../acoustic/source/capture';
-import { BrowserMidiController } from '../midi/browser-midi-controller';
-import { PerformanceRecorder } from '../performance-recorder';
-import { MetronomeController } from '../metronome/metronome-controller';
+import { AcousticFailure } from '@/lib/practice/failure/causal-failure';
+import { createPracticeAudioContext } from '@/lib/practice/failure/browser-failures';
+import { browserMicrophoneCapture } from '@/lib/practice/acoustic/source/browser-microphone-platform';
+import { BrowserMidiController } from '@/lib/practice/midi/browser-midi-controller';
+import { PerformanceRecorder } from '@/lib/practice/recording/performance-recorder';
+import { createBrowserMetronomeAudio } from '@/lib/practice/metronome/browser-metronome-audio';
 import type { ContinuousPlatform } from './continuous-input';
 
-export const browserContinuousPlatform: ContinuousPlatform = {
+export function browserContinuousPlatform(acquireInference: ContinuousPlatform['acquireInference'] = async () => { throw new AcousticFailure('ENVIRONMENT_NOT_READY'); }): ContinuousPlatform { return {
   midiClock: { nowMs: () => performance.now() },
-  modelUrl: async signal => (await getPracticeAcousticModelAccess(signal)).downloadUrl,
-  createWorker: createAcousticModelWorker,
-  acquireMicrophone: () => navigator.mediaDevices.getUserMedia({ video: false,
-    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }),
-  createAudioContext: () => new AudioContext(),
-  workletUrl: new URL('../acoustic/source/capture.worklet.js', import.meta.url).toString(),
-  async coefficients(rate) {
-    const file = rate === 44100 ? 'fir-160-441.f32' : rate === 48000 ? 'fir-1-3.f32' : null;
-    if (!file) throw new Error('SOURCE_SAMPLE_RATE_NOT_QUALIFIED');
-    const response = await fetch(`/model-assets/practice-acoustic/${file}`);
-    if (!response.ok) throw new Error('FIR_ASSET_UNAVAILABLE');
-    return new Uint8Array(await response.arrayBuffer());
-  },
-  connectCapture: options => BrowserAcousticCapture.connect(options),
+  acquireInference,
+  createAudioContext: createPracticeAudioContext,
+  ...browserMicrophoneCapture,
   createMidi: options => new BrowserMidiController(options),
   createRecorder: mode => new PerformanceRecorder(mode),
-  createMetronome: options => new MetronomeController(options),
-};
+  createMetronomeAudio: context => createBrowserMetronomeAudio(context ? { kind: 'BORROWED', context } : { kind: 'OWNED' }),
+}; }

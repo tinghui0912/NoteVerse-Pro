@@ -14,7 +14,6 @@ interface EditorPageHeaderProps {
   savePending: boolean;
   onGenerateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void;
   onSave: () => void;
-  onNormalizeVoices: () => void;
 }
 
 export function EditorPageHeader({
@@ -24,7 +23,6 @@ export function EditorPageHeader({
   savePending,
   onGenerateFingering,
   onSave,
-  onNormalizeVoices,
 }: EditorPageHeaderProps) {
   const common = useTranslations('common');
 
@@ -34,7 +32,6 @@ export function EditorPageHeader({
         <EditorMobileToolSheet
           fingeringPending={fingeringPending}
           onGenerateFingering={onGenerateFingering}
-          onNormalizeVoices={onNormalizeVoices}
         />
         <div className="flex items-center gap-2">
           <div className="mr-4 flex items-center gap-2 text-sm text-muted-foreground">

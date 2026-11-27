@@ -1,21 +1,14 @@
 import createMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
-import { requiredEnvValue } from './lib/env';
+import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from './generated/browser-protocol';
 
 const intlMiddleware = createMiddleware(routing);
-const AUTH_COOKIE_NAME = requiredEnvValue(process.env.AUTH_COOKIE_NAME, 'AUTH_COOKIE_NAME');
-const REFRESH_COOKIE_NAME = requiredEnvValue(
-  process.env.REFRESH_COOKIE_NAME,
-  'REFRESH_COOKIE_NAME'
-);
-
 const PROTECTED_PATH_PREFIXES = [
   '/upload',
   '/library',
-  '/my-scores',
   '/settings',
-  '/review',
+  '/imports',
   '/score',
 ];
 
@@ -60,9 +53,9 @@ export default function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/share/:path*',
-    '/zh/share/:path*',
-    '/en/share/:path*',
+    '/preview/:path*',
+    '/zh/preview/:path*',
+    '/en/preview/:path*',
     '/invite/:path*',
     '/zh/invite/:path*',
     '/en/invite/:path*',

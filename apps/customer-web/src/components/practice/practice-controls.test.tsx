@@ -3,9 +3,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ComponentProps } from 'react';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 import messages from '../../../messages/en/practice.json';
+import zhMessages from '../../../messages/zh/practice.json';
 import { ContinuousPracticeControls, StepPracticeControls } from './practice-controls';
 
 function renderControls(
@@ -25,7 +27,7 @@ function renderControls(
         onStart={vi.fn()}
         onPause={vi.fn()}
         onResume={vi.fn()}
-        onFinish={vi.fn()}
+        onEnd={vi.fn()}
         onOpenSettings={vi.fn()}
         onToggleRangeSelection={vi.fn()}
         {...overrides}
@@ -39,10 +41,11 @@ describe('ContinuousPracticeControls', () => {
     const finish = vi.fn();
     render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}>
       <StepPracticeControls lifecycle="ACTIVE" isLoading={false} isPreparingSession={false} canPrepareSession
-        rangeSelectionActive={false} canSelectRange={false} onStart={vi.fn()} onFinish={finish}
-        onOpenSettings={vi.fn()} onToggleRangeSelection={vi.fn()} />
+        rangeSelectionActive={false} canSelectRange={false} onStart={vi.fn()} onEnd={finish}
+        onToggleRangeSelection={vi.fn()} />
     </NextIntlClientProvider>);
     expect(screen.queryByRole('button', { name: /pause|resume/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /settings/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: messages.finish })); expect(finish).toHaveBeenCalledOnce();
   });
   it('keeps the section button label stable while active', () => {
@@ -76,7 +79,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={onPause}
           onResume={onResume}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -101,7 +104,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={onPause}
           onResume={onResume}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -148,7 +151,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={vi.fn()}
           onResume={vi.fn()}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -199,7 +202,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={vi.fn()}
           onResume={vi.fn()}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -237,7 +240,7 @@ describe('ContinuousPracticeControls', () => {
           onStart={vi.fn()}
           onPause={vi.fn()}
           onResume={vi.fn()}
-          onFinish={vi.fn()}
+          onEnd={vi.fn()}
           onOpenSettings={vi.fn()}
           onToggleRangeSelection={vi.fn()}
         />
@@ -246,4 +249,37 @@ describe('ContinuousPracticeControls', () => {
 
     expect(screen.getByRole('button', { name: /start/i })).toBeEnabled();
   });
+});
+
+it('Start owns compact binding busy state and prevents a second click', () => {
+  const start = vi.fn(); renderControls(false, { isPreparingSession: true, onStart: start });
+  const button = screen.getByRole('button', { name: messages.startingAttempt });
+  expect(button).toBeDisabled(); expect(button).toHaveAttribute('aria-busy', 'true');
+  expect(button.querySelector('.animate-spin')).not.toBeNull(); fireEvent.click(button); expect(start).not.toHaveBeenCalled();
+  expect(screen.queryByRole('status')).toBeNull();
+});
+it('STEP settings is a discoverable configuration navigation action without input editors', () => {
+  const settings = vi.fn(); render(<NextIntlClientProvider locale="en" messages={{ practice: messages }}>
+    <StepPracticeControls lifecycle="READY" isLoading={false} isPreparingSession={false} canPrepareSession
+      rangeSelectionActive={false} canSelectRange onStart={vi.fn()} onEnd={vi.fn()} onToggleRangeSelection={vi.fn()} onOpenSettings={settings} />
+  </NextIntlClientProvider>);
+  fireEvent.click(screen.getByRole('button', { name: messages.settingsButton })); expect(settings).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('button', { name: messages.settingMidi })).toBeNull();
+});
+it('recording duration has neutral visible timing and the real English accessible name', () => {
+  renderControls(false, { lifecycle: 'ACTIVE', recordingSeconds: 65 });
+  const indicator = screen.getByTestId('recording-indicator');
+  expect(indicator).toHaveTextContent(/^01:05$/);
+  expect(indicator).toHaveAccessibleName('Recording duration');
+  expect(screen.queryByRole('status')).toBeNull();
+});
+
+it('both recording duration labels are unique parameter-free accessible labels in the real catalogs', () => {
+  expect(messages.recordingDuration).toBe('Recording duration');
+  expect(zhMessages.recordingDuration).toBe('录制时长');
+  for (const [locale, catalog] of [['en', messages], ['zh', zhMessages]] as const) {
+    expect(catalog.recordingDuration).not.toMatch(/[{}]/);
+    const source = readFileSync(`messages/${locale}/practice.json`, 'utf8');
+    expect(source.match(/"recordingDuration"\s*:/g)).toHaveLength(1);
+  }
 });

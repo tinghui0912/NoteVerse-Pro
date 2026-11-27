@@ -1,30 +1,34 @@
 from __future__ import annotations
+from app.modules.score_access.queries import active_score_predicate
 
 from datetime import datetime
 
-from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from sqlmodel import col
+from sqlalchemy.engine import RowMapping
+
+from app.modules.import_jobs.domain import ImportArtifactKind
 
 from app.db.models import (
+    ExecutionManifest,
     ImportArtifact,
     ImportJob,
     ImportJobStep,
     ImportJobUpload,
     Score,
     ScoreInputAsset,
-    StorageBlob,
+    StoredObject,
     Upload,
 )
+
 job_uuid_col = ImportJob.__table__.c.job_uuid
 job_created_col = ImportJob.__table__.c.created_at
 
 
 class ImportJobRepository:
-    async def list_for_user(
+    def list_for_user(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         *,
         page: int,
@@ -32,14 +36,10 @@ class ImportJobRepository:
     ) -> tuple[list[ImportJob], int]:
         total = int(
             (
-                await db.execute(
-                    select(func.count(ImportJob.id)).where(
-                        ImportJob.user_id == user_id
-                    )
-                )
+                db.execute(select(func.count(ImportJob.id)).where(ImportJob.user_id == user_id))
             ).scalar_one()
         )
-        rows = await db.execute(
+        rows = db.execute(
             select(ImportJob)
             .where(ImportJob.user_id == user_id)
             .order_by(job_created_col.desc())
@@ -47,19 +47,18 @@ class ImportJobRepository:
             .limit(page_size)
         )
         return list(rows.scalars().all()), total
-    async def get_by_uuid(self, db: AsyncSession, job_uuid: str) -> ImportJob | None:
-        result = await db.execute(
-            select(ImportJob).where(ImportJob.job_uuid == job_uuid)
-        )
+
+    def get_by_uuid(self, db: Session, job_uuid: str) -> ImportJob | None:
+        result = db.execute(select(ImportJob).where(ImportJob.job_uuid == job_uuid))
         return result.scalars().first()
 
-    async def batch_status(
+    def batch_status(
         self,
-        db: AsyncSession,
+        db: Session,
         job_uuids: list[str],
         user_id: int,
     ) -> list[ImportJob]:
-        result = await db.execute(
+        result = db.execute(
             select(ImportJob).where(
                 ImportJob.user_id == user_id,
                 job_uuid_col.in_(job_uuids),
@@ -67,37 +66,87 @@ class ImportJobRepository:
         )
         return list(result.scalars().all())
 
-    async def artifact_by_uuid(
-        self, db: AsyncSession, artifact_uuid: str
-    ) -> ImportArtifact | None:
+    def artifact_by_uuid(self, db: Session, artifact_uuid: str) -> ImportArtifact | None:
         return (
-            await db.execute(
-                select(ImportArtifact).where(
-                    ImportArtifact.artifact_uuid == artifact_uuid
+            db.execute(select(ImportArtifact).where(ImportArtifact.artifact_uuid == artifact_uuid))
+        ).scalar_one_or_none()
+
+    def get_by_idempotency_key(self, db: Session, user_id: int, key: str) -> ImportJob | None:
+        return (
+            db.execute(
+                select(ImportJob).where(
+                    ImportJob.user_id == user_id,
+                    ImportJob.idempotency_key == key,
                 )
             )
         ).scalar_one_or_none()
 
-
-class SyncImportJobRepository:
-    @staticmethod
-    def get_by_uuid(db: Session, job_uuid: str) -> ImportJob | None:
-        return db.execute(
-            select(ImportJob).where(ImportJob.job_uuid == job_uuid)
-        ).scalar_one_or_none()
-
-    @staticmethod
-    def get_by_idempotency_key(
-        db: Session,
-        user_id: int,
-        idempotency_key: str,
-    ) -> ImportJob | None:
-        return db.execute(
-            select(ImportJob).where(
-                ImportJob.user_id == user_id,
-                ImportJob.idempotency_key == idempotency_key,
+    def submission_uploads(self, db: Session, upload_ids: list[str]) -> list[RowMapping]:
+        return list(
+            (
+                db.execute(
+                    select(Upload.id, Upload.upload_uuid, Upload.uploader_user_id)
+                    .join(StoredObject, Upload.stored_object_id == StoredObject.id)
+                    .where(Upload.__table__.c.upload_uuid.in_(upload_ids))
+                    .order_by(Upload.id)
+                    .with_for_update(of=Upload)
+                )
             )
-        ).scalar_one_or_none()
+            .mappings()
+            .all()
+        )
+
+    def live_scores_for_import_jobs(self, db: Session, job_ids: set[int]) -> dict[int, Score]:
+        if not job_ids:
+            return {}
+        return {
+            score.created_from_import_job_id: score
+            for score in db.scalars(
+                select(Score).where(
+                    Score.created_from_import_job_id.in_(job_ids), active_score_predicate()
+                )
+            )
+            if score.created_from_import_job_id is not None
+        }
+
+    def execution_manifest_digests(self, db: Session, manifest_ids: set[int]) -> dict[int, str]:
+        if not manifest_ids:
+            return {}
+        return dict(
+            (
+                db.execute(
+                    select(ExecutionManifest.id, ExecutionManifest.sha256).where(
+                        ExecutionManifest.__table__.c.id.in_(manifest_ids)
+                    )
+                )
+            ).all()
+        )
+
+    def uploads_for_jobs(self, db: Session, job_ids: list[int]) -> list[RowMapping]:
+        return list(
+            (
+                db.execute(
+                    select(
+                        ImportJobUpload.job_id,
+                        ImportJobUpload.page_number,
+                        Upload.__table__.c.id.label("upload_row_id"),
+                        Upload.upload_uuid,
+                        Upload.original_filename,
+                        StoredObject.byte_size,
+                        StoredObject.content_type,
+                    )
+                    .join(Upload, ImportJobUpload.upload_id == Upload.id)
+                    .join(StoredObject, Upload.stored_object_id == StoredObject.id)
+                    .where(ImportJobUpload.__table__.c.job_id.in_(job_ids))
+                    .order_by(
+                        ImportJobUpload.__table__.c.sort_order.asc(),
+                        ImportJobUpload.__table__.c.id.asc(),
+                    )
+                )
+            )
+            .mappings()
+            .all()
+        )
 
     @staticmethod
     def get_step(db: Session, job_id: int, name: str) -> ImportJobStep | None:
@@ -109,73 +158,25 @@ class SyncImportJobRepository:
         ).scalar_one_or_none()
 
     @staticmethod
-    def list_steps(db: Session, job_id: int) -> list[ImportJobStep]:
-        return list(
-            db.execute(
-                select(ImportJobStep)
-                .where(ImportJobStep.job_id == job_id)
-                .order_by(col(ImportJobStep.step_order))
-            ).scalars()
-        )
-
-    @staticmethod
     def list_artifacts(db: Session, job_id: int) -> list[ImportArtifact]:
         return list(
-            db.execute(
-                select(ImportArtifact).where(ImportArtifact.job_id == job_id)
-            ).scalars()
+            db.execute(select(ImportArtifact).where(ImportArtifact.job_id == job_id)).scalars()
         )
 
     @staticmethod
-    def delete_artifacts_by_kind(db: Session, job_id: int, kind: str) -> None:
-        db.execute(
-            delete(ImportArtifact).where(
-                ImportArtifact.job_id == job_id,
-                ImportArtifact.kind == kind,
+    def delete_artifacts_by_kind(db: Session, job_id: int, kind: ImportArtifactKind) -> list[int]:
+        rows = list(
+            db.scalars(
+                select(ImportArtifact).where(
+                    ImportArtifact.job_id == job_id, ImportArtifact.kind == kind
+                )
             )
         )
-
-    @staticmethod
-    def get_upload_by_uuid(db: Session, upload_uuid: str) -> Upload | None:
-        return db.execute(
-            select(Upload).where(Upload.upload_uuid == upload_uuid)
-        ).scalar_one_or_none()
-
-    @staticmethod
-    def get_job_upload(
-        db: Session,
-        job_id: int,
-        upload_id: int,
-    ) -> ImportJobUpload | None:
-        return db.execute(
-            select(ImportJobUpload).where(
-                ImportJobUpload.job_id == job_id,
-                ImportJobUpload.upload_id == upload_id,
-            )
-        ).scalar_one_or_none()
-
-    @staticmethod
-    def list_upload_rows(
-        db: Session,
-        job_id: int,
-    ) -> list[tuple[ImportJobUpload, Upload, StorageBlob]]:
-        return [
-            (job_upload, upload, blob)
-            for job_upload, upload, blob in db.execute(
-                select(ImportJobUpload, Upload, StorageBlob)
-                .join(Upload, ImportJobUpload.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
-                .where(ImportJobUpload.job_id == job_id)
-                .order_by(col(ImportJobUpload.sort_order).asc(), col(ImportJobUpload.id).asc())
-            ).all()
-        ]
-
-    @staticmethod
-    def get_score_uuid(db: Session, score_id: int | None) -> str | None:
-        if score_id is None:
-            return None
-        score = db.get(Score, score_id)
-        return score.score_uuid if score else None
+        object_ids = [row.stored_object_id for row in rows]
+        for row in rows:
+            db.delete(row)
+        db.flush()
+        return object_ids
 
     @staticmethod
     def list_orphan_uploads(db: Session, cutoff: datetime) -> list[Upload]:
@@ -191,5 +192,6 @@ class SyncImportJobRepository:
                     input_asset_id.is_(None),
                     Upload.created_at < cutoff,
                 )
+                .order_by(Upload.uploader_user_id, Upload.id)
             ).scalars()
         )

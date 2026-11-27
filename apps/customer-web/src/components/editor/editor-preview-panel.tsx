@@ -1,33 +1,39 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from 'react';
 import { useTranslations } from 'next-intl';
 import { ScorePreviewViewport } from '@/components/score-preview/score-preview-viewport';
 import { Button } from '@/components/ui/button';
 import {
   useEditorDomainRenderAnchors,
   useEditorState,
-  useScoreData,
+  useEditorSession,
 } from '@/contexts/editor-provider';
 import { useScorePreviewPlayback } from '@/hooks/score-preview/use-score-preview-playback';
 import { useMeasureWarningOverlay } from '@/hooks/score/use-measure-warning-overlay';
 import { useEntityEditor } from '@/hooks/editor/use-entity-editor';
-import { createAddModeInsertCommand, type AddModeInsertCommand } from '@/hooks/editor/entity-editor';
+import {
+  createAddModeInsertCommand,
+  type AddModeInsertCommand,
+} from '@/hooks/editor/entity-editor';
 import { useConnectionOperations } from '@/hooks/editor/use-connection-operations';
 import { useEditorTracks } from '@/hooks/editor/use-editor-tracks';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
-import { getDivisions, parseXml } from '@/lib/musicxml/core';
 import {
   getVerovioRenderElementIdFromTarget,
   getVerovioMeasureElementFromTarget,
   getVerovioMeasureIndexFromTarget,
   getVerovioStaffElementForIndex,
 } from '@/lib/editor/verovio-entity-map';
-import {
-  getConnectionTarget,
-  type ConnectionTarget,
-} from '@/lib/editor/connection-target';
+import { getConnectionTarget, type ConnectionTarget } from '@/lib/editor/connection-target';
 import { createDomainSelectionCompanion } from '@/lib/editor/domain-selection-companion';
 import { resolveRhythmicInsertPlacement } from '@/lib/editor/rhythmic-insert-placement';
 import {
@@ -42,7 +48,16 @@ import {
 } from '@/lib/editor/staff-pitch-resolver';
 import { validateDataIntegrity } from '@/lib/musicxml/validator';
 import { getTrackColor } from '@/lib/editor/tracks';
-import { getRenderIdsForDomainAnchor, type DomainAnchor, type InputDuration, type InsertionAnchor, type RenderAnchor, type ScoreDocument } from '@/lib/editor-domain';
+import {
+  compareRational,
+  effectiveMeasureContext,
+  getRenderIdsForDomainAnchor,
+  type DomainAnchor,
+  type InputDuration,
+  type InsertionAnchor,
+  type RenderAnchor,
+  type ScoreDocument,
+} from '@/lib/editor-domain';
 import { EditorBottomPlayer } from './editor-bottom-player';
 import {
   getHiddenConnectionPairs,
@@ -51,7 +66,7 @@ import {
 } from './editor-preview-track-visibility';
 import { applySelectedVerovioElements } from './editor-preview-selection-highlight';
 import { mountScoreMetadataPlaceholders } from './editor-preview-metadata-placeholders';
-import type { AddLocation } from '@/types/score-types';
+import type { AddLocation } from '@/lib/editor/rhythmic-insert-placement';
 
 interface EditorPreviewPanelProps {
   active: boolean;
@@ -93,7 +108,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
 }
 
-function isScoreMetadataTarget(container: Element | null, target: EventTarget | null, clientY: number): boolean {
+function isScoreMetadataTarget(
+  container: Element | null,
+  target: EventTarget | null,
+  clientY: number,
+): boolean {
   if (!(target instanceof Element)) return false;
   if (target.closest('[data-score-metadata-placeholder]')) return true;
 
@@ -106,12 +125,18 @@ function isScoreMetadataTarget(container: Element | null, target: EventTarget | 
   const systemTop = system.getBoundingClientRect().top;
   const pageTop = page.getBoundingClientRect().top;
   const isAboveFirstSystem = clientY >= pageTop && clientY < systemTop - 4;
-  const isTextElement = Boolean(target.closest('text, tspan, [data-class="dir"], .dir, .anchoredText, .rend'));
+  const isTextElement = Boolean(
+    target.closest('text, tspan, [data-class="dir"], .dir, .anchoredText, .rend'),
+  );
 
   return isAboveFirstSystem && isTextElement;
 }
 
-function getCaretStyle(event: MouseEvent<HTMLDivElement>, element: Element, left: number): CSSProperties {
+function getCaretStyle(
+  event: MouseEvent<HTMLDivElement>,
+  element: Element,
+  left: number,
+): CSSProperties {
   const viewportRect = event.currentTarget.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
 
@@ -155,7 +180,10 @@ function getGhostNoteColorStyle(color: string | undefined): CSSProperties {
   };
 }
 
-function getGhostNoteheadColorStyle(color: string | undefined, kind: AddModePreview['ghostNoteheadKind']): CSSProperties {
+function getGhostNoteheadColorStyle(
+  color: string | undefined,
+  kind: AddModePreview['ghostNoteheadKind'],
+): CSSProperties {
   const resolvedColor = color || '#2563eb';
   return {
     borderColor: resolvedColor,
@@ -171,7 +199,7 @@ function getGhostNoteheadKind(inputDuration: InputDuration): 'filled' | 'open' {
 function getGhostNoteStyle(
   event: MouseEvent<HTMLDivElement>,
   left: number,
-  centerY: number
+  centerY: number,
 ): CSSProperties {
   const viewportRect = event.currentTarget.getBoundingClientRect();
   const width = 18;
@@ -188,13 +216,13 @@ function getGhostNoteStyle(
 function getGridMarkerStyles(
   event: MouseEvent<HTMLDivElement>,
   element: Element,
-  gridLines: number[]
+  gridLines: number[],
 ): CSSProperties[] {
   const viewportRect = event.currentTarget.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
   const top = Math.max(
     event.currentTarget.scrollTop,
-    elementRect.top - viewportRect.top + event.currentTarget.scrollTop - 34
+    elementRect.top - viewportRect.top + event.currentTarget.scrollTop - 34,
   );
 
   return gridLines.map((left) => ({
@@ -211,7 +239,7 @@ function getLedgerLineStyles(
     diatonicOffsetFromBottomLine: number;
     lineSpacing: number;
     centerY: number;
-  }
+  },
 ): CSSProperties[] {
   const ledgerLineOffsets = getLedgerLineOffsets(pitchPosition.diatonicOffsetFromBottomLine);
   if (ledgerLineOffsets.length === 0) return [];
@@ -220,37 +248,42 @@ function getLedgerLineStyles(
   const width = 26;
   return ledgerLineOffsets.map((offset) => ({
     left: `${left - viewportRect.left + event.currentTarget.scrollLeft - width / 2}px`,
-    top: `${pitchPosition.centerY
-      - viewportRect.top
-      + event.currentTarget.scrollTop
-      - ((offset - pitchPosition.diatonicOffsetFromBottomLine) * pitchPosition.lineSpacing) / 2}px`,
+    top: `${
+      pitchPosition.centerY -
+      viewportRect.top +
+      event.currentTarget.scrollTop -
+      ((offset - pitchPosition.diatonicOffsetFromBottomLine) * pitchPosition.lineSpacing) / 2
+    }px`,
     width: `${width}px`,
   }));
 }
 
-function getInsertVerticalAnchor(measureElement: Element | null, staveIndex: number): Element | null {
+function getInsertVerticalAnchor(
+  measureElement: Element | null,
+  staveIndex: number,
+): Element | null {
   return getVerovioStaffElementForIndex(measureElement, staveIndex) ?? measureElement;
 }
 
 function resolvePitchedConnectionTarget(
   document: ScoreDocument | null,
   domainAnchor: DomainAnchor | null,
-  domainAnchors: RenderAnchor[]
+  domainAnchors: RenderAnchor[],
 ): ConnectionTarget | null {
   return getConnectionTarget(document, domainAnchor, domainAnchors);
 }
 
 function isSameAddLocation(left: AddLocation | null, right: AddLocation): boolean {
-  return Boolean(left)
-    && left?.measureIndex === right.measureIndex
-    && left.staveIndex === right.staveIndex
-    && left.xmlVoice === right.xmlVoice
-    && left.tick === right.tick;
+  return (
+    Boolean(left) &&
+    left?.measureIndex === right.measureIndex &&
+    left.staveIndex === right.staveIndex &&
+    compareRational(left.position.offset, right.position.offset) === 0
+  );
 }
 
 function getHiddenVerovioEventElement(element: Element): Element {
-  return element.closest(VEROVIO_EVENT_CONTAINER_SELECTOR)
-    ?? element;
+  return element.closest(VEROVIO_EVENT_CONTAINER_SELECTOR) ?? element;
 }
 
 function getVerovioChordElement(element: Element): Element | null {
@@ -263,9 +296,7 @@ function getEventSourceId(element: Element): string | null {
 
 function shouldHideWholeChord(chordElement: Element, hiddenSourceIds: Set<string>): boolean {
   const eventChildren = Array.from(chordElement.querySelectorAll(VEROVIO_EVENT_CONTAINER_SELECTOR));
-  const sourceIds = eventChildren
-    .map(getEventSourceId)
-    .filter((id): id is string => Boolean(id));
+  const sourceIds = eventChildren.map(getEventSourceId).filter((id): id is string => Boolean(id));
 
   return sourceIds.length > 0 && sourceIds.every((id) => hiddenSourceIds.has(id));
 }
@@ -331,19 +362,28 @@ function getSvgBoundsFromGraphics(element: Element): SvgBounds | null {
   };
 }
 
-function isConnectionNearHiddenEvent(connectionBounds: SvgBounds, hiddenEventBounds: SvgBounds): boolean {
+function isConnectionNearHiddenEvent(
+  connectionBounds: SvgBounds,
+  hiddenEventBounds: SvgBounds,
+): boolean {
   const xTolerance = 720;
   const yTolerance = 720;
   const connectionCenterY = (connectionBounds.minY + connectionBounds.maxY) / 2;
-  const overlapsX = connectionBounds.maxX >= hiddenEventBounds.minX - xTolerance
-    && connectionBounds.minX <= hiddenEventBounds.maxX + xTolerance;
-  const overlapsY = connectionCenterY >= hiddenEventBounds.minY - yTolerance
-    && connectionCenterY <= hiddenEventBounds.maxY + yTolerance;
+  const overlapsX =
+    connectionBounds.maxX >= hiddenEventBounds.minX - xTolerance &&
+    connectionBounds.minX <= hiddenEventBounds.maxX + xTolerance;
+  const overlapsY =
+    connectionCenterY >= hiddenEventBounds.minY - yTolerance &&
+    connectionCenterY <= hiddenEventBounds.maxY + yTolerance;
 
   return overlapsX && overlapsY;
 }
 
-function addBounds(boundsBySourceId: Map<string, SvgBounds[]>, sourceId: string, bounds: SvgBounds | null): void {
+function addBounds(
+  boundsBySourceId: Map<string, SvgBounds[]>,
+  sourceId: string,
+  bounds: SvgBounds | null,
+): void {
   if (!bounds) return;
   const existing = boundsBySourceId.get(sourceId) ?? [];
   existing.push(bounds);
@@ -353,15 +393,17 @@ function addBounds(boundsBySourceId: Map<string, SvgBounds[]>, sourceId: string,
 function isConnectionNearEndpointPair(
   connectionBounds: SvgBounds,
   startBounds: SvgBounds,
-  endBounds: SvgBounds
+  endBounds: SvgBounds,
 ): boolean {
-  return isConnectionNearHiddenEvent(connectionBounds, startBounds)
-    && isConnectionNearHiddenEvent(connectionBounds, endBounds);
+  return (
+    isConnectionNearHiddenEvent(connectionBounds, startBounds) &&
+    isConnectionNearHiddenEvent(connectionBounds, endBounds)
+  );
 }
 
 function isConnectionNearAnyEndpoint(
   connectionBounds: SvgBounds,
-  endpointBounds: SvgBounds[]
+  endpointBounds: SvgBounds[],
 ): boolean {
   return endpointBounds.some((bounds) => isConnectionNearHiddenEvent(connectionBounds, bounds));
 }
@@ -370,38 +412,31 @@ function getDomainAnchorTrackColor(
   document: ScoreDocument | null,
   anchor: DomainAnchor | null,
 ): string | undefined {
-  const eventId = anchor?.kind === 'event' || anchor?.kind === 'noteAtom'
-    ? anchor.eventId
-    : null;
+  const eventId = anchor?.kind === 'event' || anchor?.kind === 'noteAtom' ? anchor.eventId : null;
   if (!document || !eventId) return undefined;
 
   const event = document.events.find((candidate) => candidate.id === eventId);
   if (!event) return undefined;
 
-  return getTrackColor(
-    Math.max(0, getTrailingNumber(String(event.staffId), 1) - 1),
-    getTrailingNumber(String(event.voiceId), 1),
-  );
+  const staff = document.staves.find((staff) => staff.id === event.staffId);
+  const voice = document.voices.find((voice) => voice.id === event.voiceId);
+  return staff && voice ? getTrackColor(staff.index, voice.number) : undefined;
 }
 
-function getTrailingNumber(value: string, fallback: number): number {
-  const match = value.match(/(\d+)$/);
-  if (!match) return fallback;
-  const parsed = Number.parseInt(match[1] ?? '', 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }: EditorPreviewPanelProps) {
+export function EditorPreviewPanel({
+  active,
+  currentXml,
+  onOpenScoreInspector,
+}: EditorPreviewPanelProps) {
   const t = useTranslations('editor');
   const common = useTranslations('common');
   const auth = useTranslations('auth');
-  const { scoreData } = useScoreData();
+  const { document, inputVoices } = useEditorSession();
   const domainRenderAnchors = useEditorDomainRenderAnchors();
   const {
     document: domainDocument,
     gaps: domainGaps,
     anchors: domainAnchors,
-    error: domainAnchorError,
     resolveAnchor: resolveDomainAnchor,
   } = domainRenderAnchors;
   const {
@@ -419,12 +454,8 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
   const { tracks, activeTrackId, visibleTrackIdSet } = useEditorTracks();
   const isMobile = useIsMobile();
   const { toast } = useToast();
-  const {
-    handleAddEntity,
-    handleCloseModal,
-    handleDeleteEntity,
-    handleDomainSelectionCompanion,
-  } = useEntityEditor();
+  const { handleAddEntity, handleCloseModal, handleDeleteEntity, handleDomainSelectionCompanion } =
+    useEntityEditor();
   const {
     handleAddSlurSelection,
     handleAddTieSelection,
@@ -432,7 +463,7 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     clearTieSelection,
     handleDeleteSlur,
     handleDeleteTie,
-  } = useConnectionOperations({ currentXml });
+  } = useConnectionOperations();
   const [addModePreview, setAddModePreview] = useState<AddModePreview | null>(null);
   const [lastDomainAnchorKind, setLastDomainAnchorKind] = useState<string | null>(null);
   const [lastDomainCompanionKind, setLastDomainCompanionKind] = useState<string | null>(null);
@@ -442,83 +473,98 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
   });
   const activeTrack = useMemo(
     () => tracks.find((track) => track.id === activeTrackId) ?? tracks[0],
-    [activeTrackId, tracks]
+    [activeTrackId, tracks],
   );
-  const getInsertTarget = useCallback((
-    event: MouseEvent<HTMLDivElement>,
-    measureElement: Element | null,
-    fallbackStaveIndex: number,
-    fallbackXmlVoice: number
-  ) => {
-    const staveIndex = getStaveIndexFromPointer(measureElement, event.clientY)
-      ?? activeTrack?.staffIndex
-      ?? fallbackStaveIndex;
+  const getInsertTarget = useCallback(
+    (
+      event: MouseEvent<HTMLDivElement>,
+      measureElement: Element | null,
+      fallbackStaveIndex: number,
+      _fallbackXmlVoice: number,
+    ) => {
+      const staveIndex =
+        getStaveIndexFromPointer(measureElement, event.clientY) ??
+        activeTrack?.staffIndex ??
+        fallbackStaveIndex;
 
-    return {
-      staveIndex,
-      xmlVoice: activeTrack?.xmlVoice ?? fallbackXmlVoice,
-    };
-  }, [activeTrack?.staffIndex, activeTrack?.xmlVoice]);
-  const divisions = useMemo(() => {
-    if (!currentXml) return 1;
-    return getDivisions(parseXml(currentXml));
-  }, [currentXml]);
-  const resolvePointerAddModePreviewInput = useCallback((
-    event: MouseEvent<HTMLDivElement>,
-    measureElement: Element,
-    measureIndex: number,
-    staveIndex: number,
-    left: number,
-  ) => {
-    if (addModeInput.kind !== 'pitched') {
       return {
-        input: addModeInput,
-        pitchStyle: undefined,
+        staveIndex,
+        voiceId: activeTrack?.voiceId,
       };
-    }
-    const clef = scoreData?.measures[measureIndex]?.staves[staveIndex]?.clef as StaffPitchClef | undefined;
-    const pitchPosition = resolvePitchPositionFromStaffPointer({
-      staffElement: getInsertVerticalAnchor(measureElement, staveIndex),
-      clientY: event.clientY,
-      clef,
-    });
-    if (!pitchPosition) {
-      return {
-        input: addModeInput,
-        pitchStyle: undefined,
-      };
-    }
+    },
+    [activeTrack?.staffIndex, activeTrack?.voiceId],
+  );
+  const resolvePointerAddModePreviewInput = useCallback(
+    (
+      event: MouseEvent<HTMLDivElement>,
+      measureElement: Element,
+      measureIndex: number,
+      staveIndex: number,
+      left: number,
+    ) => {
+      if (addModeInput.kind !== 'pitched') {
+        return {
+          input: addModeInput,
+          pitchStyle: undefined,
+        };
+      }
+      const measure = document?.measures.filter(
+        (measure) => measure.partId === activeTrack?.partId,
+      )[measureIndex];
+      const staff = document?.staves[staveIndex];
+      const effective =
+        document && measure && staff
+          ? effectiveMeasureContext(document, measure.id, staff.id).clef
+          : null;
+      const clef: StaffPitchClef | undefined =
+        effective?.sign === 'G' && effective.line === 2 && !effective.octaveChange
+          ? 'treble'
+          : effective?.sign === 'F' && effective.line === 4 && !effective.octaveChange
+            ? 'bass'
+            : undefined;
+      const pitchPosition = resolvePitchPositionFromStaffPointer({
+        staffElement: getVerovioStaffElementForIndex(measureElement, staveIndex),
+        clientY: event.clientY,
+        clef,
+      });
+      if (!pitchPosition) return null;
 
-    const resolvedInput = {
-      ...addModeInput,
-      pitch: pitchPosition.pitch,
-    };
-    setAddModeInput((current) => (
-      current.kind === 'pitched'
-      && current.pitch.step === pitchPosition.pitch.step
-      && current.pitch.octave === pitchPosition.pitch.octave
-      && current.pitch.alter === pitchPosition.pitch.alter
-        ? current
-        : resolvedInput
-    ));
-    return {
-      input: resolvedInput,
-      pitchStyle: getGhostNoteStyle(event, left, pitchPosition.centerY),
-      ledgerLineStyles: getLedgerLineStyles(event, left, pitchPosition),
-    };
-  }, [addModeInput, scoreData?.measures, setAddModeInput]);
-  const translateValidationKey = useCallback((key: string) => {
-    if (!key.includes('.')) return t(key as never);
-    const [namespace, ...rest] = key.split('.');
-    const nestedKey = rest.join('.');
-    if (namespace === 'editor') return t(nestedKey as never);
-    if (namespace === 'common') return common(nestedKey as never);
-    if (namespace === 'validation' || namespace === 'auth') return auth(`validation.${nestedKey}` as never);
-    return key;
-  }, [auth, common, t]);
+      const resolvedInput = {
+        ...addModeInput,
+        pitch: pitchPosition.pitch,
+      };
+      setAddModeInput((current) =>
+        current.kind === 'pitched' &&
+        current.pitch.step === pitchPosition.pitch.step &&
+        current.pitch.octave === pitchPosition.pitch.octave &&
+        current.pitch.alter === pitchPosition.pitch.alter
+          ? current
+          : resolvedInput,
+      );
+      return {
+        input: resolvedInput,
+        pitchStyle: getGhostNoteStyle(event, left, pitchPosition.centerY),
+        ledgerLineStyles: getLedgerLineStyles(event, left, pitchPosition),
+      };
+    },
+    [addModeInput, document, activeTrack?.partId, setAddModeInput],
+  );
+  const translateValidationKey = useCallback(
+    (key: string) => {
+      if (!key.includes('.')) return t(key as never);
+      const [namespace, ...rest] = key.split('.');
+      const nestedKey = rest.join('.');
+      if (namespace === 'editor') return t(nestedKey as never);
+      if (namespace === 'common') return common(nestedKey as never);
+      if (namespace === 'validation' || namespace === 'auth')
+        return auth(`validation.${nestedKey}` as never);
+      return key;
+    },
+    [auth, common, t],
+  );
   const validationIssues = useMemo(
-    () => validateDataIntegrity(scoreData, currentXml, translateValidationKey).warnings,
-    [currentXml, scoreData, translateValidationKey]
+    () => validateDataIntegrity(document, currentXml, translateValidationKey).warnings,
+    [currentXml, document, translateValidationKey],
   );
   useMeasureWarningOverlay({
     containerRef: playback.containerRef,
@@ -526,14 +572,14 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     issues: validationIssues,
   });
   const hiddenSourceIds = useMemo(() => {
-    return getHiddenSourceIds(scoreData, visibleTrackIdSet);
-  }, [scoreData, visibleTrackIdSet]);
+    return getHiddenSourceIds(document, visibleTrackIdSet);
+  }, [document, visibleTrackIdSet]);
   const hiddenConnectionPairs = useMemo(() => {
     return getHiddenConnectionPairs(hiddenSourceIds, domainDocument);
   }, [domainDocument, hiddenSourceIds]);
   const hiddenStaffKeys = useMemo(() => {
-    return getHiddenStaffKeys(scoreData, visibleTrackIdSet);
-  }, [scoreData, visibleTrackIdSet]);
+    return getHiddenStaffKeys(document, visibleTrackIdSet);
+  }, [document, visibleTrackIdSet]);
 
   useEffect(() => {
     setOnToolChange(() => {
@@ -549,7 +595,8 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || isEditableTarget(event.target)) return;
-      if (!['add', 'delete', 'addTie', 'deleteTie', 'addSlur', 'deleteSlur'].includes(editorMode)) return;
+      if (!['add', 'delete', 'addTie', 'deleteTie', 'addSlur', 'deleteSlur'].includes(editorMode))
+        return;
 
       clearTieSelection();
       clearSlurSelection();
@@ -584,7 +631,14 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     const observer = new MutationObserver(() => applySelection());
     observer.observe(container, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [currentXml, domainAnchors, domainDocument, editingSelection?.domainAnchor, playback.containerRef, playback.isLoading]);
+  }, [
+    currentXml,
+    domainAnchors,
+    domainDocument,
+    editingSelection?.domainAnchor,
+    playback.containerRef,
+    playback.isLoading,
+  ]);
 
   useEffect(() => {
     const container = playback.containerRef.current;
@@ -592,9 +646,9 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
 
     mountScoreMetadataPlaceholders({
       container,
-      scoreData,
+      document,
       labels: {
-        mainTitle: t('mainTitleLabel'),
+        notationTitle: t('notationTitleLabel'),
         subtitle: t('subtitleLabel'),
         lyricist: t('lyricistLabel'),
         composer: t('composerLabel'),
@@ -603,11 +657,11 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
   }, [
     playback.containerRef,
     playback.isLoading,
-    scoreData,
-    scoreData?.composer,
-    scoreData?.lyricist,
-    scoreData?.mainTitle,
-    scoreData?.subtitle,
+    document,
+    document?.metadata.composer,
+    document?.metadata.lyricist,
+    document?.metadata.notationTitle,
+    document?.metadata.subtitle,
     t,
   ]);
 
@@ -627,7 +681,11 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     container.querySelectorAll('[data-id], [id]').forEach((element) => {
       const id = element.getAttribute('data-id') || element.getAttribute('id');
       if (id) {
-        addBounds(boundsBySourceId, id, getSvgBoundsFromGraphics(getHiddenVerovioEventElement(element)));
+        addBounds(
+          boundsBySourceId,
+          id,
+          getSvgBoundsFromGraphics(getHiddenVerovioEventElement(element)),
+        );
       }
       if (id && hiddenSourceIds.has(id)) {
         const hiddenElement = getHiddenVerovioEventElement(element);
@@ -661,9 +719,9 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
         const shouldHideConnection = hiddenConnectionPairs.some((pair) => {
           const startBounds = boundsBySourceId.get(pair.startId) ?? [];
           const endBounds = boundsBySourceId.get(pair.endId) ?? [];
-          const bothEndpointsMatch = startBounds.some((start) => (
-            endBounds.some((end) => isConnectionNearEndpointPair(connectionBounds, start, end))
-          ));
+          const bothEndpointsMatch = startBounds.some((start) =>
+            endBounds.some((end) => isConnectionNearEndpointPair(connectionBounds, start, end)),
+          );
           if (bothEndpointsMatch) return true;
 
           const hiddenEndpointBounds = [
@@ -680,26 +738,36 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
       });
     }
 
-    container.querySelectorAll('[data-class="measure"], .measure').forEach((measureElement, measureIndex) => {
-      scoreData?.measures[measureIndex]?.staves.forEach((_, staveIndex) => {
-        if (!hiddenStaffKeys.has(`${measureIndex}:${staveIndex}`)) return;
+    container
+      .querySelectorAll('[data-class="measure"], .measure')
+      .forEach((measureElement, measureIndex) => {
+        document?.staves.forEach((_staff, staveIndex) => {
+          if (!hiddenStaffKeys.has(`${measureIndex}:${staveIndex}`)) return;
 
-        const staffElement = getVerovioStaffElementForIndex(measureElement, staveIndex);
-        const scopedConnections = staffElement
-          ? Array.from(staffElement.querySelectorAll(VEROVIO_CONNECTION_SELECTOR))
-          : [];
-        const connections = scopedConnections.length > 0
-          ? scopedConnections
-          : Array.from(measureElement.querySelectorAll(VEROVIO_CONNECTION_SELECTOR))
-            .filter((element) => {
-              const staffBounds = staffElement ? getSvgBoundsFromGraphics(staffElement) : null;
-              const connectionBounds = getSvgBoundsFromGraphics(element);
-              return Boolean(staffBounds && connectionBounds && isConnectionNearHiddenEvent(connectionBounds, staffBounds));
-            });
+          const staffElement = getVerovioStaffElementForIndex(measureElement, staveIndex);
+          const scopedConnections = staffElement
+            ? Array.from(staffElement.querySelectorAll(VEROVIO_CONNECTION_SELECTOR))
+            : [];
+          const connections =
+            scopedConnections.length > 0
+              ? scopedConnections
+              : Array.from(measureElement.querySelectorAll(VEROVIO_CONNECTION_SELECTOR)).filter(
+                  (element) => {
+                    const staffBounds = staffElement
+                      ? getSvgBoundsFromGraphics(staffElement)
+                      : null;
+                    const connectionBounds = getSvgBoundsFromGraphics(element);
+                    return Boolean(
+                      staffBounds &&
+                        connectionBounds &&
+                        isConnectionNearHiddenEvent(connectionBounds, staffBounds),
+                    );
+                  },
+                );
 
-        connections.forEach((element) => element.classList.add('score-editor-hidden'));
+          connections.forEach((element) => element.classList.add('score-editor-hidden'));
+        });
       });
-    });
   }, [
     currentXml,
     hiddenConnectionPairs,
@@ -707,254 +775,270 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     hiddenStaffKeys,
     playback.containerRef,
     playback.isLoading,
-    scoreData?.measures,
+    document?.measures,
+    document?.staves,
   ]);
 
-  const handleScoreClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
-    if (isScoreMetadataTarget(event.currentTarget, event.target, event.clientY)) {
+  const handleScoreClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (isScoreMetadataTarget(event.currentTarget, event.target, event.clientY)) {
+        event.preventDefault();
+        event.stopPropagation();
+        handleCloseModal();
+        onOpenScoreInspector();
+        return;
+      }
+
+      const renderElementId = getVerovioRenderElementIdFromTarget(event.target);
+      const domainAnchor = resolveDomainAnchor(renderElementId);
+      setLastDomainAnchorKind(domainAnchor?.kind ?? null);
+      const measureElement =
+        getVerovioMeasureElementFromTarget(event.target) ??
+        getMeasureElementFromPoint(event.currentTarget, event.clientX, event.clientY);
+      const measureIndex =
+        getMeasureIndex(event.currentTarget, measureElement) ??
+        getVerovioMeasureIndexFromTarget(event.currentTarget, event.target);
+      if (!domainAnchor && measureIndex === null) return;
+
       event.preventDefault();
       event.stopPropagation();
-      handleCloseModal();
-      onOpenScoreInspector();
-      return;
-    }
 
-    const renderElementId = getVerovioRenderElementIdFromTarget(event.target);
-    const domainAnchor = resolveDomainAnchor(renderElementId);
-    setLastDomainAnchorKind(domainAnchor?.kind ?? null);
-    const measureElement = getVerovioMeasureElementFromTarget(event.target)
-      ?? getMeasureElementFromPoint(event.currentTarget, event.clientX, event.clientY);
-    const measureIndex = getMeasureIndex(event.currentTarget, measureElement)
-      ?? getVerovioMeasureIndexFromTarget(event.currentTarget, event.target);
-    if (!domainAnchor && measureIndex === null) return;
+      if (editorMode === 'add') {
+        if (measureIndex === null || !measureElement) return;
 
-    event.preventDefault();
-    event.stopPropagation();
+        const target = getInsertTarget(event, measureElement, 0, 1);
+        const placement = resolveRhythmicInsertPlacement({
+          domainDocument,
+          inputVoices,
+          timelineGaps: domainGaps,
+          measureElement,
+          measureIndex,
+          target,
+          clientX: event.clientX,
+          inputDuration: addModeInputDuration,
+          grid: addModeGridResolution,
+          visibleTrackIdSet,
+        });
+        if (!placement) return;
+        const location = placement.location;
+        const previewInput = resolvePointerAddModePreviewInput(
+          event,
+          measureElement,
+          measureIndex,
+          target.staveIndex,
+          placement.left,
+        );
+        if (!previewInput) {
+          setAddModePreview(null);
+          setInsertionPreview(null);
+          return;
+        }
+        const command = createAddModeInsertCommand({
+          input: previewInput.input,
+          inputDuration: addModeInputDuration,
+        });
+        setInsertionPreview({
+          anchor: placement.insertionAnchor,
+          inputDuration: addModeInputDuration,
+        });
 
-    if (editorMode === 'add') {
-      if (measureIndex === null || !measureElement) return;
+        if (isMobile && !isSameAddLocation(addModePreview?.location ?? null, location)) {
+          const targetElement =
+            getInsertVerticalAnchor(measureElement, location.staveIndex) ?? measureElement;
+          setAddModePreview({
+            command,
+            gridMarkerStyles: getGridMarkerStyles(event, targetElement, placement.gridLines),
+            ghostNoteheadKind: getGhostNoteheadKind(addModeInputDuration),
+            insertionAnchor: placement.insertionAnchor,
+            location,
+            ledgerLineStyles: previewInput.ledgerLineStyles,
+            pitchStyle: previewInput.pitchStyle,
+            style: getCaretStyle(event, targetElement, placement.left),
+          });
+          return;
+        }
+
+        setAddModePreview(null);
+        handleAddEntity(placement.insertionAnchor, command);
+        setInsertionPreview(null);
+        return;
+      }
+
+      const domainCompanion = createDomainSelectionCompanion(domainDocument, domainAnchor);
+      setLastDomainCompanionKind(domainCompanion?.inspectorViewModel.kind ?? null);
+
+      if (editorMode === 'delete') {
+        handleDeleteEntity(domainAnchor);
+        return;
+      }
+
+      const runConnectionTool = (
+        type: 'tie' | 'slur',
+        operation: (target: ConnectionTarget) => { success: boolean; message: string },
+      ) => {
+        const target = resolvePitchedConnectionTarget(domainDocument, domainAnchor, domainAnchors);
+        if (!target) {
+          toast({
+            title: t('onlyNoteOrChord', { type: common(type) }),
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const result = operation(target);
+        toast({ title: result.message, variant: result.success ? 'default' : 'destructive' });
+      };
+
+      if (editorMode === 'addTie') {
+        runConnectionTool('tie', handleAddTieSelection);
+        return;
+      }
+
+      if (editorMode === 'addSlur') {
+        runConnectionTool('slur', handleAddSlurSelection);
+        return;
+      }
+
+      if (editorMode === 'deleteTie') {
+        runConnectionTool('tie', handleDeleteTie);
+        return;
+      }
+
+      if (editorMode === 'deleteSlur') {
+        runConnectionTool('slur', handleDeleteSlur);
+        return;
+      }
+
+      if (!domainCompanion) return;
+
+      handleDomainSelectionCompanion(domainCompanion);
+    },
+    [
+      addModeInputDuration,
+      addModeGridResolution,
+      editorMode,
+      handleAddEntity,
+      handleAddSlurSelection,
+      handleAddTieSelection,
+      handleCloseModal,
+      handleDeleteEntity,
+      handleDeleteSlur,
+      handleDeleteTie,
+      handleDomainSelectionCompanion,
+      getInsertTarget,
+      resolvePointerAddModePreviewInput,
+      addModePreview?.location,
+      isMobile,
+      onOpenScoreInspector,
+      toast,
+      t,
+      common,
+      visibleTrackIdSet,
+      domainDocument,
+      inputVoices,
+      domainGaps,
+      domainAnchors,
+      resolveDomainAnchor,
+      setInsertionPreview,
+    ],
+  );
+
+  const handleScoreMouseMove = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (editorMode !== 'add') {
+        if (addModePreview) setAddModePreview(null);
+        setInsertionPreview(null);
+        return;
+      }
+
+      const renderElementId = getVerovioRenderElementIdFromTarget(event.target);
+      const domainAnchor = resolveDomainAnchor(renderElementId);
+      setLastDomainAnchorKind(domainAnchor?.kind ?? null);
+      const measureElement =
+        getVerovioMeasureElementFromTarget(event.target) ??
+        getMeasureElementFromPoint(event.currentTarget, event.clientX, event.clientY);
+      const measureIndex =
+        getMeasureIndex(event.currentTarget, measureElement) ??
+        getVerovioMeasureIndexFromTarget(event.currentTarget, event.target);
+
+      if (!measureElement || measureIndex === null) {
+        setAddModePreview(null);
+        setInsertionPreview(null);
+        return;
+      }
 
       const target = getInsertTarget(event, measureElement, 0, 1);
       const placement = resolveRhythmicInsertPlacement({
         domainDocument,
+        inputVoices,
         timelineGaps: domainGaps,
-        scoreData,
         measureElement,
         measureIndex,
         target,
         clientX: event.clientX,
-        divisions,
         inputDuration: addModeInputDuration,
         grid: addModeGridResolution,
-        timeSignature: scoreData?.timeSignature,
         visibleTrackIdSet,
       });
-      if (!placement) return;
-      const location = placement.location;
+      if (!placement) {
+        setAddModePreview(null);
+        setInsertionPreview(null);
+        return;
+      }
       const previewInput = resolvePointerAddModePreviewInput(
         event,
         measureElement,
         measureIndex,
         target.staveIndex,
-        placement.left
+        placement.left,
       );
-      const command = createAddModeInsertCommand({
-        input: previewInput.input,
-        inputDuration: addModeInputDuration,
-      });
+      if (!previewInput) {
+        setAddModePreview(null);
+        setInsertionPreview(null);
+        return;
+      }
       setInsertionPreview({
         anchor: placement.insertionAnchor,
         inputDuration: addModeInputDuration,
       });
 
-      if (isMobile && !isSameAddLocation(addModePreview?.location ?? null, location)) {
-        const targetElement = getInsertVerticalAnchor(measureElement, location.staveIndex) ?? measureElement;
-        setAddModePreview({
-          command,
-          gridMarkerStyles: getGridMarkerStyles(event, targetElement, placement.gridLines),
-          ghostNoteheadKind: getGhostNoteheadKind(addModeInputDuration),
-          insertionAnchor: placement.insertionAnchor,
-          location,
-          ledgerLineStyles: previewInput.ledgerLineStyles,
-          pitchStyle: previewInput.pitchStyle,
-          style: getCaretStyle(event, targetElement, placement.left),
-        });
-        return;
-      }
-
-      setAddModePreview(null);
-      handleAddEntity(placement.insertionAnchor, command);
-      setInsertionPreview(null);
-      return;
-    }
-
-    const domainCompanion = createDomainSelectionCompanion(domainDocument, domainAnchor);
-    setLastDomainCompanionKind(domainCompanion?.inspectorViewModel.kind ?? null);
-
-    if (editorMode === 'delete') {
-      handleDeleteEntity(domainAnchor);
-      return;
-    }
-
-    const runConnectionTool = (
-      type: 'tie' | 'slur',
-      operation: (target: ConnectionTarget) => { success: boolean; message: string }
-    ) => {
-      const target = resolvePitchedConnectionTarget(domainDocument, domainAnchor, domainAnchors);
-      if (!target) {
-        toast({
-          title: t('onlyNoteOrChord', { type: common(type) }),
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const result = operation(target);
-      toast({ title: result.message, variant: result.success ? 'default' : 'destructive' });
-    };
-
-    if (editorMode === 'addTie') {
-      runConnectionTool('tie', handleAddTieSelection);
-      return;
-    }
-
-    if (editorMode === 'addSlur') {
-      runConnectionTool('slur', handleAddSlurSelection);
-      return;
-    }
-
-    if (editorMode === 'deleteTie') {
-      runConnectionTool('tie', handleDeleteTie);
-      return;
-    }
-
-    if (editorMode === 'deleteSlur') {
-      runConnectionTool('slur', handleDeleteSlur);
-      return;
-    }
-
-    if (!domainCompanion) return;
-
-    handleDomainSelectionCompanion(domainCompanion);
-  }, [
-    addModeInputDuration,
-    addModeGridResolution,
-    divisions,
-    editorMode,
-    handleAddEntity,
-    handleAddSlurSelection,
-    handleAddTieSelection,
-    handleCloseModal,
-    handleDeleteEntity,
-    handleDeleteSlur,
-    handleDeleteTie,
-    handleDomainSelectionCompanion,
-    getInsertTarget,
-    resolvePointerAddModePreviewInput,
-    addModePreview?.location,
-    isMobile,
-    onOpenScoreInspector,
-    scoreData,
-    toast,
-    t,
-    common,
-    visibleTrackIdSet,
-    domainDocument,
-    domainGaps,
-    domainAnchors,
-    resolveDomainAnchor,
-    setInsertionPreview,
-  ]);
-
-  const handleScoreMouseMove = useCallback((event: MouseEvent<HTMLDivElement>) => {
-    if (editorMode !== 'add') {
-      if (addModePreview) setAddModePreview(null);
-      setInsertionPreview(null);
-      return;
-    }
-
-    const renderElementId = getVerovioRenderElementIdFromTarget(event.target);
-    const domainAnchor = resolveDomainAnchor(renderElementId);
-    setLastDomainAnchorKind(domainAnchor?.kind ?? null);
-    const measureElement = getVerovioMeasureElementFromTarget(event.target)
-      ?? getMeasureElementFromPoint(event.currentTarget, event.clientX, event.clientY);
-    const measureIndex = getMeasureIndex(event.currentTarget, measureElement)
-      ?? getVerovioMeasureIndexFromTarget(event.currentTarget, event.target);
-
-    if (!measureElement || measureIndex === null) {
-      setAddModePreview(null);
-      setInsertionPreview(null);
-      return;
-    }
-
-    const target = getInsertTarget(event, measureElement, 0, 1);
-    const placement = resolveRhythmicInsertPlacement({
+      setAddModePreview({
+        command: createAddModeInsertCommand({
+          input: previewInput.input,
+          inputDuration: addModeInputDuration,
+        }),
+        gridMarkerStyles: getGridMarkerStyles(
+          event,
+          getInsertVerticalAnchor(measureElement, target.staveIndex) ?? measureElement,
+          placement.gridLines,
+        ),
+        ghostNoteheadKind: getGhostNoteheadKind(addModeInputDuration),
+        insertionAnchor: placement.insertionAnchor,
+        location: placement.location,
+        ledgerLineStyles: previewInput.ledgerLineStyles,
+        pitchStyle: previewInput.pitchStyle,
+        style: getCaretStyle(
+          event,
+          getInsertVerticalAnchor(measureElement, target.staveIndex) ?? measureElement,
+          placement.left,
+        ),
+      });
+    },
+    [
+      addModeInputDuration,
+      addModeGridResolution,
       domainDocument,
-      timelineGaps: domainGaps,
-      scoreData,
-      measureElement,
-      measureIndex,
-      target,
-      clientX: event.clientX,
-      divisions,
-      inputDuration: addModeInputDuration,
-      grid: addModeGridResolution,
-      timeSignature: scoreData?.timeSignature,
+      inputVoices,
+      domainGaps,
+      editorMode,
+      getInsertTarget,
+      resolvePointerAddModePreviewInput,
+      addModePreview,
+      resolveDomainAnchor,
+      setInsertionPreview,
       visibleTrackIdSet,
-    });
-    if (!placement) {
-      setAddModePreview(null);
-      setInsertionPreview(null);
-      return;
-    }
-    const previewInput = resolvePointerAddModePreviewInput(
-      event,
-      measureElement,
-      measureIndex,
-      target.staveIndex,
-      placement.left
-    );
-    setInsertionPreview({
-      anchor: placement.insertionAnchor,
-      inputDuration: addModeInputDuration,
-    });
-
-    setAddModePreview({
-      command: createAddModeInsertCommand({
-        input: previewInput.input,
-        inputDuration: addModeInputDuration,
-      }),
-      gridMarkerStyles: getGridMarkerStyles(
-        event,
-        getInsertVerticalAnchor(measureElement, target.staveIndex) ?? measureElement,
-        placement.gridLines
-      ),
-      ghostNoteheadKind: getGhostNoteheadKind(addModeInputDuration),
-      insertionAnchor: placement.insertionAnchor,
-      location: placement.location,
-      ledgerLineStyles: previewInput.ledgerLineStyles,
-      pitchStyle: previewInput.pitchStyle,
-      style: getCaretStyle(
-        event,
-        getInsertVerticalAnchor(measureElement, target.staveIndex) ?? measureElement,
-        placement.left
-      ),
-    });
-  }, [
-    addModeInputDuration,
-    addModeGridResolution,
-    divisions,
-    domainDocument,
-    domainGaps,
-    editorMode,
-    getInsertTarget,
-    resolvePointerAddModePreviewInput,
-    addModePreview,
-    resolveDomainAnchor,
-    scoreData,
-    setInsertionPreview,
-    visibleTrackIdSet,
-  ]);
+    ],
+  );
 
   const handleScoreMouseLeave = useCallback(() => {
     if (!isMobile) {
@@ -976,7 +1060,6 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
     <div
       className="relative flex min-h-[70vh] min-w-0 flex-col gap-4"
       data-domain-anchor-count={domainAnchors.length}
-      data-domain-anchor-error={domainAnchorError ? 'true' : undefined}
       data-domain-anchor-kind={lastDomainAnchorKind ?? undefined}
       data-domain-companion-kind={lastDomainCompanionKind ?? undefined}
       data-insertion-preview-kind={insertionPreview?.anchor.kind}
@@ -1036,7 +1119,11 @@ export function EditorPreviewPanel({ active, currentXml, onOpenScoreInspector }:
       ))}
       {isMobile && editorMode === 'add' && addModePreview?.location ? (
         <div className="fixed inset-x-4 bottom-4 z-30 flex items-center gap-2 rounded-lg border bg-white/95 p-2 shadow-lg backdrop-blur-sm md:hidden">
-          <Button type="button" className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={confirmMobileInsert}>
+          <Button
+            type="button"
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+            onClick={confirmMobileInsert}
+          >
             {t('insertHere')}
           </Button>
           <Button type="button" variant="outline" onClick={() => setAddModePreview(null)}>

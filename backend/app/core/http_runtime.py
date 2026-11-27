@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.http_application import HttpApplication
 from app.core.exception_handlers import register_exception_handlers
+from app.core.http_error_policy import ErrorResponseFactory, HttpRuntimeErrorCodes
 from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware, LoggingMiddleware
 from app.core.tracing import configure_api_tracing
 
@@ -18,15 +19,22 @@ def normalized_cors_origins(origins: Iterable[object]) -> list[str]:
 
 
 def install_http_runtime(
-    app: FastAPI,
+    app: HttpApplication,
     *,
     csrf_settings: CookieCsrfSettings | None = None,
     cors_origins: list[str] | None = None,
+    error_response_factory: ErrorResponseFactory,
+    error_codes: HttpRuntimeErrorCodes,
 ) -> None:
     """Install common cross-cutting HTTP behavior without choosing app policy."""
     app.add_middleware(LoggingMiddleware)
     if csrf_settings is not None:
-        app.add_middleware(CsrfProtectionMiddleware, csrf_settings=csrf_settings)
+        app.add_middleware(
+            CsrfProtectionMiddleware,
+            csrf_settings=csrf_settings,
+            error_response_factory=error_response_factory,
+            error_codes=error_codes,
+        )
     if cors_origins is not None:
         app.add_middleware(
             CORSMiddleware,
@@ -35,5 +43,7 @@ def install_http_runtime(
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    register_exception_handlers(app)
+    register_exception_handlers(
+        app, error_response_factory=error_response_factory, error_codes=error_codes
+    )
     configure_api_tracing(app)

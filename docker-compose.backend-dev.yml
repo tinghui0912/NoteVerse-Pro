@@ -103,19 +103,45 @@ services:
       dockerfile: docker/backend/Dockerfile.beat
     command: beat
 
-  quality:
-    <<: *backend-common
+  quality-postgres:
+    image: postgres:17
+    profiles: [quality]
     environment:
-      PYTHONPATH: /app
+      POSTGRES_USER: noteverse
+      POSTGRES_PASSWORD: noteverse
+      POSTGRES_DB: noteverse_test_quality
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noteverse -d noteverse_test_quality"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  quality:
+    profiles: [quality]
+    <<: *backend-common
+    working_dir: /repo/backend
+    environment:
+      PYTHONPATH: /repo/backend
       NOTEVERSE_REPO_ROOT: /repo
+      CONTROL_PLANE_COOKIE_SECURE: "false"
+      CONTROL_PLANE_COOKIE_SAMESITE: lax
+      CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
+      CONTROL_PLANE_CORS_ORIGINS: '["http://localhost:3001"]'
+      DATABASE_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
+      SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
+      NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
+      PLAYBACK_SOUNDFONT_PATH: /usr/share/sounds/sf2/FluidR3_GM.sf2
+      LEGATO_REPO_PATH: /opt/noteverse/legato
     volumes:
-      - ./backend:/app
       - ./:/repo:ro
+      - ./backend:/repo/backend
     env_file:
       - path: backend/.env.docker
         required: true
       - path: backend/.env.docker.worker
         required: true
+    depends_on:
+      quality-postgres:
+        condition: service_healthy
     image: noteverse-backend-quality:dev
     build:
       context: .

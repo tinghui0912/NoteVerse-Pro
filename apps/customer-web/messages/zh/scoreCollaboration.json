@@ -1,4 +1,5 @@
 {
+  "loadMore": "加载更多",
   "title": "协作者",
   "scoreName": "乐谱：{name}",
   "inviteSection": "邀请协作",
@@ -9,8 +10,8 @@
   "emailInvalid": "邮箱格式不正确",
   "emailInvalidDescription": "请输入完整邮箱地址，例如 collaborator@example.com。",
   "role": "角色",
-  "editor": "可编辑",
-  "viewer": "仅查看",
+  "editor": "编辑者",
+  "viewer": "查看者",
   "createInvite": "创建邀请",
   "inviteCreated": "邀请已创建",
   "inviteCreatedDescription": "邀请链接已经可以发送给协作者。",
@@ -19,7 +20,6 @@
   "members": "成员",
   "noMembers": "暂无协作者。",
   "remove": "移除",
-  "pendingInvites": "邀请记录",
   "noInvites": "暂无邀请。",
   "copy": "复制",
   "copied": "已复制",
@@ -27,7 +27,6 @@
   "copyFailed": "复制失败",
   "copyFailedDescription": "请手动复制邀请链接后重试。",
   "revoke": "撤销",
-  "delete": "删除",
   "close": "关闭",
   "invitePageTitle": "协作邀请",
   "invitedBy": "{name} 邀请你协作",
@@ -51,7 +50,7 @@
   "loadFailed": "无法加载邀请",
   "loadFailedDescription": "请确认邀请链接是否正确，或联系乐谱所有者重新发送。",
   "notFoundTitle": "邀请不存在",
-  "notFoundDescription": "这个邀请链接不存在或已经被删除。",
+  "notFoundDescription": "此邀请链接不存在。",
   "revokedTitle": "邀请已撤销",
   "revokedDescription": "乐谱所有者已经撤销这个邀请。",
   "expiredTitle": "邀请已过期",
@@ -62,6 +61,15 @@
     "accepted": "已接受",
     "revoked": "已撤销",
     "expired": "已过期",
-    "declined": "已拒绝"
-  }
+    "declined": "已拒绝",
+    "recipient_account_closed": "接收账户已注销",
+    "inviter_account_closed": "创建账户已注销"
+  },
+  "practitioner": "练习者",
+  "roleDescription": "查看者可以查看；练习者可以查看和练习；编辑者可以查看、练习和编辑。仅所有者可使用显式下载操作。",
+  "invitations": "邀请",
+  "anonymizedRecipient": "接收者信息已清除",
+  "closedInviter": "已注销账户",
+  "invitationCreator": "创建者：{name}",
+  "accountClosedTitle": "邀请已失效"
 }

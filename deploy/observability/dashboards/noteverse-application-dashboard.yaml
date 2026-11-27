@@ -905,6 +905,28 @@ data:
           ],
           "title": "Scheduler Lock Acquired/Skipped",
           "type": "timeseries"
+        },
+        {
+          "id": 19,
+          "title": "Unified Async Operations by Status",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 56,
+            "w": 24,
+            "h": 8
+          },
+          "targets": [
+            {
+              "expr": "sum by (kind, status) (noteverse_async_operations_by_status{namespace=~\"$namespace\", job=\"noteverse-backend-api\"})",
+              "legendFormat": "{{kind}} / {{status}}",
+              "refId": "A"
+            }
+          ]
         }
       ],
       "refresh": "30s",

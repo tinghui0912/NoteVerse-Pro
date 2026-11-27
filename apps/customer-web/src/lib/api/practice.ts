@@ -1,32 +1,19 @@
-import { apiClient, ApiResponse } from '../api-client';
-import type { PracticeReadyScoreContentRead } from '@/generated/api/types.gen';
-import type { PracticeScoreArtifact } from '../practice/local-core/artifact';
+import type { PracticeActivityCreateRequest } from '@/generated/api';
+import { practiceActivityCreate, practiceScoreRevisionBundleGet } from '@/generated/api';
+import { customerTransport, responseBody } from '@/lib/http/customer-browser-transport';
 
-async function getPracticeReadyScoreContent(
-    scoreId: string,
-    revisionId: string,
-    signal?: AbortSignal
-): Promise<ApiResponse<PracticeReadyScoreContentRead>> {
-    return apiClient.get<ApiResponse<PracticeReadyScoreContentRead>>(
-        `/practice/scores/${scoreId}/revisions/${revisionId}/content`,
-        undefined,
-        { signal }
-    );
-}
 
-async function getPracticeScoreArtifact(
-    scoreId: string,
-    revisionId: string,
-    signal?: AbortSignal
-): Promise<ApiResponse<PracticeScoreArtifact>> {
-    return apiClient.get<ApiResponse<PracticeScoreArtifact>>(
-        `/practice/scores/${scoreId}/revisions/${revisionId}/artifact`,
-        undefined,
-        { signal }
-    );
+async function getPracticeBundle(
+  scoreId: string,
+  revisionId: string,
+  includeNotation: boolean,
+  signal?: AbortSignal,
+) {
+  return responseBody(practiceScoreRevisionBundleGet({ ...customerTransport.authenticated, path: { score_id: scoreId, revision_id: revisionId }, query: { include_notation: includeNotation }, signal }));
 }
 
 export const practiceApi = {
-    getPracticeReadyScoreContent,
-    getPracticeScoreArtifact,
+  getPracticeBundle,
+  createActivity: (body: PracticeActivityCreateRequest) =>
+    responseBody(practiceActivityCreate({ ...customerTransport.authenticated, body })),
 };

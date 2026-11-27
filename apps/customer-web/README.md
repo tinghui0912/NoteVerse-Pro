@@ -65,9 +65,27 @@ Run inside the Customer Web container:
 ```powershell
 docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run lint
 docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run check:i18n-errors
-docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run check:api-types
+docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run check:api
 docker compose -f docker-compose.customer-web-dev.yml run --rm customer-web npm run typecheck
 ```
+
+## Browser Tests
+
+Playwright owns a production server on `localhost:3000` (or `PLAYWRIGHT_PORT`).
+The port must be free; an existing development server is not reused. Build with the
+same environment before running browser assertions:
+
+```powershell
+$env:NEXT_BACKEND_ORIGIN='http://localhost:8000'
+npm ci
+npm run build
+npm run test:e2e -- tests/e2e/practice-continuous-review.spec.ts --project chromium --workers=1 --retries=0
+```
+
+The Practice browser suite supplies Source, authorization, model-access and device
+protocol fixtures. Acoustic Worker RPC is controlled by the fixture; the browser
+still executes the application, Web Audio capture and MediaRecorder. A green suite
+does not claim execution of the real acoustic model or a hosted backend.
 
 ## Dependency Notes
 
@@ -85,3 +103,14 @@ docker compose -f docker-compose.customer-web-dev.yml build customer-web
 
 To reset all Customer Web development state manually, including the dependency
 volume, run `docker compose -f docker-compose.customer-web-dev.yml down -v`.
+
+### Practice preparation ownership
+
+Setup Start practice admits a fresh pinned Source, acquires one live
+`PracticeResourceBinding`, validates those same roots and commits memory-only
+`PreparedPractice`, including artifact and MusicXML. Practice reuses that representation
+without a source read and borrows the retained
+MediaStream/MIDIAccess objects. End and same-page Retry retain them; Setup, Review,
+leaving the flow and provider disposal release them. Full reload requires Setup again.
+Production Playwright tests witness physical acquisition counts, exact stream identity,
+Source handoff and the selection-only reservation/PUT/finalize protocol.

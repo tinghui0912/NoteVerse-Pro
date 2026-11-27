@@ -28,3 +28,38 @@ for (const rate of [44100, 48000] as const) it(`${rate}: shipped FIR matches the
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(golden.outputs[rate].sha256);
   }
 });
+
+for (const rate of [44100, 48000] as const) it(`${rate}: first fully-real output derives from the shipped FIR support`, async () => {
+  const coefficients = await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`);
+  const adapter = await QualifiedSourceAdapter.create(rate, coefficients);
+  const taps = coefficients.byteLength / Float32Array.BYTES_PER_ELEMENT;
+  expect(taps).toBe(rate === 44100 ? 8821 : 61);
+  expect(adapter.center).toBe((taps - 1) / 2);
+  expect([adapter.center, adapter.down]).toEqual(rate === 44100 ? [4410, 441] : [30, 3]);
+  expect(adapter.firstFullyRealOutputIndex).toBe(Math.ceil(adapter.center / adapter.down));
+  expect(adapter.firstFullyRealOutputIndex).toBe(10); // Established current support boundary, not another owner.
+  expect((adapter.firstFullyRealOutputIndex - 1) * adapter.down).toBeLessThan(adapter.center);
+  expect(adapter.firstFullyRealOutputIndex * adapter.down).toBeGreaterThanOrEqual(adapter.center);
+});
+
+for (const rate of [44100, 48000] as const) it(`${rate}: all rational phases attain the FIR-derived private source storage bound`, async () => {
+  const coefficients = await readFile(`public/model-assets/practice-acoustic/${rate === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`);
+  const adapter = await QualifiedSourceAdapter.create(rate, coefficients);
+  const taps = coefficients.byteLength / Float32Array.BYTES_PER_ELEMENT;
+  const capacity = Math.ceil(taps / adapter.up), phases = new Set<number>();
+  let maximumSpan = 0;
+  // down and up are coprime: these successive full-support outputs visit every rational phase.
+  for (let offset = 0; offset < adapter.up; offset++) {
+    const m = adapter.firstFullyRealOutputIndex + offset, coordinate = m * adapter.down + adapter.center;
+    const begin = Math.max(0, Math.ceil((coordinate - taps + 1) / adapter.up));
+    const end = Math.floor(coordinate / adapter.up), span = end - begin + 1;
+    phases.add(coordinate % adapter.up);
+    expect(span).toBeLessThanOrEqual(capacity);
+    maximumSpan = Math.max(maximumSpan, span);
+  }
+  expect(phases.size).toBe(adapter.up);
+  expect(maximumSpan).toBe(capacity);
+  expect(maximumSpan).toBe(rate === 44100 ? 56 : 61); // Current assets, not a capacity policy.
+  expect(adapter.storageBytes()).toBe(coefficients.byteLength + capacity * Float32Array.BYTES_PER_ELEMENT);
+  expect(adapter.storageBytes()).toBe(rate === 44100 ? 35508 : 488);
+});

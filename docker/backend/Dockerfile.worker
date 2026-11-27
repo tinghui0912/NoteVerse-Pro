@@ -6,7 +6,7 @@ WORKDIR /app
 
 COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
 RUN chmod +x /usr/local/bin/noteverse-entrypoint \
-    && mkdir -p /app/data/storage /app/data/work \
+    && mkdir -p /app/data/work \
     && rm -rf /tmp/* /var/tmp/*
 
 COPY backend/ /app/

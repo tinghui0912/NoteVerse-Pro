@@ -1,13 +1,16 @@
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, String, Boolean, DateTime, BigInteger
+from sqlalchemy import Column, String, Boolean, DateTime, BigInteger, ForeignKey
+from sqlalchemy.orm import relationship
+from .stored_object import StoredObject
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 if TYPE_CHECKING:
     from .auth import RefreshToken
-    from .file import Upload
+    from .upload import Upload
+
 
 class User(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "users"
@@ -17,15 +20,37 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     email: str = Field(sa_column=Column(String(255), unique=True, nullable=False))
     password_hash: str = Field(sa_column=Column(String(255), nullable=False))
     is_active: bool = Field(default=True, sa_column=Column(Boolean, default=True, nullable=False))
-    email_verified_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+    deleted_at: Optional[datetime] = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
     )
-    last_login: Optional[datetime] = Field(sa_column=Column(DateTime))
-    password_changed_at: Optional[datetime] = Field(sa_column=Column(DateTime))
-    avatar_url: Optional[str] = Field(sa_column=Column(String(512)))
-    created_at: datetime = Field(default_factory=utc_now_naive, sa_column=Column(DateTime, default=utc_now_naive, nullable=False))
-    updated_at: datetime = Field(default_factory=utc_now_naive, sa_column=Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False))
+    email_verified_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
+    )
+    last_login: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
+    password_changed_at: Optional[datetime] = Field(sa_column=Column(DateTime(timezone=True)))
+    avatar_object_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("stored_objects.id", ondelete="RESTRICT"),
+            nullable=True,
+            index=True,
+        ),
+    )
+    avatar_object: Optional[StoredObject] = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+        ),
+    )
 
     uploads: List["Upload"] = Relationship(back_populates="uploader")
     refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")

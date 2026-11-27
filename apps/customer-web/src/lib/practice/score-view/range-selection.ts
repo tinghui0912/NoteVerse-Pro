@@ -1,0 +1,155 @@
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
+import type { PracticeScope } from '@/lib/practice/planning/scope';
+
+export type PracticeRangeSelection =
+  | { kind: 'FULL_PIECE' }
+  | {
+      kind: 'SELECTING_END';
+      startGroupId: string;
+    }
+  | {
+      kind: 'RANGE';
+      startGroupId: string;
+      endGroupId: string;
+    };
+
+export const fullPiecePracticeRangeSelection: PracticeRangeSelection = {
+  kind: 'FULL_PIECE',
+};
+
+export type PracticeScopeResolution =
+  | { status: 'ready'; scope: PracticeScope }
+  | { status: 'incomplete' };
+
+export function selectedPracticeRangeSelection(
+  startGroupId: string
+): PracticeRangeSelection {
+  return {
+    kind: 'SELECTING_END',
+    startGroupId,
+  };
+}
+
+export function groupById(
+  groups: readonly PracticeMomentView[],
+  groupId: string
+): PracticeMomentView | null {
+  return groups.find((group) => group.groupId === groupId) ?? null;
+}
+
+export function groupForRenderNoteId(
+  groups: readonly PracticeMomentView[],
+  renderNoteId: string
+): PracticeMomentView | null {
+  return groups.find((group) => group.renderNoteIds.includes(renderNoteId)) ?? null;
+}
+
+export function selectPracticeRangeTarget(
+  selection: PracticeRangeSelection,
+  groups: readonly PracticeMomentView[],
+  groupId: string
+): PracticeRangeSelection {
+  const clickedGroup = groupById(groups, groupId);
+  if (!clickedGroup) {
+    return selection;
+  }
+
+  if (selection.kind === 'FULL_PIECE' || selection.kind === 'RANGE') {
+    return selectedPracticeRangeSelection(clickedGroup.groupId);
+  }
+
+  const startGroup = groupById(groups, selection.startGroupId);
+  if (!startGroup) {
+    return selectedPracticeRangeSelection(clickedGroup.groupId);
+  }
+
+  const [start, end] = orderedPracticeGroups(startGroup, clickedGroup, groups);
+  return {
+    kind: 'RANGE',
+    startGroupId: start.groupId,
+    endGroupId: end.groupId,
+  };
+}
+
+export function transitionPracticeRangeSelection(
+  current: PracticeRangeSelection,
+  expectedGroups: readonly PracticeMomentView[],
+  targetGroupId: string
+): { nextSelection: PracticeRangeSelection; completed: boolean } {
+  const baseSelection =
+    current.kind === 'RANGE'
+      ? fullPiecePracticeRangeSelection
+      : current;
+  const nextSelection = selectPracticeRangeTarget(
+    baseSelection,
+    expectedGroups,
+    targetGroupId
+  );
+  const completed =
+    nextSelection.kind === 'RANGE';
+  return { nextSelection, completed };
+}
+
+export function practiceScopeFromRangeSelection(
+  selection: PracticeRangeSelection,
+  groups: readonly PracticeMomentView[]
+): PracticeScopeResolution {
+  if (selection.kind === 'FULL_PIECE') {
+    return { status: 'ready', scope: { kind: 'FULL' } };
+  }
+  if (selection.kind === 'SELECTING_END') {
+    return { status: 'incomplete' };
+  }
+
+  const startGroup = groupById(groups, selection.startGroupId);
+  const endGroup = groupById(groups, selection.endGroupId);
+  if (!startGroup || !endGroup) {
+    return { status: 'incomplete' };
+  }
+
+  const [start, end] = orderedPracticeGroups(startGroup, endGroup, groups);
+  return {
+    status: 'ready',
+    scope: {
+      kind: 'RANGE',
+      startGroupId: start.groupId,
+      endGroupId: end.groupId,
+    },
+  };
+}
+
+export function practiceGroupsInRangeSelection(
+  selection: PracticeRangeSelection,
+  groups: readonly PracticeMomentView[]
+): PracticeMomentView[] {
+  if (
+    selection.kind === 'FULL_PIECE' ||
+    selection.kind === 'SELECTING_END'
+  ) {
+    return [];
+  }
+
+  const startGroup = groupById(groups, selection.startGroupId);
+  const endGroup = groupById(groups, selection.endGroupId);
+  if (!startGroup || !endGroup) {
+    return [];
+  }
+
+  const [start, end] = orderedPracticeGroups(startGroup, endGroup, groups);
+  const startIndex = groups.indexOf(start);
+  const endIndex = groups.indexOf(end);
+  if (startIndex === -1 || endIndex === -1) {
+    return [];
+  }
+  return groups.slice(startIndex, endIndex + 1);
+}
+
+function orderedPracticeGroups(
+  first: PracticeMomentView,
+  second: PracticeMomentView,
+  groups: readonly PracticeMomentView[]
+): [PracticeMomentView, PracticeMomentView] {
+  const firstIndex = groups.indexOf(first);
+  const secondIndex = groups.indexOf(second);
+  return firstIndex <= secondIndex ? [first, second] : [second, first];
+}

@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
+from app.core.http_application import HttpApplication
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.http_runtime import install_http_runtime, normalized_cors_origins
@@ -13,16 +14,16 @@ def test_normalized_cors_origins_strips_trailing_slashes() -> None:
 
 
 def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatch) -> None:
-    registered_apps: list[FastAPI] = []
-    traced_apps: list[FastAPI] = []
+    registered_apps: list[HttpApplication] = []
+    traced_apps: list[HttpApplication] = []
     monkeypatch.setattr(
         "app.core.http_runtime.register_exception_handlers",
-        registered_apps.append,
+        lambda app, **_: registered_apps.append(app),
     )
     monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", traced_apps.append)
-    app = FastAPI()
+    app = HttpApplication()
 
-    install_http_runtime(app)
+    install_http_runtime(app, **CUSTOMER_HTTP_ERRORS)
 
     assert [middleware.cls for middleware in app.user_middleware] == [LoggingMiddleware]
     assert registered_apps == [app]
@@ -30,11 +31,13 @@ def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatc
 
 
 def test_install_http_runtime_preserves_explicit_cors_and_csrf_policy(monkeypatch) -> None:
-    monkeypatch.setattr("app.core.http_runtime.register_exception_handlers", lambda _: None)
-    monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", lambda _: None)
-    app = FastAPI()
+    monkeypatch.setattr(
+        "app.core.http_runtime.register_exception_handlers", lambda _, **kwargs: None
+    )
+    monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", lambda _, **kwargs: None)
+    app = HttpApplication()
 
-    install_http_runtime(app, cors_origins=["https://app.example"])
+    install_http_runtime(app, **CUSTOMER_HTTP_ERRORS, cors_origins=["https://app.example"])
 
     assert [middleware.cls for middleware in app.user_middleware] == [
         CORSMiddleware,

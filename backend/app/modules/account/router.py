@@ -1,84 +1,167 @@
 """Current-user account routes."""
 
-from fastapi import APIRouter, Depends, File, UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.modules.account.deletion_service import AccountDeletionService
+from app.modules.account.schemas import DeleteAccountRequest, AccountDeletionRead
+from app.modules.auth.session_cookies import clear_session_cookies
+from app.worker.dispatch.account_deletion import dispatch_account_deletion_best_effort
+from fastapi import Response, APIRouter, Depends, File, UploadFile, BackgroundTasks, HTTPException
 
-from app.api.deps import get_current_user, get_db
+
+import re
+from fastapi.responses import RedirectResponse
+from app.core.exceptions import ResourceNotFoundException
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user, get_db, get_command_db
 from app.core.exceptions import FileException, ValidationException
-from app.db.models import User
-from app.modules.account.avatar_service import AvatarService
-from app.modules.account.dependencies import get_avatar_service, get_profile_service
+from app.db.models import User, StoredObject
+from app.db.model_utils import require_persisted_id
+from sqlalchemy import select
+from app.modules.media_storage.reads import StoredObjectDelivery
+from app.modules.account.avatar_service import (
+    AvatarService,
+    AvatarFileTooLargeError,
+    avatar_object_key,
+)
+from app.modules.account.dependencies import get_profile_service
+from app.api.resource_dependencies import get_avatar_service
 from app.modules.account.profile_service import ProfileService
-from app.modules.account.schemas import AvatarRead, ProfileRead, ProfileUpdateRead, UpdateProfileRequest
-from app.shared.constants import ErrorCode, SuccessCode
-from app.shared.responses import APIResponse, EmptyResponse, success_response
+from app.modules.account.schemas import (
+    AvatarRead,
+    ProfileRead,
+    UpdateProfileRequest,
+)
+from app.shared.error_codes import CustomerErrorCode
+
 
 router = APIRouter()
 
 
-@router.get("/profile", response_model=APIResponse[ProfileRead])
-async def get_user_profile(
+@router.get("/profile", operation_id="accountProfileGet", response_model=ProfileRead)
+def get_user_profile(
     current_user: User = Depends(get_current_user),
     profile_service: ProfileService = Depends(get_profile_service),
 ):
-    return success_response(data=profile_service.profile_payload(current_user))
+    return profile_service.profile_payload(current_user)
 
 
-@router.put("/profile", response_model=APIResponse[ProfileUpdateRead])
-async def update_user_profile(
+@router.put(
+    "/profile",
+    operation_id="accountProfileUpdate",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
+)
+def update_user_profile(
     request: UpdateProfileRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     profile_service: ProfileService = Depends(get_profile_service),
 ):
-    updated_fields = await profile_service.update_profile(db, current_user, request)
-    return success_response(
-        data={"updated_fields": updated_fields},
-        message=SuccessCode.PROFILE_UPDATED,
-    )
+    profile_service.update_profile(db, current_user, request)
+    return Response(status_code=204)
 
 
-@router.post("/avatar", response_model=APIResponse[AvatarRead])
-async def upload_avatar(
+@router.post("/avatar", operation_id="accountAvatarUpload", response_model=AvatarRead)
+def upload_avatar(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
     try:
-        file_bytes = await file.read()
-    except Exception:
-        raise FileException(code=ErrorCode.FILE_READ_FAILED, filename=file.filename)
+        file_bytes = avatar_service.read_upload(file.file)
+    except AvatarFileTooLargeError as exc:
+        raise HTTPException(status_code=413, detail="Avatar exceeds the upload limit") from exc
+    except OSError:
+        raise FileException(code=CustomerErrorCode.FILE_READ_FAILED, filename=file.filename)
 
     try:
-        saved_filename, avatar_url = await avatar_service.replace_user_avatar(
+        saved_filename, avatar_url = avatar_service.replace_user_avatar(
             db,
             current_user,
             file_bytes=file_bytes,
-            filename=file.filename,
+            filename=file.filename or "",
         )
     except ValueError as exc:
         raise ValidationException(
-            code=ErrorCode.VALIDATION_ERROR,
+            code=CustomerErrorCode.VALIDATION_ERROR,
             field="file",
         ) from exc
     except Exception:
         raise FileException(
-            code=ErrorCode.AVATAR_PROCESS_FAILED,
+            code=CustomerErrorCode.AVATAR_PROCESS_FAILED,
             filename=file.filename,
         )
 
-    return success_response(
-        data={"avatar_url": avatar_url, "filename": saved_filename},
-        message=SuccessCode.AVATAR_UPLOADED,
-    )
+    return {"avatar_url": avatar_url, "filename": saved_filename}
 
 
-@router.delete("/avatar", response_model=EmptyResponse)
-async def delete_avatar(
+@router.delete(
+    "/avatar",
+    operation_id="accountAvatarDelete",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
+)
+def delete_avatar(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_command_db, scope="function"),
     avatar_service: AvatarService = Depends(get_avatar_service),
 ):
-    await avatar_service.clear_user_avatar(db, current_user)
-    return success_response(message=SuccessCode.AVATAR_DELETED)
+    avatar_service.clear_user_avatar(db, current_user)
+    return Response(status_code=204)
+
+
+@router.get(
+    "/avatars/{filename}",
+    operation_id="accountAvatarResolve",
+    response_class=RedirectResponse,
+    status_code=307,
+    responses={
+        307: {
+            "description": "Redirect to a fresh profile-image object capability; no response body.",
+            "headers": {"Location": {"schema": {"type": "string", "format": "uri"}}},
+        }
+    },
+)
+def read_avatar(
+    filename: str,
+    db: Session = Depends(get_db, scope="function"),
+    avatar_service: AvatarService = Depends(get_avatar_service),
+):
+    """Issue a fresh object capability for a public profile image."""
+    if not re.fullmatch(r"[0-9]+_[0-9a-f]{64}_[0-9a-f]{32}\.jpg", filename):
+        raise ResourceNotFoundException("avatar", filename)
+    current = db.scalar(
+        select(StoredObject)
+        .join(User, User.avatar_object_id == StoredObject.id)
+        .where(StoredObject.object_key == avatar_object_key(filename), User.deleted_at.is_(None))
+    )
+    if current is None:
+        raise ResourceNotFoundException("avatar", filename)
+    delivery = avatar_service.delivery.deliver(
+        StoredObjectDelivery.for_object(current, filename), public=True
+    )
+    assert delivery.location is not None
+    return RedirectResponse(delivery.location, headers={"Cache-Control": delivery.cache_control})
+
+
+@router.delete(
+    "", operation_id="accountDelete", status_code=202, response_model=AccountDeletionRead
+)
+def delete_account(
+    request: DeleteAccountRequest,
+    background_tasks: BackgroundTasks,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_command_db, scope="function"),
+) -> AccountDeletionRead:
+    operation_id = AccountDeletionService().request_deletion(
+        db,
+        require_persisted_id(current_user.id, entity="user"),
+        current_password=request.current_password,
+    )
+    clear_session_cookies(response)
+    background_tasks.add_task(dispatch_account_deletion_best_effort, operation_id)
+    return AccountDeletionRead(operation_id=operation_id)

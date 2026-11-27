@@ -2,12 +2,13 @@
 
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import practiceMessages from '../../../messages/en/practice.json';
 import { PracticeCompletionDialog } from './practice-completion-dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
-import type { PracticeMode } from '@/lib/practice/local-core/artifact';
+import type { ComponentProps } from 'react';
+import type { PracticeMode } from '@/lib/practice/planning/intent';
 
 function renderDialog(
   outcome: PracticeCompletionOutcome,
@@ -18,12 +19,13 @@ function renderDialog(
       <PracticeCompletionDialog
         open
         outcome={outcome}
-        sessionMode={sessionMode}
+        {...(sessionMode === 'STEP_BY_STEP'
+          ? { sessionMode: 'STEP_BY_STEP' as const }
+          : { sessionMode: 'CONTINUOUS_PLAY' as const, onViewSummary: vi.fn() })}
         isLoading={false}
         onOpenChange={vi.fn()}
-        onRestart={vi.fn()}
+        onRetry={vi.fn()}
         onAdjustSection={vi.fn()}
-        onViewSummary={vi.fn()}
       />
     </NextIntlClientProvider>
   );
@@ -36,7 +38,9 @@ describe('PracticeCompletionDialog', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+    expect(screen.getByRole('heading', { name: practiceMessages.selectedSectionCompletionDialogTitle })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Adjust Section' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'View Report' })).not.toBeInTheDocument();
     expect(screen.queryByText('Preparing playback...')).not.toBeInTheDocument();
   });
 
@@ -79,7 +83,7 @@ describe('PracticeCompletionDialog', () => {
           sessionMode="CONTINUOUS_PLAY"
           isLoading
           onOpenChange={vi.fn()}
-          onRestart={vi.fn()}
+          onRetry={vi.fn()}
           onAdjustSection={vi.fn()}
           onViewSummary={vi.fn()}
         />
@@ -89,4 +93,12 @@ describe('PracticeCompletionDialog', () => {
     expect(screen.getByRole('button', { name: 'View Report' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Try Again' })).toBeDisabled();
   });
+});
+
+it('STEP completion props cannot expose a performance-report action', () => {
+  type Props = ComponentProps<typeof PracticeCompletionDialog>;
+  type Learning = Extract<Props, { sessionMode: 'STEP_BY_STEP' }>;
+  expectTypeOf<Learning['onViewSummary']>().toEqualTypeOf<undefined>();
+  expectTypeOf<Omit<Learning, 'onViewSummary'> & { onViewSummary: () => void }>().not.toExtend<Props>();
+  expectTypeOf<Extract<Props, { sessionMode: 'CONTINUOUS_PLAY' }>['onViewSummary']>().toEqualTypeOf<() => void>();
 });

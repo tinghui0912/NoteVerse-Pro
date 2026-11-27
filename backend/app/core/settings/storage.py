@@ -6,23 +6,44 @@ import os
 from pathlib import Path
 from typing import Optional, Self
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class StorageSettings(BaseModel):
-    FILE_STORAGE_BACKEND: str = "local"
     S3_ENDPOINT_URL: Optional[str] = None
+    S3_SIGNED_ENDPOINT_URL: Optional[str] = None
     S3_REGION: str = "auto"
     S3_BUCKET: Optional[str] = None
     S3_ACCESS_KEY_ID: Optional[str] = None
     S3_SECRET_ACCESS_KEY: Optional[str] = None
-    S3_PUBLIC_BASE_URL: Optional[str] = None
     S3_FORCE_PATH_STYLE: bool = True
-    S3_PRESIGN_EXPIRE_SECONDS: int = 900
-    STORAGE_ROOT: str = "data/storage"
+    S3_CONNECT_TIMEOUT_SECONDS: float = Field(default=10, gt=0, le=120)
+    S3_READ_TIMEOUT_SECONDS: float = Field(default=45, gt=0, le=300)
+    S3_MAX_ATTEMPTS: int = Field(default=3, ge=1, le=10)
+    OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS: int = Field(default=900, gt=0)
+    AVATAR_MAX_UPLOAD_BYTES: int = Field(default=5 * 1024 * 1024, gt=0, le=5 * 1024 * 1024)
+    AVATAR_MAX_PIXELS: int = Field(default=16_000_000, gt=0)
+    AVATAR_MAX_DIMENSION: int = Field(default=8192, gt=0)
+    MEDIA_DELIVERY_CACHE_SECONDS: int = Field(default=900, gt=0)
+    MEDIA_DELIVERY_MAX_STREAM_MEDIA_BYTES: int = Field(default=20 * 1024 * 1024, gt=0)
+    SCORE_IMPORT_MAX_BYTES: int = Field(default=20 * 1024 * 1024, gt=0, le=20 * 1024 * 1024)
+    TAKE_AUDIO_MAX_BYTES: int = Field(default=500 * 1024 * 1024, gt=0, le=500 * 1024 * 1024)
+    TAKE_VIDEO_MAX_BYTES: int = Field(
+        default=2 * 1024 * 1024 * 1024, gt=0, le=2 * 1024 * 1024 * 1024
+    )
+    UPLOAD_SINGLE_PUT_MAX_BYTES: int = Field(default=20 * 1024 * 1024, gt=0, le=20 * 1024 * 1024)
+    UPLOAD_PART_BYTES: int = Field(default=16 * 1024 * 1024, ge=5 * 1024 * 1024)
+    UPLOAD_URL_TTL_SECONDS: int = Field(default=900, gt=0)
+    UPLOAD_SESSION_TTL_SECONDS: int = Field(default=86400, gt=0)
+    UPLOAD_CLIENT_CONCURRENCY: int = Field(default=3, gt=0)
+    UPLOAD_MAX_ACTIVE_SESSIONS: int = Field(default=5, gt=0)
+    UPLOAD_TEMP_BYTE_BUDGET: int = Field(default=4 * 1024 * 1024 * 1024, gt=0)
+    TAKE_PROCESSING_MAX_ATTEMPTS: int = Field(default=5, gt=0)
+    TAKE_PROCESSING_RETRY_SECONDS: int = Field(default=60, gt=0)
+    TAKE_PROCESSING_LEASE_SECONDS: int = Field(default=3600, gt=0)
     WORK_ROOT: str = "data/work"
 
-    @field_validator("STORAGE_ROOT", "WORK_ROOT")
+    @field_validator("WORK_ROOT")
     @classmethod
     def resolve_runtime_folders(cls, value: str) -> str:
         path = Path(value)
@@ -32,31 +53,30 @@ class StorageSettings(BaseModel):
             raise ValueError(f"{value} exists but is not a directory")
         return str(path)
 
-    @field_validator("FILE_STORAGE_BACKEND")
-    @classmethod
-    def validate_file_storage_backend(cls, value: str) -> str:
-        normalized = value.strip().lower()
-        if normalized not in {"local", "s3"}:
-            raise ValueError("FILE_STORAGE_BACKEND must be one of: local, s3")
-        return normalized
-
-    @field_validator("S3_ENDPOINT_URL", "S3_PUBLIC_BASE_URL")
+    @field_validator("S3_ENDPOINT_URL", "S3_SIGNED_ENDPOINT_URL")
     @classmethod
     def normalize_optional_url(cls, value: Optional[str]) -> Optional[str]:
         if not value:
             return None
         normalized = value.strip().rstrip("/")
-        return normalized if normalized.startswith(("http://", "https://")) else f"https://{normalized}"
+        return (
+            normalized
+            if normalized.startswith(("http://", "https://"))
+            else f"https://{normalized}"
+        )
 
     @model_validator(mode="after")
     def validate_s3_settings(self) -> Self:
-        if self.FILE_STORAGE_BACKEND == "s3":
-            missing = [
-                name for name, value in (
-                    ("S3_ENDPOINT_URL", self.S3_ENDPOINT_URL), ("S3_BUCKET", self.S3_BUCKET),
-                    ("S3_ACCESS_KEY_ID", self.S3_ACCESS_KEY_ID), ("S3_SECRET_ACCESS_KEY", self.S3_SECRET_ACCESS_KEY),
-                ) if not value
-            ]
-            if missing:
-                raise ValueError("Missing required S3 storage settings: " + ", ".join(missing))
+        missing = [
+            name
+            for name, value in (
+                ("S3_ENDPOINT_URL", self.S3_ENDPOINT_URL),
+                ("S3_BUCKET", self.S3_BUCKET),
+                ("S3_ACCESS_KEY_ID", self.S3_ACCESS_KEY_ID),
+                ("S3_SECRET_ACCESS_KEY", self.S3_SECRET_ACCESS_KEY),
+            )
+            if not value
+        ]
+        if missing:
+            raise ValueError("Missing required S3 storage settings: " + ", ".join(missing))
         return self

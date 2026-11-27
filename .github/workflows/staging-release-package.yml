@@ -222,7 +222,6 @@ jobs:
             --s3-endpoint-url "${{ vars.STAGING_S3_ENDPOINT_URL }}" \
             --s3-region "${{ vars.STAGING_S3_REGION }}" \
             --s3-bucket "${{ vars.STAGING_S3_BUCKET }}" \
-            --s3-public-base-url "${{ vars.STAGING_S3_PUBLIC_BASE_URL }}" \
             --s3-force-path-style "${{ vars.STAGING_S3_FORCE_PATH_STYLE }}" \
             --s3-presign-expire-seconds "${{ vars.STAGING_S3_PRESIGN_EXPIRE_SECONDS }}"
 

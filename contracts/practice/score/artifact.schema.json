@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noteverse.app/contracts/practice/score/artifact.schema.json",
+  "title": "PracticeScoreArtifactRead",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactId",
+    "notes",
+    "events",
+    "moments",
+    "meterSegments",
+    "scoreTempoSegments",
+    "ticksPerQuarter",
+    "scoreEndTick"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^practice-score-artifact:[0-9a-f]{16}$",
+      "minLength": 40,
+      "maxLength": 40
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PracticeScoreNote"
+      },
+      "minItems": 1
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PracticeScoreEvent"
+      },
+      "minItems": 1
+    },
+    "moments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PracticeMoment"
+      },
+      "minItems": 1
+    },
+    "meterSegments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/MeterSegment"
+      },
+      "minItems": 1
+    },
+    "scoreTempoSegments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TempoSegment"
+      }
+    },
+    "ticksPerQuarter": {
+      "$ref": "#/$defs/TicksPerQuarter"
+    },
+    "scoreEndTick": {
+      "$ref": "#/$defs/ScoreTick"
+    }
+  },
+  "$defs": {
+    "Identity": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ScoreTick": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "TicksPerQuarter": {
+      "$ref": "#/$defs/ScoreTick",
+      "minimum": 1
+    },
+    "PracticePianoKey": {
+      "type": "integer",
+      "minimum": 21,
+      "maximum": 108
+    },
+    "PracticeScoreNote": {
+      "title": "PracticeScoreNoteRead",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "noteId",
+        "eventId",
+        "pianoKey",
+        "renderNoteId",
+        "measureNumber",
+        "staffId",
+        "voiceId",
+        "tieTypes"
+      ],
+      "properties": {
+        "noteId": {
+          "$ref": "#/$defs/Identity"
+        },
+        "eventId": {
+          "$ref": "#/$defs/Identity"
+        },
+        "pianoKey": {
+          "$ref": "#/$defs/PracticePianoKey"
+        },
+        "renderNoteId": {
+          "$ref": "#/$defs/Identity"
+        },
+        "measureNumber": {
+          "type": "string"
+        },
+        "staffId": {
+          "type": "string"
+        },
+        "voiceId": {
+          "type": "string"
+        },
+        "tieTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["start", "stop"]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "PracticeScoreEvent": {
+      "title": "PracticeScoreEventRead",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventId", "onsetTick", "durationTicks"],
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/Identity"
+        },
+        "onsetTick": {
+          "$ref": "#/$defs/ScoreTick"
+        },
+        "durationTicks": {
+          "$ref": "#/$defs/ScoreTick"
+        }
+      }
+    },
+    "PracticeAttack": {
+      "title": "PracticeScoreAttackRead",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attackId", "pianoKey", "noteIds"],
+      "properties": {
+        "attackId": {
+          "$ref": "#/$defs/Identity"
+        },
+        "pianoKey": {
+          "$ref": "#/$defs/PracticePianoKey"
+        },
+        "noteIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identity"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "PracticeMoment": {
+      "title": "PracticeScoreMomentRead",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "groupId",
+        "onsetTick",
+        "canonicalEndTick",
+        "attacks",
+        "continuationNoteIds"
+      ],
+      "properties": {
+        "groupId": {
+          "$ref": "#/$defs/Identity"
+        },
+        "onsetTick": {
+          "$ref": "#/$defs/ScoreTick"
+        },
+        "canonicalEndTick": {
+          "$ref": "#/$defs/ScoreTick"
+        },
+        "attacks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PracticeAttack"
+          },
+          "minItems": 1
+        },
+        "continuationNoteIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identity"
+          }
+        }
+      }
+    },
+    "MeterSegment": {
+      "title": "PracticeScoreMeterSegmentRead",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startTick", "numerator", "denominator"],
+      "properties": {
+        "startTick": {
+          "$ref": "#/$defs/ScoreTick"
+        },
+        "numerator": {
+          "$ref": "#/$defs/TicksPerQuarter"
+        },
+        "denominator": {
+          "$ref": "#/$defs/TicksPerQuarter"
+        }
+      }
+    },
+    "TempoSegment": {
+      "title": "PracticeScoreTempoSegmentRead",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startTick", "bpm"],
+      "properties": {
+        "startTick": {
+          "$ref": "#/$defs/ScoreTick"
+        },
+        "bpm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  }
+}

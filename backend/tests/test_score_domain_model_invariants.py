@@ -1,43 +1,37 @@
 from __future__ import annotations
+from app.db.models import StoredObject
 
 from collections.abc import Iterator
 
 import pytest
-from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel
 
 from app.db.models.score import (
-    MetadataStatus,
-    RenderAssetKind,
-    RevisionOrigin,
-    RevisionSourceFormat,
     Score,
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionMetadata,
     ScoreRevisionSource,
 )
+from app.modules.metadata.domain import MetadataStatus
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
 from app.db.models.score_access import (
     MembershipRole,
-    PublicationStatus,
     ScoreMembership,
-    ScorePublication,
-    ScoreShareGrant,
 )
-from app.db.models.library import LibraryEntrySourceType, ScoreLibraryEntry
+from app.db.models.library import ScoreLibraryOrganization
 from app.db.models.user import User
 
 
 @pytest.fixture
-def score_session() -> Iterator[Session]:
-    engine = create_engine("sqlite:///:memory:")
-
-    @event.listens_for(engine, "connect")
-    def enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def score_session(
+    postgres_engine,
+) -> Iterator[Session]:
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
@@ -64,13 +58,13 @@ def score_session() -> Iterator[Session]:
                     id=10,
                     score_uuid="score-10",
                     owner_user_id=1,
-                    title="First score",
+                    display_title="First score",
                 ),
                 Score(
                     id=11,
                     score_uuid="score-11",
                     owner_user_id=1,
-                    title="Second score",
+                    display_title="Second score",
                 ),
             ]
         )
@@ -113,11 +107,13 @@ def revision_source(*, source_id: int, key: str) -> ScoreRevisionSource:
         source_uuid=f"source-{source_id}",
         revision_id=100,
         format=RevisionSourceFormat.MUSICXML,
-        storage_backend="local",
-        storage_key=key,
+        stored_object=StoredObject(
+            object_key=key,
+            byte_size=0,
+            content_type="application/vnd.recordare.musicxml+xml",
+            sha256=str(source_id).zfill(64),
+        ),
         filename="score.musicxml",
-        mime_type="application/vnd.recordare.musicxml+xml",
-        sha256=str(source_id).zfill(64),
         generator="noteverse",
         generator_version="1",
     )
@@ -129,17 +125,19 @@ def render_asset(*, asset_id: int, key: str) -> ScoreRenderAsset:
         asset_uuid=f"asset-{asset_id}",
         revision_id=100,
         kind=RenderAssetKind.RENDERED_PAGE,
-        storage_backend="local",
-        storage_key=key,
+        stored_object=StoredObject(
+            object_key=key,
+            byte_size=0,
+            content_type="image/svg+xml",
+            sha256=str(asset_id).zfill(64),
+        ),
         filename="page.svg",
-        mime_type="image/svg+xml",
-        sha256=str(asset_id).zfill(64),
         generator="noteverse",
         generator_version="1",
     )
 
 
-def test_revision_order_content_and_lineage_are_constrained(score_session: Session) -> None:
+def test_revision_numbers_are_positive_and_unique(score_session: Session) -> None:
     assert_commit_rejected(
         score_session,
         ScoreRevision(
@@ -155,10 +153,9 @@ def test_revision_order_content_and_lineage_are_constrained(score_session: Sessi
         score_session,
         ScoreRevision(
             id=104,
-            revision_uuid="cross-score-base",
+            revision_uuid="invalid-number",
             score_id=10,
-            revision_number=2,
-            base_revision_id=101,
+            revision_number=0,
             content_hash="d" * 64,
             origin=RevisionOrigin.EDIT,
         ),
@@ -177,9 +174,7 @@ def test_score_revision_pointer_cannot_cross_scores(score_session: Session) -> N
 def test_artifact_constraints_protect_canonical_and_rendered_payloads(
     score_session: Session,
 ) -> None:
-    score_session.add(
-        revision_source(source_id=200, key="scores/10/revisions/100/musicxml.xml")
-    )
+    score_session.add(revision_source(source_id=200, key="scores/10/revisions/100/musicxml.xml"))
     score_session.commit()
 
     assert_commit_rejected(
@@ -209,28 +204,9 @@ def test_metadata_status_requires_a_classified_failure(score_session: Session) -
     )
 
 
-def test_share_token_hash_is_unique(score_session: Session) -> None:
-    score_session.add(
-        ScoreShareGrant(
-            id=300,
-            score_id=10,
-            token_hash="3" * 64,
-            created_by_user_id=1,
-        )
-    )
-    score_session.commit()
-    assert_commit_rejected(
-        score_session,
-        ScoreShareGrant(
-            id=301,
-            score_id=10,
-            token_hash="3" * 64,
-            created_by_user_id=1,
-        ),
-    )
-
-
-def test_membership_and_library_entry_are_unique_per_user_and_source(score_session: Session) -> None:
+def test_membership_and_library_organization_are_unique_per_user(
+    score_session: Session,
+) -> None:
     score_session.add_all(
         [
             ScoreMembership(
@@ -240,7 +216,7 @@ def test_membership_and_library_entry_are_unique_per_user_and_source(score_sessi
                 role=MembershipRole.VIEWER,
                 created_by_user_id=1,
             ),
-            ScoreLibraryEntry(id=500, score_id=10, user_id=2, source_type=LibraryEntrySourceType.BOOKMARK),
+            ScoreLibraryOrganization(id=500, score_id=10, user_id=2),
         ]
     )
     score_session.commit()
@@ -257,19 +233,5 @@ def test_membership_and_library_entry_are_unique_per_user_and_source(score_sessi
     )
     assert_commit_rejected(
         score_session,
-        ScoreLibraryEntry(id=501, score_id=10, user_id=2, source_type=LibraryEntrySourceType.BOOKMARK),
-    )
-
-
-def test_publication_must_pin_a_revision_from_its_score(score_session: Session) -> None:
-    assert_commit_rejected(
-        score_session,
-        ScorePublication(
-            id=600,
-            score_id=10,
-            public_slug="cross-score-revision",
-            published_revision_id=101,
-            status=PublicationStatus.PUBLISHED,
-            published_by_user_id=1,
-        ),
+        ScoreLibraryOrganization(id=501, score_id=10, user_id=2),
     )

@@ -1,31 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime
-
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
-
-from app.db.models import (
-    ImportJob,
-    MailOutbox,
-    PlaybackOutbox,
-    RenderOutbox,
-    Score,
-    ScoreDeletionStatus,
-)
+from sqlalchemy.orm import Session
+from app.core.control_plane_errors import ControlPlaneErrorCode
+from app.core.exceptions import ResourceNotFoundException
+from app.shared.durable_failure import DurableFailureClass
 from app.modules.ops.operation_filters import AsyncOperationFilters
-from app.modules.ops.operation_projection import (
-    matches_operation_filters,
-    read_import_operation,
-    read_mail_operation,
-    read_playback_operation,
-    read_render_operation,
-    read_score_deletion_operation,
-)
+from app.modules.ops.operation_projection import operation_projection, projection_predicates
 from app.modules.ops.operation_summary import AsyncOperationSummaryQuery
 from app.modules.ops.schemas import (
-    AsyncOperationErrorClass,
+    AsyncOperationFailure,
     AsyncOperationKind,
     AsyncOperationRead,
     AsyncOperationsSummaryRead,
@@ -33,172 +18,115 @@ from app.modules.ops.schemas import (
 )
 from app.shared.pagination import OffsetPage
 
-
-QUERY_OPERATION_KIND_ORDER = (
-    AsyncOperationKind.IMPORT,
-    AsyncOperationKind.RENDER,
-    AsyncOperationKind.PLAYBACK,
-    AsyncOperationKind.MAIL,
-    AsyncOperationKind.SCORE_DELETION,
-)
+QUERY_OPERATION_KIND_ORDER = tuple(AsyncOperationKind)
 
 
 def selected_query_operation_kinds(
     kind: AsyncOperationKind | None,
 ) -> tuple[AsyncOperationKind, ...]:
-    if kind is None:
-        return QUERY_OPERATION_KIND_ORDER
-    return (kind,)
+    return (kind,) if kind is not None else QUERY_OPERATION_KIND_ORDER
+
+
+def read_projected_operation(row) -> AsyncOperationRead:
+    facts = dict(row)
+    failure = None
+    if facts["failure_code"] is not None:
+        failure = AsyncOperationFailure(
+            code=facts["failure_code"],
+            stage=facts["failure_stage"],
+            classification=facts["failure_class"],
+            retryable=facts["failure_retryable"],
+            detail=facts["failure_detail"],
+        )
+    return AsyncOperationRead(
+        **{
+            key: value
+            for key, value in facts.items()
+            if key in AsyncOperationRead.model_fields and key != "failure"
+        },
+        failure=failure,
+    )
 
 
 class OpsAsyncOperationQueryService:
     def __init__(self, summary_query: AsyncOperationSummaryQuery | None = None) -> None:
         self.summary_query = summary_query or AsyncOperationSummaryQuery()
 
-    async def list_operations(
+    def list_operations(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         limit: int,
         offset: int = 0,
         kind: AsyncOperationKind | None = None,
         status: AsyncOperationStatus | None = None,
-        error_class: AsyncOperationErrorClass | None = None,
+        failure_class: DurableFailureClass | None = None,
         resource_type: str | None = None,
         created_after: datetime | None = None,
         updated_before: datetime | None = None,
     ) -> OffsetPage[AsyncOperationRead]:
         filters = AsyncOperationFilters(
-            status=status,
-            error_class=error_class,
-            resource_type=resource_type,
-            created_after=created_after,
-            updated_before=updated_before,
+            status, failure_class, resource_type, created_after, updated_before
         )
-        source_limit = 5000 if filters.has_filters else offset + limit + 1
-        operations: list[AsyncOperationRead] = []
-        for source_kind in selected_query_operation_kinds(kind):
-            operations.extend(await self._operations_for_kind(db, source_kind, limit=source_limit))
-        operations = [operation for operation in operations if matches_operation_filters(operation, filters)]
-        sorted_operations = sorted(
-            operations,
-            key=lambda operation: operation.updated_at or operation.created_at or datetime.min,
-            reverse=True,
+        projection = operation_projection()
+        c = projection.c
+        rows = (
+            db.execute(
+                select(projection)
+                .where(
+                    *projection_predicates(c, filters, kinds=selected_query_operation_kinds(kind))
+                )
+                .order_by(c.updated_at.desc(), c.kind, c.operation_id)
+                .offset(offset)
+                .limit(limit + 1)
+            )
+            .mappings()
+            .all()
         )
-        page_items = sorted_operations[offset : offset + limit]
         return OffsetPage(
-            items=page_items,
+            items=[read_projected_operation(row) for row in rows[:limit]],
             limit=limit,
             offset=offset,
-            has_more=len(sorted_operations) > offset + limit,
+            has_more=len(rows) > limit,
         )
 
-    async def summary(
+    def get_operation(
+        self, db: Session, *, kind: AsyncOperationKind, operation_id: str
+    ) -> AsyncOperationRead:
+        projection = operation_projection()
+        row = (
+            db.execute(
+                select(projection).where(
+                    projection.c.kind == kind.value, projection.c.operation_id == operation_id
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if row is None:
+            raise ResourceNotFoundException(
+                "async_operation", operation_id, code=ControlPlaneErrorCode.RESOURCE_NOT_FOUND
+            )
+        return read_projected_operation(row)
+
+    def summary(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         kind: AsyncOperationKind | None = None,
         status: AsyncOperationStatus | None = None,
-        error_class: AsyncOperationErrorClass | None = None,
+        failure_class: DurableFailureClass | None = None,
         resource_type: str | None = None,
         created_after: datetime | None = None,
         updated_before: datetime | None = None,
     ) -> AsyncOperationsSummaryRead:
-        filters = AsyncOperationFilters(
-            status=status,
-            error_class=error_class,
-            resource_type=resource_type,
-            created_after=created_after,
-            updated_before=updated_before,
-        )
-        return await self.summary_query.summary(
+        return self.summary_query.summary(
             db,
             kinds=selected_query_operation_kinds(kind),
-            filters=filters,
+            filters=AsyncOperationFilters(
+                status, failure_class, resource_type, created_after, updated_before
+            ),
         )
-
-    async def _import_operations(
-        self,
-        db: AsyncSession,
-        *,
-        limit: int,
-    ) -> list[AsyncOperationRead]:
-        rows = (
-            await db.execute(select(ImportJob).order_by(col(ImportJob.updated_at).desc()).limit(limit))
-        ).scalars()
-        return [read_import_operation(job) for job in rows]
-
-    async def _operations_for_kind(
-        self,
-        db: AsyncSession,
-        kind: AsyncOperationKind,
-        *,
-        limit: int,
-    ) -> list[AsyncOperationRead]:
-        if kind == AsyncOperationKind.IMPORT:
-            return await self._import_operations(db, limit=limit)
-        if kind == AsyncOperationKind.RENDER:
-            return await self._render_operations(db, limit=limit)
-        if kind == AsyncOperationKind.PLAYBACK:
-            return await self._playback_operations(db, limit=limit)
-        if kind == AsyncOperationKind.MAIL:
-            return await self._mail_operations(db, limit=limit)
-        if kind == AsyncOperationKind.SCORE_DELETION:
-            return await self._score_deletion_operations(db, limit=limit)
-        raise AssertionError(f"unsupported async operation kind: {kind}")
-
-    async def _render_operations(
-        self,
-        db: AsyncSession,
-        *,
-        limit: int,
-    ) -> list[AsyncOperationRead]:
-        rows = (
-            await db.execute(
-                select(RenderOutbox).order_by(col(RenderOutbox.updated_at).desc()).limit(limit)
-            )
-        ).scalars()
-        return [read_render_operation(outbox) for outbox in rows]
-
-    async def _playback_operations(
-        self,
-        db: AsyncSession,
-        *,
-        limit: int,
-    ) -> list[AsyncOperationRead]:
-        rows = (
-            await db.execute(
-                select(PlaybackOutbox).order_by(col(PlaybackOutbox.updated_at).desc()).limit(limit)
-            )
-        ).scalars()
-        return [read_playback_operation(outbox) for outbox in rows]
-
-    async def _mail_operations(
-        self,
-        db: AsyncSession,
-        *,
-        limit: int,
-    ) -> list[AsyncOperationRead]:
-        rows = (
-            await db.execute(select(MailOutbox).order_by(col(MailOutbox.updated_at).desc()).limit(limit))
-        ).scalars()
-        return [read_mail_operation(outbox) for outbox in rows]
-
-    async def _score_deletion_operations(
-        self,
-        db: AsyncSession,
-        *,
-        limit: int,
-    ) -> list[AsyncOperationRead]:
-        rows = (
-            await db.execute(
-                select(Score)
-                .where(Score.deletion_status == ScoreDeletionStatus.DELETING)
-                .order_by(col(Score.updated_at).desc())
-                .limit(limit)
-            )
-        ).scalars()
-        return [read_score_deletion_operation(score) for score in rows]
 
 
 ops_async_operation_query_service = OpsAsyncOperationQueryService()

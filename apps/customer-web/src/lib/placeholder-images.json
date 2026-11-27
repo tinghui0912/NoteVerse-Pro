@@ -31,24 +31,6 @@
       "imageHint": "collaboration network"
     },
     {
-      "id": "avatar-1",
-      "description": "User avatar for a testimonial",
-      "imageUrl": "/images/placeholders/avatar-1.jpg",
-      "imageHint": "person portrait"
-    },
-    {
-      "id": "avatar-2",
-      "description": "Another user avatar for a testimonial",
-      "imageUrl": "/images/placeholders/avatar-2.jpg",
-      "imageHint": "woman portrait"
-    },
-    {
-      "id": "avatar-3",
-      "description": "Third user avatar for a testimonial",
-      "imageUrl": "/images/placeholders/avatar-3.jpg",
-      "imageHint": "composer portrait"
-    },
-    {
       "id": "score-example",
       "description": "Example of a sheet music page",
       "imageUrl": "/images/placeholders/score-example.jpg",

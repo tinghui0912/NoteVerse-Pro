@@ -15,12 +15,11 @@ export type EditorDomainRenderAnchorsState = {
   document: ScoreDocument | null;
   gaps: TimelineGap[];
   anchors: RenderAnchor[];
-  error: Error | null;
   resolveAnchor: (renderOrSourceId: string | null | undefined) => DomainAnchor | null;
 };
 
 export function useEditorDomainRenderAnchors(): EditorDomainRenderAnchorsState {
-  const { document, gaps, error } = useEditorDomainDocument();
+  const { document, gaps } = useEditorDomainDocument();
   const anchors = useMemo(() => (
     document ? createSourceRenderAnchorsFromDocument(document) : []
   ), [document]);
@@ -33,7 +32,6 @@ export function useEditorDomainRenderAnchors(): EditorDomainRenderAnchorsState {
     document,
     gaps,
     anchors,
-    error,
     resolveAnchor,
   };
 }

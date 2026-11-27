@@ -1,265 +1,238 @@
 from __future__ import annotations
-
-from datetime import timedelta
-from typing import Any
-
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
-
-from app.core.config import settings
+from datetime import datetime
+from sqlalchemy import select, delete
+from sqlalchemy.orm import Session
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
-from app.core.logger import logger
-from app.db.models import NotificationEvent, Score, ScoreMembership, ScoreRevision, User
+from app.db.models import Notification, NotificationKind, User
+from app.shared.realtime import RealtimeChangeKind
 from app.modules.notifications.repository import NotificationRepository
+from app.modules.notifications.read_model import NotificationReadModel
+from app.shared.feed_cursor import decode_cursor, encode_cursor
 from app.modules.notifications.schemas import (
-    NotificationActorRead,
-    NotificationEventRead,
+    NotificationRead,
     NotificationUnreadCountRead,
+    NotificationListRead,
 )
-from app.shared.constants import ErrorCode
-from app.modules.realtime.publisher import RealtimeEventTypes, publish_event_best_effort
-from app.utils.timezone import utc_now_naive
-
-PUBLIC_NOTIFICATION_DATA_KEYS = frozenset(
-    {
-        "job_id",
-        "job_title",
-        "score_id",
-        "score_title",
-    }
-)
-
-
-def public_notification_data(data: dict[str, Any] | None) -> dict[str, Any]:
-    if not data:
-        return {}
-    return {key: value for key, value in data.items() if key in PUBLIC_NOTIFICATION_DATA_KEYS}
-
-
-class NotificationTypes:
-    SCORE_INVITE_ACCEPTED = "score_invite.accepted"
-    SCORE_INVITE_DECLINED = "score_invite.declined"
-    SCORE_INVITE_REVOKED = "score_invite.revoked"
-    SCORE_VERSION_CREATED = "score.version.created"
-    IMPORT_COMPLETED = "import.completed"
-    IMPORT_FAILED = "import.failed"
-    SYSTEM = "system"
+from app.shared.error_codes import CustomerErrorCode
+from app.modules.realtime.publisher import publish_change
+from app.shared.time import utc_now
 
 
 class NotificationService:
+    def erase_recipient_history(self, db: Session, user_id: int, *, limit: int) -> bool:
+        """Remove one private batch; caller owns transaction and closed-user fence."""
+        ids = list(
+            db.scalars(
+                select(Notification.id)
+                .where(Notification.recipient_user_id == user_id)
+                .order_by(Notification.id)
+                .limit(limit)
+            )
+        )
+        if not ids:
+            return False
+        db.execute(delete(Notification).where(Notification.id.in_(ids)))
+        return True
+
     def __init__(self, repository: NotificationRepository | None = None) -> None:
         self.repository = repository or NotificationRepository()
 
-    async def create_event(
+    def _admit(self, db: Session, notification: Notification) -> Notification | None:
+        recipient = db.scalar(
+            select(User.id)
+            .where(
+                User.id == notification.recipient_user_id,
+                User.deleted_at.is_(None),
+                User.is_active.is_(True),
+            )
+            .with_for_update(read=True, key_share=True)
+        )
+        if recipient is None:
+            return None
+        if notification.dedupe_key is not None:
+            notification, created = self.repository.admit_deduplicated(db, notification)
+            if not created:
+                return notification
+        else:
+            db.add(notification)
+            db.flush()
+        publish_change(
+            db,
+            recipient_user_id=notification.recipient_user_id,
+            kind=RealtimeChangeKind.NOTIFICATIONS_CHANGED,
+            notification_id=notification.notification_uuid,
+        )
+        return notification
+
+    def admit_score_invite_response(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         recipient_user_id: int,
-        actor_user_id: int | None,
-        type: str,
-        resource_type: str,
-        title: str,
-        body: str | None = None,
-        resource_id: str | None = None,
-        score_id: str | None = None,
-        data: dict[str, Any] | None = None,
-        dedupe_key: str | None = None,
-    ) -> NotificationEventRead | None:
+        actor_user_id: int,
+        accepted: bool,
+        invite_id: str,
+        score_id: str,
+        score_display_title: str,
+        created_at: datetime,
+    ) -> Notification | None:
         if actor_user_id == recipient_user_id:
             return None
-        if dedupe_key:
-            existing = await self.repository.by_dedupe_key(db, dedupe_key)
-            if existing:
-                return await self._event_read(db, existing)
-        event = NotificationEvent(
-            recipient_user_id=recipient_user_id,
-            actor_user_id=actor_user_id,
-            type=type,
-            dedupe_key=dedupe_key,
-            resource_type=resource_type,
-            resource_id=resource_id,
-            score_id=score_id,
-            title=title,
-            body=body,
-            data=data or {},
-            created_at=utc_now_naive(),
+        kind = (
+            NotificationKind.SCORE_INVITE_ACCEPTED
+            if accepted
+            else NotificationKind.SCORE_INVITE_DECLINED
         )
-        db.add(event)
-        try:
-            await db.commit()
-        except IntegrityError:
-            await db.rollback()
-            if dedupe_key:
-                existing = await self.repository.by_dedupe_key(db, dedupe_key)
-                if existing:
-                    return await self._event_read(db, existing)
-            raise
-        await db.refresh(event)
-        event_read = await self._event_read(db, event)
-        await publish_event_best_effort(
+        return self._admit(
             db,
-            recipient_user_id=recipient_user_id,
-            type=RealtimeEventTypes.NOTIFICATION_CREATED,
-            resource_type="notification",
-            resource_id=event.notification_uuid,
-            score_id=score_id,
-            payload={},
-        )
-        return event_read
-
-    async def create_event_best_effort(
-        self,
-        db: AsyncSession,
-        **kwargs,
-    ) -> NotificationEventRead | None:
-        try:
-            return await self.create_event(db, **kwargs)
-        except Exception:
-            await db.rollback()
-            logger.bind(
-                event="notification.event.create_failed",
-                notification_type=kwargs.get("type"),
-                recipient_user_id=kwargs.get("recipient_user_id"),
-                resource_type=kwargs.get("resource_type"),
-                resource_id=kwargs.get("resource_id"),
-                score_id=kwargs.get("score_id"),
-            ).opt(exception=True).warning("Notification event creation failed")
-            return None
-
-    async def notify_score_version_created_best_effort(
-        self,
-        db: AsyncSession,
-        *,
-        score: Score,
-        revision: ScoreRevision,
-        actor: User,
-    ) -> None:
-        actor_id = actor.id
-        if actor_id is None:
-            return
-        recipients = await self._score_notification_recipients(db, score)
-        actor_name = actor.display_name or actor.email
-        for recipient_user_id in recipients:
-            await self.create_event_best_effort(
-                db,
+            Notification(
                 recipient_user_id=recipient_user_id,
-                actor_user_id=actor_id,
-                type=NotificationTypes.SCORE_VERSION_CREATED,
-                resource_type="score",
-                resource_id=score.score_uuid,
-                score_id=score.score_uuid,
-                title="Score version saved",
-                body=f"{actor_name} saved a new version of {score.title}.",
-                dedupe_key=(
-                    f"{NotificationTypes.SCORE_VERSION_CREATED}:"
-                    f"{revision.revision_uuid}:{recipient_user_id}"
-                ),
-                data={
-                    "score_title": score.title,
-                },
-            )
-
-    async def list_for_user(
-        self, db: AsyncSession, user_id: int, *, limit: int = 50
-    ) -> list[NotificationEventRead]:
-        user = await db.get(User, user_id)
-        if user is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        events = await self.repository.list_for_user(db, user_id, limit=limit)
-        return [await self._event_read(db, event) for event in events]
-
-    async def unread_count(
-        self, db: AsyncSession, user_id: int
-    ) -> NotificationUnreadCountRead:
-        user = await db.get(User, user_id)
-        if user is None:
-            raise UnauthorizedException(ErrorCode.NO_ACCESS)
-        return NotificationUnreadCountRead(
-            count=await self.repository.unread_count(db, user_id)
+                actor_user_id=actor_user_id,
+                kind=kind,
+                invite_id=invite_id,
+                score_id=score_id,
+                score_display_title_snapshot=score_display_title,
+                created_at=created_at,
+                dedupe_key=f"{kind}:{invite_id}:{recipient_user_id}",
+            ),
         )
 
-    async def mark_read(
-        self, db: AsyncSession, notification_uuid: str, user_id: int
-    ) -> NotificationEventRead:
-        event = await self.repository.by_uuid(db, notification_uuid)
-        if not event:
-            raise ResourceNotFoundException(
-                "notification", notification_uuid, ErrorCode.NOTIFICATION_NOT_FOUND
-            )
-        if event.recipient_user_id != user_id:
-            raise ResourceNotFoundException(
-                "notification", notification_uuid, ErrorCode.NOTIFICATION_NOT_FOUND
-            )
-        if event.read_at is None:
-            event.read_at = utc_now_naive()
-            await db.commit()
-            await db.refresh(event)
-        return await self._event_read(db, event)
-
-    async def mark_all_read(self, db: AsyncSession, user_id: int) -> NotificationUnreadCountRead:
-        events = await self.repository.list_for_user(db, user_id, limit=200)
-        now = utc_now_naive()
-        for event in events:
-            if event.read_at is None:
-                event.read_at = now
-        await db.commit()
-        return NotificationUnreadCountRead(count=0)
-
-    async def cleanup_expired_events(
-        self, db: AsyncSession, *, retention_days: int | None = None
-    ) -> int:
-        days = retention_days if retention_days is not None else settings.NOTIFICATION_RETENTION_DAYS
-        if days <= 0:
-            raise ValueError("notification retention days must be positive")
-        cutoff = utc_now_naive() - timedelta(days=days)
-        deleted = await self.repository.delete_older_than(db, cutoff)
-        if deleted:
-            await db.commit()
-        return deleted
-
-    async def _event_read(
-        self, db: AsyncSession, event: NotificationEvent
-    ) -> NotificationEventRead:
-        return NotificationEventRead(
-            notification_id=event.notification_uuid,
-            type=event.type,
-            title=event.title,
-            body=event.body,
-            score_id=event.score_id,
-            actor=await self._actor(db, event.actor_user_id),
-            data=public_notification_data(event.data),
-            read_at=event.read_at,
-            created_at=event.created_at,
-        )
-
-    async def _actor(
-        self, db: AsyncSession, user_id: int | None
-    ) -> NotificationActorRead | None:
-        if user_id is None:
+    def admit_score_version_created(
+        self,
+        db: Session,
+        *,
+        recipient_user_id: int,
+        actor_user_id: int,
+        score_id: str,
+        revision_id: str,
+        score_display_title: str,
+        created_at: datetime,
+    ) -> Notification | None:
+        if actor_user_id == recipient_user_id:
             return None
-        user = await db.get(User, user_id)
-        if user is None:
-            return None
-        return NotificationActorRead(
-            display_name=user.display_name,
-            email=user.email,
-            avatar_url=user.avatar_url,
+        return self._admit(
+            db,
+            Notification(
+                recipient_user_id=recipient_user_id,
+                actor_user_id=actor_user_id,
+                kind=NotificationKind.SCORE_VERSION_CREATED,
+                score_id=score_id,
+                revision_id=revision_id,
+                score_display_title_snapshot=score_display_title,
+                created_at=created_at,
+                dedupe_key=f"score.version.created:{revision_id}:{recipient_user_id}",
+            ),
         )
 
-    async def _score_notification_recipients(
-        self, db: AsyncSession, score: Score
-    ) -> list[int]:
-        score_id = score.id
-        if score_id is None:
-            return []
-        rows = await db.execute(
-            select(ScoreMembership.user_id).where(
-                ScoreMembership.score_id == score_id,
-                col(ScoreMembership.revoked_at).is_(None),
-            )
+    def admit_import_ready_for_review(
+        self,
+        db: Session,
+        *,
+        recipient_user_id: int,
+        import_job_id: str,
+        import_display_title: str | None,
+        created_at: datetime,
+    ) -> Notification | None:
+        return self._admit(
+            db,
+            Notification(
+                recipient_user_id=recipient_user_id,
+                kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
+                import_job_id=import_job_id,
+                import_display_title_snapshot=import_display_title,
+                created_at=created_at,
+                dedupe_key=f"import.ready_for_review:{import_job_id}:{recipient_user_id}",
+            ),
         )
-        recipients = {score.owner_user_id}
-        recipients.update(int(user_id) for user_id in rows.scalars().all())
-        return sorted(recipients)
+
+    def admit_import_failed(
+        self,
+        db: Session,
+        *,
+        recipient_user_id: int,
+        import_job_id: str,
+        import_display_title: str | None,
+        created_at: datetime,
+    ) -> Notification | None:
+        return self._admit(
+            db,
+            Notification(
+                recipient_user_id=recipient_user_id,
+                kind=NotificationKind.IMPORT_FAILED,
+                import_job_id=import_job_id,
+                import_display_title_snapshot=import_display_title,
+                created_at=created_at,
+                dedupe_key=f"import.failed:{import_job_id}:{recipient_user_id}",
+            ),
+        )
+
+    def list_for_user(
+        self, db: Session, user_id: int, *, limit: int = 50, cursor: str | None = None
+    ) -> NotificationListRead:
+        before = decode_cursor(cursor, collection="notifications", scope=str(user_id))
+        if db.scalar(select(User.id).where(User.id == user_id)) is None:
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
+        rows = self.repository.list_for_user(db, user_id, limit=limit + 1, before=before)
+        page = rows[:limit]
+        next_cursor = (
+            encode_cursor("notifications", str(user_id), page[-1].created_at, page[-1].id)
+            if len(rows) > limit
+            else None
+        )
+        return NotificationListRead(
+            items=NotificationReadModel().notification_page(db, page), next_cursor=next_cursor
+        )
+
+    def unread_count(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
+        user = db.get(User, user_id)
+        if user is None:
+            raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
+        return NotificationUnreadCountRead(count=self.repository.unread_count(db, user_id))
+
+    def mark_read(self, db: Session, notification_uuid: str, user_id: int) -> NotificationRead:
+        from app.modules.account.resource_admission import lock_active_resource_user
+
+        lock_active_resource_user(db, user_id)
+        notification = db.scalar(
+            select(Notification)
+            .where(Notification.notification_uuid == notification_uuid)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if not notification:
+            raise ResourceNotFoundException(
+                "notification", notification_uuid, CustomerErrorCode.NOTIFICATION_NOT_FOUND
+            )
+        if notification.recipient_user_id != user_id:
+            raise ResourceNotFoundException(
+                "notification", notification_uuid, CustomerErrorCode.NOTIFICATION_NOT_FOUND
+            )
+        if notification.read_at is None:
+            notification.read_at = utc_now()
+            publish_change(
+                db,
+                recipient_user_id=user_id,
+                kind=RealtimeChangeKind.NOTIFICATIONS_CHANGED,
+                notification_id=notification.notification_uuid,
+            )
+            db.flush()
+        return self._notification_read(db, notification)
+
+    def mark_all_read(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
+        from app.modules.account.resource_admission import lock_active_resource_user
+
+        lock_active_resource_user(db, user_id)
+        now = utc_now()
+        changed = self.repository.mark_all_read_for_user(db, user_id, read_at=now)
+        if changed:
+            publish_change(
+                db, recipient_user_id=user_id, kind=RealtimeChangeKind.NOTIFICATIONS_CHANGED
+            )
+        db.flush()
+        return NotificationUnreadCountRead(count=self.repository.unread_count(db, user_id))
+
+    def _notification_read(self, db: Session, row: Notification) -> NotificationRead:
+        return NotificationReadModel().notification_page(db, [row])[0]
+
+
+notification_service = NotificationService()

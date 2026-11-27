@@ -12,18 +12,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { PracticeCompletionOutcome } from '@/lib/practice/completion-outcome';
-import type { PracticeMode } from '@/lib/practice/local-core/artifact';
 
-interface PracticeCompletionDialogProps {
+type PracticeCompletionDialogProps = {
   open: boolean;
   outcome: PracticeCompletionOutcome;
-  sessionMode: PracticeMode;
   isLoading: boolean;
   onOpenChange: (open: boolean) => void;
-  onRestart: () => void;
+  onRetry: () => void;
   onAdjustSection?: () => void;
-  onViewSummary: () => void;
-}
+} & (
+  | { sessionMode: 'STEP_BY_STEP'; onViewSummary?: never }
+  | { sessionMode: 'CONTINUOUS_PLAY'; onViewSummary: () => void }
+);
 
 export function PracticeCompletionDialog({
   open,
@@ -31,7 +31,7 @@ export function PracticeCompletionDialog({
   sessionMode,
   isLoading,
   onOpenChange,
-  onRestart,
+  onRetry,
   onAdjustSection,
   onViewSummary,
 }: PracticeCompletionDialogProps) {
@@ -71,7 +71,7 @@ export function PracticeCompletionDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button type="button" variant="outline" onClick={onRestart} disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={onRetry} disabled={isLoading}>
               <Repeat className="mr-2 h-4 w-4" />
               {t('retryPractice')}
             </Button>

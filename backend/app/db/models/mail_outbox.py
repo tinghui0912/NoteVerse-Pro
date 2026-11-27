@@ -7,20 +7,34 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
-    Enum as SAEnum,
     Index,
     Integer,
     String,
     Text,
 )
+from sqlalchemy import (
+    Enum as SAEnum,
+)
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
-
+from app.db.durable_delivery import (
+    delivery_attempt_count_constraint,
+    delivery_attempt_count_field,
+    delivery_attempt_token_constraint,
+    delivery_attempt_token_field,
+    delivery_next_attempt_at_field,
+    delivery_optional_timestamp_field,
+    durable_failure_facts_constraint,
+    failure_classification_field,
+    failure_code_field,
+    failure_detail_field,
+    failure_retryable_field,
+    failure_stage_field,
+)
+from app.shared.time import utc_now
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 
@@ -33,12 +47,30 @@ class MailOutboxStatus(str, enum.Enum):
     FAILED = "FAILED"
     PERMANENT_FAILURE = "PERMANENT_FAILURE"
     EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+
+
+class MailSourceKind(str, enum.Enum):
+    ACCOUNT = "ACCOUNT"
+    AUTH_TOKEN = "AUTH_TOKEN"
+    EMAIL_CHANGE = "EMAIL_CHANGE"
+    REGISTRATION = "REGISTRATION"
+    SCORE_INVITE = "SCORE_INVITE"
 
 
 class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "mail_outbox"
     __table_args__ = (
-        CheckConstraint("attempt_count >= 0", name="ck_mail_outbox_attempt_count"),
+        CheckConstraint(
+            "(source_kind IS NULL AND source_id IS NULL AND CAST(status AS TEXT) IN ('SENT','PERMANENT_FAILURE','EXPIRED','CANCELLED')) OR (source_kind IS NOT NULL AND source_id IS NOT NULL AND source_kind IN ('ACCOUNT','AUTH_TOKEN','EMAIL_CHANGE','REGISTRATION','SCORE_INVITE') AND source_id > 0)",
+            name="ck_mail_outbox_source",
+        ),
+        Index("idx_mail_outbox_source", "source_kind", "source_id"),
+        durable_failure_facts_constraint(name="ck_mail_outbox_failure_facts"),
+        delivery_attempt_token_constraint(
+            name="ck_mail_outbox_attempt_token", processing_status=MailOutboxStatus.PROCESSING
+        ),
+        delivery_attempt_count_constraint(name="ck_mail_outbox_attempt_count"),
         Index("idx_mail_outbox_status_available", "status", "next_attempt_at"),
         Index("idx_mail_outbox_dispatched", "status", "dispatched_at"),
         Index("idx_mail_outbox_created", "created_at"),
@@ -52,6 +84,10 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
         default_factory=lambda: str(uuid.uuid4()),
         sa_column=Column(String(36), unique=True, nullable=False),
     )
+    # Stable domain identity, deliberately not a cascading FK: delivery evidence
+    # outlives source deletion. Only terminal pre-lineage history may lack it.
+    source_kind: Optional[str] = Field(default=None, sa_column=Column(String(32)))
+    source_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     category: str = Field(sa_column=Column(String(64), nullable=False))
     dedupe_key: str = Field(sa_column=Column(String(160), unique=True, nullable=False))
     originating_request_id: Optional[str] = Field(
@@ -72,31 +108,29 @@ class MailOutbox(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         ),
     )
-    attempt_count: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
-    next_attempt_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    dispatched_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    attempt_token: str | None = delivery_attempt_token_field()
+    attempt_count: int = delivery_attempt_count_field()
+    next_attempt_at: datetime = delivery_next_attempt_at_field()
+    expires_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    dispatched_at: Optional[datetime] = delivery_optional_timestamp_field()
+    started_at: Optional[datetime] = delivery_optional_timestamp_field()
+    completed_at: Optional[datetime] = delivery_optional_timestamp_field()
     provider_message_id: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
-    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    failure_detail: Optional[str] = failure_detail_field()
+    failure_code: Optional[str] = failure_code_field()
+    failure_stage: Optional[str] = failure_stage_field()
+    failure_classification: Optional[str] = failure_classification_field()
+    failure_retryable: Optional[bool] = failure_retryable_field()
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )

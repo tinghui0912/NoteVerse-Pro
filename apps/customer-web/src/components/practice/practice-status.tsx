@@ -1,35 +1,41 @@
 'use client';
+import type { PracticeResourceImpact } from '@/lib/practice/continuous/resource-intervention';
 
-import { AlertCircle, LoaderCircle, Mic } from 'lucide-react';
+import { AlertCircle, LoaderCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import type { PracticeDeviceIssue } from '@/lib/practice/device/device-contract';
+import { practiceDeviceIssueMessageKeys } from './practice-device-status';
 
 import { cn } from '@/lib/utils';
-import type { PracticeInputSource, PracticeMode } from '@/lib/practice/local-core/artifact';
-import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
-import type { ContinuousPracticeLifecycle, LocalPracticeInputState } from '@/lib/practice/local-core/session';
-import type { StepControllerState } from '@/lib/practice/step/step-practice-controller';
-import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/local-core/step-attempt';
+import type { PracticeMode } from '@/lib/practice/planning/intent';
+import type { PracticeInputSource } from '@/lib/practice/planning/intent';
+import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
+import type { PracticeExecutionLifecycle, PracticeExecutionErrorCode } from '@/lib/practice/application/execution-view';
+import type { LocalPracticeInputState } from '@/lib/practice/input-state';
+import type { StepAttemptState, StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
 import type { PracticeMicrophoneCapability, PracticeMidiCapability } from '@/lib/practice/input-capability';
 import { continuousErrorMessageKeys, type ContinuousErrorCode } from '@/lib/practice/continuous/continuous-errors';
 import { STEP_ERROR_MESSAGES, type StepApplicationErrorCode } from '@/lib/practice/step/step-errors';
 
 type PracticeStatusMessageKey =
   | typeof continuousErrorMessageKeys[ContinuousErrorCode]
-  | 'preparingPractice'
+  | 'recordingPaused'
+  | 'inputPaused'
   | 'performanceCountIn'
   | 'performanceStarting'
-  | 'performanceRunning'
   | 'finishingPractice'
   | 'waitingForFirstNote'
   | 'stepCapturing'
   | 'stepAnalyzing'
   | 'stepPostVerdictMatch'
   | 'stepPostVerdictMismatch'
-  | 'stepPostVerdictRetry'
+  | 'stepMicrophoneReady'
+  | 'stepMicrophoneChecking'
+  | 'stepInputInterrupted'
+  | 'stepInfrastructureUnavailable'
   | 'settingStatusFollowing'
   | 'settingStatusPaused'
-  | 'settingStatusReady'
   | 'micStartFailed'
   | 'midiStartFailed'
   | 'micBrowserUnsupported'
@@ -46,42 +52,40 @@ export type PracticeStatusView = {
 
 export type PracticeStatusProps = {
   className?: string;
-  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
+  deviceIssue?: PracticeDeviceIssue | null;
+  deviceControls?: ReactNode;
+  lifecycle: PracticeExecutionLifecycle;
   stepInteractionPhase?: StepAttemptState | null;
-  lastFinalizedVerdict?: StepAttemptRecord | null;
+  pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
-  inputError?: string | null;
+  inputError?: PracticeExecutionErrorCode | null;
+  resourceImpact?: PracticeResourceImpact | null;
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
   sessionMode: PracticeMode;
-  practiceTime: number;
   performanceClock?: PerformanceClockSnapshot | null;
 };
-
-function formatTime(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
 
 export function resolvePracticeStatusView({
   lifecycle,
   inputState = 'IDLE',
   inputError = null,
+  resourceImpact = null,
   inputSource = 'MICROPHONE',
   selectedInputCapability,
   rangePrompt = null,
   sessionMode,
   performanceClock,
   stepInteractionPhase,
-  lastFinalizedVerdict,
+  pendingPostVerdict,
 }: {
-  lifecycle: ContinuousPracticeLifecycle | StepControllerState;
+  lifecycle: PracticeExecutionLifecycle;
   stepInteractionPhase?: StepAttemptState | null;
-  lastFinalizedVerdict?: StepAttemptRecord | null;
+  pendingPostVerdict?: StepAttemptRecord | null;
   inputState?: LocalPracticeInputState;
-  inputError?: string | null;
+  inputError?: PracticeExecutionErrorCode | null;
+  resourceImpact?: PracticeResourceImpact | null;
   inputSource?: PracticeInputSource;
   selectedInputCapability?: PracticeMicrophoneCapability | PracticeMidiCapability;
   rangePrompt?: string | null;
@@ -89,6 +93,12 @@ export function resolvePracticeStatusView({
   performanceClock?: PerformanceClockSnapshot | null;
 }): PracticeStatusView {
   if (inputState === 'ERROR') {
+    if (sessionMode === 'STEP_BY_STEP' && inputError === 'STEP_MICROPHONE_INTERRUPTED') {
+      return { messageKey: 'stepInputInterrupted', pending: false, countInPulse: null };
+    }
+    if (sessionMode === 'STEP_BY_STEP' && inputError === 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED') {
+      return { messageKey: 'stepInfrastructureUnavailable', isError: true, pending: false, countInPulse: null };
+    }
     if (inputError && Object.hasOwn(continuousErrorMessageKeys, inputError)) {
       return { messageKey: continuousErrorMessageKeys[inputError as ContinuousErrorCode],
         isError: true, pending: false, countInPulse: null };
@@ -106,20 +116,14 @@ export function resolvePracticeStatusView({
     }
     return {
       messageKey: inputSource === 'MIDI' ? 'midiStartFailed' : 'micStartFailed',
-      customMessage: inputError ?? undefined,
       isError: true,
       pending: false,
       countInPulse: null,
     };
   }
 
-  if (inputState === 'STARTING') {
-    return {
-      messageKey: 'preparingPractice',
-      pending: true,
-      countInPulse: null,
-    };
-  }
+  if (inputState === 'STARTING') return { pending: false, countInPulse: null };
+  if (resourceImpact) return { messageKey: resourceImpact === 'RECORDING_ONLY' ? 'recordingPaused' : 'inputPaused', pending: false, countInPulse: null };
 
   if (sessionMode === 'CONTINUOUS_PLAY' && lifecycle === 'PAUSED') {
     return {
@@ -156,7 +160,6 @@ export function resolvePracticeStatusView({
       }
     }
     return {
-      messageKey: 'settingStatusReady',
       pending: false,
       countInPulse: null,
     };
@@ -172,22 +175,20 @@ export function resolvePracticeStatusView({
 
   if (sessionMode === 'CONTINUOUS_PLAY') {
     return {
-      messageKey: 'performanceRunning',
       pending: false,
       countInPulse: null,
     };
   }
 
   if (stepInteractionPhase === 'CAPTURING' || stepInteractionPhase === 'ANALYZING') {
-    return { messageKey: stepInteractionPhase === 'CAPTURING' ? 'stepCapturing' : 'stepAnalyzing', pending: true, countInPulse: null };
+    return { messageKey: inputSource === 'MICROPHONE' ? 'stepMicrophoneChecking' : stepInteractionPhase === 'CAPTURING' ? 'stepCapturing' : 'stepAnalyzing', pending: true, countInPulse: null };
   }
-  if (stepInteractionPhase === 'POST_VERDICT' && lastFinalizedVerdict) {
-    const messageKey = lastFinalizedVerdict.verdict === 'MATCH' ? 'stepPostVerdictMatch'
-      : lastFinalizedVerdict.verdict === 'MISMATCH' ? 'stepPostVerdictMismatch' : 'stepPostVerdictRetry';
+  if (stepInteractionPhase === 'POST_VERDICT' && pendingPostVerdict) {
+    const messageKey = pendingPostVerdict.verdict === 'MATCH' ? 'stepPostVerdictMatch' : 'stepPostVerdictMismatch';
     return { messageKey, pending: false, countInPulse: null };
   }
   return {
-    messageKey: 'waitingForFirstNote',
+    messageKey: inputSource === 'MICROPHONE' ? 'stepMicrophoneReady' : 'waitingForFirstNote',
     pending: false,
     countInPulse: null,
   };
@@ -195,17 +196,19 @@ export function resolvePracticeStatusView({
 
 export function PracticeStatus({
   className,
+  deviceIssue = null,
+  deviceControls,
   lifecycle,
   inputState = 'IDLE',
   inputError = null,
+  resourceImpact = null,
   inputSource = 'MICROPHONE',
   selectedInputCapability,
   rangePrompt = null,
   sessionMode,
-  practiceTime,
   performanceClock,
   stepInteractionPhase,
-  lastFinalizedVerdict,
+  pendingPostVerdict,
 }: PracticeStatusProps) {
   const t = useTranslations('practice');
   const resolvedView = useMemo(
@@ -214,16 +217,18 @@ export function PracticeStatus({
         lifecycle,
         inputState,
         inputError,
+        resourceImpact,
         inputSource,
         selectedInputCapability,
         rangePrompt,
         sessionMode,
         performanceClock,
         stepInteractionPhase,
-        lastFinalizedVerdict,
+        pendingPostVerdict,
       }),
     [
       inputError,
+      resourceImpact,
       inputSource,
       inputState,
       lifecycle,
@@ -232,11 +237,10 @@ export function PracticeStatus({
       selectedInputCapability,
       sessionMode,
       stepInteractionPhase,
-      lastFinalizedVerdict,
+      pendingPostVerdict,
     ]
   );
 
-  const isRecording = lifecycle === 'ACTIVE' || lifecycle === 'PAUSED';
 
   let messageText = '';
   if (resolvedView.countInPulse !== null) {
@@ -260,19 +264,25 @@ export function PracticeStatus({
     messageText = t(resolvedView.messageKey);
   }
 
+  if (deviceIssue) messageText = t(practiceDeviceIssueMessageKeys[deviceIssue.condition], { resource: t(`deviceResource_${deviceIssue.resource}`) });
+  const isError = !deviceIssue && resolvedView.isError;
+  const pending = !deviceIssue && resolvedView.pending;
+  if (!messageText && !deviceControls) return null;
   return (
     <div
+      data-testid="practice-status"
       role="status"
       aria-live="polite"
       className={cn(
-        'flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm',
-        resolvedView.isError ? 'border-rose-300 bg-rose-50/70 text-rose-900' : '',
+        'flex min-h-11 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm',
+        isError ? 'border-rose-300 bg-rose-50/70 text-rose-900' : '',
         className
       )}
     >
-      {resolvedView.pending ? (
+      {messageText && <div className="flex min-w-0 items-center gap-2">
+      {pending ? (
         <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-orange-500" aria-hidden="true" />
-      ) : resolvedView.isError ? (
+      ) : isError ? (
         <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
       ) : (
         <span
@@ -289,18 +299,16 @@ export function PracticeStatus({
       )}
       <span
         className={cn(
-          'min-w-0 max-w-xs truncate font-medium sm:max-w-md',
-          resolvedView.isError ? 'text-rose-800' : 'text-slate-700'
+          'min-w-0 font-medium',
+          !deviceIssue && sessionMode === 'STEP_BY_STEP' && inputSource === 'MICROPHONE'
+            ? 'whitespace-normal' : 'max-w-xs truncate sm:max-w-md',
+          isError ? 'text-rose-800' : 'text-slate-700'
         )}
       >
         {messageText}
       </span>
-      {isRecording ? (
-        <span className="flex shrink-0 items-center gap-1.5 border-l border-slate-200 pl-2.5 font-semibold tabular-nums text-rose-600">
-          <Mic className="h-3.5 w-3.5" aria-hidden="true" />
-          {formatTime(practiceTime)}
-        </span>
-      ) : null}
+      </div>}
+      {deviceControls && <div className="ml-auto flex shrink-0 items-center gap-1">{deviceControls}</div>}
     </div>
   );
 }

@@ -1,0 +1,233 @@
+{
+  "artifactId": "practice-score-artifact:8c3cf9685ff02e68",
+  "events": [
+    {
+      "durationTicks": 20,
+      "eventId": "event-0-20-p1-m1-e1",
+      "onsetTick": 0
+    },
+    {
+      "durationTicks": 30,
+      "eventId": "event-20-30-p1-m1-e2",
+      "onsetTick": 20
+    },
+    {
+      "durationTicks": 12,
+      "eventId": "event-50-12-p1-m1-e3",
+      "onsetTick": 50
+    },
+    {
+      "durationTicks": 28,
+      "eventId": "event-62-28-p1-m1-e4",
+      "onsetTick": 62
+    },
+    {
+      "durationTicks": 20,
+      "eventId": "event-90-20-p1-m2-e1",
+      "onsetTick": 90
+    },
+    {
+      "durationTicks": 30,
+      "eventId": "event-110-30-p1-m2-e2",
+      "onsetTick": 110
+    },
+    {
+      "durationTicks": 12,
+      "eventId": "event-140-12-p1-m2-e3",
+      "onsetTick": 140
+    }
+  ],
+  "meterSegments": [
+    {
+      "denominator": 8,
+      "numerator": 3,
+      "startTick": 0
+    },
+    {
+      "denominator": 16,
+      "numerator": 5,
+      "startTick": 90
+    }
+  ],
+  "moments": [
+    {
+      "attacks": [
+        {
+          "attackId": "entry-0-24f733d1f35d:strike:60",
+          "noteIds": [
+            "event-0-20-p1-m1-e1:triplet"
+          ],
+          "pianoKey": 60
+        }
+      ],
+      "canonicalEndTick": 20,
+      "continuationNoteIds": [],
+      "groupId": "entry-0-24f733d1f35d",
+      "onsetTick": 0
+    },
+    {
+      "attacks": [
+        {
+          "attackId": "entry-20-a00508f0b786:strike:64",
+          "noteIds": [
+            "event-20-30-p1-m1-e2:half"
+          ],
+          "pianoKey": 64
+        }
+      ],
+      "canonicalEndTick": 50,
+      "continuationNoteIds": [],
+      "groupId": "entry-20-a00508f0b786",
+      "onsetTick": 20
+    },
+    {
+      "attacks": [
+        {
+          "attackId": "entry-50-693af15762e7:strike:62",
+          "noteIds": [
+            "event-50-12-p1-m1-e3:fifth"
+          ],
+          "pianoKey": 62
+        }
+      ],
+      "canonicalEndTick": 62,
+      "continuationNoteIds": [],
+      "groupId": "entry-50-693af15762e7",
+      "onsetTick": 50
+    },
+    {
+      "attacks": [
+        {
+          "attackId": "entry-62-449b61f1e9a1:strike:67",
+          "noteIds": [
+            "event-62-28-p1-m1-e4:tie-start"
+          ],
+          "pianoKey": 67
+        }
+      ],
+      "canonicalEndTick": 110,
+      "continuationNoteIds": [],
+      "groupId": "entry-62-449b61f1e9a1",
+      "onsetTick": 62
+    },
+    {
+      "attacks": [
+        {
+          "attackId": "entry-110-7904e5ccc37d:strike:69",
+          "noteIds": [
+            "event-110-30-p1-m2-e2:second-half"
+          ],
+          "pianoKey": 69
+        }
+      ],
+      "canonicalEndTick": 140,
+      "continuationNoteIds": [],
+      "groupId": "entry-110-7904e5ccc37d",
+      "onsetTick": 110
+    },
+    {
+      "attacks": [
+        {
+          "attackId": "entry-140-27b9ed429ea3:strike:71",
+          "noteIds": [
+            "event-140-12-p1-m2-e3:second-fifth"
+          ],
+          "pianoKey": 71
+        }
+      ],
+      "canonicalEndTick": 152,
+      "continuationNoteIds": [],
+      "groupId": "entry-140-27b9ed429ea3",
+      "onsetTick": 140
+    }
+  ],
+  "notes": [
+    {
+      "eventId": "event-0-20-p1-m1-e1",
+      "measureNumber": "1",
+      "noteId": "event-0-20-p1-m1-e1:triplet",
+      "pianoKey": 60,
+      "renderNoteId": "triplet",
+      "staffId": "",
+      "tieTypes": [],
+      "voiceId": ""
+    },
+    {
+      "eventId": "event-20-30-p1-m1-e2",
+      "measureNumber": "1",
+      "noteId": "event-20-30-p1-m1-e2:half",
+      "pianoKey": 64,
+      "renderNoteId": "half",
+      "staffId": "",
+      "tieTypes": [],
+      "voiceId": ""
+    },
+    {
+      "eventId": "event-50-12-p1-m1-e3",
+      "measureNumber": "1",
+      "noteId": "event-50-12-p1-m1-e3:fifth",
+      "pianoKey": 62,
+      "renderNoteId": "fifth",
+      "staffId": "",
+      "tieTypes": [],
+      "voiceId": ""
+    },
+    {
+      "eventId": "event-62-28-p1-m1-e4",
+      "measureNumber": "1",
+      "noteId": "event-62-28-p1-m1-e4:tie-start",
+      "pianoKey": 67,
+      "renderNoteId": "tie-start",
+      "staffId": "",
+      "tieTypes": [
+        "start"
+      ],
+      "voiceId": ""
+    },
+    {
+      "eventId": "event-90-20-p1-m2-e1",
+      "measureNumber": "2",
+      "noteId": "event-90-20-p1-m2-e1:tie-stop",
+      "pianoKey": 67,
+      "renderNoteId": "tie-stop",
+      "staffId": "",
+      "tieTypes": [
+        "stop"
+      ],
+      "voiceId": ""
+    },
+    {
+      "eventId": "event-110-30-p1-m2-e2",
+      "measureNumber": "2",
+      "noteId": "event-110-30-p1-m2-e2:second-half",
+      "pianoKey": 69,
+      "renderNoteId": "second-half",
+      "staffId": "",
+      "tieTypes": [],
+      "voiceId": ""
+    },
+    {
+      "eventId": "event-140-12-p1-m2-e3",
+      "measureNumber": "2",
+      "noteId": "event-140-12-p1-m2-e3:second-fifth",
+      "pianoKey": 71,
+      "renderNoteId": "second-fifth",
+      "staffId": "",
+      "tieTypes": [],
+      "voiceId": ""
+    }
+  ],
+  "schemaVersion": 1,
+  "scoreEndTick": 165,
+  "scoreTempoSegments": [
+    {
+      "bpm": 100.0,
+      "startTick": 30
+    },
+    {
+      "bpm": 120.0,
+      "startTick": 113
+    }
+  ],
+  "ticksPerQuarter": 60
+}

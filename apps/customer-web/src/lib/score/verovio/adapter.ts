@@ -1,4 +1,4 @@
-import { sanitizeMusicXmlForVerovio } from './sanitize';
+import { prepareMusicXmlForVerovioRendering } from './prepare-rendering';
 import { createVerovioToolkit } from './toolkit';
 import { prepareMusicXmlIdsForGenericVerovioRender } from '@/lib/musicxml/generic-render-ids';
 import type {
@@ -26,25 +26,32 @@ const DEFAULT_TOOLKIT_OPTIONS: Record<string, unknown> = {
 
 export class VerovioScoreAdapter {
   private toolkit: VerovioToolkitLike | null = null;
+  private loadGeneration = 0;
 
   constructor(
     private readonly toolkitFactory: VerovioToolkitFactory = createVerovioToolkit,
-    private readonly toolkitOptions: Record<string, unknown> = {},
+    private readonly toolkitOptions: Record<string, unknown> = {}
   ) {}
 
   async loadMusicXml(xml: string, options: VerovioLoadOptions = {}) {
+    const generation = ++this.loadGeneration;
     const toolkit = await this.toolkitFactory();
-    toolkit.setOptions({
+    if (generation !== this.loadGeneration)
+      throw new DOMException('Renderer load cancelled.', 'AbortError');
+    const accepted = toolkit.setOptions({
       ...DEFAULT_TOOLKIT_OPTIONS,
       ...this.toolkitOptions,
       ...options.toolkitOptions,
     });
+    if (!accepted)
+      throw new Error('Verovio rejected written realization options.');
 
-    const scoreXml = options.prepareGenericRenderIds === false
-      ? xml
-      : prepareMusicXmlIdsForGenericVerovioRender(xml);
+    const scoreXml =
+      options.prepareGenericRenderIds === false
+        ? xml
+        : prepareMusicXmlIdsForGenericVerovioRender(xml);
 
-    if (!toolkit.loadData(sanitizeMusicXmlForVerovio(scoreXml))) {
+    if (!toolkit.loadData(prepareMusicXmlForVerovioRendering(scoreXml))) {
       throw new Error('Verovio failed to load the score.');
     }
 
@@ -77,10 +84,6 @@ export class VerovioScoreAdapter {
     return this.ensureReady().getPageWithElement(xmlId);
   }
 
-  getElementsAtTime(milliseconds: number) {
-    return this.ensureReady().getElementsAtTime?.(milliseconds) ?? null;
-  }
-
   renderTimemap(options: Record<string, unknown> = {}) {
     return this.ensureReady().renderToTimemap(options);
   }
@@ -95,6 +98,7 @@ export class VerovioScoreAdapter {
   }
 
   dispose() {
+    this.loadGeneration++;
     this.toolkit = null;
   }
 }

@@ -1,15 +1,14 @@
 {
-  "title": "账户设置",
-  "tabsLabel": "账户设置分区",
+  "title": "设置",
+  "tabsLabel": "设置分区",
   "breadcrumb": {
-    "settings": "设置",
-    "account": "账户"
+    "settings": "设置"
   },
   "tabs": {
     "profile": "个人资料",
     "security": "安全设置",
     "sessions": "设备管理",
-    "billing": "账单"
+    "storage": "存储"
   },
   "profile": {
     "heading": "个人资料",
@@ -70,23 +69,6 @@
     "actionFailed": "操作失败",
     "actionFailedDesc": "无法更新设备会话。"
   },
-  "billing": {
-    "heading": "账单",
-    "description": "你的账户账单、当前方案和订阅管理会放在这里。公开方案介绍仍保留在订阅页面。",
-    "viewPlans": "查看公开方案",
-    "storage": {
-      "title": "存储用量",
-      "description": "统计你的上传文件和乐谱版本源文件。预览图和试听音频暂不计入用户配额。",
-      "refresh": "刷新",
-      "loadFailed": "无法加载存储用量",
-      "loadFailedDesc": "请稍后重试，或刷新页面。",
-      "usedOfLimit": "{used} / {limit}",
-      "nearLimit": "存储空间即将用尽，请删除不需要的内容或升级方案。",
-      "used": "已使用",
-      "reserved": "处理中",
-      "available": "可用"
-    }
-  },
   "currentPassword": "当前密码",
   "newPassword": "新密码",
   "cropAvatar": "裁切头像",
@@ -105,5 +87,31 @@
   "passwordSuccess": "密码更新成功",
   "passwordUpdated": "你的密码已更新",
   "passwordFailed": "修改失败",
-  "passwordFailedDesc": "无法修改密码"
+  "passwordFailedDesc": "无法修改密码",
+  "storage": {
+    "title": "存储用量",
+    "description": "查看当前存储配额、已使用空间、处理中预留空间和可用空间。",
+    "refresh": "刷新",
+    "loadFailed": "无法加载存储用量",
+    "loadFailedDesc": "请稍后重试，或刷新页面。",
+    "usedOfLimit": "已分配 {used} / {limit}",
+    "nearLimit": "存储空间即将用尽，请删除不需要的内容以释放空间。",
+    "used": "已使用",
+    "reserved": "处理中",
+    "available": "可用",
+    "full": "存储空间已满，请删除不需要的内容以释放空间。",
+    "noCapacity": "当前没有可用存储容量。",
+    "loading": "正在加载存储用量"
+  },
+  "deletion": {
+    "title": "删除账户",
+    "description": "账户访问权限将立即终止。您拥有的业务资源将由后台继续擦除，此操作无法撤销。",
+    "password": "当前密码",
+    "confirm": "我了解我的账户及拥有的内容将被永久删除。",
+    "submit": "删除我的账户",
+    "pending": "正在关闭账户…",
+    "retention": "依适用政策保留的记录、备份和存储版本按各自保留政策处理，物理清除不会立即全部完成。"
+  },
+  "avatarTooLarge": "请选择不超过 5 MiB 的头像。",
+  "avatarInvalid": "无法使用此图片，请选择有效的 PNG、JPEG 或 WebP 图片。"
 }

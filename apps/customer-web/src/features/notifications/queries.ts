@@ -1,0 +1,45 @@
+'use client';
+
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
+
+import { notificationsApi } from '@/features/notifications/api';
+import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { notificationReadOptimistically, allNotificationsReadOptimistically, rollbackNotificationRead, notificationsChanged } from '@/features/notifications/cache';
+
+export function useMyNotifications(enabled = true) {
+  return useInfiniteQuery({
+    queryKey: notificationQueryKeys.list(),
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ signal, pageParam }) => notificationsApi.list({ cursor: pageParam, limit: 50 }, signal),
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+    enabled,
+  });
+}
+
+export function useNotificationUnreadCount(enabled = true) {
+  return useQuery({
+    queryKey: notificationQueryKeys.unreadCount(),
+    queryFn: ({ signal }) => notificationsApi.unreadCount(signal),
+    enabled,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (notificationId: string) => notificationsApi.markRead(notificationId),
+    onMutate: (notificationId) => notificationReadOptimistically(client, notificationId),
+    onError: (_error, _notificationId, snapshot) => rollbackNotificationRead(client, snapshot),
+    onSettled: () => notificationsChanged(client),
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => notificationsApi.markAllRead(),
+    onMutate: () => allNotificationsReadOptimistically(client),
+    onError: (_error, _variables, snapshot) => rollbackNotificationRead(client, snapshot),
+    onSettled: () => notificationsChanged(client),
+  });
+}

@@ -5,11 +5,15 @@ const pendingInvites = [
   {
     invite_id: 'invite-1',
     score_id: 'score-pending',
-    score_title: 'Pending Collaboration',
-    inviter: { display_name: 'Collaborator', email: 'collab@example.com', avatar_url: null },
+    score_display_title: 'Pending Collaboration',
+    inviter: {
+      display_name: 'Collaborator',
+      email: 'collab@example.com',
+      avatar_url: null,
+    },
     email: 'owner@example.com',
-    role: 'EDITOR',
-    status: 'PENDING',
+    role: 'PRACTITIONER',
+    status: 'QUEUED',
     expires_at: null,
     created_at: '2026-07-01T08:00:00Z',
   },
@@ -18,70 +22,56 @@ const pendingInvites = [
 const notifications = [
   {
     notification_id: 'notification-1',
-    type: 'score_invite.accepted',
-    title: 'Invite accepted',
-    body: 'Member accepted your invite.',
-    resource_type: 'score',
-    resource_id: 'score-accepted',
+    kind: 'score_invite.accepted',
+    invite_id: 'invite-2',
     score_id: 'score-accepted',
-    actor: { display_name: 'Member', email: 'member@example.com', avatar_url: null },
-    data: { invite_id: 'invite-2', score_title: 'Accepted Collaboration', role: 'EDITOR' },
+    score_display_title: 'Accepted Collaboration',
+    actor: {
+      display_name: 'Member',
+      email: 'member@example.com',
+      avatar_url: null,
+    },
     read_at: null,
     created_at: '2026-07-01T09:00:00Z',
   },
   {
     notification_id: 'notification-2',
-    type: 'score_invite.declined',
-    title: 'Invite declined',
-    body: 'Member declined your invite.',
-    resource_type: 'score',
-    resource_id: 'score-declined',
+    kind: 'score_invite.declined',
+    invite_id: 'invite-3',
     score_id: 'score-declined',
-    actor: { display_name: 'Reader', email: 'reader@example.com', avatar_url: null },
-    data: { invite_id: 'invite-3', score_title: 'Declined Collaboration', role: 'VIEWER' },
+    score_display_title: 'Declined Collaboration',
+    actor: {
+      display_name: 'Reader',
+      email: 'reader@example.com',
+      avatar_url: null,
+    },
     read_at: '2026-07-01T09:10:00Z',
     created_at: '2026-07-01T09:10:00Z',
   },
 ];
-
 const failedProcessingNotification = {
   notification_id: 'notification-processing-failed',
-  type: 'import.failed',
-  title: 'Processing failed',
-  body: 'We could not finish processing your score.',
-  resource_type: 'job',
-  resource_id: 'failed-job-1',
-  score_id: null,
-  actor: null,
-  data: { job_id: 'failed-job-1', code: 'unknown_error', error_type: 'PipelineError' },
+  kind: 'import.failed',
+  job_id: 'failed-job-1',
+  import_display_title: null,
   read_at: null,
   created_at: '2026-07-01T09:20:00Z',
 };
-
 const completedProcessingNotification = {
   notification_id: 'notification-processing-completed',
-  type: 'import.completed',
-  title: 'Processing complete',
-  body: 'Your score is ready for review.',
-  resource_type: 'job',
-  resource_id: 'ready-job-1',
+  kind: 'import.ready_for_review',
+  job_id: 'ready-job-1',
+  import_display_title: 'Ready Score',
   score_id: null,
-  actor: null,
-  data: { job_id: 'ready-job-1', job_title: 'Ready Score' },
+  score_display_title: null,
   read_at: '2026-07-01T09:35:00Z',
   created_at: '2026-07-01T09:30:00Z',
 };
-
 const confirmedProcessingNotification = {
   ...completedProcessingNotification,
   notification_id: 'notification-processing-confirmed',
   score_id: 'ready-score-1',
-  data: {
-    job_id: 'ready-job-1',
-    job_title: 'Ready Score',
-    score_id: 'ready-score-1',
-    score_title: 'Ready Score',
-  },
+  score_display_title: 'Ready Score',
 };
 
 test('notification center combines pending invites and update notifications', async ({ page }) => {
@@ -93,22 +83,22 @@ test('notification center combines pending invites and update notifications', as
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: pendingInvites }),
+      body: JSON.stringify({ items: pendingInvites, next_cursor: null }),
     })
   );
   await page.route('**/api/v1/me/notifications/unread-count', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 1 } }),
+      body: JSON.stringify({ count: 1 }),
     })
   );
-  await page.route('**/api/v1/me/notifications', (route) => {
+  await page.route(/\/api\/v1\/me\/notifications(?:\?.*)?$/, (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: notifications }),
+        body: JSON.stringify({ items: notifications, next_cursor: null }),
       });
     }
     return route.fallback();
@@ -119,8 +109,8 @@ test('notification center combines pending invites and update notifications', as
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: true,
-        data: { ...notifications[0], read_at: '2026-07-01T09:05:00Z' },
+        ...notifications[0],
+        read_at: '2026-07-01T09:05:00Z',
       }),
     });
   });
@@ -128,10 +118,13 @@ test('notification center combines pending invites and update notifications', as
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
+      body: JSON.stringify(null),
     })
   );
 
+  await page.route('**/api/v1/import-jobs?*', (route) =>
+    route.fulfill({ json: { items: [], page: 1, page_size: 20, total: 0, total_pages: 0 } })
+  );
   await page.goto('/en/upload');
   const bell = page.getByRole('button', { name: 'Notifications' });
   await expect(bell).toBeVisible();
@@ -141,6 +134,7 @@ test('notification center combines pending invites and update notifications', as
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Action required' })).toBeVisible();
   await expect(page.getByText('Pending Collaboration')).toBeVisible();
+  await expect(page.getByText('Practitioner', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
   await expect(page.getByText('Member accepted your invitation')).toBeVisible();
   await expect(page.getByText('Accepted Collaboration')).toBeVisible();
@@ -155,22 +149,22 @@ test('notification center combines pending invites and update notifications', as
   await expect.poll(() => markReadCalled).toBe(true);
 });
 
-test('failed processing notification opens the matching upload job', async ({ page }) => {
+test('failed processing notification opens Import Activity', async ({ page }) => {
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
   await page.route('**/api/v1/me/notifications/unread-count', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 1 } }),
+      body: JSON.stringify({ count: 1 }),
     })
   );
-  await page.route('**/api/v1/me/notifications', (route) => {
+  await page.route(/\/api\/v1\/me\/notifications(?:\?.*)?$/, (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: [failedProcessingNotification] }),
+        body: JSON.stringify({ items: [failedProcessingNotification], next_cursor: null }),
       });
     }
     return route.fallback();
@@ -180,37 +174,24 @@ test('failed processing notification opens the matching upload job', async ({ pa
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: true,
-        data: { ...failedProcessingNotification, read_at: '2026-07-01T09:25:00Z' },
+        ...failedProcessingNotification,
+        read_at: '2026-07-01T09:25:00Z',
       }),
     })
   );
-  await page.route('**/api/v1/import-jobs/failed-job-1', (route) =>
+  await page.route('**/api/v1/import-jobs?*', (route) =>
     route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: {
-          job_id: 'failed-job-1',
-          score_id: null,
-          state: 'FAILURE',
-          progress: 0,
-          current_step: 'ocr',
-          title: 'Failed upload',
-          taxonomy_tags: [],
-          thumbnail_artifact_id: null,
-          created_at: '2026-07-01T09:00:00Z',
-          updated_at: '2026-07-01T09:20:00Z',
-          started_at: '2026-07-01T09:00:00Z',
-          finished_at: '2026-07-01T09:20:00Z',
-          error: 'OCR failed',
-          code: 'unknown_error',
-          steps: [],
-          artifacts: {},
-          upload_ids: [],
-        },
-      }),
+      json: {
+        items: [
+          {
+            job_id: 'failed-job-1',
+            state: 'FAILED',
+            progress: 0,
+            display_title: 'Failed upload',
+          },
+        ],
+        ...{ page: 1, page_size: 20, total: 1, total_pages: 1 },
+      },
     })
   );
 
@@ -218,7 +199,7 @@ test('failed processing notification opens the matching upload job', async ({ pa
   await page.getByRole('button', { name: 'Notifications' }).click();
   await page.getByText('Score processing failed').click();
 
-  await expect(page).toHaveURL(/\/upload\?job_id=failed-job-1$/);
+  await expect(page).toHaveURL(/\/upload#import-activity$/);
 });
 
 test('confirmed processing notification opens created score', async ({ page }) => {
@@ -228,15 +209,15 @@ test('confirmed processing notification opens created score', async ({ page }) =
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: { count: 1 } }),
+      body: JSON.stringify({ count: 1 }),
     })
   );
-  await page.route('**/api/v1/me/notifications', (route) => {
+  await page.route(/\/api\/v1\/me\/notifications(?:\?.*)?$/, (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: [confirmedProcessingNotification] }),
+        body: JSON.stringify({ items: [confirmedProcessingNotification], next_cursor: null }),
       });
     }
     return route.fallback();
@@ -246,8 +227,8 @@ test('confirmed processing notification opens created score', async ({ page }) =
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        success: true,
-        data: { ...confirmedProcessingNotification, read_at: '2026-07-01T09:40:00Z' },
+        ...confirmedProcessingNotification,
+        read_at: '2026-07-01T09:40:00Z',
       }),
     })
   );
@@ -255,13 +236,41 @@ test('confirmed processing notification opens created score', async ({ page }) =
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ success: true, data: null }),
+      body: JSON.stringify(null),
     })
   );
 
+  await page.route('**/api/v1/import-jobs?*', (route) =>
+    route.fulfill({ json: { items: [], page: 1, page_size: 20, total: 0, total_pages: 0 } })
+  );
   await page.goto('/en/upload');
   await page.getByRole('button', { name: 'Notifications' }).click();
-  await page.getByText('Score processing completed').click();
+  await page.getByText('Processing complete — ready for review').click();
 
   await expect(page).toHaveURL(/\/score\/ready-score-1$/);
+});
+
+test('notification history loads continuations only after Load more', async ({ page }) => {
+  await mockAuthenticatedSession(page);
+  await mockRealtimeEvents(page);
+  await page.route('**/api/v1/import-jobs?*', route => route.fulfill({json: {items: [], page: 1, page_size: 20, total: 0, total_pages: 0}}));
+  const positions: Array<string | null> = [];
+  await page.route(/\/api\/v1\/me\/notifications(?:\?.*)?$/, route => {
+    const cursor = new URL(route.request().url()).searchParams.get('cursor');
+    positions.push(cursor);
+    return route.fulfill({json: {
+      items: [notifications[cursor ? 1 : 0]],
+      next_cursor: cursor ? null : 'older-updates',
+    }});
+  });
+  await page.goto('/en/upload');
+  await page.getByRole('button', {name: 'Notifications'}).click();
+  await expect(page.getByText('Member accepted your invitation')).toBeVisible();
+  await expect(page.getByText('Reader declined your invitation')).toHaveCount(0);
+  expect(positions).toEqual([null]);
+  await page.getByRole('button', {name: 'Load more', exact: true}).click();
+  await expect(page.getByText('Reader declined your invitation')).toBeVisible();
+  await expect(page.getByText('Member accepted your invitation')).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Load more', exact: true})).toHaveCount(0);
+  expect(positions).toEqual([null, 'older-updates']);
 });

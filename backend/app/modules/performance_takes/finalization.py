@@ -1,0 +1,229 @@
+"""Application orchestration and outer transaction ownership for Take finalization."""
+
+from app.modules.storage_governance.quota.service import StorageQuotaService
+from app.modules.media_storage.delivery import MediaDeliveryService
+
+from app.modules.account.resource_admission import lock_active_resource_user
+import asyncio
+from datetime import timedelta
+from uuid import uuid4
+from sqlalchemy.orm import Session
+from app.core.exceptions import (
+    ExternalServiceException,
+    ResourceNotFoundException,
+    ValidationException,
+)
+from app.core.logger import logger
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.shared.error_codes import CustomerErrorCode
+from app.shared.time import utc_now
+from app.modules.media_storage.upload_sessions.service import UploadSessionService
+from app.modules.media_storage.upload_sessions.domain import UploadPurpose, UploadMode
+from .recording_media_admission import verify_recording_container_signature
+from .writer import PerformanceTakeWriter
+from .repository import PerformanceTakeRepository
+from .manifest_persistence import manifest_from_row
+from .schemas import PerformanceTakeRead
+from .service import PerformanceTakeService
+from .upload_reservation.domain import (
+    FinalizeLease,
+    ReservationTransitionError,
+)
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
+from .upload_reservation.persistence import lifecycle_from_row
+from .upload_reservation.effects import apply_reservation_transition
+from .upload_reservation.recovery import (
+    PerformanceTakeFinalizationRecovery,
+    is_transient_db_disconnect,
+)
+
+TAKE_FINALIZING_LEASE_SECONDS = 15 * 60
+
+
+class PerformanceTakeFinalizationService:
+    def __init__(
+        self,
+        *,
+        quota: StorageQuotaService,
+        repository: PerformanceTakeRepository | None = None,
+        uploads: UploadSessionService,
+        delivery: MediaDeliveryService,
+        storage_usage_service: StorageUsageService,
+    ) -> None:
+        self.repository = repository or PerformanceTakeRepository()
+        usage = storage_usage_service
+        self.uploads = uploads
+        self.writer = PerformanceTakeWriter(self.repository, usage, quota=quota, uploads=uploads)
+        self.recovery = PerformanceTakeFinalizationRecovery(
+            self.repository, quota=quota, sessions=uploads.sessions
+        )
+        self.takes = PerformanceTakeService(
+            repository=self.repository, delivery=delivery, usage=usage
+        )
+
+    def finalize_take(self, db: Session, user_id: int, reservation_id: str) -> PerformanceTakeRead:
+        lock_active_resource_user(db, user_id)
+        self.writer.quota.lock_user(db, user_id)
+        row = self.repository.get_reservation_by_uuid(db, user_id, reservation_id, lock=True)
+        if row is None:
+            raise ResourceNotFoundException("upload_reservation", reservation_id)
+        manifest = manifest_from_row(row.manifest)
+        existing = self.repository.get_by_reservation(db, user_id, row.id)
+        state = lifecycle_from_row(row)
+        if state.status is UploadReservationStatus.COMPLETED and existing is None:
+            raise ResourceNotFoundException("performance_take", manifest.take_uuid)
+        state.assert_take_presence(existing is not None)
+        if existing is not None:
+            self.recovery.validate_completed_hold(db, row)
+            db.commit()
+            return self.takes.get_take(db, user_id, manifest.take_uuid)
+        now = utc_now()
+        token = str(uuid4())
+        lease = FinalizeLease(
+            token,
+            row.upload_session.final_object_key,
+            now + timedelta(seconds=TAKE_FINALIZING_LEASE_SECONDS),
+        )
+        try:
+            transition = state.begin_finalize(lease=lease, now=now)
+        except ReservationTransitionError as error:
+            if error.code == "reservation_expired":
+                apply_reservation_transition(
+                    self.writer.storage_usage_service,
+                    self.writer.quota,
+                    db,
+                    row,
+                    state.expire(now=now),
+                    now=now,
+                )
+            db.commit()
+            raise ValidationException(
+                CustomerErrorCode.VALIDATION_ERROR,
+                field="status",
+                details={"status": state.status.value, "reason": error.code},
+            ) from error
+        apply_reservation_transition(
+            self.writer.storage_usage_service, self.writer.quota, db, row, transition, now=now
+        )
+        session_uuid, mode = row.upload_session.session_uuid, row.upload_session.mode
+        db.commit()
+        db.close()
+        try:
+            if mode == UploadMode.SINGLE_PUT:
+                content = self.uploads.verified_bytes(
+                    session_uuid, user_id, UploadPurpose.PERFORMANCE_TAKE
+                )
+                if not verify_recording_container_signature(
+                    manifest.snapshot.capture.kind,
+                    manifest.snapshot.capture.mime_type,
+                    content[:64],
+                ):
+                    raise ValidationException(
+                        CustomerErrorCode.VALIDATION_ERROR, field="media_mime_type"
+                    )
+            self.uploads.prepare_adoption(session_uuid, user_id, UploadPurpose.PERFORMANCE_TAKE)
+            # Long physical IO may outlive a connection; retry only the DB lock, never media.
+            try:
+                self.writer.lock_allocation_parent(db, manifest)
+                lock_active_resource_user(db, user_id)
+                self.writer.quota.lock_user(db, user_id)
+                row = self.repository.get_reservation_by_take_uuid(
+                    db, user_id, manifest.take_uuid, lock=True
+                )
+            except Exception as error:
+                if not is_transient_db_disconnect(error):
+                    raise
+                self._discard_uncertain_session(db)
+                self.writer.lock_allocation_parent(db, manifest)
+                lock_active_resource_user(db, user_id)
+                self.writer.quota.lock_user(db, user_id)
+                row = self.repository.get_reservation_by_take_uuid(
+                    db, user_id, manifest.take_uuid, lock=True
+                )
+            if row is not None:
+                winner = self.repository.get_by_reservation(db, user_id, row.id)
+                if winner is not None:
+                    self.recovery.recover_known_failure(
+                        db, user_id=user_id, take_uuid=manifest.take_uuid, lease=lease
+                    )
+                    db.commit()
+                    return self.takes.get_take(db, user_id, manifest.take_uuid)
+            self.writer.adopt(
+                db,
+                user_id=user_id,
+                reservation_id=reservation_id,
+                manifest=manifest,
+                lease=lease,
+            )
+        except BaseException as error:
+            # No semantic COMMIT has been invoked: rollback establishes a known non-commit.
+            db.rollback()
+            disconnected = is_transient_db_disconnect(error)
+            if disconnected:
+                db.invalidate()
+            self.recovery.recover_known_failure(
+                db, user_id=user_id, take_uuid=manifest.take_uuid, lease=lease
+            )
+            db.commit()
+            if disconnected:
+                raise ExternalServiceException(
+                    "database",
+                    details={"retryable": True, "operation": "performance_take_finalize"},
+                ) from error
+            if isinstance(error, ReservationTransitionError):
+                raise ValidationException(
+                    CustomerErrorCode.VALIDATION_ERROR,
+                    field="status",
+                    details={"reason": error.code},
+                ) from error
+            raise
+
+        # Only normal acknowledgement establishes success. Exception type cannot resolve COMMIT.
+        try:
+            db.commit()
+        except BaseException as error:
+            try:
+                self._reconcile_unknown_commit(
+                    db,
+                    user_id=user_id,
+                    take_uuid=manifest.take_uuid,
+                    lease=lease,
+                    cancelled=error if isinstance(error, asyncio.CancelledError) else None,
+                )
+            except Exception as recovery_error:
+                # The persisted lease remains cleanup/recovery evidence if reconciliation fails.
+                logger.bind(error_class=type(recovery_error).__name__).error(
+                    "performance_take.finalize.lineage_recovery_failed"
+                )
+            raise ExternalServiceException(
+                "database",
+                details={"retryable": True, "operation": "performance_take_finalize"},
+            ) from error
+        return self.takes.get_take(db, user_id, manifest.take_uuid)
+
+    def _reconcile_unknown_commit(
+        self,
+        db: Session,
+        *,
+        user_id: int,
+        take_uuid: str,
+        lease: FinalizeLease,
+        cancelled: asyncio.CancelledError | None,
+    ) -> None:
+        try:
+            self._discard_uncertain_session(db)
+            self.recovery.recover_unknown_commit(user_id=user_id, take_uuid=take_uuid, lease=lease)
+        finally:
+            if cancelled is not None:
+                raise cancelled
+
+    @staticmethod
+    def _discard_uncertain_session(db: Session) -> None:
+        try:
+            db.rollback()
+        except Exception:
+            logger.debug("performance_take.finalize.db_rollback_failed_after_uncertainty")
+        try:
+            db.invalidate()
+        except Exception:
+            logger.debug("performance_take.finalize.db_invalidate_failed_after_uncertainty")

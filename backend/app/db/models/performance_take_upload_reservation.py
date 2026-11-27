@@ -1,0 +1,132 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Optional
+from uuid import uuid4
+
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.orm import relationship
+from .performance_take_manifest import PerformanceTakeManifest
+from .upload_session import UploadSession
+
+from app.shared.time import utc_now
+from app.modules.performance_takes.upload_reservation.states import UploadReservationStatus
+
+bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
+
+
+class PerformanceTakeUploadReservation(SQLModel, table=True):  # type: ignore[call-arg]
+    __tablename__ = "performance_take_upload_reservations"
+    __table_args__ = (
+        UniqueConstraint("quota_hold_id", name="uq_take_upload_quota_hold"),
+        ForeignKeyConstraint(
+            ["manifest_id", "user_id"],
+            ["performance_take_manifests.id", "performance_take_manifests.user_id"],
+            ondelete="CASCADE",
+            name="fk_take_reservation_manifest_owner",
+        ),
+        CheckConstraint(
+            f"(status = '{UploadReservationStatus.FINALIZING.value}' AND finalizing_token IS NOT NULL AND finalizing_expires_at IS NOT NULL) OR (status != '{UploadReservationStatus.FINALIZING.value}' AND finalizing_token IS NULL AND finalizing_expires_at IS NULL)",
+            name="ck_take_reservation_finalize_lease",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "client_request_id",
+            name="uq_take_upload_reservation_user_client_request_id",
+        ),
+        Index("ix_take_upload_reservation_status_expires", "status", "expires_at"),
+    )
+
+    id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
+    )
+    reservation_uuid: str = Field(
+        default_factory=lambda: str(uuid4()),
+        sa_column=Column(String(36), unique=True, index=True, nullable=False),
+    )
+    upload_session_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey("upload_sessions.id", ondelete="RESTRICT"),
+            nullable=False,
+            unique=True,
+        )
+    )
+    upload_session: UploadSession = Relationship(
+        sa_relationship=relationship(UploadSession, lazy="selectin")
+    )
+    user_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type,
+            ForeignKey("users.id", ondelete="CASCADE"),
+            index=True,
+            nullable=False,
+        )
+    )
+    manifest_id: int = Field(sa_column=Column(bigint_pk_type, nullable=False, index=True))
+    manifest: PerformanceTakeManifest = Relationship(
+        sa_relationship=relationship(PerformanceTakeManifest, lazy="selectin")
+    )
+    client_request_id: str = Field(sa_column=Column(String(128), index=True, nullable=False))
+
+    quota_hold_id: int = Field(
+        sa_column=Column(
+            BigInteger,
+            ForeignKey(
+                "storage_quota_holds.id", ondelete="RESTRICT", name="fk_take_upload_quota_hold"
+            ),
+            nullable=False,
+        )
+    )
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    finalizing_token: Optional[str] = Field(
+        default=None,
+        sa_column=Column(String(36), nullable=True),
+    )
+    finalizing_expires_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+    status: UploadReservationStatus = Field(
+        default=UploadReservationStatus.RESERVED,
+        sa_column=Column(
+            SAEnum(
+                UploadReservationStatus,
+                native_enum=False,
+                create_constraint=True,
+                validate_strings=True,
+                values_callable=lambda cls: [value.value for value in cls],
+                name="ck_take_reservation_status",
+                length=24,
+            ),
+            nullable=False,
+            default=UploadReservationStatus.RESERVED,
+        ),
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
+            nullable=False,
+        ),
+    )

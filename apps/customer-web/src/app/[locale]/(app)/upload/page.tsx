@@ -4,12 +4,13 @@ import { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
 import { PageLoading } from '@/components/loading';
 import { PageHeader } from '@/components/page';
-import { UploadForm } from '@/components/upload/upload-form';
-import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
+import { ImportActivity } from '@/features/imports/activity/import-activity';
+import { UploadForm } from '@/features/imports/submission/upload-form';
+import { useImportUploadWorkflow } from '@/features/imports/submission/use-import-upload-workflow';
 
 function UploadPageContent() {
   const t = useTranslations('upload');
-  const workflow = useUploadWorkflow();
+  const workflow = useImportUploadWorkflow();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -17,7 +18,7 @@ function UploadPageContent() {
       <UploadForm
         files={workflow.files}
         scoreName={workflow.scoreName}
-        taxonomyTags={workflow.taxonomyTags}
+        genres={workflow.genres}
         isProcessing={workflow.isProcessing}
         isUploading={workflow.isUploading}
         isSubmitting={workflow.isSubmitting}
@@ -28,9 +29,11 @@ function UploadPageContent() {
         onClearFiles={workflow.clearFiles}
         onRemoveFile={workflow.removeFile}
         onScoreNameChange={workflow.setScoreName}
-        onTaxonomyTagsChange={workflow.setTaxonomyTags}
+        onGenresChange={workflow.setGenres}
         onSubmit={workflow.startRecognition}
+        onCancelUpload={workflow.cancelUploads}
       />
+      <ImportActivity />
     </div>
   );
 }

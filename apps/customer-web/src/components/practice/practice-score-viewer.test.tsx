@@ -1,12 +1,18 @@
+import { completedContinuousTargetFeedback } from '@/lib/practice/continuous/domain/evaluation/target-feedback';
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { useEffect, useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PracticeScoreViewer } from './practice-score-viewer';
-import type { ExpectedPracticeGroup } from '@/lib/practice/local-core/artifact';
+import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
+import { PracticeVerovioAdapter } from '@/lib/practice/score-view/verovio-adapter';
+import * as evaluationAnnotations from '@/lib/practice/score-view/evaluation-annotations';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
+
+const renderEvents = vi.hoisted(() => ({ notify: () => {} }));
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -53,7 +59,8 @@ vi.mock('@/components/score-preview/verovio-score-viewer', () => ({
     useEffect(() => {
       const container = containerRef.current;
       if (container) {
-        onRendered?.({}, container, [{ pageNumber: 1 }]);
+        renderEvents.notify = () => onRendered?.({}, container, [{ pageNumber: 1 }]);
+        renderEvents.notify();
       }
     }, [onRendered]);
 
@@ -78,7 +85,7 @@ type PracticeScoreViewerProps = ComponentProps<typeof PracticeScoreViewer>;
 
 function renderViewer(props: Partial<PracticeScoreViewerProps> = {}) {
   render(
-    <PracticeScoreViewer
+    <PracticeScoreViewer artifact={null}
       xmlContent="<score-partwise />"
       isLoadingXml={false}
       lifecycle="READY"
@@ -88,18 +95,12 @@ function renderViewer(props: Partial<PracticeScoreViewerProps> = {}) {
   );
 }
 
-const mockStepGroup: ExpectedPracticeGroup = {
+const mockStepGroup: PracticeMomentView = {
   groupId: 'entry-64',
-  onsetBeat: 64,
-  canonicalEndBeat: 66,
-  pitches: ['C4'],
+  onsetTick: 64,
+  canonicalEndTick: 66,
   renderNoteIds: ['note-a'],
   measureNumbers: ['1'],
-  eventIds: [],
-  expectedNotes: [],
-  strikeTargets: [],
-  staffIds: [],
-  voiceIds: [],
 };
 
 describe('PracticeScoreViewer', () => {
@@ -228,4 +229,69 @@ describe('PracticeScoreViewer', () => {
 
     delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
   });
+});
+
+it('composes Continuous cursor/annotations, restores them on score rerender, and clears them on mode change', async () => {
+  Object.defineProperty(SVGElement.prototype, 'getBBox', { configurable: true,
+    value: function(this: SVGElement) { return DOMRect.fromRect(this.classList.contains('system')
+      ? { x: 0, y: 0, width: 120, height: 80 } : { x: 10, y: 20, width: 30, height: 40 }); } });
+  const timeline = vi.spyOn(PracticeVerovioAdapter.prototype, 'getCursorTimelineEntryForTickRange')
+    .mockReturnValue({ index: 0, tick: 0, endTick: 1, noteIds: ['note-a'] });
+  const page = vi.spyOn(PracticeVerovioAdapter.prototype, 'getPageWithElement').mockReturnValue(1);
+  const projection = vi.spyOn(evaluationAnnotations, 'noteAnnotationsFromTargetFeedback')
+    .mockReturnValue({ supportedNoteIds: ['note-a'], unsupportedNoteIds: [] });
+  const evaluation = canonicalContinuousResultFixture().evaluation;
+  if (evaluation.status !== 'COMPLETE' || evaluation.inputSource !== 'MIDI') throw new Error('Expected complete MIDI fixture');
+  const props: PracticeScoreViewerProps = { artifact: null, xmlContent: '<score-partwise />', isLoadingXml: false, lifecycle: 'ACTIVE',
+    sessionMode: 'CONTINUOUS_PLAY', showContinuousFeedback: true, performanceScoreTick: 0, performanceScope: { kind: 'FULL', startTick: 0, terminalTick: 4 },
+    performanceEvaluation: completedContinuousTargetFeedback(evaluation) };
+  const view = render(<PracticeScoreViewer {...props} />);
+  try {
+    await waitFor(() => expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported'));
+    expect(view.container.querySelectorAll('[data-practice-playhead-cursor]')).toHaveLength(1);
+    const note = screen.getByTestId('selected-note'); const replacement = note.cloneNode(true) as Element;
+    replacement.classList.remove('practice-summary-note-supported'); note.replaceWith(replacement);
+    act(() => renderEvents.notify());
+    await waitFor(() => expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported'));
+    view.rerender(<PracticeScoreViewer {...props} showContinuousFeedback={false} />);
+    expect(screen.getByTestId('selected-note')).not.toHaveClass('practice-summary-note-supported');
+    expect(view.container.querySelectorAll('[data-practice-playhead-cursor]')).toHaveLength(1);
+    expect(props.performanceEvaluation).not.toBeNull();
+    view.rerender(<PracticeScoreViewer {...props} showContinuousFeedback />);
+    expect(screen.getByTestId('selected-note')).toHaveClass('practice-summary-note-supported');
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="READY" sessionMode="STEP_BY_STEP" performanceEvaluation={null} />);
+    expect(screen.getByTestId('selected-note')).not.toHaveClass('practice-summary-note-supported');
+    expect(view.container.querySelector('[data-practice-playhead-cursor]')).toBeNull();
+  } finally {
+    view.unmount(); timeline.mockRestore(); page.mockRestore(); projection.mockRestore();
+    delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
+  }
+});
+
+
+it('retains the owned STEP target during an error and clears it when the target is released', async () => {
+  Object.defineProperty(SVGElement.prototype, 'getBBox', { configurable: true,
+    value: function(this: SVGElement) { return DOMRect.fromRect(this.classList.contains('system')
+      ? { x: 0, y: 0, width: 120, height: 80 } : { x: 10, y: 20, width: 30, height: 40 }); } });
+  const props: PracticeScoreViewerProps = { artifact: null, xmlContent: '<score-partwise />', isLoadingXml: false,
+    sessionMode: 'STEP_BY_STEP', lifecycle: 'ACTIVE', activeStepGroup: mockStepGroup };
+  const view = render(<PracticeScoreViewer {...props} />);
+  const cursor = () => view.container.querySelector('[data-practice-playhead-cursor]');
+  try {
+    await waitFor(() => expect(cursor()).not.toBeNull());
+    const position = cursor()!.getAttribute('x');
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="ERROR" />);
+    await waitFor(() => expect(cursor()).not.toBeNull());
+    expect(cursor()!.getAttribute('x')).toBe(position);
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="ACTIVE" />);
+    await waitFor(() => expect(cursor()).not.toBeNull());
+    expect(cursor()!.getAttribute('x')).toBe(position);
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="ERROR" activeStepGroup={null} />);
+    expect(cursor()).toBeNull();
+    view.rerender(<PracticeScoreViewer {...props} lifecycle="READY" />);
+    expect(cursor()).toBeNull();
+  } finally {
+    view.unmount();
+    delete (SVGElement.prototype as SVGElement & { getBBox?: unknown }).getBBox;
+  }
 });

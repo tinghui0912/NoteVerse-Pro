@@ -1,34 +1,42 @@
-from collections.abc import AsyncGenerator
+from collections.abc import Generator
+from datetime import datetime
 
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel
+from sqlalchemy import DateTime, create_engine, event, inspect
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
+from app.shared.time import require_utc
 
-# Central async database entry point for API and async services.
-engine = create_async_engine(
+engine = create_engine(
     settings.DATABASE_URL,
-    echo=False,
-    future=True,
+    connect_args={"options": "-c timezone=UTC"},
     pool_pre_ping=True,
     pool_recycle=3600,
     pool_size=5,
     max_overflow=10,
 )
-
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    expire_on_commit=False,
-    class_=AsyncSession,
-)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+def get_session() -> Generator[Session, None, None]:
+    with SessionLocal() as session:
+        try:
+            yield session
+        except BaseException:
+            session.rollback()
+            raise
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        yield session
+@event.listens_for(Session, "before_flush")
+def validate_persisted_instants(session: Session, _flush_context, _instances) -> None:
+    """Persisted instant assignments must carry their timezone explicitly."""
+    for row in session.new.union(session.dirty):
+        state = inspect(row)
+        for attribute in state.mapper.column_attrs:
+            if not any(isinstance(column.type, DateTime) for column in attribute.columns):
+                continue
+            value = state.dict.get(attribute.key)
+            if value is not None:
+                if not isinstance(value, datetime):
+                    raise ValueError("Persisted instants require aware datetime values")
+                setattr(row, attribute.key, require_utc(value))

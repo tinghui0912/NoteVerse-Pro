@@ -9,14 +9,22 @@ import {
   PracticeStatus,
   resolvePracticeStatusView,
 } from './practice-status';
-import type { PerformanceClockSnapshot } from '@/lib/practice/local-core/performance-runtime';
+import type { PerformanceClockSnapshot } from '@/lib/practice/continuous/domain/performance-clock';
 import practiceMessages from '../../../messages/en/practice.json';
-import type { StepAttemptRecord } from '@/lib/practice/local-core/step-attempt';
+import zhPracticeMessages from '../../../messages/zh/practice.json';
+import type { StepAttemptRecord } from '@/lib/practice/step/domain/attempt';
+
+function stepRecord(verdict: 'MATCH' | 'MISMATCH'): StepAttemptRecord {
+  const evidence = { attemptId: 'attempt', localSessionId: 'step', stepId: 'target', targetGeneration: 1,
+    inputSource: 'MICROPHONE' as const, attemptStartSessionTime: { domainId: 'step', ms: 100 },
+    observedAttackKeys: [60,64,67] as const, confidence: .8, captureEndSessionTime: { domainId: 'step', ms: 150 } };
+  return { ...evidence, verdict };
+}
 
 it.each(['READY', 'CAPTURING', 'ANALYZING', 'POST_VERDICT'] as const)('STEP status presents runtime phase %s, not session ACTIVE as READY', phase => {
   const view = resolvePracticeStatusView({ lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: phase,
-    lastFinalizedVerdict: { verdict: 'MISMATCH' } as StepAttemptRecord });
-  const keys = { READY: 'waitingForFirstNote', CAPTURING: 'stepCapturing', ANALYZING: 'stepAnalyzing', POST_VERDICT: 'stepPostVerdictMismatch' };
+    pendingPostVerdict: stepRecord('MISMATCH') });
+  const keys = { READY: 'stepMicrophoneReady', CAPTURING: 'stepMicrophoneChecking', ANALYZING: 'stepMicrophoneChecking', POST_VERDICT: 'stepPostVerdictMismatch' };
   expect(view.messageKey).toBe(keys[phase]);
   expect(view.pending).toBe(phase === 'CAPTURING' || phase === 'ANALYZING');
 });
@@ -27,29 +35,39 @@ const IntlProvider = NextIntlClientProvider as ComponentType<{
   children?: ReactNode;
 }>;
 
+it.each([['en', practiceMessages], ['zh', zhPracticeMessages]] as const)('%s STEP preparation infrastructure copy is neutral', (locale, messages) => {
+  const view = render(createElement(IntlProvider, { locale, messages: { practice: messages } }, createElement(PracticeStatus, {
+    lifecycle: 'READY', sessionMode: 'STEP_BY_STEP', inputState: 'ERROR', inputSource: 'MICROPHONE',
+    inputError: 'STEP_MICROPHONE_INFRASTRUCTURE_FAILED',
+  })));
+  expect(view.container).toHaveTextContent(messages.stepInfrastructureUnavailable);
+  expect(view.container).not.toHaveTextContent(/Start a new session|重新开始/);
+  view.unmount();
+});
+
 function makePerformanceClock(
   overrides: Partial<PerformanceClockSnapshot> = {}
 ): PerformanceClockSnapshot {
   return {
-    state: 'RUNNING',
+    state: 'RUNNING', countInKind: null,
     nowMs: 1000,
-    musicalBeat: 1,
-    performanceTimeMs: 0,
+    scoreTick: 1,
+    timelineTimeMs: 0, performanceTimeMs: 0,
     countInRemainingMs: 0,
     countInTotalMs: 2000,
-    countInBeats: 4,
+    countInTicks: 4,
     countInPulses: 4,
     countInPulse: 1,
     scopeCompleted: false,
-    scopeStartBeat: 1,
-    scopeTerminalBeat: 4,
+    scopeStartTick: 1,
+    scopeTerminalTick: 4,
     completionReason: null,
     ...overrides,
   };
 }
 
 describe('resolvePracticeStatusView', () => {
-  it('shows preparingPractice during STARTING inputState', () => {
+  it('keeps binding silent in the global status surface', () => {
     expect(
       resolvePracticeStatusView({
         lifecycle: 'READY',
@@ -57,8 +75,7 @@ describe('resolvePracticeStatusView', () => {
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'preparingPractice',
-      pending: true,
+      pending: false, countInPulse: null,
     });
   });
 
@@ -74,14 +91,14 @@ describe('resolvePracticeStatusView', () => {
     });
   });
 
-  it('shows waitingForFirstNote during ACTIVE STEP mode', () => {
+  it('shows paced microphone instructions during ACTIVE STEP mode', () => {
     expect(
       resolvePracticeStatusView({
         lifecycle: 'ACTIVE',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'waitingForFirstNote',
+      messageKey: 'stepMicrophoneReady',
       pending: false,
     });
   });
@@ -92,7 +109,7 @@ describe('resolvePracticeStatusView', () => {
         lifecycle: 'ACTIVE',
         sessionMode: 'CONTINUOUS_PLAY',
         performanceClock: makePerformanceClock({
-          state: 'COUNT_IN',
+          state: 'COUNT_IN', countInKind: 'INITIAL',
           countInRemainingMs: 1000,
           countInPulses: 4,
           countInPulse: 3,
@@ -105,17 +122,16 @@ describe('resolvePracticeStatusView', () => {
     });
   });
 
-  it('shows performanceRunning during CONTINUOUS playing', () => {
+  it('does not narrate normal Continuous running', () => {
     expect(
       resolvePracticeStatusView({
         lifecycle: 'ACTIVE',
         sessionMode: 'CONTINUOUS_PLAY',
         performanceClock: makePerformanceClock({
-          state: 'RUNNING',
+          state: 'RUNNING', countInKind: null,
         }),
       })
     ).toMatchObject({
-      messageKey: 'performanceRunning',
       pending: false,
     });
   });
@@ -125,13 +141,12 @@ describe('resolvePracticeStatusView', () => {
       resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'ERROR',
-        inputError: 'Model asset not configured',
+        inputError: 'STEP_ACOUSTIC_PREPARATION_FAILED',
         inputSource: 'MICROPHONE',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'micStartFailed',
-      customMessage: 'Model asset not configured',
+      customMessage: 'Microphone analysis could not be prepared.',
       isError: true,
       pending: false,
     });
@@ -140,13 +155,12 @@ describe('resolvePracticeStatusView', () => {
       resolvePracticeStatusView({
         lifecycle: 'READY',
         inputState: 'ERROR',
-        inputError: 'MIDI access denied',
+        inputError: 'STEP_MIDI_PERMISSION_DENIED',
         inputSource: 'MIDI',
         sessionMode: 'STEP_BY_STEP',
       })
     ).toMatchObject({
-      messageKey: 'midiStartFailed',
-      customMessage: 'MIDI access denied',
+      customMessage: 'MIDI permission was denied.',
       isError: true,
       pending: false,
     });
@@ -171,8 +185,8 @@ describe('resolvePracticeStatusView', () => {
   it.each([
     ['STEP_MICROPHONE_PERMISSION_DENIED', 'Microphone permission was denied.'],
     ['STEP_ACOUSTIC_RUNTIME_FAILED', 'Microphone analysis failed. Start a new session.'],
-  ])('preserves the STEP application error %s', (inputError, customMessage) => {
-    expect(resolvePracticeStatusView({ lifecycle: 'ENDED', inputState: 'ERROR', inputError,
+  ] as const)('preserves the STEP application error %s', (inputError, customMessage) => {
+    expect(resolvePracticeStatusView({ lifecycle: 'COMPLETED', inputState: 'ERROR', inputError,
       inputSource: 'MICROPHONE', sessionMode: 'STEP_BY_STEP' })).toMatchObject({
       customMessage, isError: true, pending: false,
     });
@@ -181,7 +195,7 @@ describe('resolvePracticeStatusView', () => {
   it.each([
     ['MICROPHONE_PERMISSION_DENIED', 'micPermissionDenied'],
     ['ANALYSIS_FAILED', 'micAnalysisFailed'],
-  ])('preserves the Continuous application error %s', (inputError, messageKey) => {
+  ] as const)('preserves the Continuous application error %s', (inputError, messageKey) => {
     expect(resolvePracticeStatusView({ lifecycle: 'ACTIVE', inputState: 'ERROR', inputError,
       inputSource: 'MICROPHONE', sessionMode: 'CONTINUOUS_PLAY' })).toMatchObject({
       messageKey, isError: true, pending: false,
@@ -246,7 +260,7 @@ describe('resolvePracticeStatusView', () => {
 });
 
 describe('PracticeStatus rendering', () => {
-  it('renders status text and recording time', () => {
+  it('renders paced STEP instruction without a transport timer', () => {
     render(
       createElement(
         IntlProvider,
@@ -256,14 +270,13 @@ describe('PracticeStatus rendering', () => {
         },
         createElement(PracticeStatus, {
           lifecycle: 'ACTIVE',
-          sessionMode: 'STEP_BY_STEP',
-          practiceTime: 65, // 01:05
+          sessionMode: 'STEP_BY_STEP', // 01:05
         })
       )
     );
 
-    expect(screen.getByText('Ready. Play the current note.')).toBeTruthy();
-    expect(screen.getByText('01:05')).toBeTruthy();
+    expect(screen.getByText('Play the highlighted note. Wait for the result before playing again.')).toBeTruthy();
+    expect(screen.queryByText('01:05')).toBeNull();
   });
 
   it('renders visible error message on inputState ERROR', () => {
@@ -277,15 +290,14 @@ describe('PracticeStatus rendering', () => {
         createElement(PracticeStatus, {
           lifecycle: 'READY',
           inputState: 'ERROR',
-          inputError: 'Device disconnected',
+          inputError: 'STEP_MICROPHONE_UNAVAILABLE',
           inputSource: 'MICROPHONE',
           sessionMode: 'STEP_BY_STEP',
-          practiceTime: 0,
         })
       )
     );
 
-    expect(screen.getByText(/Failed to start microphone: Device disconnected/)).toBeTruthy();
+    expect(screen.getByText(/Microphone input is unavailable/)).toBeTruthy();
   });
 
   it('renders the browser prerequisite error before Continuous starts', () => {
@@ -306,7 +318,6 @@ describe('PracticeStatus rendering', () => {
             reason: 'BROWSER_UNSUPPORTED',
           },
           sessionMode: 'CONTINUOUS_PLAY',
-          practiceTime: 0,
         })
       )
     );
@@ -330,7 +341,6 @@ describe('PracticeStatus rendering', () => {
           inputError: 'NO_CONNECTED_INPUT',
           inputSource: 'MIDI',
           sessionMode: 'STEP_BY_STEP',
-          practiceTime: 0,
         })
       )
     );
@@ -342,3 +352,56 @@ describe('PracticeStatus rendering', () => {
 });
 
 
+
+
+describe('paced STEP learning feedback', () => {
+  it.each([
+    { locale: 'en', messages: practiceMessages, ready: 'Play the highlighted note. Wait for the result before playing again.', busy: 'Checking your answer. Wait before playing again.', mismatch: 'Not matched yet. Try again.' },
+    { locale: 'zh', messages: zhPracticeMessages, ready: '弹奏当前高亮音；识别结果出现前请等待，不要连续弹奏。', busy: '正在识别本次输入，请等待结果后再弹。', mismatch: '尚未匹配，请再试一次。' },
+  ])('$locale microphone instructions pace input without claiming physical mistakes', ({ locale, messages, ready, busy, mismatch }) => {
+    const status = (phase: 'READY' | 'CAPTURING' | 'ANALYZING' | 'POST_VERDICT') => createElement(IntlProvider,
+      { locale, messages: { practice: messages } }, createElement(PracticeStatus, {
+        lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', stepInteractionPhase: phase,
+        inputSource: 'MICROPHONE', pendingPostVerdict: phase === 'POST_VERDICT' ? stepRecord('MISMATCH') : null,
+      }));
+    const view = render(status('READY')); expect(screen.getByRole('status')).toHaveTextContent(ready);
+    for (const phase of ['CAPTURING', 'ANALYZING'] as const) {
+      view.rerender(status(phase)); expect(screen.getByRole('status')).toHaveTextContent(busy);
+    }
+    view.rerender(status('POST_VERDICT')); expect(screen.getByRole('status')).toHaveTextContent(mismatch);
+  });
+  it.each(['READY', 'CAPTURING', 'ANALYZING'] as const)('MIDI %s uses its short input status', phase => {
+    const result = resolvePracticeStatusView({ lifecycle: 'ACTIVE', sessionMode: 'STEP_BY_STEP', inputSource: 'MIDI', stepInteractionPhase: phase });
+    expect(result.messageKey).toBe({ READY: 'waitingForFirstNote', CAPTURING: 'stepCapturing', ANALYZING: 'stepAnalyzing' }[phase]);
+  });
+  it('infrastructure failure takes priority over a pending learning outcome', () => {
+    const result = resolvePracticeStatusView({ lifecycle: 'COMPLETED', sessionMode: 'STEP_BY_STEP', inputState: 'ERROR',
+      inputError: 'STEP_ACOUSTIC_RUNTIME_FAILED', inputSource: 'MICROPHONE', stepInteractionPhase: 'POST_VERDICT', pendingPostVerdict: stepRecord('MISMATCH') });
+    expect(result).toMatchObject({ customMessage: 'Microphone analysis failed. Start a new session.', isError: true });
+  });
+});
+
+it('recording intervention has dedicated status rather than input or acoustic error semantics', () => {
+  const status = resolvePracticeStatusView({ lifecycle: 'PAUSED', sessionMode: 'CONTINUOUS_PLAY', resourceImpact: 'RECORDING_ONLY' });
+  expect(status.messageKey).toBe('recordingPaused');
+});
+
+for (const lifecycle of ['READY', 'ACTIVE'] as const) it(`Continuous ${lifecycle} has no redundant prose or global readiness banner`, () => {
+  render(createElement(IntlProvider, { locale: 'en', messages: { practice: practiceMessages } }, createElement(PracticeStatus, {
+    lifecycle, sessionMode: 'CONTINUOUS_PLAY', performanceClock: lifecycle === 'ACTIVE' ? makePerformanceClock() : null,
+  })));
+  expect(screen.queryByRole('status')).toBeNull();
+});
+it('attempt binding remains silent even for STEP; busy belongs to Start', () => {
+  render(createElement(IntlProvider, { locale: 'en', messages: { practice: practiceMessages } }, createElement(PracticeStatus, {
+    lifecycle: 'PREPARING', inputState: 'STARTING', sessionMode: 'STEP_BY_STEP',
+  })));
+  expect(screen.queryByRole('status')).toBeNull();
+});
+
+it('untrusted runtime text cannot become status copy', () => {
+  const view = resolvePracticeStatusView({ lifecycle: 'ERROR', sessionMode: 'CONTINUOUS_PLAY', inputState: 'ERROR',
+    // @ts-expect-error The public view accepts only application codes; exercise a malformed JS caller.
+    inputError: 'https://private.example/model.onnx native exception stack' });
+  expect(JSON.stringify(view)).not.toContain('private.example');
+});

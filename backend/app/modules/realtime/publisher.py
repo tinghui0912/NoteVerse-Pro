@@ -1,90 +1,42 @@
 from __future__ import annotations
+from app.modules.score_access.queries import active_score_predicate
 
 import json
-from typing import Any, Iterable
+from typing import Iterable
 
 from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.core.config import settings
-from app.core.logger import logger
-from app.db.models import RealtimeEvent, Score, ScoreDeletionStatus, ScoreMembership
+from app.db.models import RealtimeChange, Score, ScoreMembership, User
+from app.shared.realtime import RealtimeChangeKind
+from app.modules.realtime.stream_state import admit_stream_state
+from app.shared.time import utc_now
 
-REALTIME_NOTIFY_CHANNEL = "realtime_events"
-
-
-class RealtimeEventTypes:
-    NOTIFICATION_CREATED = "notification.created"
-    SCORE_REVISION_CREATED = "score.revision.created"
-    SCORE_DERIVED_ASSET_UPDATED = "score.derived_asset.updated"
-    SCORE_METADATA_UPDATED = "score.metadata.updated"
-    IMPORT_JOB_COMPLETED = "import_job.completed"
-    IMPORT_JOB_FAILED = "import_job.failed"
+REALTIME_NOTIFY_CHANNEL = "realtime_changes"
 
 
 def _unique_user_ids(user_ids: Iterable[int | None]) -> list[int]:
     return sorted({int(user_id) for user_id in user_ids if user_id is not None})
 
 
-def _supports_postgres_notify() -> bool:
-    return settings.DATABASE_URL.startswith(("postgresql://", "postgresql+"))
-
-
-def _notification_payload(event: RealtimeEvent) -> str:
-    return json.dumps(
-        {
-            "event_id": event.id,
-            "recipient_user_id": event.recipient_user_id,
-        },
-        separators=(",", ":"),
-    )
-
-
-async def _notify_event(db: AsyncSession, event: RealtimeEvent) -> None:
-    if not _supports_postgres_notify() or event.id is None:
-        return
-    await db.execute(
-        text("SELECT pg_notify(:channel, :payload)"),
-        {"channel": REALTIME_NOTIFY_CHANNEL, "payload": _notification_payload(event)},
-    )
-
-
-def _notify_event_sync(db: Session, event: RealtimeEvent) -> None:
-    if not _supports_postgres_notify() or event.id is None:
+def _notify_change(db: Session, change: RealtimeChange) -> None:
+    if db.get_bind().dialect.name != "postgresql":
         return
     db.execute(
         text("SELECT pg_notify(:channel, :payload)"),
-        {"channel": REALTIME_NOTIFY_CHANNEL, "payload": _notification_payload(event)},
+        {
+            "channel": REALTIME_NOTIFY_CHANNEL,
+            "payload": json.dumps({"recipient_user_id": change.recipient_user_id}),
+        },
     )
 
 
-async def score_recipients(db: AsyncSession, score_uuid: str) -> list[int]:
-    score = (
-        await db.execute(
-            select(Score).where(
-                Score.score_uuid == score_uuid,
-                Score.deletion_status == ScoreDeletionStatus.ACTIVE,
-            )
-        )
-    ).scalar_one_or_none()
-    if score is None or score.id is None:
-        return []
-    member_rows = await db.execute(
-        select(ScoreMembership.user_id).where(
-            ScoreMembership.score_id == score.id,
-            col(ScoreMembership.revoked_at).is_(None),
-        )
-    )
-    return _unique_user_ids([score.owner_user_id, *member_rows.scalars().all()])
-
-
-def score_recipients_sync(db: Session, score_uuid: str) -> list[int]:
+def score_recipients(db: Session, score_uuid: str) -> list[int]:
     score = db.execute(
         select(Score).where(
             Score.score_uuid == score_uuid,
-            Score.deletion_status == ScoreDeletionStatus.ACTIVE,
+            active_score_predicate(),
         )
     ).scalar_one_or_none()
     if score is None or score.id is None:
@@ -98,143 +50,53 @@ def score_recipients_sync(db: Session, score_uuid: str) -> list[int]:
     return _unique_user_ids([score.owner_user_id, *member_rows.scalars().all()])
 
 
-async def publish_event(
-    db: AsyncSession,
-    *,
-    recipient_user_id: int,
-    type: str,
-    payload: dict[str, Any],
-    resource_type: str | None = None,
-    resource_id: str | None = None,
-    score_id: str | None = None,
-    revision_id: str | None = None,
-) -> RealtimeEvent:
-    event = RealtimeEvent(
-        recipient_user_id=recipient_user_id,
-        type=type,
-        resource_type=resource_type,
-        resource_id=resource_id,
-        score_id=score_id,
-        revision_id=revision_id,
-        payload=payload,
-    )
-    db.add(event)
-    await db.flush()
-    await _notify_event(db, event)
-    return event
-
-
-async def publish_event_best_effort(
-    db: AsyncSession,
-    **kwargs: Any,
-) -> None:
-    try:
-        await publish_event(db, **kwargs)
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        logger.bind(
-            event="realtime.event.publish_failed",
-            event_type=kwargs.get("type"),
-            recipient_user_id=kwargs.get("recipient_user_id"),
-            resource_type=kwargs.get("resource_type"),
-            resource_id=kwargs.get("resource_id"),
-            score_id=kwargs.get("score_id"),
-            revision_id=kwargs.get("revision_id"),
-        ).opt(exception=True).warning("Realtime event publish failed")
-
-
-async def publish_score_event_best_effort(
-    db: AsyncSession,
-    *,
-    score_id: str,
-    revision_id: str | None,
-    type: str,
-    payload: dict[str, Any],
-    resource_type: str = "score",
-    resource_id: str | None = None,
-) -> None:
-    try:
-        recipients = await score_recipients(db, score_id)
-        for recipient_user_id in recipients:
-            await publish_event(
-                db,
-                recipient_user_id=recipient_user_id,
-                type=type,
-                resource_type=resource_type,
-                resource_id=resource_id or score_id,
-                score_id=score_id,
-                revision_id=revision_id,
-                payload=payload,
-            )
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        logger.bind(
-            event="realtime.score_event.publish_failed",
-            event_type=type,
-            score_id=score_id,
-            revision_id=revision_id,
-            resource_type=resource_type,
-            resource_id=resource_id,
-        ).opt(exception=True).warning("Score realtime event publish failed")
-
-
-def publish_event_sync(
+def publish_change(
     db: Session,
     *,
     recipient_user_id: int,
-    type: str,
-    payload: dict[str, Any],
-    resource_type: str | None = None,
-    resource_id: str | None = None,
+    kind: RealtimeChangeKind,
+    notification_id: str | None = None,
     score_id: str | None = None,
     revision_id: str | None = None,
-) -> RealtimeEvent:
-    event = RealtimeEvent(
+    import_job_id: str | None = None,
+) -> RealtimeChange | None:
+    """Admit a change and transactional wake-up; the caller owns commit/rollback."""
+    # User erasure takes an exclusive parent lock before deleting stream/history.
+    # Acquire the FK parent before the stream lock; closed recipients admit no work.
+    recipient = db.scalar(
+        select(User.id)
+        .where(User.id == recipient_user_id, User.deleted_at.is_(None))
+        .with_for_update(read=True, key_share=True)
+    )
+    if recipient is None:
+        return None
+    state = admit_stream_state(db, recipient_user_id)
+    state.high_watermark_sequence += 1
+    state.updated_at = utc_now()
+    change = RealtimeChange(
         recipient_user_id=recipient_user_id,
-        type=type,
-        resource_type=resource_type,
-        resource_id=resource_id,
+        sequence=state.high_watermark_sequence,
+        kind=kind,
+        notification_id=notification_id,
         score_id=score_id,
         revision_id=revision_id,
-        payload=payload,
+        import_job_id=import_job_id,
     )
-    db.add(event)
+    db.add(change)
     db.flush()
-    _notify_event_sync(db, event)
-    return event
+    _notify_change(db, change)
+    return change
 
 
-def publish_score_event_sync_best_effort(
-    db: Session,
-    *,
-    score_id: str,
-    revision_id: str | None,
-    type: str,
-    payload: dict[str, Any],
-    resource_type: str = "score",
-    resource_id: str | None = None,
+def publish_score_change(
+    db: Session, *, score_id: str, revision_id: str, kind: RealtimeChangeKind
 ) -> None:
-    try:
-        recipients = score_recipients_sync(db, score_id)
-        for recipient_user_id in recipients:
-            publish_event_sync(
-                db,
-                recipient_user_id=recipient_user_id,
-                type=type,
-                resource_type=resource_type,
-                resource_id=resource_id or score_id,
-                score_id=score_id,
-                revision_id=revision_id,
-                payload=payload,
-            )
-    except Exception:
-        logger.bind(
-            event="realtime.score_event.publish_failed",
-            event_type=type,
+    # Every fan-out acquires recipient state locks in ascending order.
+    for recipient_user_id in sorted(set(score_recipients(db, score_id))):
+        publish_change(
+            db,
+            recipient_user_id=recipient_user_id,
+            kind=kind,
             score_id=score_id,
             revision_id=revision_id,
-            resource_type=resource_type,
-            resource_id=resource_id,
-        ).opt(exception=True).warning("Score realtime event publish failed")
+        )

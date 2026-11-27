@@ -2,8 +2,6 @@ export * from './commands';
 export * from './inspector-drafts';
 export * from './inspector-view-model';
 export * from './model';
-export * from './musicxml-exporter';
-export * from './musicxml-importer';
 export * from './note-atom-identity';
 export * from './notation-model';
 export * from './render-anchors';
@@ -12,3 +10,6 @@ export * from './rhythmic-input';
 export * from './selection-adapter';
 export * from './source-lookup';
 export * from './source-render-anchors';
+
+export * from './context';
+export * from './document-commands';

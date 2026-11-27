@@ -1,15 +1,10 @@
-"""Shared service identity and customer API routing settings."""
+"""Product naming and runtime debug settings."""
 
 from pydantic import BaseModel, field_validator
 
 
-# Customer API routing is a versioned source contract. Deployment topology must
-# use ingress/root-path configuration rather than changing this public prefix.
-CUSTOMER_API_PREFIX = "/api/v1"
-
-
 class ServiceIdentitySettings(BaseModel):
-    """Names the product and its customer-facing API mount point."""
+    """Product naming and runtime debug policy."""
 
     PROJECT_NAME: str = "NoteVerse Pro"
     DEBUG: bool = False

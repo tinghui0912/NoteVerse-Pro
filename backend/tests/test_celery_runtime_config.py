@@ -1,15 +1,17 @@
 from app.core.config import settings
 from app.core.settings.task_reliability import get_task_reliability_settings
 from app.core.settings.worker_runtime import get_worker_runtime_settings
-from app.worker.beat_schedule import build_beat_schedule
-from app.worker.celery_config import celery_app
-from app.worker.celery_runtime_options import build_celery_runtime_options
+from app.task_queue.schedule import build_beat_schedule
+from app.task_queue.config import celery_app
+from app.task_queue.options import build_celery_runtime_options
 
 
 def test_task_time_limits_form_ordered_shutdown_envelope() -> None:
     task_settings = get_task_reliability_settings()
 
-    assert get_worker_runtime_settings().PADDLEOCR_TIMEOUT_SECONDS <= task_settings.MAX_PROCESSING_TIME
+    assert (
+        get_worker_runtime_settings().PADDLEOCR_TIMEOUT_SECONDS <= task_settings.MAX_PROCESSING_TIME
+    )
     assert task_settings.MAX_PROCESSING_TIME < task_settings.CELERY_TASK_SOFT_TIME_LIMIT
     assert task_settings.CELERY_TASK_SOFT_TIME_LIMIT < task_settings.CELERY_TASK_TIME_LIMIT
 
@@ -52,10 +54,14 @@ def test_realtime_maintenance_is_scheduled() -> None:
 
 def test_render_asset_delivery_maintenance_is_scheduled() -> None:
     derived_asset_schedule = celery_app.conf.beat_schedule["derived-asset-cleanup"]
-    render_outbox_schedule = celery_app.conf.beat_schedule["render-outbox-maintenance"]
+    revision_render_schedule = celery_app.conf.beat_schedule["score-revision-render-maintenance"]
 
-    assert derived_asset_schedule["schedule"] == float(settings.DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS)
-    assert render_outbox_schedule["schedule"] == float(settings.RENDER_OUTBOX_DISPATCH_INTERVAL_SECONDS)
+    assert derived_asset_schedule["schedule"] == float(
+        settings.DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS
+    )
+    assert revision_render_schedule["schedule"] == float(
+        settings.REVISION_RENDER_DISPATCH_INTERVAL_SECONDS
+    )
 
 
 def test_playback_delivery_maintenance_is_scheduled() -> None:
@@ -64,17 +70,12 @@ def test_playback_delivery_maintenance_is_scheduled() -> None:
     assert schedule["schedule"] == float(settings.PLAYBACK_OUTBOX_DISPATCH_INTERVAL_SECONDS)
 
 
-def test_performance_take_deletion_maintenance_is_scheduled() -> None:
-    schedule = celery_app.conf.beat_schedule[
-        "performance-take-deletion-maintenance"
-    ]
+def test_stored_object_retirement_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["stored-object-retirement-maintenance"]
 
-    assert (
-        schedule["task"]
-        == "app.worker.tasks.run_performance_take_deletion_maintenance"
-    )
+    assert schedule["task"] == "app.worker.tasks.run_stored_object_retirement_maintenance"
     assert schedule["schedule"] == float(
-        settings.PERFORMANCE_TAKE_DELETE_OUTBOX_DISPATCH_INTERVAL_SECONDS
+        settings.STORED_OBJECT_RETIREMENT_DISPATCH_INTERVAL_SECONDS
     )
 
 
@@ -84,8 +85,8 @@ def test_mail_delivery_maintenance_is_scheduled() -> None:
     assert schedule["schedule"] == float(settings.MAIL_OUTBOX_DISPATCH_INTERVAL_SECONDS)
 
 
-def test_score_deletion_cleanup_is_scheduled() -> None:
-    schedule = celery_app.conf.beat_schedule["score-deletion-cleanup"]
+def test_score_deletion_maintenance_is_scheduled() -> None:
+    schedule = celery_app.conf.beat_schedule["score-deletion-maintenance"]
 
-    assert schedule["task"] == "app.worker.tasks.run_score_deletion_cleanup"
-    assert schedule["schedule"] == float(settings.SCORE_DELETION_CLEANUP_INTERVAL_SECONDS)
+    assert schedule["task"] == "app.worker.tasks.run_score_deletion_maintenance"
+    assert schedule["schedule"] == float(settings.SCORE_DELETION_INTERVAL_SECONDS)

@@ -1,110 +1,76 @@
 from __future__ import annotations
 
+from app.modules.storage_governance.usage.service import StorageUsageService
+from app.modules.media_storage.retirement import retire_after_release
+
 from dataclasses import dataclass
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.core.config import settings
-from app.core.logger import logger
-from app.db.models import (
-    Score,
-    ScoreDeletionStatus,
-    ScorePlaybackAsset,
-    ScoreRenderAsset,
-    ScoreRevision,
-    StorageUsageCategory,
-)
-from app.db.models.score import RenderAssetKind
-from app.modules.storage_usage.service import storage_usage_service
-from app.storage import FileStorage, file_storage
+from app.db.models import Score, ScorePlaybackAsset, ScoreRenderAsset, ScoreRevision
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.score_assets.domain import RenderAssetKind
 
 
 @dataclass(frozen=True)
 class DerivedAssetRetentionResult:
     rendered_pages_deleted: int = 0
     playback_assets_deleted: int = 0
-    storage_objects_deleted: int = 0
+    object_retirements_queued: int = 0
 
 
 class DerivedAssetRetentionService:
-    def __init__(self, storage: FileStorage | None = None) -> None:
-        self.storage = storage or file_storage
+    def __init__(self, *, usage: StorageUsageService) -> None:
+        self.usage = usage
 
-    async def cleanup_for_score_best_effort(
+    def candidate_score_ids(self, db: Session) -> list[int]:
+        return list(
+            db.scalars(
+                select(Score.id).where(Score.__table__.c.deleted_at.is_(None)).order_by(Score.id)
+            )
+        )
+
+    def cleanup_for_score(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None = None,
     ) -> DerivedAssetRetentionResult:
-        try:
-            return await self.cleanup_for_score(
-                db,
-                score_id=score_id,
-                head_revision_id=head_revision_id,
-                retain_recent_revisions=retain_recent_revisions,
-            )
-        except Exception as exc:
-            await db.rollback()
-            logger.bind(
-                event="derived_asset_retention.cleanup_failed",
-                score_id=score_id,
-                head_revision_id=head_revision_id,
-                retain_recent_revisions=retain_recent_revisions,
-            ).opt(exception=exc).warning("Derived asset retention cleanup failed")
+        score = db.execute(self._score_for_cleanup_statement(score_id)).scalar_one_or_none()
+        if score is None:
             return DerivedAssetRetentionResult()
-
-    async def cleanup_for_score(
-        self,
-        db: AsyncSession,
-        *,
-        score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None = None,
-    ) -> DerivedAssetRetentionResult:
-        keep_ids = await self._revision_ids_to_keep(
-            db,
-            score_id=score_id,
-            head_revision_id=head_revision_id,
-            retain_recent_revisions=retain_recent_revisions,
-        )
+        self.usage.committed_bytes(db, score.owner_user_id, lock=True)
+        protected_ids = set(db.execute(self._protected_revision_ids_statement(score_id)).scalars())
         rendered_pages = list(
-            (
-                await db.execute(
-                    self._stale_rendered_pages_statement(score_id=score_id, keep_ids=keep_ids)
-                )
+            db.execute(
+                self._stale_rendered_pages_statement(score_id=score_id, protected_ids=protected_ids)
             ).scalars()
         )
         playback_assets = list(
-            (
-                await db.execute(
-                    self._stale_playback_assets_statement(score_id=score_id, keep_ids=keep_ids)
+            db.execute(
+                self._stale_playback_assets_statement(
+                    score_id=score_id, protected_ids=protected_ids
                 )
             ).scalars()
         )
-        score = await db.get(Score, score_id)
         owner_user_id = score.owner_user_id if score else None
         render_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
+            (asset.asset_uuid, asset.stored_object.object_key, asset.stored_object.byte_size)
             for asset in rendered_pages
         ]
         audio_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
+            (asset.asset_uuid, asset.stored_object.object_key, asset.stored_object.byte_size)
             for asset in playback_assets
         ]
-        storage_keys = [asset.storage_key for asset in rendered_pages + playback_assets]
         for asset in rendered_pages:
-            await db.delete(asset)
+            db.delete(asset)
         for asset in playback_assets:
-            await db.delete(asset)
-        await db.commit()
+            db.delete(asset)
         if owner_user_id is not None:
             for asset_uuid, storage_key, size_bytes in render_usage:
-                await storage_usage_service.record_release(
+                self.usage.record_release(
                     db,
                     user_id=owner_user_id,
                     category=StorageUsageCategory.DERIVED_RENDER,
@@ -115,7 +81,7 @@ class DerivedAssetRetentionService:
                     storage_key=storage_key,
                 )
             for asset_uuid, storage_key, size_bytes in audio_usage:
-                await storage_usage_service.record_release(
+                self.usage.record_release(
                     db,
                     user_id=owner_user_id,
                     category=StorageUsageCategory.DERIVED_AUDIO,
@@ -125,172 +91,35 @@ class DerivedAssetRetentionService:
                     object_id=asset_uuid,
                     storage_key=storage_key,
                 )
-        deleted_objects = self._delete_storage_objects(storage_keys)
+        operations = retire_after_release(
+            db, *(asset.stored_object_id for asset in rendered_pages + playback_assets)
+        )
+        db.flush()
         return DerivedAssetRetentionResult(
             rendered_pages_deleted=len(rendered_pages),
             playback_assets_deleted=len(playback_assets),
-            storage_objects_deleted=deleted_objects,
-        )
-
-    def cleanup_due_scores(self, db: Session) -> DerivedAssetRetentionResult:
-        scores = list(
-            db.execute(
-                select(Score.id, Score.head_revision_id).where(
-                    Score.deletion_status == ScoreDeletionStatus.ACTIVE
-                )
-            ).all()
-        )
-        total = DerivedAssetRetentionResult()
-        for score_id, head_revision_id in scores:
-            result = self.cleanup_for_score_sync(
-                db,
-                score_id=score_id,
-                head_revision_id=head_revision_id,
-            )
-            total = DerivedAssetRetentionResult(
-                rendered_pages_deleted=total.rendered_pages_deleted + result.rendered_pages_deleted,
-                playback_assets_deleted=total.playback_assets_deleted + result.playback_assets_deleted,
-                storage_objects_deleted=total.storage_objects_deleted + result.storage_objects_deleted,
-            )
-        return total
-
-    def cleanup_for_score_sync(
-        self,
-        db: Session,
-        *,
-        score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None = None,
-    ) -> DerivedAssetRetentionResult:
-        keep_ids = self._revision_ids_to_keep_sync(
-            db,
-            score_id=score_id,
-            head_revision_id=head_revision_id,
-            retain_recent_revisions=retain_recent_revisions,
-        )
-        rendered_pages = list(
-            db.execute(
-                self._stale_rendered_pages_statement(score_id=score_id, keep_ids=keep_ids)
-            ).scalars()
-        )
-        playback_assets = list(
-            db.execute(
-                self._stale_playback_assets_statement(score_id=score_id, keep_ids=keep_ids)
-            ).scalars()
-        )
-        score = db.get(Score, score_id)
-        owner_user_id = score.owner_user_id if score else None
-        render_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
-            for asset in rendered_pages
-        ]
-        audio_usage = [
-            (asset.asset_uuid, asset.storage_key, asset.size_bytes)
-            for asset in playback_assets
-        ]
-        storage_keys = [asset.storage_key for asset in rendered_pages + playback_assets]
-        for asset in rendered_pages:
-            db.delete(asset)
-        for asset in playback_assets:
-            db.delete(asset)
-        db.commit()
-        if owner_user_id is not None:
-            for asset_uuid, storage_key, size_bytes in render_usage:
-                storage_usage_service.record_release_sync(
-                    db,
-                    user_id=owner_user_id,
-                    category=StorageUsageCategory.DERIVED_RENDER,
-                    bytes_count=size_bytes,
-                    reason="derived_asset_retention",
-                    object_type="score_render_asset",
-                    object_id=asset_uuid,
-                    storage_key=storage_key,
-                )
-            for asset_uuid, storage_key, size_bytes in audio_usage:
-                storage_usage_service.record_release_sync(
-                    db,
-                    user_id=owner_user_id,
-                    category=StorageUsageCategory.DERIVED_AUDIO,
-                    bytes_count=size_bytes,
-                    reason="derived_asset_retention",
-                    object_type="score_playback_asset",
-                    object_id=asset_uuid,
-                    storage_key=storage_key,
-                )
-        deleted_objects = self._delete_storage_objects(storage_keys)
-        return DerivedAssetRetentionResult(
-            rendered_pages_deleted=len(rendered_pages),
-            playback_assets_deleted=len(playback_assets),
-            storage_objects_deleted=deleted_objects,
-        )
-
-    async def _revision_ids_to_keep(
-        self,
-        db: AsyncSession,
-        *,
-        score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None,
-    ) -> set[int]:
-        retain = self._retain_count(retain_recent_revisions)
-        keep_ids = {head_revision_id} if head_revision_id is not None else set()
-        if retain == 0:
-            return keep_ids
-        statement = self._recent_historical_revisions_statement(
-            score_id=score_id,
-            head_revision_id=head_revision_id,
-            retain_recent_revisions=retain,
-        )
-        keep_ids.update((await db.execute(statement)).scalars().all())
-        return keep_ids
-
-    def _revision_ids_to_keep_sync(
-        self,
-        db: Session,
-        *,
-        score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int | None,
-    ) -> set[int]:
-        retain = self._retain_count(retain_recent_revisions)
-        keep_ids = {head_revision_id} if head_revision_id is not None else set()
-        if retain == 0:
-            return keep_ids
-        statement = self._recent_historical_revisions_statement(
-            score_id=score_id,
-            head_revision_id=head_revision_id,
-            retain_recent_revisions=retain,
-        )
-        keep_ids.update(db.execute(statement).scalars().all())
-        return keep_ids
-
-    @staticmethod
-    def _retain_count(retain_recent_revisions: int | None) -> int:
-        retain = (
-            settings.DERIVED_ASSET_RETAIN_RECENT_REVISIONS
-            if retain_recent_revisions is None
-            else retain_recent_revisions
-        )
-        if retain < 0:
-            raise ValueError("retain_recent_revisions must be non-negative")
-        return retain
-
-    @staticmethod
-    def _recent_historical_revisions_statement(
-        *,
-        score_id: int,
-        head_revision_id: int | None,
-        retain_recent_revisions: int,
-    ):
-        statement = select(ScoreRevision.id).where(ScoreRevision.score_id == score_id)
-        if head_revision_id is not None:
-            statement = statement.where(ScoreRevision.id != head_revision_id)
-        return statement.order_by(col(ScoreRevision.revision_number).desc()).limit(
-            retain_recent_revisions
+            object_retirements_queued=len(operations),
         )
 
     @staticmethod
-    def _stale_rendered_pages_statement(*, score_id: int, keep_ids: set[int]):
+    def _score_for_cleanup_statement(score_id: int):
+        # Serialize cleanup with head changes and final derivative admission.
+        return (
+            select(Score)
+            .where(Score.id == score_id, Score.__table__.c.deleted_at.is_(None))
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
+    @staticmethod
+    def _protected_revision_ids_statement(score_id: int):
+        head = select(Score.head_revision_id).where(
+            Score.id == score_id, col(Score.head_revision_id).is_not(None)
+        )
+        return head
+
+    @staticmethod
+    def _stale_rendered_pages_statement(*, score_id: int, protected_ids: set[int]):
         statement = (
             select(ScoreRenderAsset)
             .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
@@ -299,33 +128,19 @@ class DerivedAssetRetentionService:
                 ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
             )
         )
-        if keep_ids:
-            statement = statement.where(col(ScoreRenderAsset.revision_id).not_in(keep_ids))
+        if protected_ids:
+            statement = statement.where(col(ScoreRenderAsset.revision_id).not_in(protected_ids))
         return statement
 
     @staticmethod
-    def _stale_playback_assets_statement(*, score_id: int, keep_ids: set[int]):
+    def _stale_playback_assets_statement(*, score_id: int, protected_ids: set[int]):
         statement = (
             select(ScorePlaybackAsset)
             .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
-            .where(ScoreRevision.score_id == score_id)
+            .where(
+                ScoreRevision.score_id == score_id,
+            )
         )
-        if keep_ids:
-            statement = statement.where(col(ScorePlaybackAsset.revision_id).not_in(keep_ids))
+        if protected_ids:
+            statement = statement.where(col(ScorePlaybackAsset.revision_id).not_in(protected_ids))
         return statement
-
-    def _delete_storage_objects(self, storage_keys: list[str]) -> int:
-        deleted = 0
-        for key in storage_keys:
-            try:
-                if self.storage.delete(key):
-                    deleted += 1
-            except Exception as exc:
-                logger.bind(
-                    event="derived_asset_retention.storage_object_delete_failed",
-                    storage_key=key,
-                ).opt(exception=exc).warning("Derived asset storage object deletion failed")
-        return deleted
-
-
-derived_asset_retention_service = DerivedAssetRetentionService()

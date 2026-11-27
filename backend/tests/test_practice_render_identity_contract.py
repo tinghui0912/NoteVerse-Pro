@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
-from app.processing.practice_score.musicxml_stable_ids import (
+from app.modules.practice.score.compiler.stable_ids import (
     prepare_musicxml_ids_for_practice,
 )
-from app.processing.practice_score.target_catalog import (
-    practice_target_catalog_from_musicxml,
-)
+from app.modules.practice.score.compiler.musicxml import compile_practice_score
+from app.modules.practice.score.timeline import practice_timeline_from_compiled
 
 
-def test_practice_ready_musicxml_ids_match_target_catalog_render_ids(tmp_path) -> None:
+def test_practice_ready_musicxml_ids_match_artifact_timeline_render_ids(tmp_path) -> None:
     source = """<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
   <part-list>
@@ -36,24 +35,23 @@ def test_practice_ready_musicxml_ids_match_target_catalog_render_ids(tmp_path) -
 </score-partwise>
 """
     score_path = tmp_path / "score.musicxml"
-    score_path.write_text(source, encoding="utf-8")
-
     prepared = prepare_musicxml_ids_for_practice(source)
+    score_path.write_text(prepared, encoding="utf-8")
     prepared_note_ids = [
         note.get("id")
         for note in ET.fromstring(prepared).findall(".//note")
         if note.find("{*}rest") is None
     ]
-    catalog = practice_target_catalog_from_musicxml(score_path)
+    timeline = practice_timeline_from_compiled(compile_practice_score(score_path.read_bytes()))
 
-    catalog_note_ids = [
-        note_id for target in catalog.targets for note_id in target.render_note_ids
+    timeline_note_ids = [
+        note.render_note_id for note in timeline.notes if any(note.note_id in attack.note_ids for moment in timeline.moments for attack in moment.attacks)
     ]
 
-    assert catalog_note_ids == prepared_note_ids
-    assert catalog.targets[0].render_note_ids == (
+    assert timeline_note_ids == prepared_note_ids
+    assert tuple(n.render_note_id for n in timeline.notes if n.note_id in {i for a in timeline.moments[0].attacks for i in a.note_ids}) == (
         "nv-p1-m1-note2",
         "nv-p1-m1-note3",
         "nv-p1-m1-note4",
     )
-    assert catalog.targets[1].render_note_ids == ("nv-p1-m2-note1",)
+    assert tuple(n.render_note_id for n in timeline.notes if n.note_id in {i for a in timeline.moments[1].attacks for i in a.note_ids}) == ("nv-p1-m2-note1",)

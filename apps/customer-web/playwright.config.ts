@@ -35,16 +35,15 @@ export default defineConfig({
     video: 'off',
   },
   webServer: {
+    // Build before running E2E. Route compilation must finish before browser assertions.
     command:
-      `node ./node_modules/next/dist/bin/next dev --webpack -H ${host} -p ${port}`,
+      `node ./node_modules/next/dist/bin/next start -H ${host} -p ${port}`,
     url: `${baseURL}/en/auth/login`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
     env: {
       ...inheritedEnvironment,
       NEXT_BACKEND_ORIGIN: requiredEnv('NEXT_BACKEND_ORIGIN'),
-      AUTH_COOKIE_NAME: requiredEnv('AUTH_COOKIE_NAME'),
-      REFRESH_COOKIE_NAME: requiredEnv('REFRESH_COOKIE_NAME'),
     },
   },
   projects: [

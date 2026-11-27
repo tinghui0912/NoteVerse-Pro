@@ -1,0 +1,29 @@
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part><score-part id="P2"><part-name>Strings</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>3</divisions><key><fifths>0</fifths><mode>major</mode></key><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <barline location="left"><repeat direction="forward"/></barline>
+      <note id="a"><pitch><step>C</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice></note>
+      <direction><offset sound="yes">3</offset><sound tempo="90"/></direction>
+      <forward><duration>3</duration></forward>
+      <note id="b"><pitch><step>D</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice></note>
+      <backup><duration>9</duration></backup>
+      <note id="c"><pitch><step>E</step><octave>4</octave></pitch><duration>6</duration><voice>2</voice></note>
+    </measure>
+    <measure number="2"><barline location="right"><repeat direction="backward" times="2"/></barline></measure>
+    <measure number="3">
+      <attributes><divisions>6</divisions><key><fifths>1</fifths></key><time><beats>3</beats><beat-type>4</beat-type></time></attributes>
+      <note id="d"><pitch><step>F</step><octave>4</octave></pitch><duration>6</duration><voice>1</voice></note>
+      <note id="e"><chord/><pitch><step>A</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice></note>
+      <forward><duration>12</duration></forward>
+    </measure>
+    <measure number="4"><note id="g"><pitch><step>G</step><octave>4</octave></pitch><duration>18</duration><voice>1</voice></note></measure>
+  </part>
+  <part id="P2">
+    <measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><rest/><duration>8</duration></note></measure>
+    <measure number="2"/>
+    <measure number="3"><attributes><divisions>3</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes><note id="f"><pitch><step>C</step><octave>3</octave></pitch><duration>3</duration></note></measure>
+    <measure number="4"><note id="h"><pitch><step>D</step><octave>3</octave></pitch><duration>9</duration></note></measure>
+  </part>
+</score-partwise>

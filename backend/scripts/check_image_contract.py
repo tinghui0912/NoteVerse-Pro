@@ -31,14 +31,9 @@ def packaging_environment(role: str):
         root = Path(directory)
         env = {
             "SECRET_KEY": "image-contract-only-not-a-production-secret",
-            "AUTH_COOKIE_NAME": "contract_session",
-            "REFRESH_COOKIE_NAME": "contract_refresh",
-            "CSRF_COOKIE_NAME": "contract_csrf",
-            "CSRF_HEADER_NAME": "x-contract-csrf",
             "AUTH_COOKIE_SECURE": "false",
             "AUTH_COOKIE_SAMESITE": "lax",
-            "DATABASE_URL": "postgresql+asyncpg://contract:contract@127.0.0.1:1/contract",
-            "SYNC_DATABASE_URL": "postgresql+psycopg://contract:contract@127.0.0.1:1/contract",
+            "DATABASE_URL": "postgresql+psycopg://contract:contract@127.0.0.1:1/contract",
             "SCHEDULER_LOCK_DATABASE_URL": "postgresql+psycopg://contract:contract@127.0.0.1:1/contract",
             "REDIS_URL": "redis://127.0.0.1:1/0",
             "CELERY_BROKER_URL": "redis://127.0.0.1:1/1",
@@ -50,24 +45,25 @@ def packaging_environment(role: str):
             "TRUSTED_PROXY_CIDRS": "[]",
             "REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS": "60",
             "REALTIME_EVENT_RETENTION_DAYS": "7",
-            "FILE_STORAGE_BACKEND": "local",
-            "STORAGE_ROOT": str(root / "storage"),
             "WORK_ROOT": str(root / "work"),
+            "S3_ENDPOINT_URL": "http://127.0.0.1:1",
+            "S3_BUCKET": "contract",
+            "S3_ACCESS_KEY_ID": "contract",
+            "S3_SECRET_ACCESS_KEY": "contract-secret",
             "NOTEVERSE_CELERY_IMPORT_TASKS": "true" if role == "worker" else "false",
             "HF_HUB_OFFLINE": "1",
             "TRANSFORMERS_OFFLINE": "1",
             "PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK": "True",
         }
         if role == "api":
-            env.update({
-                "CONTROL_PLANE_AUTH_COOKIE_NAME": "contract_control",
-                "CONTROL_PLANE_CSRF_COOKIE_NAME": "contract_control_csrf",
-                "CONTROL_PLANE_CSRF_HEADER_NAME": "x-contract-control-csrf",
-                "CONTROL_PLANE_COOKIE_SECURE": "false",
-                "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
-                "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",
-                "CONTROL_PLANE_CORS_ORIGINS": '["http://localhost:3001"]',
-            })
+            env.update(
+                {
+                    "CONTROL_PLANE_COOKIE_SECURE": "false",
+                    "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
+                    "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",
+                    "CONTROL_PLANE_CORS_ORIGINS": '["http://localhost:3001"]',
+                }
+            )
         if role == "worker":
             # Required setting, intentionally not an existing asset/readiness check.
             env["PLAYBACK_SOUNDFONT_PATH"] = str(root / "not-required.sf2")
@@ -94,7 +90,6 @@ def check_migration_packaging() -> None:
     from alembic.script import ScriptDirectory
 
     require_import("alembic.command", "upgrade")
-    require_import("scripts.repair_unpublished_practice_migration_state", "main")
     config = Config(str(BACKEND_ROOT / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND_ROOT / "alembic"))
     scripts = ScriptDirectory.from_config(config)
@@ -124,7 +119,7 @@ def run_contract(role: str) -> list[str]:
         check_migration_packaging()
         evidence.append("migration command/revision imports passed (no database execution)")
     elif role == "beat":
-        require_import("app.worker.celery_config", "celery_app")
+        require_import("app.task_queue.config", "celery_app")
         require_import("app.modules.scheduler_lock.beat_leader", "BeatLeader")
         require_import("app.modules.scheduler_lock.connection", "open_scheduler_lock_connection")
         require_import("psycopg", "connect")
@@ -146,7 +141,9 @@ def run_contract(role: str) -> list[str]:
         evidence.append(tasks.message)
         require_import("verovio", "toolkit")
         check_worker_dependency_imports()
-        evidence.append("Verovio/OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized")
+        evidence.append(
+            "Verovio/OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized"
+        )
     return evidence
 
 

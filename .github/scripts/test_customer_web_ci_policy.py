@@ -3,6 +3,7 @@
 from copy import deepcopy
 import io
 import json
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -486,6 +487,88 @@ class GitRangeTests(unittest.TestCase):
                                self.repo.as_uri(), str(clone)])
         paths = self.changed("pull_request", {"pull_request": {"base": {"sha": base}, "head": {"sha": head}}}, head, clone)
         self.assertEqual(set(paths), {"apps/customer-web/src/feature.tsx", "apps/customer-web/src/feature.test.tsx"})
+
+
+class CustomerBrowserProtocolWorkflowTests(unittest.TestCase):
+    def test_quality_workflows_select_both_browser_protocol_sources(self):
+        root = Path(__file__).resolve().parents[2]
+        paths = ['contracts/http/customer-browser-protocol.json', 'scripts/generate_customer_browser_protocol.py']
+        for name in ['backend-quality.yml', 'customer-web-quality.yml']:
+            text = (root / '.github/workflows' / name).read_text(encoding='utf-8')
+            triggers = text.split('jobs:', 1)[0]
+            for event in ['push', 'pull_request']:
+                block = re.search(r'^  ' + event + r':\n(.*?)(?=^  [a-z_]+:|^\S|\Z)', triggers, re.M | re.S)
+                self.assertIsNotNone(block)
+                for path in paths:
+                    self.assertIn('      - "' + path + '"', block.group(1))
+        customer = (root / '.github/workflows/customer-web-quality.yml').read_text(encoding='utf-8')
+        block = next(part for part in customer.split('      - name: ') if 'run: python3 scripts/generate_customer_browser_protocol.py --check' in part)
+        self.assertIn('working-directory: .', block)
+        self.assertNotIn('        if:', block)
+        self.assertLess(customer.index(block), customer.index('      - name: Verify reusable PR Quality proof'))
+        backend = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
+        self.assertIn('python scripts/generate_customer_browser_protocol.py --check', backend)
+
+
+class RecordingMediaWorkflowTests(unittest.TestCase):
+    def test_both_quality_workflows_select_admission_and_generator_changes(self):
+        root = Path(__file__).resolve().parents[2]
+        for name in ['backend-quality.yml', 'customer-web-quality.yml']:
+            text = (root / '.github/workflows' / name).read_text(encoding='utf-8')
+            triggers = text.split('jobs:', 1)[0]
+            for event in ['push', 'pull_request']:
+                block = re.search(r'^  ' + event + r':\n(.*?)(?=^  [a-z_]+:|^\S|\Z)', triggers, re.M | re.S)
+                self.assertIsNotNone(block)
+                for path in ['contracts/practice/recording-media-admission.json', 'scripts/generate_practice_recording_media_admission.py', 'contracts/practice/recording-timebase.schema.json', 'scripts/generate_practice_recording_timebase.py']:
+                    self.assertIn('      - "' + path + '"', block.group(1))
+
+    def test_customer_recording_checks_run_from_root_before_quality_reuse_and_types(self):
+        root = Path(__file__).resolve().parents[2]
+        text = (root / '.github/workflows/customer-web-quality.yml').read_text(encoding='utf-8')
+        for script in ['generate_practice_recording_media_admission.py', 'generate_practice_recording_timebase.py']:
+            block = next(part for part in text.split('      - name: ') if 'run: python3 scripts/' + script + ' --check' in part)
+            self.assertIn('working-directory: .', block)
+            self.assertNotIn('        if:', block)
+            self.assertLess(text.index(block), text.index('      - name: Verify reusable PR Quality proof'))
+            self.assertLess(text.index(block), text.index('      - name: Run TypeScript checks'))
+
+    def test_backend_checks_recording_contracts_with_practice_projections_from_root(self):
+        root = Path(__file__).resolve().parents[2]
+        text = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
+        for script in ['generate_practice_recording_media_admission.py', 'generate_practice_recording_timebase.py']:
+            block = next(part for part in text.split('      - name: ') if 'python scripts/' + script + ' --check' in part)
+            self.assertIn('cd /repo &&', block)
+            self.assertIn('python scripts/generate_practice_score_contract.py --check', block)
+
+
+class AcousticOwnershipWorkflowTests(unittest.TestCase):
+    def test_both_workflows_select_runtime_and_repository_evidence_changes(self):
+        root = Path(__file__).resolve().parents[2]
+        paths = [
+            'contracts/practice/acoustic/runtime-contract.json',
+            'scripts/generate_practice_acoustic_runtime.py',
+            'scripts/verify_practice_acoustic_implementation.py',
+            'apps/customer-web/tests/attestations/practice-acoustic/**',
+        ]
+        for name in ['backend-quality.yml', 'customer-web-quality.yml']:
+            triggers = (root / '.github/workflows' / name).read_text(encoding='utf-8').split('jobs:', 1)[0]
+            for event in ['push', 'pull_request']:
+                block = re.search(r'^  ' + event + r':\n(.*?)(?=^  [a-z_]+:|^\S|\Z)', triggers, re.M | re.S)
+                self.assertIsNotNone(block)
+                for path in paths:
+                    self.assertIn('      - "' + path + '"', block.group(1))
+
+    def test_runtime_projection_and_implementation_verification_are_separate_root_checks(self):
+        root = Path(__file__).resolve().parents[2]
+        customer = (root / '.github/workflows/customer-web-quality.yml').read_text(encoding='utf-8')
+        backend = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
+        for command in ['generate_practice_acoustic_runtime.py --check', 'verify_practice_acoustic_implementation.py']:
+            block = next(part for part in customer.split('      - name: ') if 'run: python3 scripts/' + command in part)
+            self.assertIn('working-directory: .', block)
+            self.assertNotIn('        if:', block)
+            self.assertLess(customer.index(block), customer.index('      - name: Verify reusable PR Quality proof'))
+            block = next(part for part in backend.split('      - name: ') if 'python scripts/' + command in part)
+            self.assertIn('cd /repo &&', block)
 
 
 if __name__ == "__main__":

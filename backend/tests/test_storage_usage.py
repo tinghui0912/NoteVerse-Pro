@@ -1,50 +1,65 @@
 from __future__ import annotations
+from tests.support.uploads import complete_image_upload
+from tests.support.uploads import settled_upload_session
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+from uuid import uuid4
+from app.composition.storage_resources import storage_quota_service
+from tests.support.quota import admit_hold
+from tests.support.quota import allocate_hold
+
+
+from app.modules.import_jobs.requested_options import encode_requested_options
+from tests.support.images import image_bytes
 
 import hashlib
-import os
 from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import event, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
 
 from app.api.deps import get_current_user, get_db
 from app.main import app
-from app.core.exceptions import ResourceNotFoundException, ValidationException
+from app.core.exceptions import AppException, ValidationException
 from app.db.models import (
     ImportArtifact,
     ImportJob,
+    ImportDispatch,
     ImportJobUpload,
     Score,
     ScoreRevision,
     ScoreRevisionSource,
-    StorageBlob,
-    StorageQuotaPolicy,
+    StoredObject,
+    StoragePlanPolicy,
     StorageUsageAccount,
-    StorageUsageCategory,
     StorageUsageCounter,
     StorageUsageEvent,
-    StorageUsageReservation,
+    StorageQuotaHold,
     Upload,
     User,
 )
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat, ScoreDeletionStatus
-from app.modules.files.service import FilesService
-from app.modules.files.dependencies import get_files_service
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.uploads.service import UploadService
+from app.api.resource_dependencies import get_upload_service
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.revisions.service import RevisionService
-from app.modules.scores.lifecycle_service import ScoreLifecycleService
+from app.modules.scores.deletion_executor import ScoreDeletionExecutor
+from tests.support.score_deletion import complete_score_deletions
 from app.modules.scores.service import ScoreService
-from app.modules.storage_usage.service import storage_usage_service
-from app.shared.constants import ErrorCode
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import LocalFileStorage
-from app.utils.timezone import utc_now_naive
+from app.composition.storage_resources import storage_usage_service
+from tests.support.storage_state import provision_storage_users
+from app.shared.error_codes import CustomerErrorCode
+from app.modules.import_jobs.domain import ImportArtifactKind
+from tests.support.object_storage import InMemoryObjectStorage
+from app.shared.time import utc_now
 
 
 MUSICXML_BASE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -75,52 +90,14 @@ MUSICXML_BASE = """<?xml version="1.0" encoding="UTF-8"?>
 MUSICXML_CHANGED = MUSICXML_BASE.replace("<step>C</step>", "<step>D</step>")
 
 
-class AsyncSessionAdapter:
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    async def execute(self, statement, params=None, *args, **kwargs):  # type: ignore[no-untyped-def]
-        return self.session.execute(statement, params=params, *args, **kwargs)
-
-    async def commit(self) -> None:
-        self.session.commit()
-
-    async def rollback(self) -> None:
-        self.session.rollback()
-
-    async def flush(self) -> None:
-        self.session.flush()
-
-    async def refresh(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.refresh(instance)
-
-    async def get(self, model, identity):  # type: ignore[no-untyped-def]
-        return self.session.get(model, identity)
-
-    async def delete(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.delete(instance)
-
-    def add(self, instance) -> None:  # type: ignore[no-untyped-def]
-        self.session.add(instance)
-
-
 @pytest.fixture
-def storage_usage_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]]:
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
-        del connection_record
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def storage_usage_session(
+    postgres_engine, tmp_path
+) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
-    storage = LocalFileStorage(storage_root=str(tmp_path / "storage"))
+    storage = InMemoryObjectStorage()
     with Session(engine) as session:
         session.add(
             User(
@@ -131,35 +108,32 @@ def storage_usage_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
             )
         )
         session.add(
-            StorageQuotaPolicy(
+            StoragePlanPolicy(
                 plan_code="FREE",
-                quota_limit_bytes=1000,
-                created_at=utc_now_naive(),
-                updated_at=utc_now_naive(),
+                default_limit_bytes=1000,
+                created_at=utc_now(),
+                updated_at=utc_now(),
             )
         )
+        session.flush()
+        provision_storage_users(session)
         session.commit()
         yield session, storage
 
 
 def _set_quota(session: Session, limit_bytes: int) -> None:
     policy = session.execute(
-        select(StorageQuotaPolicy).where(StorageQuotaPolicy.plan_code == "FREE")
+        select(StoragePlanPolicy).where(StoragePlanPolicy.plan_code == "FREE")
     ).scalar_one()
-    policy.quota_limit_bytes = limit_bytes
-    policy.updated_at = utc_now_naive()
+    policy.default_limit_bytes = limit_bytes
+    policy.updated_at = utc_now()
     session.add(policy)
-    account = session.get(StorageUsageAccount, 1)
-    if account is not None:
-        account.quota_limit_bytes = limit_bytes
-        account.updated_at = utc_now_naive()
-        session.add(account)
     session.commit()
 
 
 def _seed_score_with_source(
     session: Session,
-    storage: LocalFileStorage,
+    storage: InMemoryObjectStorage,
     *,
     owner_user_id: int = 1,
     content: str = MUSICXML_BASE,
@@ -169,10 +143,10 @@ def _seed_score_with_source(
     score = Score(
         score_uuid="score-storage-test",
         owner_user_id=owner_user_id,
-        title="Storage Test",
-        version=1,
-        created_at=utc_now_naive(),
-        updated_at=utc_now_naive(),
+        display_title="Storage Test",
+        metadata_version=1,
+        created_at=utc_now(),
+        updated_at=utc_now(),
     )
     session.add(score)
     session.flush()
@@ -185,7 +159,7 @@ def _seed_score_with_source(
         content_hash=content_hash,
         origin=RevisionOrigin.OMR,
         created_by_user_id=owner_user_id,
-        created_at=utc_now_naive(),
+        created_at=utc_now(),
     )
     session.add(revision)
     session.flush()
@@ -200,15 +174,16 @@ def _seed_score_with_source(
         source_uuid="source-storage-test-1",
         revision_id=revision_id,
         format=RevisionSourceFormat.MUSICXML,
-        storage_backend=storage.backend_name,
-        storage_key=stored.storage_key,
-        filename=stored.filename,
-        mime_type="application/vnd.recordare.musicxml+xml",
-        size_bytes=stored.size_bytes,
-        sha256=content_hash,
+        stored_object=StoredObject(
+            object_key=stored.object_key,
+            content_type="application/vnd.recordare.musicxml+xml",
+            byte_size=stored.size_bytes,
+            sha256=content_hash,
+        ),
+        filename=stored.object_key.rsplit("/", 1)[-1],
         generator="test",
         generator_version="1",
-        created_at=utc_now_naive(),
+        created_at=utc_now(),
     )
     session.add(source)
     score.head_revision_id = revision_id
@@ -222,31 +197,28 @@ def _count(session: Session, model: type) -> int:
 
 
 def test_storage_usage_reservation_blocks_when_quota_would_be_exceeded(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = storage_usage_session
     _set_quota(session, 8)
 
     with pytest.raises(ValidationException) as exc_info:
-        storage_usage_service.reserve_sync(
+        admit_hold(
             session,
             user_id=1,
             category=StorageUsageCategory.UPLOAD,
             bytes_count=9,
-            reason="test_upload",
         )
 
-    assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
-    assert _count(session, StorageUsageReservation) == 0
+    assert _count(session, StorageQuotaHold) == 0
 
 
-def test_storage_usage_requires_seeded_default_policy() -> None:
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+def test_reservation_requires_provisioned_storage_authorities(
+    postgres_engine,
+) -> None:
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         session.add(
@@ -259,24 +231,23 @@ def test_storage_usage_requires_seeded_default_policy() -> None:
         )
         session.commit()
 
-        with pytest.raises(ResourceNotFoundException) as exc_info:
-            storage_usage_service.reserve_sync(
+        with pytest.raises(AppException) as exc_info:
+            admit_hold(
                 session,
                 user_id=1,
                 category=StorageUsageCategory.UPLOAD,
                 bytes_count=1,
-                reason="test_upload",
             )
 
-    assert exc_info.value.code == ErrorCode.QUOTA_CHECK_UNAVAILABLE
+    assert exc_info.value.code == CustomerErrorCode.QUOTA_CHECK_UNAVAILABLE
 
 
 def test_storage_usage_api_returns_quota_and_breakdown(
     client: TestClient,
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = storage_usage_session
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
@@ -286,7 +257,7 @@ def test_storage_usage_api_returns_quota_and_breakdown(
         object_id="source-api",
         storage_key="scores/api/source.musicxml",
     )
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.DERIVED_RENDER,
@@ -296,13 +267,14 @@ def test_storage_usage_api_returns_quota_and_breakdown(
         object_id="render-api",
         storage_key="scores/api/render.svg",
     )
+    session.commit()
     user = session.get(User, 1)
     assert user is not None
 
-    async def override_get_db():
-        yield AsyncSessionAdapter(session)
+    def override_get_db():
+        yield session
 
-    async def override_current_user():
+    def override_current_user():
         return user
 
     app.dependency_overrides[get_db] = override_get_db
@@ -315,17 +287,13 @@ def test_storage_usage_api_returns_quota_and_breakdown(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["quota"] == {
+    assert payload["quota"] == {
         "used_bytes": 120,
         "reserved_bytes": 0,
         "limit_bytes": 1000,
         "available_bytes": 880,
     }
-    breakdown = {
-        item["category"]: item
-        for item in payload["data"]["breakdown"]
-    }
+    breakdown = {item["category"]: item for item in payload["breakdown"]}
     assert breakdown["SOURCE"]["used_bytes"] == 120
     assert breakdown["SOURCE"]["counts_toward_quota"] is True
     assert breakdown["DERIVED_RENDER"]["used_bytes"] == 30
@@ -333,25 +301,24 @@ def test_storage_usage_api_returns_quota_and_breakdown(
 
 
 def test_storage_usage_commit_and_release_updates_account_and_counter(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = storage_usage_session
 
-    handle = storage_usage_service.reserve_sync(
+    handle = admit_hold(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
         bytes_count=40,
-        reason="revision_create",
     )
     account = session.get(StorageUsageAccount, 1)
     assert account is not None
     assert account.used_bytes == 0
-    assert account.reserved_bytes == 40
+    assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 40
 
-    storage_usage_service.commit_reservation_sync(
+    allocate_hold(
         session,
-        handle.reservation_id,
+        handle.hold_id,
         object_type="score_revision_source",
         object_id="source-1",
         storage_key="scores/1/revisions/1/score.musicxml",
@@ -364,11 +331,13 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
         )
     ).scalar_one()
     assert account.used_bytes == 40
-    assert account.reserved_bytes == 0
+    assert storage_quota_service.snapshot_user(session, 1).reserved_bytes == 0
     assert counter.used_bytes == 40
-    assert counter.reserved_bytes == 0
+    assert (
+        storage_quota_service.snapshot_user(session, 1).categories[StorageUsageCategory.UPLOAD] == 0
+    )
 
-    storage_usage_service.record_release_sync(
+    storage_usage_service.record_release(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
@@ -388,40 +357,42 @@ def test_storage_usage_commit_and_release_updates_account_and_counter(
     assert event.delta_bytes == -15
 
 
-@pytest.mark.asyncio
-async def test_file_upload_quota_exceeded_does_not_store_file(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+def test_upload_quota_exceeded_does_not_store_file(
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
     tmp_path,
 ) -> None:
     session, storage = storage_usage_session
     _set_quota(session, 3)
-    service = FilesService(storage=storage)
-    db = AsyncSessionAdapter(session)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        uploads=_resource_wiring.build_upload_session_service(storage),
+    )
+    db = session
     user = session.get(User, 1)
     assert user is not None
 
     upload = type(
-            "TestUpload",
-            (),
-            {
-                "filename": "too-large.png",
-                "content_type": "image/png",
-                "read": lambda self: _async_bytes(b"123456789"),
-            },
-        )()
+        "TestUpload",
+        (),
+        {
+            "filename": "too-large.png",
+            "content_type": "image/png",
+            "file": __import__("io").BytesIO(image_bytes()),
+        },
+    )()
     with pytest.raises(ValidationException) as exc_info:
-        await service.upload_file(db, user, upload)  # type: ignore[arg-type]
+        complete_image_upload(service, db, user, upload, client_request_id=uuid4().hex)  # type: ignore[arg-type]
 
-    assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
     assert _count(session, Upload) == 0
-    storage_root = tmp_path / "storage"
-    assert not storage_root.exists() or not any(storage_root.rglob("*"))
+    assert not storage.objects
 
 
-def test_file_upload_api_returns_storage_quota_error_without_storing_file(
+def test_upload_api_returns_storage_quota_error_without_storing_file(
     client: TestClient,
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
     tmp_path,
 ) -> None:
     session, storage = storage_usage_session
@@ -429,137 +400,158 @@ def test_file_upload_api_returns_storage_quota_error_without_storing_file(
     user = session.get(User, 1)
     assert user is not None
 
-    async def override_get_db():
-        yield AsyncSessionAdapter(session)
+    def override_get_db():
+        yield session
 
-    async def override_current_user():
+    def override_current_user():
         return user
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_current_user
-    app.dependency_overrides[get_files_service] = lambda: FilesService(storage=storage)
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        uploads=_resource_wiring.build_upload_session_service(storage),
+    )
     try:
         response = client.post(
-            "/api/v1/files/upload",
-            files={"file": ("too-large.png", b"123456789", "image/png")},
+            "/api/v1/uploads",
+            json={
+                "client_request_id": uuid4().hex,
+                "filename": "too-large.png",
+                "byte_size": len(image_bytes()),
+                "content_type": "image/png",
+            },
         )
     finally:
-        app.dependency_overrides.pop(get_files_service, None)
+        app.dependency_overrides.pop(get_upload_service, None)
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 422
     payload = response.json()
-    assert payload["success"] is False
-    assert payload["public_code"] == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert payload["code"] == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     assert "internal_details" not in payload
     session.rollback()
     assert _count(session, Upload) == 0
-    storage_root = tmp_path / "storage"
-    assert not storage_root.exists() or not any(storage_root.rglob("*"))
+    assert not storage.objects
 
 
-def test_file_upload_api_hides_storage_key(
+def test_upload_api_hides_storage_key(
     client: TestClient,
-    storage_usage_session: tuple[Session, LocalFileStorage],
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     _set_quota(session, 1024)
     user = session.get(User, 1)
     assert user is not None
 
-    async def override_get_db():
-        yield AsyncSessionAdapter(session)
+    def override_get_db():
+        yield session
 
-    async def override_current_user():
+    def override_current_user():
         return user
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_current_user
-    app.dependency_overrides[get_files_service] = lambda: FilesService(storage=storage)
+    app.dependency_overrides[get_upload_service] = lambda: UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        uploads=_resource_wiring.build_upload_session_service(storage),
+    )
     try:
         response = client.post(
-            "/api/v1/files/upload",
-            files={"file": ("score.png", b"image-bytes", "image/png")},
+            "/api/v1/uploads",
+            json={
+                "client_request_id": uuid4().hex,
+                "filename": "score.png",
+                "byte_size": len(image_bytes()),
+                "content_type": "image/png",
+            },
         )
     finally:
-        app.dependency_overrides.pop(get_files_service, None)
+        app.dependency_overrides.pop(get_upload_service, None)
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides.pop(get_db, None)
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is True
-    assert payload["data"]["file_id"]
-    assert payload["data"]["filename"] == "score.png"
-    assert payload["data"]["size"] == len(b"image-bytes")
-    assert "storage_key" not in payload["data"]
+    assert set(payload) == {"client_request_id", "upload_session", "upload"}
+    assert payload["upload"] is None
+    assert payload["upload_session"]["expected_byte_size"] == len(image_bytes())
+    assert "object_key" not in payload["upload_session"]
+    assert "storage_key" not in payload
 
 
-async def _async_bytes(content: bytes) -> bytes:
+def _async_bytes(content: bytes) -> bytes:
     return content
 
 
-@pytest.mark.asyncio
-async def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     _seed_score_with_source(session, storage)
     _set_quota(session, 1)
-    service = RevisionService(storage=storage)
-    db = AsyncSessionAdapter(session)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
+    db = session
 
     base = session.execute(select(ScoreRevision)).scalar_one()
     with pytest.raises(ValidationException) as exc_info:
-        await service.create(
+        service.create(
             db,
             "score-storage-test",
             1,
             RevisionCreateRequest(
-                base_revision_id=base.revision_uuid,
+                expected_head_revision_id=base.revision_uuid,
                 content=MUSICXML_CHANGED,
                 origin=RevisionOrigin.EDIT,
             ),
         )
 
-    assert exc_info.value.code == ErrorCode.STORAGE_QUOTA_EXCEEDED
+    assert exc_info.value.code == CustomerErrorCode.STORAGE_QUOTA_EXCEEDED
     session.rollback()
     assert _count(session, ScoreRevision) == 1
     assert _count(session, ScoreRevisionSource) == 1
-    assert _count(session, StorageUsageReservation) == 0
+    assert _count(session, StorageQuotaHold) == 0
 
 
-@pytest.mark.asyncio
-async def test_score_delete_releases_source_usage_and_storage_object(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+def test_score_delete_releases_source_usage_and_storage_object(
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     score, _revision, source = _seed_score_with_source(session, storage)
     assert score.score_uuid is not None
-    assert source.size_bytes is not None
-    source_storage_key = source.storage_key
-    storage_usage_service.record_allocation_sync(
+    assert source.stored_object.byte_size is not None
+    source_storage_key = source.stored_object.object_key
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
-        bytes_count=source.size_bytes,
+        bytes_count=source.stored_object.byte_size,
         reason="seed_source",
         object_type="score_revision_source",
         object_id=source.source_uuid,
         storage_key=source_storage_key,
     )
+    session.commit()
     assert storage.exists(source_storage_key)
 
-    service = ScoreService(storage=storage)
-    await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+    service = ScoreService(
+        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
+    service.delete(session, score.score_uuid, 1)
 
     marked_score = session.get(Score, score.id)
     assert marked_score is not None
-    assert marked_score.deletion_status == ScoreDeletionStatus.DELETING
     assert marked_score.deleted_at is not None
 
-    result = service.lifecycle_service.cleanup_deleting_scores(session)
+    result = complete_score_deletions(session)
     assert result.scores_deleted == 1
 
     account = session.get(StorageUsageAccount, 1)
@@ -572,52 +564,62 @@ async def test_score_delete_releases_source_usage_and_storage_object(
     assert account is not None
     assert account.used_bytes == 0
     assert counter.used_bytes == 0
+    assert storage.exists(source_storage_key)
+    from tests.support.retirement import drain_retirements
+
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
     assert not storage.exists(source_storage_key)
 
 
-def test_score_deletion_cleanup_records_retry_state_on_failure(
-    storage_usage_session: tuple[Session, LocalFileStorage],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_score_deletion_execution_records_delivery_retry_on_failure(
+    storage_usage_session, monkeypatch
+):
+    from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus
+    from app.worker.execution.score_deletion import execute_score_deletion_task
+    from contextlib import contextmanager
+
     session, storage = storage_usage_session
-    score, _revision, _source = _seed_score_with_source(session, storage)
-    assert score.id is not None
-    now = utc_now_naive()
-    score.deletion_status = ScoreDeletionStatus.DELETING
-    score.deletion_requested_at = now
-    score.deleted_at = now
-    session.add(score)
+    score, _, _ = _seed_score_with_source(session, storage)
+    score.deleted_at = utc_now()
+    operation = ScoreDeletionOperation(
+        score_id=score.id, score_uuid=score.score_uuid, owner_user_id=1
+    )
+    session.add(operation)
     session.commit()
 
-    lifecycle = ScoreLifecycleService(storage=storage)
+    @contextmanager
+    def worker_db():
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
 
-    def fail_cleanup(db: Session, cleanup_score: Score) -> object:
-        _ = db, cleanup_score
-        raise RuntimeError("object storage temporarily unavailable")
-
-    monkeypatch.setattr(lifecycle, "cleanup_deleting_score", fail_cleanup)
-
-    result = lifecycle.cleanup_deleting_scores(session)
-
-    assert result.scores_deleted == 0
-    stored = session.get(Score, score.id)
-    assert stored is not None
-    assert stored.deletion_status == ScoreDeletionStatus.DELETING
-    assert stored.cleanup_attempt_count == 1
-    assert stored.next_cleanup_at is not None
-    assert stored.next_cleanup_at > now
-    assert stored.deletion_error == "object storage temporarily unavailable"
+    monkeypatch.setattr("app.worker.execution.score_deletion.SessionLocal", worker_db)
+    monkeypatch.setattr(
+        ScoreDeletionExecutor,
+        "execute",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("object storage temporarily unavailable")),
+    )
+    result = execute_score_deletion_task(None, operation.operation_uuid)
+    assert result["status"] == "failed"
+    session.refresh(operation)
+    assert score.deleted_at is not None
+    assert operation.status == ScoreDeletionOperationStatus.FAILED
+    assert operation.attempt_count == 1
+    assert operation.next_attempt_at > operation.started_at
+    assert operation.failure_detail == "object storage temporarily unavailable"
 
 
-@pytest.mark.asyncio
-async def test_score_delete_cleans_single_origin_import_job_storage(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+def test_score_delete_keeps_confirmed_history_after_import_binary_release(
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     score, _revision, source = _seed_score_with_source(session, storage)
     assert score.id is not None
     assert score.score_uuid is not None
-    assert source.size_bytes is not None
+    assert source.stored_object.byte_size is not None
     job_uuid = "score-delete-origin-job"
     upload = storage.put_bytes(
         key="uploads/origin-upload.png",
@@ -630,70 +632,76 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         content_type="application/vnd.recordare.musicxml+xml",
     )
     job = ImportJob(
+        requested_options=encode_requested_options(None),
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
+        confirmed_at=utc_now(),
         id=1201,
         job_uuid=job_uuid,
         user_id=1,
         state=ImportJobState.CONFIRMED,
         progress=100,
-        score_id=score.id,
     )
-    session.add_all([
-        job,
-        StorageBlob(
-            id=1302,
-            blob_uuid="origin-upload-blob",
-            sha256="origin-upload-sha",
-            storage_backend=storage.backend_name,
-            storage_key=upload.storage_key,
-            filename=upload.filename,
-            size_bytes=upload.size_bytes,
-            mime_type="image/png",
-        ),
-        Upload(
-            id=1202,
-            blob_id=1302,
-            original_filename="origin.png",
-            uploader_user_id=1,
-        ),
-    ])
+    session.add_all(
+        [
+            job,
+            StoredObject(
+                id=1302,
+                sha256="9d65812087c4c1d2c9fa7d298b12c5224c0a29ed5b752296874c2b1bf6711f9d",
+                object_key=upload.object_key,
+                byte_size=upload.size_bytes,
+                content_type="image/png",
+            ),
+            Upload(
+                upload_session=settled_upload_session(user_id=1),
+                id=1202,
+                stored_object_id=1302,
+                original_filename="origin.png",
+                uploader_user_id=1,
+            ),
+        ]
+    )
     session.commit()
-    score.originating_job_id = 1201
+    session.add(ImportDispatch(job_id=1201))
+    score.created_from_import_job_id = 1201
     session.add(score)
     session.add(ImportJobUpload(job_id=1201, upload_id=1202, page_number=1, sort_order=1))
     session.add(
         ImportArtifact(
             artifact_uuid="origin-review-source",
             job_id=1201,
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend=storage.backend_name,
-            storage_key=review_source.storage_key,
-            filename=review_source.filename,
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=review_source.size_bytes,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
+            stored_object=StoredObject(
+                object_key=review_source.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=review_source.size_bytes,
+                sha256=hashlib.sha256(storage.read_bytes(review_source.object_key)).hexdigest(),
+            ),
+            filename=review_source.object_key.rsplit("/", 1)[-1],
         )
     )
     session.commit()
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.SOURCE,
-        bytes_count=source.size_bytes,
+        bytes_count=source.stored_object.byte_size,
         reason="seed_source",
         object_type="score_revision_source",
         object_id=source.source_uuid,
-        storage_key=source.storage_key,
+        storage_key=source.stored_object.object_key,
     )
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.UPLOAD,
         bytes_count=upload.size_bytes,
         reason="seed_upload",
         object_type="upload",
-        object_id="origin-upload-sha",
-        storage_key=upload.storage_key,
+        object_id="9d65812087c4c1d2c9fa7d298b12c5224c0a29ed5b752296874c2b1bf6711f9d",
+        storage_key=upload.object_key,
     )
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.TEMP_IMPORT,
@@ -701,25 +709,43 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
         reason="seed_import_artifact",
         object_type="import_artifact",
         object_id="origin-review-source",
-        storage_key=review_source.storage_key,
+        storage_key=review_source.object_key,
     )
-    source_storage_key = source.storage_key
-    upload_storage_key = upload.storage_key
-    review_source_storage_key = review_source.storage_key
+    session.commit()
+    source_storage_key = source.stored_object.object_key
+    upload_storage_key = upload.object_key
+    review_source_storage_key = review_source.object_key
 
-    service = ScoreService(storage=storage)
-    await service.delete(AsyncSessionAdapter(session), score.score_uuid, 1)
+    from app.modules.import_jobs.deletion_service import ImportJobDeletionService
+
+    confirmed_at = job.confirmed_at
+    ImportJobDeletionService(usage=_resource_wiring.storage_usage_service).cleanup_binary_artifacts(
+        session, job, 1
+    )
+    session.commit()
+    service = ScoreService(
+        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    )
+    service.delete(session, score.score_uuid, 1)
 
     marked_score = session.get(Score, score.id)
     assert marked_score is not None
-    assert marked_score.deletion_status == ScoreDeletionStatus.DELETING
+    assert marked_score.deleted_at is not None
 
-    result = service.lifecycle_service.cleanup_deleting_scores(session)
+    result = complete_score_deletions(session)
     assert result.scores_deleted == 1
 
     assert session.get(Score, score.id) is None
-    assert session.get(ImportJob, 1201) is None
+    retained = session.get(ImportJob, 1201)
+    assert retained.state is ImportJobState.CONFIRMED
+    assert retained.confirmed_at == confirmed_at
+    assert session.scalar(select(ImportDispatch).where(ImportDispatch.job_id == 1201)) is not None
     assert session.get(Upload, 1202) is None
+    assert storage.exists(source_storage_key)
+    from tests.support.retirement import drain_retirements
+
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
     assert not storage.exists(source_storage_key)
     assert not storage.exists(upload_storage_key)
     assert not storage.exists(review_source_storage_key)
@@ -728,9 +754,8 @@ async def test_score_delete_cleans_single_origin_import_job_storage(
     assert account.used_bytes == 0
 
 
-@pytest.mark.asyncio
-async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     job_uuid = "job-delete-owned-storage"
@@ -744,92 +769,88 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
         content=b"<score-partwise />",
         content_type="application/vnd.recordare.musicxml+xml",
     )
-    thumbnail = storage.put_bytes(
-        key=f"jobs/{job_uuid}/review_preview_image/page-1.png",
-        content=b"thumbnail",
-        content_type="image/png",
-    )
     job = ImportJob(
+        requested_options=encode_requested_options(None),
+        processing_started_at=utc_now(),
+        processing_finished_at=utc_now(),
         id=1001,
         job_uuid=job_uuid,
         user_id=1,
-        state=ImportJobState.PENDING_REVIEW,
+        state=ImportJobState.READY_FOR_REVIEW,
         progress=100,
     )
-    session.add_all([
-        job,
-        StorageBlob(
-            id=1303,
-            blob_uuid="delete-owned-upload-blob",
-            sha256="delete-owned-upload-sha",
-            storage_backend=storage.backend_name,
-            storage_key=upload.storage_key,
-            filename=upload.filename,
-            size_bytes=upload.size_bytes,
-            mime_type="image/png",
-        ),
-        Upload(
-            id=1002,
-            blob_id=1303,
-            original_filename="upload.png",
-            uploader_user_id=1,
-        ),
-    ])
+    session.add_all(
+        [
+            job,
+            StoredObject(
+                id=1303,
+                sha256="a4117a1f0ff460c600674eeeeb14cf60f9f4ddc1c63b49a64d4f5b2ff873f7cb",
+                object_key=upload.object_key,
+                byte_size=upload.size_bytes,
+                content_type="image/png",
+            ),
+            Upload(
+                upload_session=settled_upload_session(user_id=1),
+                id=1002,
+                stored_object_id=1303,
+                original_filename="upload.png",
+                uploader_user_id=1,
+            ),
+        ]
+    )
     session.commit()
+    session.add(ImportDispatch(job_id=1001))
     session.add(ImportJobUpload(job_id=1001, upload_id=1002, page_number=1, sort_order=1))
     session.add(
         ImportArtifact(
             artifact_uuid="delete-owned-review-source",
             job_id=1001,
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend=storage.backend_name,
-            storage_key=review_source.storage_key,
-            filename=review_source.filename,
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=review_source.size_bytes,
-        )
-    )
-    session.add(
-        ImportArtifact(
-            artifact_uuid="delete-owned-thumbnail",
-            job_id=1001,
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-            storage_backend=storage.backend_name,
-            storage_key=thumbnail.storage_key,
-            filename=thumbnail.filename,
-            mime_type="image/png",
-            size_bytes=thumbnail.size_bytes,
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
+            stored_object=StoredObject(
+                object_key=review_source.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=review_source.size_bytes,
+                sha256=hashlib.sha256(storage.read_bytes(review_source.object_key)).hexdigest(),
+            ),
+            filename=review_source.object_key.rsplit("/", 1)[-1],
         )
     )
     session.commit()
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.UPLOAD,
         bytes_count=upload.size_bytes,
         reason="seed_upload",
         object_type="upload",
-        object_id="delete-owned-upload-sha",
-        storage_key=upload.storage_key,
+        object_id="a4117a1f0ff460c600674eeeeb14cf60f9f4ddc1c63b49a64d4f5b2ff873f7cb",
+        storage_key=upload.object_key,
     )
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.TEMP_IMPORT,
-        bytes_count=review_source.size_bytes + thumbnail.size_bytes,
+        bytes_count=review_source.size_bytes,
         reason="seed_import_artifact",
         object_type="import_artifact",
         object_id=job_uuid,
     )
+    session.commit()
 
-    await ImportJobService(storage=storage).delete(AsyncSessionAdapter(session), job_uuid, 1)
+    ImportJobService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    ).delete(session, job_uuid, 1)
 
     assert session.get(ImportJob, 1001) is None
     assert session.get(Upload, 1002) is None
-    assert not storage.exists(upload.storage_key)
-    assert not storage.exists(review_source.storage_key)
-    assert not storage.exists(thumbnail.storage_key)
-    assert not os.path.exists(storage.local_path(f"jobs/{job_uuid}"))
+    assert storage.exists(upload.object_key)
+    from tests.support.retirement import drain_retirements
+
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
+    assert not storage.exists(upload.object_key)
+    assert not storage.exists(review_source.object_key)
+    assert not any(key.startswith(f"jobs/{job_uuid}/") for key in storage.objects)
     account = session.get(StorageUsageAccount, 1)
     assert account is not None
     assert account.used_bytes == 0
@@ -843,9 +864,8 @@ async def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
     assert counters[StorageUsageCategory.TEMP_IMPORT] == 0
 
 
-@pytest.mark.asyncio
-async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
-    storage_usage_session: tuple[Session, LocalFileStorage],
+def test_import_job_delete_keeps_shared_upload_usage_and_storage(
+    storage_usage_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = storage_usage_session
     upload = storage.put_bytes(
@@ -856,32 +876,36 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     session.add_all(
         [
             ImportJob(
+                requested_options=encode_requested_options(None),
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
                 id=1101,
                 job_uuid="job-delete-shared-a",
                 user_id=1,
-                state=ImportJobState.PENDING_REVIEW,
+                state=ImportJobState.READY_FOR_REVIEW,
                 progress=100,
             ),
             ImportJob(
+                requested_options=encode_requested_options(None),
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
                 id=1102,
                 job_uuid="job-delete-shared-b",
                 user_id=1,
-                state=ImportJobState.PENDING_REVIEW,
+                state=ImportJobState.READY_FOR_REVIEW,
                 progress=100,
             ),
-            StorageBlob(
+            StoredObject(
                 id=1304,
-                blob_uuid="shared-upload-blob",
-                sha256="shared-upload-sha",
-                storage_backend=storage.backend_name,
-                storage_key=upload.storage_key,
-                filename=upload.filename,
-                size_bytes=upload.size_bytes,
-                mime_type="image/png",
+                sha256="e14d13d88ed945fc5a843770a4f2433ab825ce077d86770120166426391033a9",
+                object_key=upload.object_key,
+                byte_size=upload.size_bytes,
+                content_type="image/png",
             ),
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 id=1103,
-                blob_id=1304,
+                stored_object_id=1304,
                 original_filename="shared.png",
                 uploader_user_id=1,
             ),
@@ -890,24 +914,30 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     session.commit()
     session.add_all(
         [
+            ImportDispatch(job_id=1101),
+            ImportDispatch(job_id=1102),
             ImportJobUpload(job_id=1101, upload_id=1103, page_number=1, sort_order=1),
             ImportJobUpload(job_id=1102, upload_id=1103, page_number=1, sort_order=1),
         ]
     )
     session.commit()
-    storage_usage_service.record_allocation_sync(
+    storage_usage_service.record_allocation(
         session,
         user_id=1,
         category=StorageUsageCategory.UPLOAD,
         bytes_count=upload.size_bytes,
         reason="seed_upload",
         object_type="upload",
-        object_id="shared-upload-sha",
-        storage_key=upload.storage_key,
+        object_id="e14d13d88ed945fc5a843770a4f2433ab825ce077d86770120166426391033a9",
+        storage_key=upload.object_key,
     )
+    session.commit()
 
-    await ImportJobService(storage=storage).delete(
-        AsyncSessionAdapter(session),
+    ImportJobService(
+        usage=_resource_wiring.storage_usage_service,
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    ).delete(
+        session,
         "job-delete-shared-a",
         1,
     )
@@ -915,7 +945,86 @@ async def test_import_job_delete_keeps_shared_upload_usage_and_storage(
     assert session.get(ImportJob, 1101) is None
     assert session.get(ImportJob, 1102) is not None
     assert session.get(Upload, 1103) is not None
-    assert storage.exists(upload.storage_key)
+    assert storage.exists(upload.object_key)
     account = session.get(StorageUsageAccount, 1)
     assert account is not None
     assert account.used_bytes == upload.size_bytes
+
+
+def test_independent_upload_commands_release_only_their_own_objects(storage_usage_session):
+    from fastapi import UploadFile
+    from io import BytesIO
+    from tests.support.retirement import drain_retirements
+
+    db, storage = storage_usage_session
+    _set_quota(db, 1024)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        uploads=_resource_wiring.build_upload_session_service(storage),
+    )
+
+    def upload(name):
+        return complete_image_upload(
+            service,
+            db,
+            db.get(User, 1),
+            UploadFile(filename=name, file=BytesIO(image_bytes())),
+            client_request_id=uuid4().hex,
+        )
+
+    first, second = upload("first.png"), upload("second.png")
+    rows = list(db.scalars(select(Upload)))
+    assert len({row.stored_object_id for row in rows}) == 2
+    keys = {row.upload_uuid: row.stored_object.object_key for row in rows}
+    assert db.get(StorageUsageAccount, 1).used_bytes == 2 * len(image_bytes())
+    service.delete_upload(db, db.get(User, 1), first.upload_id)
+    db.commit()
+    assert drain_retirements(db, storage)[0]["status"] == "completed"
+    assert not storage.exists(keys[first.upload_id]) and storage.exists(keys[second.upload_id])
+    assert db.get(StorageUsageAccount, 1).used_bytes == len(image_bytes())
+    service.delete_upload(db, db.get(User, 1), second.upload_id)
+    db.commit()
+    assert drain_retirements(db, storage)[0]["status"] == "completed"
+    assert db.get(StorageUsageAccount, 1).used_bytes == 0
+
+
+def test_failed_semantic_adoption_retains_hold_until_cancellation(
+    storage_usage_session, monkeypatch
+):
+    from fastapi import UploadFile
+    from io import BytesIO
+    from app.db.models import ObjectWriteIntent, UploadCreationRequest, UploadSession
+    from tests.support.write_cleanup import drain_write_cleanup
+
+    db, storage = storage_usage_session
+    _set_quota(db, 1024)
+    service = UploadService(
+        quota=_resource_wiring.storage_quota_service,
+        usage=_resource_wiring.storage_usage_service,
+        uploads=_resource_wiring.build_upload_session_service(storage),
+    )
+
+    def reject(*args, **kwargs):
+        raise RuntimeError("database write failed")
+
+    monkeypatch.setattr(service.repository, "create_upload", reject)
+    with pytest.raises(RuntimeError, match="database write failed"):
+        complete_image_upload(
+            service,
+            db,
+            db.get(User, 1),
+            UploadFile(filename="input.png", file=BytesIO(image_bytes())),
+            client_request_id="failed",
+        )
+    assert db.scalar(select(Upload)) is None and db.scalar(select(StoredObject)) is None
+    intent = db.scalar(select(ObjectWriteIntent))
+    key = intent.object_key
+    assert intent.status == "WRITTEN" and storage.exists(key)
+    assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == len(image_bytes())
+    request = db.scalar(select(UploadCreationRequest))
+    service.cancel_request(db, 1, db.get(UploadSession, request.upload_session_id).session_uuid)
+    db.commit()
+    assert storage_quota_service.snapshot_user(db, 1).reserved_bytes == 0
+    assert drain_write_cleanup(db, storage)[0]["status"] == "cleaned"
+    assert not storage.exists(key) and db.get(StorageUsageAccount, 1).used_bytes == 0

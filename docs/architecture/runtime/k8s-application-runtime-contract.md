@@ -18,7 +18,7 @@ defined by contract, not by tribal knowledge.
 Purpose:
 
 - FastAPI HTTP API;
-- authentication, score, review, sharing, realtime SSE, ops endpoints, and
+- authentication, score, review, Guest Preview, realtime SSE, ops endpoints, and
   score fingering generation;
 - Prometheus metrics endpoint.
 
@@ -81,7 +81,7 @@ Runtime:
 
 Required runtime dependencies:
 
-- sync database connection;
+- application database connection;
 - Redis broker/result backend;
 - writable work root;
 - OMR engine files;
@@ -142,9 +142,7 @@ Runtime:
 
 Required environment variables:
 
-- `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites;
-- `AUTH_COOKIE_NAME`;
-- `REFRESH_COOKIE_NAME`.
+- `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites.
 
 Development-only environment variables:
 
@@ -152,7 +150,9 @@ Development-only environment variables:
 - polling variables such as `WATCHPACK_POLLING` and `CHOKIDAR_USEPOLLING`.
 
 Production frontend builds must fail fast when required runtime config is
-missing. Do not add fallback API origins, cookie names, or realtime URLs.
+missing. Customer API prefix and session/CSRF names come from the generated
+versioned browser protocol, not environment variables. OpenAPI route metadata
+owns browser-native realtime and media paths.
 
 Browser API and realtime calls use same-origin `/api/v1`. In production, the
 Gateway/HTTPRoute rules route the broader `/api/v1` prefix to the backend API.
@@ -164,11 +164,25 @@ into the browser bundle.
 
 ### Kubernetes Secrets
 
+Backend application database access is configured by one PostgreSQL psycopg
+`DATABASE_URL` (`postgresql+psycopg://...`). Domain, application, repository, API,
+Control Plane, worker and maintenance persistence use the synchronous engine and
+SessionLocal factory in `app.db.session`. Alembic uses synchronous PostgreSQL
+execution with the same configuration. The `database` runtime check validates
+this application database authority for each role.
+
+FastAPI executes ordinary database-backed path operations in worker threads.
+Function-scoped database dependencies close the request Session before response
+body streaming begins.
+Realtime SSE remains asynchronous for LISTEN, wake-ups and connection lifetime;
+catch-up batches run off the event loop in their own short-lived synchronous Sessions.
+`SCHEDULER_LOCK_DATABASE_URL` configures the Beat advisory-lock session and retains
+its direct PostgreSQL or session-pooling policy.
+
 Store these as Secrets:
 
 - `SECRET_KEY`;
 - `DATABASE_URL`;
-- `SYNC_DATABASE_URL`;
 - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session-pooling endpoint only);
 - `REDIS_URL`;
 - `CELERY_BROKER_URL`;
@@ -178,8 +192,9 @@ Store these as Secrets:
 - mail provider API keys such as `RESEND_API_KEY`.
 
 The frontend currently does not require a dedicated Secret. Its required
-runtime values are public origins and cookie/header names, so they belong in the
-frontend ConfigMap.
+runtime value is the backend service origin, which belongs in the frontend
+ConfigMap. Cookie Secure/SameSite policy and lifetimes remain Backend deployment
+policy.
 
 ### Kubernetes ConfigMaps
 
@@ -191,21 +206,15 @@ role-specific ConfigMaps for runtime-owned settings:
   - `FRONTEND_BASE_URL`;
   - `BACKEND_CORS_ORIGINS`;
   - `TRUSTED_PROXY_CIDRS`;
-- shared customer cookie/header names:
-  - `AUTH_COOKIE_NAME`;
-  - `REFRESH_COOKIE_NAME`;
-  - `CSRF_COOKIE_NAME`;
-  - `CSRF_HEADER_NAME`;
 - shared storage mode and non-secret S3 settings:
-  - `FILE_STORAGE_BACKEND`;
+  - configured object-store endpoint, bucket and credentials;
   - `S3_ENDPOINT_URL`;
   - `S3_REGION`;
   - `S3_BUCKET`;
-  - `S3_PUBLIC_BASE_URL`;
   - `S3_FORCE_PATH_STYLE`;
-  - `S3_PRESIGN_EXPIRE_SECONDS`;
+  - `OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS`;
 - shared runtime paths:
-  - `STORAGE_ROOT`;
+
   - `WORK_ROOT`;
 - shared task reliability settings:
   - import, render, playback, mail, realtime, notification, and cleanup interval,
@@ -235,16 +244,12 @@ role-specific ConfigMaps for runtime-owned settings:
   - overrides Hugging Face offline flags to online mode only for controlled
     cache hydration.
 - Control Plane ConfigMap:
-  - `CONTROL_PLANE_AUTH_COOKIE_NAME`;
-  - `CONTROL_PLANE_CSRF_COOKIE_NAME`;
-  - `CONTROL_PLANE_CSRF_HEADER_NAME`;
   - `CONTROL_PLANE_COOKIE_SECURE`;
   - `CONTROL_PLANE_COOKIE_SAMESITE`;
   - `CONTROL_PLANE_SESSION_EXPIRE_MINUTES`;
   - `CONTROL_PLANE_CORS_ORIGINS`;
 - frontend ConfigMap:
   - `NEXT_BACKEND_ORIGIN`;
-  - public cookie/header names consumed by the browser application;
 - versioned algorithm profiles:
   - LEGATO engine/model identity and Verovio SVG output options are sourced
     from reviewed application modules, not Kubernetes environment variables;
@@ -258,7 +263,7 @@ Production should make volume intent explicit:
 - node-local model cache: read-only in application pods, mounted at the
   configured model root;
 - work volume: writable temporary runtime data;
-- local storage volume: only when `FILE_STORAGE_BACKEND=local`;
+- durable objects: one configured ObjectStorage namespace;
 - no local backend log volume in production. Logs go to stdout/stderr and are
   collected by Fluent Bit.
 
@@ -328,11 +333,12 @@ Required configuration must be explicit in production:
   `scripts/check_runtime.py`;
 - missing frontend public/runtime config should fail application startup/build;
 - invalid CORS origins should fail backend startup;
-- `FILE_STORAGE_BACKEND=s3` must require S3 endpoint, bucket, access key, and
+- The concrete adapter requires an endpoint, bucket, access key, and
   secret key;
 - OMR and render engine paths must be validated by worker runtime checks;
 - no application image should silently default to a development backend,
-  database, Redis, S3 bucket, or cookie name.
+  database, Redis or S3 bucket. Customer cookie/header names are fixed by the
+  versioned browser protocol source.
 
 Known follow-up:
 

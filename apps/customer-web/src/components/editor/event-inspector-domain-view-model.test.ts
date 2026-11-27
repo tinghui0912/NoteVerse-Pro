@@ -1,3 +1,4 @@
+import {createTestScoreDocument} from '@/lib/editor-domain/test-fixtures';
 import { describe, expect, it } from 'vitest';
 
 import type { EventId, InspectorViewModel, NoteAtomId } from '@/lib/editor-domain';
@@ -101,37 +102,10 @@ describe('event inspector domain view-model adapter', () => {
     });
   });
 
-  it('derives selection summary numbers from domain position, voice, and staff ids', () => {
-    const viewModel: InspectorViewModel = {
-      kind: 'explicitRest',
-      eventId: 'rest-1' as EventId,
-      voiceId: 'P1:voice-3' as never,
-      staffId: 'P1:staff-2' as never,
-      position: { measureId: 'P1:measure-12' as never, offset: { numerator: 0, denominator: 1 } },
-      rhythm: quarter,
-    };
-
-    expect(getDomainSelectionSummary(viewModel)).toEqual({
-      measure: 12,
-      voice: 3,
-      staffIndex: 1,
-    });
-  });
-
-  it('uses one-based defaults when domain ids do not end in numbers', () => {
-    const viewModel: InspectorViewModel = {
-      kind: 'explicitRest',
-      eventId: 'rest-1' as EventId,
-      voiceId: 'voice' as never,
-      staffId: 'staff' as never,
-      position: { measureId: 'measure' as never, offset: { numerator: 0, denominator: 1 } },
-      rhythm: quarter,
-    };
-
-    expect(getDomainSelectionSummary(viewModel)).toEqual({
-      measure: 1,
-      voice: 1,
-      staffIndex: 0,
-    });
-  });
+  it('uses the current document facts for measure, staff and voice presentation',()=>{
+ const document=createTestScoreDocument();document.measures[0].number=12;document.voices[0].number=3;document.staves[0].index=1;
+ const viewModel:InspectorViewModel={kind:'explicitRest',eventId:'rest' as EventId,voiceId:document.voices[0].id,staffId:document.staves[0].id,position:{measureId:document.measures[0].id,offset:{numerator:0,denominator:1}},rhythm:quarter};
+ expect(getDomainSelectionSummary(viewModel,document)).toEqual({measure:12,voice:3,staffIndex:1});
+ expect(()=>getDomainSelectionSummary({...viewModel,voiceId:'unknown' as never},document)).toThrow();
+ });
 });

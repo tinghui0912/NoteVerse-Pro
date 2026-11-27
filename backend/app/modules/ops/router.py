@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from fastapi import APIRouter, Body, Depends, Query, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.shared.durable_failure import DurableFailureClass
 from app.core.client_address import client_address, peer_address
 from app.core.exceptions import AppException
+from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.modules.platform_operators.dependencies import OperatorPrincipal
 from app.modules.ops.schemas import (
-    AsyncOperationErrorClass,
     AsyncOperationKind,
     AsyncOperationRead,
     AsyncOperationsSummaryRead,
@@ -30,7 +31,6 @@ from app.modules.ops.command_service import (
     ops_async_operation_command_service,
 )
 from app.shared.pagination import OffsetPage
-from app.shared.responses import APIResponse, success_response
 
 router = APIRouter()
 
@@ -47,10 +47,14 @@ def get_ops_audit_service() -> OpsAuditService:
     return ops_audit_service
 
 
-@router.get("/audit-events", response_model=APIResponse[OffsetPage[OpsAuditEventRead]])
-async def list_ops_audit_events(
-    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
-    db: AsyncSession = Depends(get_db),
+@router.get(
+    "/audit-events", response_model=OffsetPage[OpsAuditEventRead], operation_id="opsAuditEventsList"
+)
+def list_ops_audit_events(
+    _operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.READ)
+    ),
+    db: Session = Depends(get_db, scope="function"),
     service: OpsAuditService = Depends(get_ops_audit_service),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=10000),
@@ -59,10 +63,10 @@ async def list_ops_audit_events(
     operation_kind: AsyncOperationKind | None = Query(default=None),
     operation_id: str | None = Query(default=None, min_length=1, max_length=128),
     outcome: OpsAuditOutcome | None = Query(default=None),
-    created_after: datetime | None = Query(default=None),
-    created_before: datetime | None = Query(default=None),
+    created_after: Instant | None = Query(default=None),
+    created_before: Instant | None = Query(default=None),
 ):
-    result = await service.list_events(
+    result = service.list_events(
         db,
         limit=limit,
         offset=offset,
@@ -74,79 +78,111 @@ async def list_ops_audit_events(
         created_after=created_after,
         created_before=created_before,
     )
-    return success_response(data=result)
+    return result
 
 
-@router.get("/async-operations", response_model=APIResponse[OffsetPage[AsyncOperationRead]])
-async def list_async_operations(
-    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
-    db: AsyncSession = Depends(get_db),
+@router.get(
+    "/async-operations",
+    response_model=OffsetPage[AsyncOperationRead],
+    operation_id="opsAsyncOperationsList",
+)
+def list_async_operations(
+    _operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.READ)
+    ),
+    db: Session = Depends(get_db, scope="function"),
     service: OpsAsyncOperationQueryService = Depends(get_ops_async_operation_query_service),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0, le=10000),
     kind: AsyncOperationKind | None = Query(default=None),
     status: AsyncOperationStatus | None = Query(default=None),
-    error_class: AsyncOperationErrorClass | None = Query(default=None),
+    failure_class: DurableFailureClass | None = Query(default=None),
     resource_type: str | None = Query(default=None, min_length=1, max_length=64),
-    created_after: datetime | None = Query(default=None),
-    updated_before: datetime | None = Query(default=None),
+    created_after: Instant | None = Query(default=None),
+    updated_before: Instant | None = Query(default=None),
 ):
-    result = await service.list_operations(
+    result = service.list_operations(
         db,
         limit=limit,
         offset=offset,
         kind=kind,
         status=status,
-        error_class=error_class,
+        failure_class=failure_class,
         resource_type=resource_type,
         created_after=created_after,
         updated_before=updated_before,
     )
-    return success_response(data=result)
+    return result
 
 
-@router.get("/async-operations/summary", response_model=APIResponse[AsyncOperationsSummaryRead])
-async def async_operations_summary(
-    _operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.READ)),
-    db: AsyncSession = Depends(get_db),
+@router.get(
+    "/async-operations/summary",
+    response_model=AsyncOperationsSummaryRead,
+    operation_id="opsAsyncOperationsSummaryGet",
+)
+def async_operations_summary(
+    _operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.READ)
+    ),
+    db: Session = Depends(get_db, scope="function"),
     service: OpsAsyncOperationQueryService = Depends(get_ops_async_operation_query_service),
     kind: AsyncOperationKind | None = Query(default=None),
     status: AsyncOperationStatus | None = Query(default=None),
-    error_class: AsyncOperationErrorClass | None = Query(default=None),
+    failure_class: DurableFailureClass | None = Query(default=None),
     resource_type: str | None = Query(default=None, min_length=1, max_length=64),
-    created_after: datetime | None = Query(default=None),
-    updated_before: datetime | None = Query(default=None),
+    created_after: Instant | None = Query(default=None),
+    updated_before: Instant | None = Query(default=None),
 ):
-    result = await service.summary(
+    result = service.summary(
         db,
         kind=kind,
         status=status,
-        error_class=error_class,
+        failure_class=failure_class,
         resource_type=resource_type,
         created_after=created_after,
         updated_before=updated_before,
     )
-    return success_response(data=result)
+    return result
+
+
+@router.get(
+    "/async-operations/{kind}/{operation_id}",
+    response_model=AsyncOperationRead,
+    operation_id="opsAsyncOperationGet",
+)
+def get_async_operation(
+    kind: AsyncOperationKind,
+    operation_id: str,
+    _operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.READ)
+    ),
+    db: Session = Depends(get_db, scope="function"),
+    service: OpsAsyncOperationQueryService = Depends(get_ops_async_operation_query_service),
+) -> AsyncOperationRead:
+    return service.get_operation(db, kind=kind, operation_id=operation_id)
 
 
 @router.post(
     "/async-operations/{kind}/{operation_id}/retry",
-    response_model=APIResponse[AsyncOperationRead],
+    response_model=AsyncOperationRead,
+    operation_id="opsAsyncOperationRetry",
 )
-async def retry_async_operation(
+def retry_async_operation(
     kind: AsyncOperationKind,
     operation_id: str,
     request: Request,
     command: RetryAsyncOperationCommand = Body(...),
-    operator: OperatorPrincipal = Depends(require_platform_operation(PlatformOperationAction.RETRY)),
-    db: AsyncSession = Depends(get_db),
+    operator: OperatorPrincipal = Depends(
+        require_platform_operation(PlatformOperationAction.RETRY)
+    ),
+    db: Session = Depends(get_db, scope="function"),
     service: OpsAsyncOperationCommandService = Depends(get_ops_async_operation_command_service),
     audit_service: OpsAuditService = Depends(get_ops_audit_service),
 ):
     try:
-        result = await service.retry_operation(db, kind=kind, operation_id=operation_id)
+        result = service.retry_operation(db, kind=kind, operation_id=operation_id)
     except AppException as exc:
-        await audit_service.record_event(
+        audit_service.record_event(
             db,
             actor_operator_id=operator.operator.id,
             actor_identity_provider=operator.identity.provider.value,
@@ -156,14 +192,18 @@ async def retry_async_operation(
             operation_kind=kind,
             operation_id=operation_id,
             outcome="failed",
-            error_code=exc.code,
+            error_code=(
+                exc.code.value
+                if isinstance(exc.code, ControlPlaneErrorCode)
+                else ControlPlaneErrorCode.INTERNAL_ERROR.value
+            ),
             reason=command.reason,
             request_id=getattr(request.state, "request_id", None),
             peer_address=peer_address(request),
             client_address=client_address(request),
         )
         raise
-    await audit_service.record_event(
+    audit_service.record_event(
         db,
         actor_operator_id=operator.operator.id,
         actor_identity_provider=operator.identity.provider.value,
@@ -178,6 +218,6 @@ async def retry_async_operation(
         peer_address=peer_address(request),
         client_address=client_address(request),
         previous_state=result.previous_state,
-        new_state=result.operation.raw_status,
+        new_state=result.operation.status.value,
     )
-    return success_response(data=result.operation)
+    return result.operation

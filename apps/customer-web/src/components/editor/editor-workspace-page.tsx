@@ -1,4 +1,5 @@
 'use client';
+import { scoreLocation } from '@/features/scores/routes';
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -6,9 +7,9 @@ import type { ReactNode } from 'react';
 import { ResourceLoadError } from '@/components/states';
 import { ResourceLoading } from '@/components/loading';
 import { PageHeader } from '@/components/page';
-import { ScoreCapabilityProvider } from '@/components/score/score-capability-context';
-import { ScoreSurface } from '@/components/score/score-surface';
-import { WorkspaceAccessDenied } from '@/components/score/workspace-access-denied';
+import { ScoreCapabilityProvider } from '@/features/scores/core/components/score-capability-context';
+import { ScoreSurface } from '@/features/scores/core/components/score-surface';
+import { WorkspaceAccessDenied } from '@/components/states/workspace-access-denied';
 import { EditorPageHeader } from '@/components/editor/editor-page-header';
 import { EditorPageModals } from '@/components/editor/editor-page-modals';
 import { EditorWorkbench } from '@/components/editor/editor-workbench';
@@ -55,7 +56,7 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
 
   if (document.isLoading) {
     return renderFrame(
-      <ResourceLoading label={common('loadingScoreData')} />
+      <ResourceLoading label={common('loadingScore')} />
     );
   }
 
@@ -75,7 +76,7 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
       <WorkspaceAccessDenied
         title={common('accessDenied')}
         description={common('editAccessDeniedDesc')}
-        backHref={`/score/${scoreShell.scoreId}`}
+        backHref={scoreLocation(scoreShell.scoreId)}
         backLabel={common('back')}
       />
     );
@@ -91,13 +92,11 @@ export function EditorWorkspacePage({ document, scoreShell }: EditorWorkspacePag
           savePending={document.savePending}
           onGenerateFingering={document.generateFingering}
           onSave={document.save}
-          onNormalizeVoices={() => void document.normalizeVoices()}
         />
         <EditorWorkbench
           currentXml={document.currentXml}
           fingeringPending={document.fingeringPending}
           onGenerateFingering={document.generateFingering}
-          onNormalizeVoices={() => void document.normalizeVoices()}
         />
       </div>
 

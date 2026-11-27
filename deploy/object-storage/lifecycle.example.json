@@ -1,0 +1,27 @@
+{
+  "Rules": [
+    {
+      "ID": "incomplete-transfers",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": ""
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 3
+      }
+    },
+    {
+      "ID": "single-put-inputs",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "transfers/"
+      },
+      "Expiration": {
+        "Days": 3
+      },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 3
+      }
+    }
+  ]
+}

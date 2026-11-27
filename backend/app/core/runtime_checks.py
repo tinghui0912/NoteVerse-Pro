@@ -147,7 +147,7 @@ def check_settings(_: bool = False) -> CheckResult:
         "settings",
         True,
         (
-            f"storage={settings.FILE_STORAGE_BACKEND}; "
+            "storage=object-storage; "
             f"pipeline={task_settings.MAX_PROCESSING_TIME}s; "
             f"celery_soft={task_settings.CELERY_TASK_SOFT_TIME_LIMIT}s, "
             f"celery_hard={task_settings.CELERY_TASK_TIME_LIMIT}s"
@@ -176,76 +176,49 @@ def check_control_plane_settings(_: bool = False) -> CheckResult:
     return _result("control_plane_settings", True, "independent control-plane configuration loaded")
 
 
-async def check_api_database(_: bool = False) -> CheckResult:
+def check_database(_: bool = False) -> CheckResult:
     from sqlalchemy import text
 
     from app.db.session import engine
 
     try:
-        async with engine.connect() as connection:
-            await connection.execute(text("select 1"))
-        return _result("database", True, "async database reachable")
-    except Exception as exc:
-        return _result(
-            "database", False, f"async database unreachable: {type(exc).__name__}: {exc}"
-        )
-
-
-def check_sync_database(_: bool = False) -> CheckResult:
-    from sqlalchemy import text
-
-    from app.db.sync_session import sync_engine
-
-    try:
-        with sync_engine.connect() as connection:
+        with engine.connect() as connection:
             connection.execute(text("select 1"))
-        return _result("sync_database", True, "sync database reachable")
+        return _result("database", True, "Application database execution path reachable")
     except Exception as exc:
         return _result(
-            "sync_database",
+            "database",
             False,
-            f"sync database unreachable: {type(exc).__name__}: {exc}",
+            f"Application database execution path unreachable: {type(exc).__name__}: {exc}",
         )
 
 
 def check_storage_quota_policy(_: bool = False) -> CheckResult:
     from sqlalchemy import text
-
-    from app.db.sync_session import sync_engine
-    from app.modules.storage_usage.accounting import DEFAULT_PLAN_CODE
+    from app.db.session import engine
+    from app.modules.storage_governance.quota.states import StoragePlanCode
 
     try:
-        with sync_engine.connect() as connection:
-            row = connection.execute(
-                text(
-                    """
-                    select quota_limit_bytes
-                    from storage_quota_policies
-                    where plan_code = :plan_code
-                    """
-                ),
-                {"plan_code": DEFAULT_PLAN_CODE},
-            ).first()
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text("SELECT plan_code, default_limit_bytes FROM storage_plan_policies")
+            ).all()
     except Exception as exc:
         return _result(
             "storage_quota_policy",
             False,
             f"storage quota policy check failed: {type(exc).__name__}: {exc}",
         )
-
-    if row is None:
+    expected = {code.value for code in StoragePlanCode}
+    if {row.plan_code for row in rows} != expected:
         return _result(
-            "storage_quota_policy",
-            False,
-            f"missing required storage quota policy: {DEFAULT_PLAN_CODE}",
+            "storage_quota_policy", False, "Required FREE/PLUS/PRO storage policies are incomplete"
         )
-    if int(row.quota_limit_bytes) <= 0:
+    if any(row.default_limit_bytes is None or row.default_limit_bytes < 0 for row in rows):
         return _result(
-            "storage_quota_policy",
-            False,
-            f"storage quota policy has invalid limit: {DEFAULT_PLAN_CODE}",
+            "storage_quota_policy", False, "Storage policy requires finite nonnegative capacity"
         )
-    return _result("storage_quota_policy", True, f"storage quota policy ready: {DEFAULT_PLAN_CODE}")
+    return _result("storage_quota_policy", True, "FREE/PLUS/PRO storage quota policies ready")
 
 
 def check_redis(_: bool = False) -> CheckResult:
@@ -264,9 +237,7 @@ def check_redis(_: bool = False) -> CheckResult:
 
 
 def check_api_storage(_: bool = False) -> CheckResult:
-    if settings.FILE_STORAGE_BACKEND == "local":
-        return _check_writable_directory("storage", settings.STORAGE_ROOT)
-    return _result("storage", True, "s3 storage configuration validated by settings")
+    return _result("storage", True, "object storage configuration validated by settings")
 
 
 def check_work_root(_: bool = False) -> CheckResult:
@@ -280,26 +251,33 @@ def check_beat_state(_: bool = False) -> CheckResult:
 def check_celery_tasks(_: bool = False) -> CheckResult:
     try:
         import app.worker.tasks  # noqa: F401
-        from app.worker.celery_config import celery_app
+        from app.task_queue.config import celery_app
 
         celery_app.loader.import_default_modules()
         required = {
-            "app.worker.tasks.process_images_job",
+            "app.worker.tasks.import_dispatch_task",
             "app.worker.tasks.run_import_dispatch_maintenance",
-            "app.worker.tasks.render_outbox_task",
-            "app.worker.tasks.run_render_outbox_maintenance",
+            "app.worker.tasks.score_revision_render_task",
+            "app.worker.tasks.run_score_revision_render_maintenance",
             "app.worker.tasks.playback_outbox_task",
             "app.worker.tasks.run_playback_outbox_maintenance",
-            "app.worker.tasks.performance_take_deletion_task",
-            "app.worker.tasks.practice_source_snapshot_deletion_task",
-            "app.worker.tasks.run_performance_take_deletion_maintenance",
+            "app.worker.tasks.object_write_cleanup_task",
+            "app.worker.tasks.run_object_write_cleanup_maintenance",
+            "app.worker.tasks.stored_object_retirement_task",
+            "app.worker.tasks.run_stored_object_retirement_maintenance",
             "app.worker.tasks.run_job_maintenance",
             "app.worker.tasks.send_mail_outbox_task",
             "app.worker.tasks.run_mail_outbox_maintenance",
             "app.worker.tasks.run_mail_outbox_cleanup",
             "app.worker.tasks.run_realtime_maintenance",
+            "app.worker.tasks.run_storage_quota_expiry",
+            "app.worker.tasks.take_media_processing_task",
+            "app.worker.tasks.run_take_processing_maintenance",
+            "app.worker.tasks.account_deletion_task",
+            "app.worker.tasks.run_account_deletion_maintenance",
             "app.worker.tasks.run_derived_asset_cleanup",
-            "app.worker.tasks.run_score_deletion_cleanup",
+            "app.worker.tasks.run_score_deletion_maintenance",
+            "app.worker.tasks.score_deletion_task",
         }
         missing = sorted(required.difference(celery_app.tasks))
     except Exception as exc:
@@ -514,7 +492,7 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
     RuntimeRole.WORKER: (
         "settings",
         "worker_settings",
-        "sync_database",
+        "database",
         "storage_quota_policy",
         "redis",
         "work_root",
@@ -546,8 +524,7 @@ CHECKS: dict[str, CheckSpec] = {
     "settings": CheckSpec("settings", check_settings),
     "worker_settings": CheckSpec("worker_settings", check_worker_settings),
     "control_plane_settings": CheckSpec("control_plane_settings", check_control_plane_settings),
-    "database": CheckSpec("database", check_api_database),
-    "sync_database": CheckSpec("sync_database", check_sync_database),
+    "database": CheckSpec("database", check_database),
     "storage_quota_policy": CheckSpec("storage_quota_policy", check_storage_quota_policy),
     "redis": CheckSpec("redis", check_redis),
     "storage": CheckSpec("storage", check_api_storage),
@@ -568,7 +545,7 @@ async def run_runtime_checks(
 ) -> list[CheckResult]:
     results: list[CheckResult] = []
     for name in ROLE_CHECK_NAMES[role]:
-        outcome = CHECKS[name].run(include_sizes)
+        outcome = await asyncio.to_thread(CHECKS[name].run, include_sizes)
         if isinstance(outcome, Awaitable):
             outcome = await outcome
         results.append(outcome)
@@ -577,7 +554,7 @@ async def run_runtime_checks(
 
 async def check_database_readiness(timeout_seconds: float = 2.0) -> bool:
     try:
-        result = await asyncio.wait_for(check_api_database(), timeout=timeout_seconds)
+        result = await asyncio.wait_for(asyncio.to_thread(check_database), timeout=timeout_seconds)
         return result.ok
     except TimeoutError:
         return False

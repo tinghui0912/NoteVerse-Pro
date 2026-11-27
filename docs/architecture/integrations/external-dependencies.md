@@ -107,7 +107,7 @@ Run:
 ```powershell
 docker compose -f docker-compose.backend-dev.yml build worker
 docker compose -f docker-compose.backend-dev.yml run --rm worker check --role worker
-docker compose -f docker-compose.backend-dev.yml run --rm worker python scripts/legato_visual_probe.py --legato-repo /opt/noteverse/legato --image-dir data/storage --limit 1
+docker compose -f docker-compose.backend-dev.yml run --rm worker python scripts/legato_visual_probe.py --legato-repo /opt/noteverse/legato --image-dir data/work/probe-inputs --limit 1
 ```
 
 Then validate the full upload/review/editor/practice flow.

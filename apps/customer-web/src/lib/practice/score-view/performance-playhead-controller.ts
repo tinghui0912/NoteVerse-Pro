@@ -1,0 +1,121 @@
+import {
+  focusPageContainer,
+  keepElementInViewport,
+  shouldFocusPage,
+} from './scroll';
+import {
+  applyPlayheadCursor,
+  clearPlayheadCursor,
+} from './playhead-cursor';
+import type { PracticeVerovioAdapter } from './verovio-adapter';
+import type { CursorScope } from './cursor-scope';
+
+type PerformancePlayheadState = {
+  activeNoteIds: string[];
+  activePage: number | null;
+  displayedTick: number | null;
+};
+
+function extractPageNumber(node: Element | null): number | null {
+  const pageContainer = node?.closest<HTMLElement>('[data-practice-page]');
+  const pageValue = pageContainer?.dataset.practicePage;
+  if (!pageValue) {
+    return null;
+  }
+  const parsed = Number.parseInt(pageValue, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export class PerformancePlayheadController {
+  private state: PerformancePlayheadState = {
+    activeNoteIds: [],
+    activePage: null,
+    displayedTick: null,
+  };
+
+  clear(container: HTMLElement): void {
+    this.clearDecorations(container);
+    this.state = {
+      activeNoteIds: [],
+      activePage: null,
+      displayedTick: null,
+    };
+  }
+
+  apply(
+    container: HTMLElement,
+    adapter: PracticeVerovioAdapter,
+    scoreTick: number | null,
+    scope: CursorScope
+  ): void {
+    if (scoreTick === null) {
+      this.clearDecorations(container);
+      return;
+    }
+    if (scope.kind === 'RANGE' && scope.allowedNoteIds.length === 0) {
+      this.clearDecorations(container);
+      return;
+    }
+
+    const previousPage = this.state.activePage;
+    this.clearDecorations(container);
+
+    const entry = adapter.getCursorTimelineEntryForTickRange(
+      scoreTick,
+      scope.startTick,
+      scope.terminalTick,
+      scope.kind === 'RANGE' ? scope.allowedNoteIds : undefined
+    );
+
+    if (!entry) {
+      return;
+    }
+    this.state.displayedTick = scoreTick;
+
+    const noteIds = Array.from(new Set(entry.noteIds.filter(Boolean)));
+    const { anchor } = applyPlayheadCursor(container, noteIds);
+    this.state.activeNoteIds = noteIds;
+
+    const anchorNode = anchor;
+    let activePage: number | null = extractPageNumber(anchorNode);
+    if (activePage === null && entry.noteIds[0]) {
+      try {
+        activePage = adapter.getPageWithElement(entry.noteIds[0]);
+      } catch {
+        activePage = previousPage;
+      }
+    } else if (activePage === null) {
+      activePage = previousPage;
+    }
+
+    if (activePage !== null) {
+      const activePageNode = container.querySelector<HTMLElement>(
+        `[data-practice-page="${activePage}"]`
+      );
+      this.state.activePage = activePage;
+      if (
+        activePageNode &&
+        previousPage !== activePage &&
+        shouldFocusPage(container, activePageNode)
+      ) {
+        focusPageContainer(container, activePageNode);
+      }
+    }
+
+    if (anchorNode) {
+      keepElementInViewport(container, anchorNode);
+    }
+  }
+
+  refreshDecorations(container: HTMLElement): void {
+    if (this.state.activeNoteIds.length > 0) {
+      applyPlayheadCursor(container, this.state.activeNoteIds);
+    }
+  }
+
+  private clearDecorations(container: HTMLElement): void {
+    clearPlayheadCursor(container);
+    this.state.activeNoteIds = [];
+    this.state.activePage = null;
+  }
+}

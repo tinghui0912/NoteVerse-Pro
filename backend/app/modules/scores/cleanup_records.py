@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.db.models import StorageUsageCategory
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
 
 
 @dataclass(frozen=True)
@@ -12,4 +12,3 @@ class StorageUsageReleaseRecord:
     object_type: str
     object_id: str
     storage_key: str
-    delete_storage: bool = False

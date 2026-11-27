@@ -1,0 +1,239 @@
+"""Persisted failure consistency and the operator SQL projection on PostgreSQL."""
+
+import pytest
+import sqlalchemy as sa
+from sqlalchemy.orm import Session
+
+from alembic import command
+from app.db.models import (
+    AccountDeletionOperation,
+    StoredObject,
+    StoredObjectRetirement,
+    ImportDispatch,
+    ImportJob,
+    MailOutbox,
+    PlaybackOutbox,
+    ScoreRevisionRenderOutbox,
+    Score,
+    ScoreDeletionOperation,
+    ScoreRevision,
+    User,
+)
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.durable_work.failure import (
+    DurableFailure,
+    clear_failure_facts,
+    set_failure_facts,
+)
+from app.shared.durable_failure import DurableFailureClass
+from app.modules.import_jobs.requested_options import encode_requested_options
+from app.modules.ops.query_service import OpsAsyncOperationQueryService
+from app.modules.ops.schemas import AsyncOperationKind
+from app.shared.time import utc_now
+from tests.support.postgres_schema import postgres_schema_database
+
+
+def test_import_state_requires_complete_failure_facts(monkeypatch):
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        with Session(engine) as db:
+            db.add(User(id=1, email="state@example.test", password_hash="hash"))
+            db.commit()
+            score = Score(score_uuid="confirmed", display_title="Score", owner_user_id=1)
+            db.add(score)
+            db.commit()
+            score_id = score.id
+            for state in ImportJobState:
+                for failed in (False, True):
+                    job = ImportJob(
+                        requested_options=encode_requested_options(None),
+                        job_uuid=f"{state.value}-{failed}",
+                        user_id=1,
+                        state=state,
+                        processing_started_at=utc_now()
+                        if state
+                        in {
+                            ImportJobState.PROCESSING,
+                            ImportJobState.READY_FOR_REVIEW,
+                            ImportJobState.CONFIRMED,
+                        }
+                        else None,
+                        processing_finished_at=utc_now()
+                        if state
+                        in {
+                            ImportJobState.READY_FOR_REVIEW,
+                            ImportJobState.CONFIRMED,
+                            ImportJobState.FAILED,
+                        }
+                        else None,
+                        confirmed_at=utc_now() if state == ImportJobState.CONFIRMED else None,
+                        score_id=score_id if state == ImportJobState.CONFIRMED else None,
+                    )
+                    if failed:
+                        set_failure_facts(
+                            job,
+                            DurableFailure(
+                                "import_pipeline_failed",
+                                "pipeline",
+                                DurableFailureClass.SYSTEM_ERROR,
+                                False,
+                            ),
+                        )
+                    db.add(job)
+                    if failed == (state == ImportJobState.FAILED):
+                        db.commit()
+                        db.expire_all()
+                        assert job.state == state and job.failure_detail is None
+                        assert (job.failure_code is not None) is failed
+                    else:
+                        with pytest.raises(sa.exc.IntegrityError):
+                            db.commit()
+                        db.rollback()
+
+
+def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypatch):
+    with postgres_schema_database(monkeypatch) as (engine, config):
+        command.upgrade(config, "head")
+        with Session(engine) as db:
+            db.add(User(id=1, email="failure@example.test", password_hash="hash"))
+            db.flush()
+            job = ImportJob(
+                requested_options=encode_requested_options(None),
+                job_uuid="job",
+                user_id=1,
+                state=ImportJobState.QUEUED,
+            )
+            score = Score(score_uuid="score", owner_user_id=1, display_title="Score")
+            db.add_all([job, score])
+            db.flush()
+            revision = ScoreRevision(
+                revision_uuid="revision",
+                score_id=score.id,
+                revision_number=1,
+                content_hash="a" * 64,
+                origin=RevisionOrigin.IMPORT,
+            )
+            db.add(revision)
+            db.flush()
+            dispatch = ImportDispatch(job_id=job.id)
+            render = ScoreRevisionRenderOutbox(
+                outbox_uuid="render",
+                score_id=score.id,
+                revision_id=revision.id,
+                source_fingerprint="a" * 64,
+            )
+            playback = PlaybackOutbox(
+                outbox_uuid="playback",
+                score_id=score.id,
+                revision_id=revision.id,
+                source_fingerprint="a" * 64,
+            )
+            mail = MailOutbox(
+                source_kind="ACCOUNT",
+                source_id=1,
+                category="auth",
+                dedupe_key="failure",
+                recipient="user@example.test",
+                subject="Subject",
+            )
+            deletion = ScoreDeletionOperation(score_uuid="score", owner_user_id=1)
+            account = AccountDeletionOperation(user_id=1, user_id_snapshot=1)
+            physical = StoredObject(
+                object_key="failure-evidence",
+                byte_size=1,
+                sha256="b" * 64,
+                content_type="image/png",
+            )
+            db.add(physical)
+            db.flush()
+            retirement = StoredObjectRetirement(
+                stored_object_id=physical.id,
+                object_key=physical.object_key,
+                byte_size=physical.byte_size,
+                sha256=physical.sha256,
+                content_type=physical.content_type,
+            )
+            db.add_all([dispatch, render, playback, mail, deletion, account, retirement])
+            db.commit()
+            rows = [job, dispatch, render, playback, mail, deletion, account, retirement]
+            for row in rows:
+                for values in [
+                    {"failure_code": "failure"},
+                    {
+                        "failure_code": "failure",
+                        "failure_stage": "execution",
+                        "failure_classification": "transient",
+                    },
+                    {
+                        "failure_code": "failure",
+                        "failure_stage": "execution",
+                        "failure_classification": "invalid",
+                        "failure_retryable": False,
+                    },
+                ]:
+                    with pytest.raises(sa.exc.IntegrityError):
+                        with db.begin_nested():
+                            db.execute(
+                                sa.update(type(row)).where(type(row).id == row.id).values(**values)
+                            )
+                for classification in DurableFailureClass:
+                    values = {
+                        "failure_code": "domain_failure",
+                        "failure_stage": "execution",
+                        "failure_classification": classification.value,
+                        "failure_retryable": False,
+                    }
+                    if row is job:
+                        values.update(state=ImportJobState.FAILED, processing_finished_at=utc_now())
+                    savepoint = db.begin_nested()
+                    db.execute(sa.update(type(row)).where(type(row).id == row.id).values(**values))
+                    assert (
+                        db.scalar(
+                            sa.select(type(row).failure_classification).where(
+                                type(row).id == row.id
+                            )
+                        )
+                        == classification.value
+                    )
+                    savepoint.rollback()
+                if row is job:
+                    continue
+                set_failure_facts(
+                    row,
+                    DurableFailure(
+                        "domain_failure", "execution", DurableFailureClass.SYSTEM_ERROR, True
+                    ),
+                )
+            db.commit()
+            query = OpsAsyncOperationQueryService()
+            page = query.list_operations(
+                db, limit=10, failure_class=DurableFailureClass.SYSTEM_ERROR
+            )
+            summary = query.summary(db, failure_class=DurableFailureClass.SYSTEM_ERROR)
+            assert len(page.items) == summary.total == 7
+            assert {item.status.value for item in page.items} == {"retrying"}
+            assert {item.kind for item in page.items} == set(AsyncOperationKind)
+            job.state = ImportJobState.FAILED
+            job.processing_finished_at = utc_now()
+            set_failure_facts(
+                job,
+                DurableFailure(
+                    "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+                ),
+            )
+            job.failure_detail = "private bounded execution evidence"
+            db.commit()
+            operation = query.get_operation(
+                db, kind=AsyncOperationKind.IMPORT, operation_id=dispatch.dispatch_uuid
+            )
+            assert operation.status.value == "failed"
+            assert operation.failure.code == "import_pipeline_failed"
+            assert operation.failure.detail == job.failure_detail
+            assert operation.failure.retryable is False
+            for row in rows:
+                clear_failure_facts(row)
+            job.state = ImportJobState.QUEUED
+            job.processing_finished_at = None
+            db.commit()
+            assert query.summary(db, failure_class=DurableFailureClass.SYSTEM_ERROR).total == 0

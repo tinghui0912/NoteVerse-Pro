@@ -14,9 +14,7 @@ core = [
 db = [
   { include-group = "core" },
   "sqlmodel==0.0.48",
-  "asyncpg==0.32.0",
   "psycopg[binary]==3.3.6",
-  "greenlet==3.5.6",
 ]
 cache = [
   { include-group = "core" },
@@ -48,7 +46,6 @@ auth = [
 storage = [
   { include-group = "core" },
   "boto3==1.43.114",
-  "alibabacloud-oss-v2==1.4.0",
 ]
 image = [
   "Pillow==13.0.0",
@@ -56,9 +53,6 @@ image = [
 fingering = [
   "numpy==2.3.5",
   "pianoplayer==3.0.2",
-]
-practice-score = [
-  "partitura==1.9.0",
 ]
 render = [
   "numpy==2.3.5",
@@ -89,7 +83,6 @@ api = [
   { include-group = "auth" },
   { include-group = "image" },
   { include-group = "fingering" },
-  { include-group = "practice-score" },
 ]
 beat = [
   { include-group = "celery" },
@@ -169,14 +162,15 @@ files = [
   "app/__init__.py",
   "app/api",
   "app/core",
+  "app/composition",
   "app/db/__init__.py",
   "app/db/session.py",
-  "app/db/sync_session.py",
   "app/main.py",
   "app/modules",
-  "app/pipeline",
   "app/processing",
   "app/shared",
+  "app/score_semantics",
+  "app/task_queue",
   "app/utils",
   "app/worker",
 ]

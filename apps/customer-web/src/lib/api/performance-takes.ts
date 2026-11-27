@@ -1,161 +1,32 @@
-import { apiClient, apiUrl, type ApiResponse } from '@/lib/api-client';
-import type {
-  PerformanceTakeCreateRequest,
-  PerformanceTakeDeleteResponse,
-  PerformanceTakeListResponse,
-  PerformanceTakePlaybackRead,
-  PerformanceTakeRead,
-  PerformanceTakeUploadAuthorizationRead,
-  PerformanceTakeUploadAuthorizationRequest,
-  PracticeReadyScoreContentRead,
-  RecordingTimebase,
-  PerformanceTakeTempoPlan,
-} from '@/generated/api/types.gen';
-import type { PracticeScoreArtifact } from '@/lib/practice/local-core/artifact';
-
-const MAX_PERFORMANCE_TAKE_MEDIA_BYTES = 100 * 1024 * 1024;
-
-export type {
-  PerformanceTakeCreateRequest,
-  PerformanceTakeDeleteResponse,
-  PerformanceTakeListResponse,
-  PerformanceTakePlaybackRead,
-  PerformanceTakeRead,
-  PerformanceTakeUploadAuthorizationRead,
-  PerformanceTakeUploadAuthorizationRequest,
-  PracticeReadyScoreContentRead,
-  RecordingTimebase,
-  PerformanceTakeTempoPlan,
-};
+import { performanceTakeDelete, performanceTakeGet, performanceTakePlaybackUrlGet, performanceTakeUploadCancel, performanceTakeUploadFinalize, performanceTakeUploadsReserve, performanceTakesList } from '@/generated/api';
+import type { PerformanceTakeUploadReservationRequest, PerformanceTakesListData } from '@/generated/api';
+import { customerTransport, responseBody, responseComplete } from '@/lib/http/customer-browser-transport';
+export type { PerformanceTakeManifestRead, PerformanceTakeRead, PerformanceTakeTempoPlan, PerformanceTakeUploadReservationRead, PerformanceTakeUploadReservationRequest, RecordingTimebase } from '@/generated/api';
 
 export const performanceTakesApi = {
-  authorizeUpload: (request: PerformanceTakeUploadAuthorizationRequest, signal?: AbortSignal) =>
-    apiClient.post<ApiResponse<PerformanceTakeUploadAuthorizationRead>>(
-      '/performance-takes/upload-authorizations',
-      request,
-      { signal }
-    ),
+  reserveUpload: (
+    request: PerformanceTakeUploadReservationRequest,
+    signal?: AbortSignal,
+  ) =>
+    responseBody(performanceTakeUploadsReserve({ ...customerTransport.authenticated, body: request, signal })),
 
-  cancelUploadAuthorization: (reservationId: string) =>
-    apiClient.delete<ApiResponse<{ cancelled: boolean }>>(
-      `/performance-takes/upload-authorizations/${reservationId}`
-    ),
+  cancelUploadReservation: (reservationId: string) =>
+    responseComplete(performanceTakeUploadCancel({ ...customerTransport.authenticated, path: { reservation_id: reservationId } })),
 
-  finalizeTake: (request: PerformanceTakeCreateRequest, signal?: AbortSignal) =>
-    apiClient.post<ApiResponse<PerformanceTakeRead>>('/performance-takes', request, { signal }),
+  finalizeTake: (reservationId: string, signal?: AbortSignal) =>
+    responseBody(performanceTakeUploadFinalize({ ...customerTransport.authenticated, path: { reservation_id: reservationId }, signal })),
 
-  listTakes: (params?: { score_id?: string; limit?: number; offset?: number }, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PerformanceTakeListResponse>>('/performance-takes', params, { signal }),
+  listTakes: (
+    params?: PerformanceTakesListData['query'],
+    signal?: AbortSignal,
+  ) =>
+    responseBody(performanceTakesList({ ...customerTransport.authenticated, query: params, signal })),
 
   getTake: (takeId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PerformanceTakeRead>>(`/performance-takes/${takeId}`, undefined, { signal }),
+    responseBody(performanceTakeGet({ ...customerTransport.authenticated, path: { take_id: takeId }, signal })),
 
   getPlaybackUrl: (takeId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PerformanceTakePlaybackRead>>(
-      `/performance-takes/${takeId}/playback-url`,
-      undefined,
-      { signal }
-    ),
-  getPracticeSourceContent: (takeId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PracticeReadyScoreContentRead>>(
-      `/performance-takes/${takeId}/practice-source/content`,
-      undefined,
-      { signal }
-    ),
-  getPracticeSourceArtifact: (takeId: string, signal?: AbortSignal) =>
-    apiClient.get<ApiResponse<PracticeScoreArtifact>>(
-      `/performance-takes/${takeId}/practice-source/artifact`,
-      undefined,
-      { signal }
-    ),
-  downloadMediaBlob: (
-    takeId: string,
-    options?: {
-      signal?: AbortSignal;
-      onProgress?: (loadedBytes: number, totalBytes: number | null) => void;
-    }
-  ) => downloadPerformanceTakeMediaBlob(takeId, options),
-
+    responseBody(performanceTakePlaybackUrlGet({ ...customerTransport.authenticated, path: { take_id: takeId }, signal })),
   deleteTake: (takeId: string) =>
-    apiClient.delete<ApiResponse<PerformanceTakeDeleteResponse>>(`/performance-takes/${takeId}`),
+    responseComplete(performanceTakeDelete({ ...customerTransport.authenticated, path: { take_id: takeId } })),
 };
-
-export async function downloadPerformanceTakeMediaBlob(
-  takeId: string,
-  options?: {
-    signal?: AbortSignal;
-    onProgress?: (loadedBytes: number, totalBytes: number | null) => void;
-  }
-): Promise<Blob> {
-  const response = await apiClient.getRaw(
-    `/performance-takes/${encodeURIComponent(takeId)}/media`,
-    undefined,
-    { signal: options?.signal }
-  );
-  const contentLength = response.headers.get('content-length');
-  const total = contentLength ? Number(contentLength) : Number.NaN;
-  const totalBytes =
-    Number.isFinite(total) && total > 0 && total <= MAX_PERFORMANCE_TAKE_MEDIA_BYTES
-      ? total
-      : null;
-  if (Number.isFinite(total) && total > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
-    throw new Error('historical_media_too_large');
-  }
-  if (!response.body) {
-    const blob = await response.blob();
-    if (blob.size > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
-      throw new Error('historical_media_too_large');
-    }
-    options?.onProgress?.(blob.size, totalBytes ?? blob.size);
-    return blob;
-  }
-
-  const reader = response.body.getReader();
-  const chunks: BlobPart[] = [];
-  let loaded = 0;
-  let completed = false;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
-      if (loaded + value.byteLength > MAX_PERFORMANCE_TAKE_MEDIA_BYTES) {
-        throw new Error('historical_media_too_large');
-      }
-      chunks.push(value);
-      loaded += value.byteLength;
-      options?.onProgress?.(loaded, totalBytes);
-    }
-    completed = true;
-  } finally {
-    if (!completed) {
-      await reader.cancel().catch(() => undefined);
-    }
-    reader.releaseLock();
-  }
-  const blob = new Blob(chunks, {
-    type: response.headers.get('content-type') ?? 'application/octet-stream',
-  });
-  options?.onProgress?.(loaded, totalBytes);
-  return blob;
-}
-
-export async function uploadMediaToSignedUrl(
-  uploadUrl: string,
-  method: string,
-  headers: Record<string, string>,
-  body: Blob | ArrayBuffer
-): Promise<void> {
-  const isDirectOss = uploadUrl.startsWith('http://') || uploadUrl.startsWith('https://');
-  const targetUrl = isDirectOss ? uploadUrl : apiUrl(uploadUrl);
-
-  const res = await fetch(targetUrl, {
-    method,
-    headers,
-    body,
-  });
-
-  if (!res.ok) {
-    throw new Error(`Direct media upload failed with status ${res.status}`);
-  }
-}

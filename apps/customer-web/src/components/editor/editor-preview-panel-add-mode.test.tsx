@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, type MouseEventHandler, type RefObject } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ScoreData } from '@/types/score-types';
 import type {
   InputDuration,
   MeasureId,
@@ -54,13 +53,13 @@ const sixteenthGridResolution: RhythmicGridResolution = {
   step: { numerator: 1, denominator: 4 },
 };
 
-const domainDocument: ScoreDocument = {
+const domainDocument: ScoreDocument = {metadata:{notationTitle:null,subtitle:null,composer:null,lyricist:null,copyright:null,tempoNotation:null},
   schemaVersion: 1,
   id: 'score-document-1' as ScoreDocumentId,
   parts: [{ id: partId, name: 'Piano' }],
   staves: [{ id: staffId, partId, index: 0 }],
-  voices: [{ id: voiceId, partId, homeStaffId: staffId, stemPolicy: 'automatic' }],
-  measures: [{ id: measureId, number: 1 }],
+  voices: [{number:1, id: voiceId, partId, homeStaffId: staffId, stemPolicy: 'automatic' }],
+  measures: [{attributes:{meter:{beats:4,beatType:4},clefs:[{staffId:staffId,clef:{sign:'G',line:2}}]},partId:partId, id: measureId, number: 1 }],
   events: [],
   beamRelationships: [],
   tieRelationships: [],
@@ -68,26 +67,6 @@ const domainDocument: ScoreDocument = {
   notationControls: [],
 };
 
-const scoreData: ScoreData = {
-  timeSignature: '4/4',
-  measures: [
-    {
-      number: 1,
-      staves: [
-        {
-          clef: 'treble',
-          name: 'trebleClef',
-          voices: [
-            {
-              name: 'voiceLabel 1',
-              events: [],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -102,7 +81,6 @@ vi.mock('@/contexts/editor-provider', () => ({
     document: domainDocument,
     gaps: [],
     anchors: [],
-    error: null,
     resolveAnchor: () => null,
   }),
   useEditorState: () => ({
@@ -123,12 +101,10 @@ vi.mock('@/contexts/editor-provider', () => ({
     setInsertionPreview,
     setOnToolChange,
   }),
-  useScoreData: () => ({
-    scoreData,
+  useEditorSession: () => ({
+    document:domainDocument,inputVoices:[],
   }),
-  useXmlUpdater: () => ({
-    updateMusicXML: vi.fn(),
-  }),
+
 }));
 
 vi.mock('@/hooks/score-preview/use-score-preview-playback', () => ({
@@ -180,7 +156,7 @@ vi.mock('@/hooks/editor/use-editor-tracks', () => ({
   useEditorTracks: () => ({
     tracks: [
       {
-        id: 'voice-1',
+        id: voiceId,voiceId,partId,
         staffIndex: 0,
         xmlVoice: 1,
         label: 'Voice 1',
@@ -189,8 +165,8 @@ vi.mock('@/hooks/editor/use-editor-tracks', () => ({
         measureCount: 0,
       },
     ],
-    activeTrackId: 'voice-1',
-    visibleTrackIdSet: new Set(['voice-1']),
+    activeTrackId: voiceId,
+    visibleTrackIdSet: new Set([voiceId]),
   }),
 }));
 
@@ -468,4 +444,11 @@ describe('EditorPreviewPanel add mode placement', () => {
       width: '26px',
     });
   });
+});
+
+it('disables pointer pitch insertion when the effective clef is unknown',()=>{
+ const previous=domainDocument.measures[0].attributes.clefs;domainDocument.measures[0].attributes.clefs=undefined;
+ addModeInputKind='pitched';handleAddEntity.mockClear();
+ try{render(<EditorPreviewPanel active currentXml="<score-partwise/>" onOpenScoreInspector={vi.fn()}/>);fireEvent.click(screen.getByTestId('score-preview-viewport'),{clientX:250,clientY:40});expect(handleAddEntity).not.toHaveBeenCalled();}
+ finally{domainDocument.measures[0].attributes.clefs=previous;}
 });

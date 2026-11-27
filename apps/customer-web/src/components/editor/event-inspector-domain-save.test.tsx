@@ -8,15 +8,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import commonMessages from '../../../messages/en/common.json';
 import editorMessages from '../../../messages/en/editor.json';
-import { HistoryProvider, useHistory } from '@/contexts/editor-history-context';
+import { importEditorMusicXml } from '@/lib/editor-musicxml';
 import { EditorStateProvider, useEditorState } from '@/contexts/editor-state-context';
-import { ScoreDataProvider, useScoreData } from '@/contexts/score-data-context';
+import { EditorSessionProvider, useEditorSession } from '@/contexts/editor-session-context';
 import {
-  findVoiceEventByMusicXmlElementIds,
-  importMusicXmlToEditorDomain,
   type DomainAnchor,
 } from '@/lib/editor-domain';
-import { MusicXMLParser } from '@/lib/musicxml/parser';
 import { EventInspector } from './event-inspector';
 
 beforeAll(() => {
@@ -57,29 +54,22 @@ function scoreXml(measureContent: string) {
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <NextIntlClientProvider locale="en" messages={{ common: commonMessages, editor: editorMessages }}>
-      <ScoreDataProvider>
-        <HistoryProvider>
+      <EditorSessionProvider>
+
           <EditorStateProvider>
             {children}
             <EventInspector scoreInspectorOpen={false} onCloseScoreInspector={() => undefined} />
           </EditorStateProvider>
-        </HistoryProvider>
-      </ScoreDataProvider>
+
+      </EditorSessionProvider>
     </NextIntlClientProvider>
   );
 }
 
-function getDomainEventAnchor(xml: string, sourceIds: string[]): DomainAnchor {
-  const imported = importMusicXmlToEditorDomain(xml);
-  const event = findVoiceEventByMusicXmlElementIds(imported.document, sourceIds);
-  if (!event) {
-    throw new Error(`Test fixture source ids do not resolve to a domain event: ${sourceIds.join(', ')}`);
-  }
-  return { kind: 'event', eventId: event.id };
-}
+function getDomainEventAnchorAtIndex(xml:string,index:number):DomainAnchor{const document=importEditorMusicXml(xml).document;return {kind:'event',eventId:document.events[index].id};}
 
 describe('EventInspector domain save path', () => {
-  it('opens from a domain-only selection without legacy parsed event context', () => {
+  it('opens from a domain-only selection using semantic event identity', () => {
     const xml = scoreXml(`
       <note id="domain-only-note">
         <pitch><step>C</step><octave>4</octave></pitch>
@@ -88,15 +78,13 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
         domainAnchor: { kind: 'event', eventId: 'P1-m1-e4' as never },
         domainCompanion: null,
@@ -128,23 +116,16 @@ describe('EventInspector domain save path', () => {
         <beam number="1">end</beam>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    const selectedMeta = selected?.meta;
-    expect(selectedMeta).toBeDefined();
-    if (!selected || !selectedMeta) return;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
         domainAnchor: { kind: 'event', eventId: 'P1-m1-e4' as never },
         domainCompanion: null,
@@ -155,7 +136,7 @@ describe('EventInspector domain save path', () => {
     await user.click(screen.getByText('Beam'));
     await user.click(screen.getByLabelText('Below'));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     const xmlDoc = new DOMParser().parseFromString(nextXml, 'application/xml');
     expect(Array.from(xmlDoc.querySelectorAll('note > beam')).map((beam) => beam.textContent)).toEqual([
       'begin',
@@ -165,7 +146,7 @@ describe('EventInspector domain save path', () => {
       'down',
       'down',
     ]);
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
   });
 
   it('saves beam relationship edits through domain commands', async () => {
@@ -199,25 +180,18 @@ describe('EventInspector domain save path', () => {
         <beam number="1">end</beam>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[1];
-    const selectedMeta = selected?.meta;
-    expect(selectedMeta).toBeDefined();
-    if (!selected || !selectedMeta) return;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 1),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -226,7 +200,7 @@ describe('EventInspector domain save path', () => {
     await user.click(screen.getByText('Beam'));
     await user.click(screen.getByLabelText('Break beam on the right'));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     const xmlDoc = new DOMParser().parseFromString(nextXml, 'application/xml');
     expect(Array.from(xmlDoc.querySelectorAll('note > beam')).map((beam) => beam.textContent)).toEqual([
       'begin',
@@ -234,7 +208,7 @@ describe('EventInspector domain save path', () => {
       'begin',
       'end',
     ]);
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
   });
 
   it('deletes tie relationships through domain commands', async () => {
@@ -258,25 +232,18 @@ describe('EventInspector domain save path', () => {
         <notations><tied type="stop"/></notations>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    const selectedMeta = selected?.meta;
-    expect(selectedMeta).toBeDefined();
-    if (!selected || !selectedMeta) return;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -284,11 +251,11 @@ describe('EventInspector domain save path', () => {
 
     await user.click(screen.getByRole('button', { name: 'Delete connection' }));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     const xmlDoc = new DOMParser().parseFromString(nextXml, 'application/xml');
     expect(xmlDoc.querySelectorAll('note > tie')).toHaveLength(0);
     expect(xmlDoc.querySelectorAll('note > notations > tied')).toHaveLength(0);
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
   });
 
   it('saves tie direction through domain notation controls', async () => {
@@ -312,25 +279,18 @@ describe('EventInspector domain save path', () => {
         <notations><tied type="stop"/></notations>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    const selectedMeta = selected?.meta;
-    expect(selectedMeta).toBeDefined();
-    if (!selected || !selectedMeta) return;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -338,10 +298,10 @@ describe('EventInspector domain save path', () => {
 
     await user.click(screen.getByLabelText('above'));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     const xmlDoc = new DOMParser().parseFromString(nextXml, 'application/xml');
     expect(xmlDoc.querySelector('note > notations > tied[type="start"]')?.getAttribute('orientation')).toBe('over');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
   });
 
   it('deletes slur relationships through domain commands', async () => {
@@ -363,25 +323,18 @@ describe('EventInspector domain save path', () => {
         <notations><slur type="stop" number="1"/></notations>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    const selectedMeta = selected?.meta;
-    expect(selectedMeta).toBeDefined();
-    if (!selected || !selectedMeta) return;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -390,10 +343,10 @@ describe('EventInspector domain save path', () => {
     const deleteButtons = screen.getAllByRole('button', { name: 'Delete connection' });
     await user.click(deleteButtons[0]);
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     const xmlDoc = new DOMParser().parseFromString(nextXml, 'application/xml');
     expect(xmlDoc.querySelectorAll('note > notations > slur')).toHaveLength(0);
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
   });
 
   it('saves slur direction through domain notation controls', async () => {
@@ -415,25 +368,18 @@ describe('EventInspector domain save path', () => {
         <notations><slur type="stop" number="1"/></notations>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    const selectedMeta = selected?.meta;
-    expect(selectedMeta).toBeDefined();
-    if (!selected || !selectedMeta) return;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -441,10 +387,10 @@ describe('EventInspector domain save path', () => {
 
     await user.click(screen.getByLabelText('above'));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     const xmlDoc = new DOMParser().parseFromString(nextXml, 'application/xml');
     expect(xmlDoc.querySelector('note > notations > slur[type="start"]')?.getAttribute('placement')).toBe('above');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
   });
 
   it('saves matched pitched stem edits through domain export and keeps the domain selection active', async () => {
@@ -456,26 +402,18 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(selected?.type).toBe('note');
-    expect(selected?.meta).toBeDefined();
-    if (!selected?.meta) return;
-    const selectedMeta = selected.meta;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -484,15 +422,11 @@ describe('EventInspector domain save path', () => {
     expect(screen.getByText('Selected')).toBeInTheDocument();
     await user.click(screen.getByLabelText('down'));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     expect(nextXml).toContain('<stem>down</stem>');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
     expect(result.current.editorState.inspectorOpen).toBe(true);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
-    expect(result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0]).toMatchObject({
-      type: 'note',
-      stemDirection: 'down',
-    });
   });
 
   it('saves matched pitched rhythm edits through domain export and keeps the domain selection active', async () => {
@@ -504,26 +438,18 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(selected?.type).toBe('note');
-    expect(selected?.meta).toBeDefined();
-    if (!selected?.meta) return;
-    const selectedMeta = selected.meta;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -538,17 +464,12 @@ describe('EventInspector domain save path', () => {
     await user.click(await screen.findByRole('option', { name: 'Half Note' }));
     await user.click(screen.getByRole('checkbox', { name: 'Dotted' }));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     expect(nextXml).toContain('<type>half</type>');
     expect(nextXml).toContain('<dot/>');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
     expect(result.current.editorState.inspectorOpen).toBe(true);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
-    expect(result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0]).toMatchObject({
-      type: 'note',
-      duration: 'durationHalf',
-      dotted: true,
-    });
   });
 
   it('saves matched explicit rest rhythm edits through domain export and keeps the domain selection active', async () => {
@@ -560,26 +481,18 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(selected?.type).toBe('rest');
-    expect(selected?.meta).toBeDefined();
-    if (!selected?.meta) return;
-    const selectedMeta = selected.meta;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -593,17 +506,13 @@ describe('EventInspector domain save path', () => {
     await user.click(durationTrigger);
     await user.click(await screen.findByRole('option', { name: 'Half Note' }));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     expect(nextXml).toContain('<rest/>');
     expect(nextXml).toContain('<type>half</type>');
     expect(nextXml).toContain('<duration>8</duration>');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
     expect(result.current.editorState.inspectorOpen).toBe(true);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
-    expect(result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0]).toMatchObject({
-      type: 'rest',
-      duration: 'durationHalf',
-    });
   });
 
   it('saves matched single-note pitch-name edits through domain export and keeps the domain selection active', async () => {
@@ -615,26 +524,18 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(selected?.type).toBe('note');
-    expect(selected?.meta).toBeDefined();
-    if (!selected?.meta) return;
-    const selectedMeta = selected.meta;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -646,15 +547,11 @@ describe('EventInspector domain save path', () => {
     await user.click(pitchTrigger);
     await user.click(await screen.findByRole('option', { name: 'D' }));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     expect(nextXml).toContain('<step>D</step>');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
     expect(result.current.editorState.inspectorOpen).toBe(true);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
-    expect(result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0]).toMatchObject({
-      type: 'note',
-      pitch: 'D4',
-    });
   });
 
   it('saves matched chord-member pitch-name edits through domain export and refreshes the selected chord', async () => {
@@ -673,26 +570,18 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(selected?.type).toBe('chord');
-    expect(selected?.meta).toBeDefined();
-    if (!selected?.meta) return;
-    const selectedMeta = selected.meta;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -704,18 +593,13 @@ describe('EventInspector domain save path', () => {
     await user.click(secondPitchTrigger);
     await user.click(await screen.findByRole('option', { name: 'G' }));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     expect(nextXml).toContain('<step>C</step>');
     expect(nextXml).toContain('<step>G</step>');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
     expect(result.current.editorState.inspectorOpen).toBe(true);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
 
-    const refreshedScoreEvent = result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(refreshedScoreEvent?.type).toBe('chord');
-    if (refreshedScoreEvent?.type === 'chord') {
-      expect(refreshedScoreEvent.pitches).toEqual(['C4', 'G4']);
-    }
   });
 
   it('saves matched note-atom fingering edits through domain export and refreshes the selected chord', async () => {
@@ -734,26 +618,18 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(selected?.type).toBe('chord');
-    expect(selected?.meta).toBeDefined();
-    if (!selected?.meta) return;
-    const selectedMeta = selected.meta;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -766,15 +642,11 @@ describe('EventInspector domain save path', () => {
     await user.click(secondFingeringTrigger);
     await user.click(await screen.findByRole('option', { name: '4' }));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     expect(nextXml).toContain('<fingering>4</fingering>');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
     expect(result.current.editorState.inspectorOpen).toBe(true);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
-    expect(result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0]).toMatchObject({
-      type: 'chord',
-      fingerings: ['none', '4'],
-    });
   });
 
   it('saves matched note-atom accidental edits through domain export and refreshes the selected chord', async () => {
@@ -793,26 +665,18 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(selected?.type).toBe('chord');
-    expect(selected?.meta).toBeDefined();
-    if (!selected?.meta) return;
-    const selectedMeta = selected.meta;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -823,29 +687,23 @@ describe('EventInspector domain save path', () => {
     if (!secondSharpButton) return;
     await user.click(secondSharpButton);
 
-    const sharpXml = result.current.scoreData.currentXml ?? '';
+    const sharpXml = result.current.session.serializedXml ?? '';
     expect(sharpXml).toContain('<alter>1</alter>');
     expect(sharpXml).toContain('<accidental>sharp</accidental>');
-    expect(result.current.history.getCurrentXml()).toBe(sharpXml);
+    expect(result.current.history.serializedXml).toBe(sharpXml);
     expect(result.current.editorState.inspectorOpen).toBe(true);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
 
-    const sharpScoreEvent = result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(sharpScoreEvent?.type).toBe('chord');
-    if (sharpScoreEvent?.type === 'chord') {
-      expect(sharpScoreEvent.pitches).toEqual(['C4', 'E#4']);
-      expect(sharpScoreEvent.accidentals?.[1]).toBe('sharp');
-    }
 
     const activeSecondSharpButton = screen.getAllByRole('button', { name: 'Sharp' })[1];
     expect(activeSecondSharpButton).toBeTruthy();
     if (!activeSecondSharpButton) return;
     await user.click(activeSecondSharpButton);
 
-    const clearedXml = result.current.scoreData.currentXml ?? '';
+    const clearedXml = result.current.session.serializedXml ?? '';
     expect(clearedXml).not.toContain('<alter>1</alter>');
     expect(clearedXml).not.toContain('<accidental>sharp</accidental>');
-    expect(result.current.history.getCurrentXml()).toBe(clearedXml);
+    expect(result.current.history.serializedXml).toBe(clearedXml);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
   });
 
@@ -858,26 +716,18 @@ describe('EventInspector domain save path', () => {
         <type>quarter</type>
       </note>
     `);
-    const parsed = new MusicXMLParser(xml).parse();
-    const selected = parsed.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(selected?.type).toBe('note');
-    expect(selected?.meta).toBeDefined();
-    if (!selected?.meta) return;
-    const selectedMeta = selected.meta;
 
     const user = userEvent.setup();
     const { result } = renderHook(() => ({
-      scoreData: useScoreData(),
+      session: useEditorSession(),
       editorState: useEditorState(),
-      history: useHistory(),
+      history: useEditorSession(),
     }), { wrapper });
 
     act(() => {
-      result.current.scoreData.setCurrentXml(xml);
-      result.current.scoreData.setScoreData(parsed);
-      result.current.history.initialize(xml);
+      result.current.session.loadMusicXml(xml);
       result.current.editorState.openEditingSelection({
-        domainAnchor: getDomainEventAnchor(xml, selectedMeta.sourceIds ?? [selectedMeta.id]),
+        domainAnchor: getDomainEventAnchorAtIndex(xml, 0),
         domainCompanion: null,
       });
       result.current.editorState.setInspectorOpen(true);
@@ -885,31 +735,22 @@ describe('EventInspector domain save path', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add pitch' }));
 
-    const nextXml = result.current.scoreData.currentXml ?? '';
+    const nextXml = result.current.session.serializedXml ?? '';
     expect(nextXml).toContain('<note id="editable-note">');
     expect(nextXml).toContain('<note id="editable-note-chord-2">');
     expect(nextXml).toContain('<chord/>');
-    expect(result.current.history.getCurrentXml()).toBe(nextXml);
+    expect(result.current.history.serializedXml).toBe(nextXml);
     expect(result.current.editorState.inspectorOpen).toBe(true);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
 
-    const refreshedScoreEvent = result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0];
-    expect(refreshedScoreEvent?.type).toBe('chord');
-    if (refreshedScoreEvent?.type === 'chord') {
-      expect(refreshedScoreEvent.pitches).toEqual(['C4', 'C4']);
-    }
 
     const removeButtons = screen.getAllByRole('button', { name: 'Remove pitch' });
     expect(removeButtons).toHaveLength(2);
     await user.click(removeButtons[1]);
 
-    const removedXml = result.current.scoreData.currentXml ?? '';
+    const removedXml = result.current.session.serializedXml ?? '';
     expect(removedXml).not.toContain('editable-note-chord-2');
-    expect(result.current.history.getCurrentXml()).toBe(removedXml);
+    expect(result.current.history.serializedXml).toBe(removedXml);
     expect(result.current.editorState.editingSelection?.domainAnchor?.kind).toBe('event');
-    expect(result.current.scoreData.scoreData?.measures[0]?.staves[0]?.voices[0]?.events[0]).toMatchObject({
-      type: 'note',
-      pitch: 'C4',
-    });
   });
 });

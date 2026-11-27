@@ -5,1675 +5,31 @@ export type ClientOptions = {
 };
 
 /**
- * APIResponse[AssetAccessRead]
+ * AccessOrigin
  */
-export type ApiResponseAssetAccessRead = {
+export type AccessOrigin = 'OWNER' | 'MEMBERSHIP';
+
+/**
+ * AccountDeletionRead
+ */
+export type AccountDeletionRead = {
     /**
-     * Code
-     *
-     * Business code
+     * Operation Id
      */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: AssetAccessRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
+    operation_id: string;
 };
 
 /**
- * APIResponse[AvatarRead]
+ * ApiErrorResponse
+ *
+ * Machine-readable application failure; presentation remains client-owned.
  */
-export type ApiResponseAvatarRead = {
+export type ApiErrorResponse = {
+    code: CustomerErrorCode;
     /**
-     * Code
-     *
-     * Business code
+     * Request Id
      */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: AvatarRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[DeleteUploadedFileRead]
- */
-export type ApiResponseDeleteUploadedFileRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: DeleteUploadedFileRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[EmailChangeConfirmedRead]
- */
-export type ApiResponseEmailChangeConfirmedRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: EmailChangeConfirmedRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[FingeringResultRead]
- */
-export type ApiResponseFingeringResultRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: FingeringResultRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GrantAccessRead]
- */
-export type ApiResponseGrantAccessRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GrantAccessRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GrantBookmarkRead]
- */
-export type ApiResponseGrantBookmarkRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GrantBookmarkRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GrantCreatedRead]
- */
-export type ApiResponseGrantCreatedRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GrantCreatedRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GrantRead]
- */
-export type ApiResponseGrantRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GrantRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[GrantRedeemRead]
- */
-export type ApiResponseGrantRedeemRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: GrantRedeemRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ImportJobBatchStatusRead]
- */
-export type ApiResponseImportJobBatchStatusRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ImportJobBatchStatusRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ImportJobRead]
- */
-export type ApiResponseImportJobRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ImportJobRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ImportJobReviewRead]
- */
-export type ApiResponseImportJobReviewRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ImportJobReviewRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ImportJobSubmitRead]
- */
-export type ApiResponseImportJobSubmitRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ImportJobSubmitRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteAcceptRead]
- */
-export type ApiResponseInviteAcceptRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteAcceptRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteAccessRead]
- */
-export type ApiResponseInviteAccessRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteAccessRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteCreatedRead]
- */
-export type ApiResponseInviteCreatedRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteCreatedRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[InviteRead]
- */
-export type ApiResponseInviteRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: InviteRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryBatchMoveRead]
- */
-export type ApiResponseLibraryBatchMoveRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryBatchMoveRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryBatchUpdateRead]
- */
-export type ApiResponseLibraryBatchUpdateRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryBatchUpdateRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryEntryRead]
- */
-export type ApiResponseLibraryEntryRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryEntryRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryFolderRead]
- */
-export type ApiResponseLibraryFolderRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryFolderRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryFolderTreeRead]
- */
-export type ApiResponseLibraryFolderTreeRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryFolderTreeRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[LibraryOwnedScoreBatchRead]
- */
-export type ApiResponseLibraryOwnedScoreBatchRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: LibraryOwnedScoreBatchRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[MemberRead]
- */
-export type ApiResponseMemberRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: MemberRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[NoneType]
- */
-export type ApiResponseNoneType = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[NotificationEventRead]
- */
-export type ApiResponseNotificationEventRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: NotificationEventRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[NotificationUnreadCountRead]
- */
-export type ApiResponseNotificationUnreadCountRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: NotificationUnreadCountRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PendingInviteRead]
- */
-export type ApiResponsePendingInviteRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PendingInviteRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakeDeleteResponse]
- */
-export type ApiResponsePerformanceTakeDeleteResponse = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakeDeleteResponse | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakeListResponse]
- */
-export type ApiResponsePerformanceTakeListResponse = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakeListResponse | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakePlaybackRead]
- */
-export type ApiResponsePerformanceTakePlaybackRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakePlaybackRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakeRead]
- */
-export type ApiResponsePerformanceTakeRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakeRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PerformanceTakeUploadAuthorizationRead]
- */
-export type ApiResponsePerformanceTakeUploadAuthorizationRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PerformanceTakeUploadAuthorizationRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PracticeAcousticAccessRead]
- */
-export type ApiResponsePracticeAcousticAccessRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PracticeAcousticAccessRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PracticeReadyScoreContentRead]
- */
-export type ApiResponsePracticeReadyScoreContentRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PracticeReadyScoreContentRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PracticeScoreArtifactRead]
- */
-export type ApiResponsePracticeScoreArtifactRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PracticeScoreArtifactRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PracticeTargetCatalogRead]
- */
-export type ApiResponsePracticeTargetCatalogRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PracticeTargetCatalogRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ProfileRead]
- */
-export type ApiResponseProfileRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ProfileRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ProfileUpdateRead]
- */
-export type ApiResponseProfileUpdateRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ProfileUpdateRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PublicScoreRead]
- */
-export type ApiResponsePublicScoreRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PublicScoreRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[PublicationRead]
- */
-export type ApiResponsePublicationRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: PublicationRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ReviewConfirmRead]
- */
-export type ApiResponseReviewConfirmRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ReviewConfirmRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[RevisionContentRead]
- */
-export type ApiResponseRevisionContentRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: RevisionContentRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[RevisionListRead]
- */
-export type ApiResponseRevisionListRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: RevisionListRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[RevisionRead]
- */
-export type ApiResponseRevisionRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: RevisionRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ScoreRead]
- */
-export type ApiResponseScoreRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ScoreRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[ScoreRevisionAssetsRead]
- */
-export type ApiResponseScoreRevisionAssetsRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: ScoreRevisionAssetsRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[SecurityRead]
- */
-export type ApiResponseSecurityRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: SecurityRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[SessionsRead]
- */
-export type ApiResponseSessionsRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: SessionsRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[StorageUsageRead]
- */
-export type ApiResponseStorageUsageRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: StorageUsageRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[UploadFileRead]
- */
-export type ApiResponseUploadFileRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Response payload
-     */
-    data?: UploadFileRead | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[dict[str, bool]]
- */
-export type ApiResponseDictStrBool = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: {
-        [key: string]: boolean;
-    } | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[dict[str, int]]
- */
-export type ApiResponseDictStrInt = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: {
-        [key: string]: number;
-    } | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[list[GrantRead]]
- */
-export type ApiResponseListGrantRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<GrantRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[list[InviteRead]]
- */
-export type ApiResponseListInviteRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<InviteRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[list[MemberRead]]
- */
-export type ApiResponseListMemberRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<MemberRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[list[NotificationEventRead]]
- */
-export type ApiResponseListNotificationEventRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<NotificationEventRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
-};
-
-/**
- * APIResponse[list[PendingInviteRead]]
- */
-export type ApiResponseListPendingInviteRead = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: Array<PendingInviteRead> | null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
+    request_id: string;
 };
 
 /**
@@ -1727,9 +83,19 @@ export type BatchImportJobStatusRequest = {
 };
 
 /**
- * Body_login_access_token_api_v1_auth_login_post
+ * Body_accountAvatarUpload
  */
-export type BodyLoginAccessTokenApiV1AuthLoginPost = {
+export type BodyAccountAvatarUpload = {
+    /**
+     * File
+     */
+    file: Blob | File;
+};
+
+/**
+ * Body_authLogin
+ */
+export type BodyAuthLogin = {
     /**
      * Client Id
      */
@@ -1754,26 +120,6 @@ export type BodyLoginAccessTokenApiV1AuthLoginPost = {
      * Username
      */
     username: string;
-};
-
-/**
- * Body_upload_avatar_api_v1_me_avatar_post
- */
-export type BodyUploadAvatarApiV1MeAvatarPost = {
-    /**
-     * File
-     */
-    file: Blob | File;
-};
-
-/**
- * Body_upload_file_api_v1_files_upload_post
- */
-export type BodyUploadFileApiV1FilesUploadPost = {
-    /**
-     * File
-     */
-    file: Blob | File;
 };
 
 /**
@@ -1825,13 +171,18 @@ export type CustomFixedBpmTempoPlanSelection = {
 };
 
 /**
- * DeleteUploadedFileRead
+ * CustomerErrorCode
  */
-export type DeleteUploadedFileRead = {
+export type CustomerErrorCode = 'internal_error' | 'validation_error' | 'resource_not_found' | 'resource_already_exists' | 'business_rule_violation' | 'unknown_error' | 'auth_failed' | 'unauthorized' | 'token_invalid_expired' | 'csrf_token_invalid' | 'request_origin_invalid' | 'account_inactive' | 'invalid_credentials' | 'email_mismatch' | 'email_invalid' | 'email_delivery_unavailable' | 'reset_token_invalid' | 'request_too_frequent' | 'no_access' | 'no_edit_access' | 'no_delete_access' | 'no_guest_preview_access' | 'no_download_access' | 'task_error' | 'task_timeout' | 'job_not_found' | 'job_running' | 'no_upload_ids' | 'input_file_missing' | 'score_recognition_failed' | 'score_metadata_conflict' | 'score_not_found' | 'revision_not_found' | 'revision_conflict' | 'revision_content_invalid' | 'xml_not_found' | 'score_preview_failed' | 'score_playback_failed' | 'score_fingering_failed' | 'invalid_hand_type' | 'invalid_depth' | 'file_error' | 'file_not_found' | 'file_read_failed' | 'file_save_failed' | 'file_copy_failed' | 'file_delete_failed' | 'file_type_not_allowed' | 'storage_backend_unavailable' | 'no_file_selected' | 'storage_quota_exceeded' | 'quota_check_unavailable' | 'guest_preview_already_enabled' | 'guest_preview_not_enabled' | 'guest_preview_not_found' | 'invite_not_found' | 'invite_expired' | 'invite_revoked' | 'invite_declined' | 'invite_recipient_account_closed' | 'invite_inviter_account_closed' | 'invite_already_accepted' | 'invite_email_mismatch' | 'membership_not_found' | 'notification_not_found' | 'practice_score_invalid' | 'practice_bundle_failed' | 'practice_scope_invalid' | 'practice_activity_conflict' | 'no_practice_access' | 'user_not_found' | 'email_not_found' | 'current_password_required' | 'current_password_wrong' | 'password_too_short' | 'no_avatar' | 'avatar_process_failed' | 'feature_temporarily_unavailable' | 'excel_not_available';
+
+/**
+ * DeleteAccountRequest
+ */
+export type DeleteAccountRequest = {
     /**
-     * Filename
+     * Current Password
      */
-    filename: string;
+    current_password: string;
 };
 
 /**
@@ -1842,36 +193,6 @@ export type EmailChangeConfirmedRead = {
      * Email
      */
     email: string;
-};
-
-/**
- * EmptyResponse
- */
-export type EmptyResponse = {
-    /**
-     * Code
-     *
-     * Business code
-     */
-    code?: string | null;
-    /**
-     * Data
-     *
-     * Response payload
-     */
-    data?: null;
-    /**
-     * Message
-     *
-     * Human-readable message
-     */
-    message?: string | null;
-    /**
-     * Success
-     *
-     * Whether the request succeeded
-     */
-    success: boolean;
 };
 
 /**
@@ -1899,11 +220,6 @@ export type FingeringResultRead = {
 };
 
 /**
- * FolderDeleteMode
- */
-export type FolderDeleteMode = 'MOVE_CONTENTS_TO_PARENT' | 'MOVE_CONTENTS_TO_ROOT' | 'TRASH_CONTENTS';
-
-/**
  * ForgotPasswordRequest
  */
 export type ForgotPasswordRequest = {
@@ -1920,102 +236,13 @@ export type ForgotPasswordRequest = {
 };
 
 /**
- * GrantAccessRead
+ * GuestPreviewCredentialIssuedRead
  */
-export type GrantAccessRead = {
-    capabilities: ScoreCapabilities;
-    derived_assets: ScoreDerivedAssetsRead;
-    metadata: MetadataRead | null;
-    revision_assets: ScoreRevisionAssetsRead;
+export type GuestPreviewCredentialIssuedRead = {
     /**
-     * Revision Id
+     * Issued At
      */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    /**
-     * Shared At
-     */
-    shared_at: string;
-    shared_by: ShareActorRead | null;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<ScoreTaxonomyTagRead>;
-    /**
-     * Title
-     */
-    title: string;
-};
-
-/**
- * GrantBookmarkRead
- */
-export type GrantBookmarkRead = {
-    /**
-     * Available
-     */
-    available: boolean;
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Entry Id
-     */
-    entry_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Unavailable Reason
-     */
-    unavailable_reason: string | null;
-};
-
-/**
- * GrantCreateRequest
- */
-export type GrantCreateRequest = {
-    access_mode?: ScoreAudienceAccessMode;
-    /**
-     * Allow Download
-     */
-    allow_download?: boolean;
-    /**
-     * Expires At
-     */
-    expires_at?: string | null;
-};
-
-/**
- * GrantCreatedRead
- */
-export type GrantCreatedRead = {
-    access_mode: ScoreAudienceAccessMode;
-    /**
-     * Allow Download
-     */
-    allow_download: boolean;
-    /**
-     * Created At
-     */
-    created_at: string;
-    /**
-     * Expires At
-     */
-    expires_at: string | null;
-    /**
-     * Grant Id
-     */
-    grant_id: string;
+    issued_at: string;
     /**
      * Token
      */
@@ -2023,62 +250,53 @@ export type GrantCreatedRead = {
 };
 
 /**
- * GrantRead
+ * GuestPreviewPageRead
  */
-export type GrantRead = {
-    access_mode: ScoreAudienceAccessMode;
+export type GuestPreviewPageRead = {
     /**
-     * Allow Download
+     * Asset Id
      */
-    allow_download: boolean;
+    asset_id: string;
     /**
-     * Created At
+     * Page Number
      */
-    created_at: string;
-    /**
-     * Expires At
-     */
-    expires_at: string | null;
-    /**
-     * Grant Id
-     */
-    grant_id: string;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
-    /**
-     * Token
-     */
-    token?: string | null;
+    page_number: number;
 };
 
 /**
- * GrantRedeemRead
+ * GuestPreviewRead
  */
-export type GrantRedeemRead = {
+export type GuestPreviewRead = {
     /**
-     * Can Practice
+     * Audio Available
      */
-    can_practice: boolean;
+    audio_available: boolean;
     /**
-     * Score Id
+     * Display Title
      */
-    score_id: string;
+    display_title: string;
     /**
-     * Title
+     * Render Assets
      */
-    title: string;
+    render_assets: Array<GuestPreviewPageRead>;
+    /**
+     * Shared By
+     */
+    shared_by: string;
 };
 
 /**
- * HTTPValidationError
+ * GuestPreviewSettingsRead
  */
-export type HttpValidationError = {
+export type GuestPreviewSettingsRead = {
     /**
-     * Detail
+     * Enabled
      */
-    detail?: Array<ValidationError>;
+    enabled: boolean;
+    /**
+     * Issued At
+     */
+    issued_at: string | null;
 };
 
 /**
@@ -2116,6 +334,36 @@ export type ImportArtifactRead = {
 };
 
 /**
+ * ImportFailedNotificationRead
+ */
+export type ImportFailedNotificationRead = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Import Display Title
+     */
+    import_display_title: string | null;
+    /**
+     * Job Id
+     */
+    job_id: string;
+    /**
+     * Kind
+     */
+    kind: 'import.failed';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+};
+
+/**
  * ImportJobBatchStatusRead
  */
 export type ImportJobBatchStatusRead = {
@@ -2128,35 +376,29 @@ export type ImportJobBatchStatusRead = {
 };
 
 /**
- * ImportJobProcessingOptions
- */
-export type ImportJobProcessingOptions = {
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags?: Array<ScoreTaxonomyTagInput>;
-    /**
-     * Title
-     */
-    title?: string;
-};
-
-/**
  * ImportJobRead
  */
 export type ImportJobRead = {
     /**
+     * Confirmed At
+     */
+    confirmed_at?: string | null;
+    /**
      * Created At
      */
-    created_at?: string | null;
+    created_at: string;
+    /**
+     * Display Title
+     */
+    display_title?: string | null;
     /**
      * Execution Manifest Sha256
      */
     execution_manifest_sha256?: string | null;
     /**
-     * Finished At
+     * Genres
      */
-    finished_at?: string | null;
+    genres?: Array<ScoreGenre>;
     /**
      * Job Id
      */
@@ -2166,6 +408,14 @@ export type ImportJobRead = {
      */
     original_images?: Array<ImportArtifactRead>;
     /**
+     * Processing Finished At
+     */
+    processing_finished_at?: string | null;
+    /**
+     * Processing Started At
+     */
+    processing_started_at?: string | null;
+    /**
      * Progress
      */
     progress: number;
@@ -2174,31 +424,28 @@ export type ImportJobRead = {
      */
     public_code?: string | null;
     /**
-     * Public Message
-     */
-    public_message?: string | null;
-    /**
      * Score Id
      */
     score_id?: string | null;
-    /**
-     * Started At
-     */
-    started_at?: string | null;
     state: ImportJobState;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags?: Array<ScoreTaxonomyTagInput>;
-    thumbnail?: ImportArtifactRead | null;
-    /**
-     * Title
-     */
-    title?: string | null;
     /**
      * Updated At
      */
-    updated_at?: string | null;
+    updated_at: string;
+};
+
+/**
+ * ImportJobRequestedOptions
+ */
+export type ImportJobRequestedOptions = {
+    /**
+     * Display Title
+     */
+    display_title?: string;
+    /**
+     * Genres
+     */
+    genres?: Array<ScoreGenre>;
 };
 
 /**
@@ -2209,6 +456,14 @@ export type ImportJobReviewRead = {
      * Created At
      */
     created_at: string;
+    /**
+     * Display Title
+     */
+    display_title?: string | null;
+    /**
+     * Genres
+     */
+    genres: Array<ScoreGenre>;
     /**
      * Job Id
      */
@@ -2224,16 +479,6 @@ export type ImportJobReviewRead = {
     score_id?: string | null;
     state: ImportJobState;
     /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<{
-        [key: string]: string;
-    }>;
-    /**
-     * Title
-     */
-    title?: string | null;
-    /**
      * Updated At
      */
     updated_at: string;
@@ -2242,7 +487,7 @@ export type ImportJobReviewRead = {
 /**
  * ImportJobState
  */
-export type ImportJobState = 'PENDING' | 'RUNNING' | 'PENDING_REVIEW' | 'CONFIRMED' | 'FAILURE';
+export type ImportJobState = 'QUEUED' | 'PROCESSING' | 'READY_FOR_REVIEW' | 'CONFIRMED' | 'FAILED';
 
 /**
  * ImportJobStatusRead
@@ -2256,10 +501,6 @@ export type ImportJobStatusRead = {
      * Public Code
      */
     public_code?: string | null;
-    /**
-     * Public Message
-     */
-    public_message?: string | null;
     /**
      * Score Id
      */
@@ -2287,14 +528,52 @@ export type ImportJobSubmitRead = {
  */
 export type ImportJobSubmitRequest = {
     /**
-     * File Ids
-     */
-    file_ids: Array<string>;
-    /**
      * Idempotency Key
      */
     idempotency_key?: string | null;
-    options?: ImportJobProcessingOptions | null;
+    options?: ImportJobRequestedOptions | null;
+    /**
+     * Upload Ids
+     */
+    upload_ids: Array<string>;
+};
+
+/**
+ * ImportReadyForReviewNotificationRead
+ */
+export type ImportReadyForReviewNotificationRead = {
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Import Display Title
+     */
+    import_display_title: string | null;
+    /**
+     * Job Id
+     */
+    job_id: string;
+    /**
+     * Kind
+     */
+    kind: 'import.ready_for_review';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Score Display Title
+     */
+    score_display_title: string | null;
+    /**
+     * Score Id
+     */
+    score_id: string | null;
 };
 
 /**
@@ -2304,7 +583,7 @@ export type InviteAcceptRead = {
     /**
      * Membership Id
      */
-    membership_id: number | null;
+    membership_id: number;
     role: MembershipRole;
     /**
      * Score Id
@@ -2323,7 +602,7 @@ export type InviteAccessRead = {
     /**
      * Email
      */
-    email: string | null;
+    email: string;
     /**
      * Expires At
      */
@@ -2339,13 +618,13 @@ export type InviteAccessRead = {
     requires_login: boolean;
     role: MembershipRole;
     /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
      * Score Id
      */
     score_id: string;
-    /**
-     * Score Title
-     */
-    score_title: string;
     status: InviteStatus;
 };
 
@@ -2391,19 +670,10 @@ export type InviteCreateRequest = {
  */
 export type InviteCreatedRead = {
     /**
-     * Accepted At
-     */
-    accepted_at: string | null;
-    accepted_by: InviteActorRead | null;
-    /**
      * Created At
      */
     created_at: string;
     created_by: InviteActorRead | null;
-    /**
-     * Declined At
-     */
-    declined_at: string | null;
     /**
      * Email
      */
@@ -2416,12 +686,13 @@ export type InviteCreatedRead = {
      * Invite Id
      */
     invite_id: string;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
     role: MembershipRole;
     status: InviteStatus;
+    terminal_actor: InviteActorRead | null;
+    /**
+     * Terminal At
+     */
+    terminal_at: string | null;
     /**
      * Token
      */
@@ -2429,23 +700,28 @@ export type InviteCreatedRead = {
 };
 
 /**
+ * InviteListRead
+ */
+export type InviteListRead = {
+    /**
+     * Items
+     */
+    items: Array<InviteRead>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
+};
+
+/**
  * InviteRead
  */
 export type InviteRead = {
-    /**
-     * Accepted At
-     */
-    accepted_at: string | null;
-    accepted_by: InviteActorRead | null;
     /**
      * Created At
      */
     created_at: string;
     created_by: InviteActorRead | null;
-    /**
-     * Declined At
-     */
-    declined_at: string | null;
     /**
      * Email
      */
@@ -2458,18 +734,41 @@ export type InviteRead = {
      * Invite Id
      */
     invite_id: string;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
     role: MembershipRole;
     status: InviteStatus;
+    terminal_actor: InviteActorRead | null;
+    /**
+     * Terminal At
+     */
+    terminal_at: string | null;
 };
 
 /**
  * InviteStatus
  */
-export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED' | 'DECLINED';
+export type InviteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'RECIPIENT_ACCOUNT_CLOSED' | 'INVITER_ACCOUNT_CLOSED' | 'EXPIRED';
+
+/**
+ * KeySignatureEvent
+ */
+export type KeySignatureEvent = {
+    /**
+     * Fifths
+     */
+    fifths: number;
+    /**
+     * Measure
+     */
+    measure: string;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Part
+     */
+    part: number;
+};
 
 /**
  * LibraryBatchMoveRead
@@ -2492,111 +791,6 @@ export type LibraryBatchUpdateRead = {
 };
 
 /**
- * LibraryEntryBatchMoveRequest
- */
-export type LibraryEntryBatchMoveRequest = {
-    /**
-     * Entry Ids
-     */
-    entry_ids: Array<string>;
-    /**
-     * Target Folder Id
-     */
-    target_folder_id?: string | null;
-};
-
-/**
- * LibraryEntryBatchPracticeStateRequest
- */
-export type LibraryEntryBatchPracticeStateRequest = {
-    /**
-     * Entry Ids
-     */
-    entry_ids: Array<string>;
-    practice_state: LibraryPracticeState;
-};
-
-/**
- * LibraryEntryBatchUpdateRequest
- */
-export type LibraryEntryBatchUpdateRequest = {
-    /**
-     * Entry Ids
-     */
-    entry_ids: Array<string>;
-};
-
-/**
- * LibraryEntryRead
- */
-export type LibraryEntryRead = {
-    /**
-     * Available
-     */
-    available: boolean;
-    /**
-     * Created At
-     */
-    created_at: string;
-    derived_assets: ScoreDerivedAssetsRead;
-    /**
-     * Entry Id
-     */
-    entry_id: string;
-    /**
-     * Folder Id
-     */
-    folder_id: string | null;
-    /**
-     * Is Favorite
-     */
-    is_favorite: boolean;
-    /**
-     * Last Practiced At
-     */
-    last_practiced_at: string | null;
-    metadata: MetadataRead | null;
-    practice_state: LibraryPracticeState;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    source_type: LibraryEntrySourceType;
-    /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<ScoreTaxonomyTagRead>;
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Unavailable Reason
-     */
-    unavailable_reason: string | null;
-    /**
-     * Updated At
-     */
-    updated_at: string;
-};
-
-/**
- * LibraryEntrySourceType
- */
-export type LibraryEntrySourceType = 'SELF_ADDED' | 'BOOKMARK';
-
-/**
- * LibraryEntryUpdateRequest
- */
-export type LibraryEntryUpdateRequest = {
-    /**
-     * Is Favorite
-     */
-    is_favorite?: boolean | null;
-    practice_state?: LibraryPracticeState | null;
-};
-
-/**
  * LibraryFolderCreateRequest
  */
 export type LibraryFolderCreateRequest = {
@@ -2604,10 +798,32 @@ export type LibraryFolderCreateRequest = {
      * Name
      */
     name: string;
+};
+
+/**
+ * LibraryFolderOverviewRead
+ */
+export type LibraryFolderOverviewRead = {
     /**
-     * Parent Folder Id
+     * All Count
      */
-    parent_folder_id?: string | null;
+    all_count: number;
+    /**
+     * Created By Me Count
+     */
+    created_by_me_count: number;
+    /**
+     * Favorite Count
+     */
+    favorite_count: number;
+    /**
+     * Folders
+     */
+    folders: Array<LibraryFolderRead>;
+    /**
+     * Shared With Me Count
+     */
+    shared_with_me_count: number;
 };
 
 /**
@@ -2619,10 +835,6 @@ export type LibraryFolderRead = {
      */
     created_at: string;
     /**
-     * Direct Count
-     */
-    direct_count: number;
-    /**
      * Folder Id
      */
     folder_id: string;
@@ -2631,51 +843,17 @@ export type LibraryFolderRead = {
      */
     name: string;
     /**
-     * Parent Folder Id
-     */
-    parent_folder_id: string | null;
-    /**
      * Position
      */
     position: number;
     /**
-     * Recursive Count
+     * Score Count
      */
-    recursive_count: number;
+    score_count: number;
     /**
      * Updated At
      */
     updated_at: string;
-};
-
-/**
- * LibraryFolderTreeRead
- */
-export type LibraryFolderTreeRead = {
-    /**
-     * All Count
-     */
-    all_count: number;
-    /**
-     * Favorite Count
-     */
-    favorite_count: number;
-    /**
-     * Folders
-     */
-    folders: Array<LibraryFolderRead>;
-    /**
-     * Mastered Count
-     */
-    mastered_count: number;
-    /**
-     * Recent Practice Count
-     */
-    recent_practice_count: number;
-    /**
-     * To Practice Count
-     */
-    to_practice_count: number;
 };
 
 /**
@@ -2687,29 +865,19 @@ export type LibraryFolderUpdateRequest = {
      */
     name?: string | null;
     /**
-     * Parent Folder Id
-     */
-    parent_folder_id?: string | null;
-    /**
      * Position
      */
     position?: number | null;
 };
 
 /**
- * LibraryOwnedScoreBatchRead
+ * LibraryScoreBatchFavoriteRequest
  */
-export type LibraryOwnedScoreBatchRead = {
+export type LibraryScoreBatchFavoriteRequest = {
     /**
-     * Added
+     * Is Favorite
      */
-    added: number;
-};
-
-/**
- * LibraryOwnedScoreBatchRequest
- */
-export type LibraryOwnedScoreBatchRequest = {
+    is_favorite: boolean;
     /**
      * Score Ids
      */
@@ -2717,19 +885,107 @@ export type LibraryOwnedScoreBatchRequest = {
 };
 
 /**
- * LibraryPracticeState
+ * LibraryScoreBatchMoveRequest
  */
-export type LibraryPracticeState = 'TO_PRACTICE' | 'IN_PROGRESS' | 'MASTERED';
+export type LibraryScoreBatchMoveRequest = {
+    /**
+     * Score Ids
+     */
+    score_ids: Array<string>;
+    /**
+     * Target Folder Id
+     */
+    target_folder_id?: string | null;
+};
+
+/**
+ * LibraryScoreRead
+ */
+export type LibraryScoreRead = {
+    access_origin: AccessOrigin;
+    /**
+     * Created At
+     */
+    created_at: string;
+    derived_assets: ScoreDerivedAssetsRead;
+    /**
+     * Display Title
+     */
+    display_title: string;
+    /**
+     * Folder Id
+     */
+    folder_id: string | null;
+    /**
+     * Genres
+     */
+    genres: Array<ScoreGenre>;
+    /**
+     * Is Favorite
+     */
+    is_favorite: boolean;
+    metadata: MetadataRead | null;
+    /**
+     * Score Id
+     */
+    score_id: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
 
 /**
  * LibrarySort
  */
-export type LibrarySort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc' | 'practiced_desc';
+export type LibrarySort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc';
 
 /**
  * LibraryView
  */
-export type LibraryView = 'all' | 'favorites' | 'recent_practice' | 'to_practice' | 'mastered' | 'bookmarks' | 'trash';
+export type LibraryView = 'all' | 'favorites' | 'created_by_me' | 'shared_with_me';
+
+/**
+ * LivenessRead
+ */
+export type LivenessRead = {
+    /**
+     * Status
+     */
+    status: 'ok';
+};
+
+/**
+ * MediaAccessRead
+ */
+export type MediaAccessRead = {
+    /**
+     * Download Url
+     */
+    download_url: string;
+    /**
+     * Expires In
+     */
+    expires_in: number;
+    /**
+     * Playback Url
+     */
+    playback_url: string;
+};
+
+/**
+ * MemberListRead
+ */
+export type MemberListRead = {
+    /**
+     * Items
+     */
+    items: Array<MemberRead>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
+};
 
 /**
  * MemberRead
@@ -2755,10 +1011,6 @@ export type MemberRead = {
      * Membership Id
      */
     membership_id: number;
-    /**
-     * Revoked At
-     */
-    revoked_at: string | null;
     role: MembershipRole;
 };
 
@@ -2772,7 +1024,7 @@ export type MemberUpdateRequest = {
 /**
  * MembershipRole
  */
-export type MembershipRole = 'EDITOR' | 'VIEWER';
+export type MembershipRole = 'VIEWER' | 'PRACTITIONER' | 'EDITOR';
 
 /**
  * MetadataRead
@@ -2785,21 +1037,19 @@ export type MetadataRead = {
     /**
      * Key Signature Events
      */
-    key_signature_events: Array<{
-        [key: string]: unknown;
-    }>;
+    key_signature_events: Array<KeySignatureEvent>;
     /**
      * Measure Count
      */
     measure_count: number | null;
     /**
+     * Notation Title
+     */
+    notation_title: string | null;
+    /**
      * Part Count
      */
     part_count: number | null;
-    /**
-     * Playback Duration Ms
-     */
-    playback_duration_ms: number | null;
     /**
      * Primary Key Fifths
      */
@@ -2816,31 +1066,17 @@ export type MetadataRead = {
     /**
      * Tempo Events
      */
-    tempo_events: Array<{
-        [key: string]: unknown;
-    }>;
+    tempo_events: Array<TempoEvent>;
     /**
      * Time Signature Events
      */
-    time_signature_events: Array<{
-        [key: string]: unknown;
-    }>;
+    time_signature_events: Array<TimeSignatureEvent>;
 };
 
 /**
  * MetadataStatus
  */
 export type MetadataStatus = 'PENDING' | 'READY' | 'FAILED';
-
-/**
- * MyScoresSort
- */
-export type MyScoresSort = 'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc';
-
-/**
- * MyScoresView
- */
-export type MyScoresView = 'all' | 'private' | 'published';
 
 /**
  * NotificationActorRead
@@ -2861,45 +1097,30 @@ export type NotificationActorRead = {
 };
 
 /**
- * NotificationEventRead
+ * NotificationListRead
  */
-export type NotificationEventRead = {
-    actor: NotificationActorRead | null;
+export type NotificationListRead = {
     /**
-     * Body
+     * Items
      */
-    body: string | null;
+    items: Array<NotificationRead>;
     /**
-     * Created At
+     * Next Cursor
      */
-    created_at: string;
-    /**
-     * Data
-     */
-    data: {
-        [key: string]: unknown;
-    };
-    /**
-     * Notification Id
-     */
-    notification_id: string;
-    /**
-     * Read At
-     */
-    read_at: string | null;
-    /**
-     * Score Id
-     */
-    score_id: string | null;
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Type
-     */
-    type: string;
+    next_cursor: string | null;
 };
+
+export type NotificationRead = ({
+    kind: 'score_invite.accepted';
+} & ScoreInviteAcceptedNotificationRead) | ({
+    kind: 'score_invite.declined';
+} & ScoreInviteDeclinedNotificationRead) | ({
+    kind: 'score.version.created';
+} & ScoreVersionCreatedNotificationRead) | ({
+    kind: 'import.ready_for_review';
+} & ImportReadyForReviewNotificationRead) | ({
+    kind: 'import.failed';
+} & ImportFailedNotificationRead);
 
 /**
  * NotificationUnreadCountRead
@@ -2912,65 +1133,13 @@ export type NotificationUnreadCountRead = {
 };
 
 /**
- * PaginatedResponse[ImportJobRead]
+ * PageNumberPage[ImportJobRead]
  */
-export type PaginatedResponseImportJobRead = {
+export type PageNumberPageImportJobRead = {
     /**
-     * Data
+     * Items
      */
-    data: Array<ImportJobRead>;
-    /**
-     * Pagination metadata
-     */
-    pagination: PaginationMeta;
-    /**
-     * Success
-     */
-    success?: boolean;
-};
-
-/**
- * PaginatedResponse[LibraryEntryRead]
- */
-export type PaginatedResponseLibraryEntryRead = {
-    /**
-     * Data
-     */
-    data: Array<LibraryEntryRead>;
-    /**
-     * Pagination metadata
-     */
-    pagination: PaginationMeta;
-    /**
-     * Success
-     */
-    success?: boolean;
-};
-
-/**
- * PaginatedResponse[ScoreRead]
- */
-export type PaginatedResponseScoreRead = {
-    /**
-     * Data
-     */
-    data: Array<ScoreRead>;
-    /**
-     * Pagination metadata
-     */
-    pagination: PaginationMeta;
-    /**
-     * Success
-     */
-    success?: boolean;
-};
-
-/**
- * PaginationMeta
- *
- * Pagination metadata returned by paginated API responses.
- */
-export type PaginationMeta = {
+    items: Array<ImportJobRead>;
     /**
      * Page
      */
@@ -2986,7 +1155,47 @@ export type PaginationMeta = {
     /**
      * Total Pages
      */
-    total_pages: number;
+    readonly total_pages: number;
+};
+
+/**
+ * PageNumberPage[LibraryScoreRead]
+ */
+export type PageNumberPageLibraryScoreRead = {
+    /**
+     * Items
+     */
+    items: Array<LibraryScoreRead>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Total Pages
+     */
+    readonly total_pages: number;
+};
+
+/**
+ * PendingInviteListRead
+ */
+export type PendingInviteListRead = {
+    /**
+     * Items
+     */
+    items: Array<PendingInviteRead>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
 };
 
 /**
@@ -3000,7 +1209,7 @@ export type PendingInviteRead = {
     /**
      * Email
      */
-    email: string | null;
+    email: string;
     /**
      * Expires At
      */
@@ -3012,122 +1221,135 @@ export type PendingInviteRead = {
     inviter: InviteActorRead | null;
     role: MembershipRole;
     /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
      * Score Id
      */
     score_id: string;
-    /**
-     * Score Title
-     */
-    score_title: string;
     status: InviteStatus;
 };
 
 /**
- * PerformanceTakeCreateRequest
+ * PerformanceOccurrenceRead
  */
-export type PerformanceTakeCreateRequest = {
+export type PerformanceOccurrenceRead = {
     /**
-     * Artifact Id
+     * Measure Index
      */
-    artifact_id: string;
+    measure_index: number;
     /**
-     * Client Request Id
+     * Ordinal
      */
-    client_request_id: string;
+    ordinal: number;
+    performance_end: RationalRead;
+    performance_start: RationalRead;
     /**
-     * Duration Ms
+     * Visit
      */
-    duration_ms: number;
-    /**
-     * Media Byte Size
-     */
-    media_byte_size: number;
-    /**
-     * Media Kind
-     */
-    media_kind?: string;
-    /**
-     * Media Mime Type
-     */
-    media_mime_type: string;
-    recording_timebase: RecordingTimebase;
-    /**
-     * Reservation Id
-     */
-    reservation_id: string;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Scope End Group Id
-     */
-    scope_end_group_id?: string | null;
-    /**
-     * Scope Start Beat
-     */
-    scope_start_beat: number;
-    /**
-     * Scope Start Group Id
-     */
-    scope_start_group_id?: string | null;
-    /**
-     * Scope Terminal Beat
-     */
-    scope_terminal_beat: number;
-    /**
-     * Scope Type
-     */
-    scope_type: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    /**
-     * Take Id
-     */
-    take_id: string;
-    tempo_plan: PerformanceTakeTempoPlan;
+    visit: number;
+    written_end: RationalRead;
+    written_start: RationalRead;
 };
 
 /**
- * PerformanceTakeDeleteResponse
+ * PerformancePlanRead
  */
-export type PerformanceTakeDeleteResponse = {
+export type PerformancePlanRead = {
+    initial_tempo_bpm: RationalRead;
     /**
-     * Status
+     * Musicxml
      */
-    status: string;
+    musicxml: string;
     /**
-     * Take Id
+     * Occurrences
      */
-    take_id: string;
+    occurrences: Array<PerformanceOccurrenceRead>;
+    performance_end: RationalRead;
+    /**
+     * Tempo Events
+     */
+    tempo_events: Array<PerformanceTempoEventRead>;
 };
 
 /**
- * PerformanceTakeListResponse
+ * PerformancePlanRequest
  */
-export type PerformanceTakeListResponse = {
+export type PerformancePlanRequest = {
     /**
-     * Has More
+     * Musicxml
      */
-    has_more?: boolean;
+    musicxml: string;
+};
+
+/**
+ * PerformanceTakeFullScopeSelection
+ */
+export type PerformanceTakeFullScopeSelection = {
+    /**
+     * Kind
+     */
+    kind: 'FULL';
+};
+
+/**
+ * PerformanceTakeListRead
+ */
+export type PerformanceTakeListRead = {
     /**
      * Items
      */
     items: Array<PerformanceTakeRead>;
     /**
-     * Limit
+     * Next Cursor
      */
-    limit?: number;
+    next_cursor: string | null;
+};
+
+/**
+ * PerformanceTakeManifestRead
+ */
+export type PerformanceTakeManifestRead = {
     /**
-     * Offset
+     * Artifact Id
      */
-    offset?: number;
+    artifact_id: string;
+    capture: PerformanceTakeMediaMetadata;
+    practice_binding: PerformanceTakePracticeBinding;
+    recording_timebase: RecordingTimebase;
     /**
-     * Total
+     * Scope
      */
-    total: number;
+    scope: ({
+        kind: 'FULL';
+    } & PerformanceTakeResolvedFullScope) | ({
+        kind: 'RANGE';
+    } & PerformanceTakeResolvedRangeScope);
+    /**
+     * Score Display Title Snapshot
+     */
+    score_display_title_snapshot: string;
+    score_timebase: PerformanceTakeScoreTimebase;
+    tempo_plan: PerformanceTakeTempoPlan;
+};
+
+/**
+ * PerformanceTakeMediaMetadata
+ */
+export type PerformanceTakeMediaMetadata = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Kind
+     */
+    kind: 'AUDIO' | 'VIDEO';
+    /**
+     * Mime Type
+     */
+    mime_type: string;
 };
 
 /**
@@ -3139,25 +1361,9 @@ export type PerformanceTakePlaybackRead = {
      */
     download_url: string;
     /**
-     * Duration Ms
-     */
-    duration_ms: number;
-    /**
      * Expires In
      */
     expires_in: number;
-    /**
-     * Media Byte Size
-     */
-    media_byte_size: number;
-    /**
-     * Media Kind
-     */
-    media_kind: string;
-    /**
-     * Media Mime Type
-     */
-    media_mime_type: string;
     /**
      * Playback Url
      */
@@ -3166,6 +1372,42 @@ export type PerformanceTakePlaybackRead = {
      * Take Id
      */
     take_id: string;
+};
+
+/**
+ * PerformanceTakePracticeBinding
+ */
+export type PerformanceTakePracticeBinding = {
+    /**
+     * Bundle Id
+     */
+    bundle_id: string;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+};
+
+/**
+ * PerformanceTakeRangeScopeSelection
+ */
+export type PerformanceTakeRangeScopeSelection = {
+    /**
+     * End Group Id
+     */
+    end_group_id: string;
+    /**
+     * Kind
+     */
+    kind: 'RANGE';
+    /**
+     * Start Group Id
+     */
+    start_group_id: string;
 };
 
 /**
@@ -3181,71 +1423,89 @@ export type PerformanceTakeRead = {
      */
     created_at: string;
     /**
-     * Deletion Status
-     */
-    deletion_status?: string;
-    /**
-     * Duration Ms
-     */
-    duration_ms: number;
-    /**
      * Linked Score Id
      */
     linked_score_id?: string | null;
+    manifest: PerformanceTakeManifestRead;
     /**
-     * Media Byte Size
+     * Media Status
      */
-    media_byte_size: number;
-    /**
-     * Media Kind
-     */
-    media_kind: string;
-    /**
-     * Media Mime Type
-     */
-    media_mime_type: string;
-    recording_timebase: RecordingTimebase;
-    /**
-     * Scope End Group Id
-     */
-    scope_end_group_id?: string | null;
-    /**
-     * Scope Start Beat
-     */
-    scope_start_beat: number;
-    /**
-     * Scope Start Group Id
-     */
-    scope_start_group_id?: string | null;
-    /**
-     * Scope Terminal Beat
-     */
-    scope_terminal_beat: number;
-    /**
-     * Scope Type
-     */
-    scope_type: string;
-    /**
-     * Score Title Snapshot
-     */
-    score_title_snapshot: string;
-    /**
-     * Source Artifact Id
-     */
-    source_artifact_id: string;
-    /**
-     * Source Revision Id
-     */
-    source_revision_id: string;
-    /**
-     * Source Score Id
-     */
-    source_score_id: string;
+    media_status: 'UPLOADED' | 'PROCESSING' | 'READY' | 'FAILED';
+    recording_media: PerformanceTakeRecordingMediaRead;
     /**
      * Take Id
      */
     take_id: string;
-    tempo_plan: PerformanceTakeTempoPlan;
+};
+
+/**
+ * PerformanceTakeRecordingMediaRead
+ */
+export type PerformanceTakeRecordingMediaRead = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Mime Type
+     */
+    mime_type: string;
+};
+
+/**
+ * PerformanceTakeResolvedFullScope
+ */
+export type PerformanceTakeResolvedFullScope = {
+    /**
+     * Kind
+     */
+    kind: 'FULL';
+    /**
+     * Start Tick
+     */
+    start_tick: number;
+    /**
+     * Terminal Tick
+     */
+    terminal_tick: number;
+};
+
+/**
+ * PerformanceTakeResolvedRangeScope
+ */
+export type PerformanceTakeResolvedRangeScope = {
+    /**
+     * End Group Id
+     */
+    end_group_id: string;
+    /**
+     * Kind
+     */
+    kind: 'RANGE';
+    /**
+     * Start Group Id
+     */
+    start_group_id: string;
+    /**
+     * Start Tick
+     */
+    start_tick: number;
+    /**
+     * Terminal Tick
+     */
+    terminal_tick: number;
+};
+
+/**
+ * PerformanceTakeScoreTimebase
+ *
+ * Source-local Practice written score coordinate system, resolved by the server.
+ */
+export type PerformanceTakeScoreTimebase = {
+    /**
+     * Ticks Per Quarter
+     */
+    ticks_per_quarter: number;
 };
 
 /**
@@ -3279,126 +1539,85 @@ export type PerformanceTakeTempoPlanSegment = {
      */
     source: string;
     /**
-     * Startbeat
+     * Starttick
      */
-    startBeat: number;
+    startTick: number;
 };
 
 /**
- * PerformanceTakeUploadAuthorizationRead
+ * PerformanceTakeUploadReservationRead
  */
-export type PerformanceTakeUploadAuthorizationRead = {
-    /**
-     * Expires In
-     */
-    expires_in?: number;
-    /**
-     * Object Key
-     */
-    object_key?: string | null;
+export type PerformanceTakeUploadReservationRead = {
+    manifest: PerformanceTakeManifestRead;
     /**
      * Reservation Id
      */
-    reservation_id?: string | null;
+    reservation_id: string;
     /**
      * Status
      */
-    status?: string;
+    status: 'RESERVED' | 'FINALIZING' | 'COMPLETED';
     take?: PerformanceTakeRead | null;
     /**
      * Take Id
      */
     take_id: string;
-    /**
-     * Upload Headers
-     */
-    upload_headers?: {
-        [key: string]: string;
-    };
-    /**
-     * Upload Method
-     */
-    upload_method?: string | null;
-    /**
-     * Upload Url
-     */
-    upload_url?: string | null;
+    upload_session?: UploadSessionRead | null;
 };
 
 /**
- * PerformanceTakeUploadAuthorizationRequest
+ * PerformanceTakeUploadReservationRequest
  */
-export type PerformanceTakeUploadAuthorizationRequest = {
-    /**
-     * Artifact Id
-     */
-    artifact_id: string;
+export type PerformanceTakeUploadReservationRequest = {
     /**
      * Client Request Id
      */
     client_request_id: string;
-    /**
-     * Duration Ms
-     */
-    duration_ms: number;
-    /**
-     * Media Byte Size
-     */
-    media_byte_size: number;
-    /**
-     * Media Kind
-     */
-    media_kind?: string;
-    /**
-     * Media Mime Type
-     */
-    media_mime_type: string;
+    media: PerformanceTakeMediaMetadata;
+    practice_binding: PerformanceTakePracticeBinding;
     recording_timebase: RecordingTimebase;
     /**
-     * Revision Id
+     * Scope
      */
-    revision_id: string;
+    scope: ({
+        kind: 'FULL';
+    } & PerformanceTakeFullScopeSelection) | ({
+        kind: 'RANGE';
+    } & PerformanceTakeRangeScopeSelection);
     /**
-     * Scope End Group Id
+     * Tempo Selection
      */
-    scope_end_group_id?: string | null;
+    tempo_selection: ({
+        mode: 'SCORE';
+    } & ScoreTempoPlanSelection) | ({
+        mode: 'CUSTOM_FIXED_BPM';
+    } & CustomFixedBpmTempoPlanSelection);
+};
+
+/**
+ * PerformanceTempoEventRead
+ */
+export type PerformanceTempoEventRead = {
+    bpm: RationalRead;
     /**
-     * Scope Start Beat
+     * Occurrence Ordinal
      */
-    scope_start_beat: number;
-    /**
-     * Scope Start Group Id
-     */
-    scope_start_group_id?: string | null;
-    /**
-     * Scope Terminal Beat
-     */
-    scope_terminal_beat: number;
-    /**
-     * Scope Type
-     */
-    scope_type: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    tempo_plan: PerformanceTakeTempoPlan;
+    occurrence_ordinal: number;
+    performance_position: RationalRead;
 };
 
 /**
  * PracticeAcousticAccessRead
- *
- * The sole immutable browser Practice acoustic deployment.
  */
 export type PracticeAcousticAccessRead = {
     /**
      * Assetid
      */
-    assetId?: 'practice-acoustic-robust-browser';
+    assetId: string;
     /**
      * Assetversion
      */
-    assetVersion?: 'v1';
+    assetVersion: string;
     /**
      * Downloadurl
      */
@@ -3410,63 +1629,29 @@ export type PracticeAcousticAccessRead = {
     /**
      * Expectedbytesize
      */
-    expectedByteSize?: 98689283;
+    expectedByteSize: number;
     /**
      * Mediatype
      */
-    mediaType?: 'application/octet-stream';
+    mediaType: string;
     /**
      * Schemaversion
      */
-    schemaVersion?: 1;
+    schemaVersion: number;
     /**
      * Sha256
      */
-    sha256?: '4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3';
+    sha256: string;
 };
 
 /**
- * PracticeAttackTargetRead
+ * PracticeActivityBinding
  */
-export type PracticeAttackTargetRead = {
+export type PracticeActivityBinding = {
     /**
-     * Attack Id
+     * Bundle Id
      */
-    attack_id: string;
-    /**
-     * Event Ids
-     */
-    event_ids?: Array<string>;
-    /**
-     * Measure Numbers
-     */
-    measure_numbers?: Array<string>;
-    /**
-     * Notes
-     */
-    notes?: Array<PracticeStepNoteRead>;
-    /**
-     * Pitch
-     */
-    pitch: string;
-    /**
-     * Render Note Ids
-     */
-    render_note_ids?: Array<string>;
-};
-
-/**
- * PracticeReadyScoreContentRead
- */
-export type PracticeReadyScoreContentRead = {
-    /**
-     * Content
-     */
-    content: string;
-    /**
-     * Mime Type
-     */
-    mime_type?: string;
+    bundle_id: string;
     /**
      * Revision Id
      */
@@ -3475,6 +1660,87 @@ export type PracticeReadyScoreContentRead = {
      * Score Id
      */
     score_id: string;
+};
+
+/**
+ * PracticeActivityCreateRequest
+ */
+export type PracticeActivityCreateRequest = {
+    /**
+     * Client Session Id
+     */
+    client_session_id: string;
+    input_source: PracticeActivityInputSource;
+    mode: PracticeActivityMode;
+    practice_binding: PracticeActivityBinding;
+    scope: PracticeActivityScope;
+};
+
+/**
+ * PracticeActivityInputSource
+ */
+export type PracticeActivityInputSource = 'MICROPHONE' | 'MIDI';
+
+/**
+ * PracticeActivityMode
+ */
+export type PracticeActivityMode = 'STEP_BY_STEP' | 'CONTINUOUS_PLAY';
+
+/**
+ * PracticeActivityRead
+ */
+export type PracticeActivityRead = {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+    /**
+     * Completed At
+     */
+    completed_at: string;
+};
+
+/**
+ * PracticeActivityScope
+ */
+export type PracticeActivityScope = {
+    kind: PracticeActivityScopeKind;
+    /**
+     * Start Tick
+     */
+    start_tick: number;
+    /**
+     * Terminal Tick
+     */
+    terminal_tick: number;
+};
+
+/**
+ * PracticeActivityScopeKind
+ */
+export type PracticeActivityScopeKind = 'FULL' | 'RANGE';
+
+/**
+ * PracticeBundleNotationRead
+ */
+export type PracticeBundleNotationRead = {
+    /**
+     * Mime Type
+     */
+    mime_type?: 'application/vnd.recordare.musicxml+xml';
+    /**
+     * Musicxml
+     */
+    musicxml: string;
+};
+
+/**
+ * PracticeBundleRead
+ */
+export type PracticeBundleRead = {
+    artifact: PracticeScoreArtifactRead;
+    binding: ScoreRevisionPracticeBindingRead;
+    notation: PracticeBundleNotationRead | null;
 };
 
 /**
@@ -3486,117 +1752,55 @@ export type PracticeScoreArtifactRead = {
      */
     artifactId: string;
     /**
-     * Expectedpracticegroups
+     * Events
      */
-    expectedPracticeGroups: Array<PracticeScoreExpectedGroupRead>;
-    /**
-     * Firstplayablebeat
-     */
-    firstPlayableBeat: number | null;
+    events: Array<PracticeScoreEventRead>;
     /**
      * Metersegments
      */
     meterSegments: Array<PracticeScoreMeterSegmentRead>;
     /**
-     * Playableevents
+     * Moments
      */
-    playableEvents: Array<PracticeScoreEventRead>;
+    moments: Array<PracticeScoreMomentRead>;
     /**
-     * Practiceattacksteps
+     * Notes
      */
-    practiceAttackSteps: Array<PracticeScoreAttackStepRead>;
-    /**
-     * Revisionid
-     */
-    revisionId: string;
+    notes: Array<PracticeScoreNoteRead>;
     /**
      * Schemaversion
      */
     schemaVersion: 1;
     /**
-     * Scoreendbeat
+     * Scoreendtick
      */
-    scoreEndBeat: number;
-    /**
-     * Scoreid
-     */
-    scoreId: string;
+    scoreEndTick: number;
     /**
      * Scoretemposegments
      */
     scoreTempoSegments: Array<PracticeScoreTempoSegmentRead>;
+    /**
+     * Ticksperquarter
+     */
+    ticksPerQuarter: number;
 };
 
 /**
- * PracticeScoreAttackStepRead
+ * PracticeScoreAttackRead
  */
-export type PracticeScoreAttackStepRead = {
-    /**
-     * Attacktargets
-     */
-    attackTargets: Array<PracticeScoreAttackTargetRead>;
-    /**
-     * Continuation
-     */
-    continuation: Array<PracticeScoreStepNoteRead>;
-    /**
-     * Eventids
-     */
-    eventIds: Array<string>;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Onsetbeat
-     */
-    onsetBeat: number;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
-    /**
-     * Staffids
-     */
-    staffIds: Array<string>;
-    /**
-     * Stepid
-     */
-    stepId: string;
-    /**
-     * Voiceids
-     */
-    voiceIds: Array<string>;
-};
-
-/**
- * PracticeScoreAttackTargetRead
- */
-export type PracticeScoreAttackTargetRead = {
+export type PracticeScoreAttackRead = {
     /**
      * Attackid
      */
     attackId: string;
     /**
-     * Eventids
+     * Noteids
      */
-    eventIds: Array<string>;
+    noteIds: Array<string>;
     /**
-     * Measurenumbers
+     * Pianokey
      */
-    measureNumbers: Array<string>;
-    /**
-     * Notes
-     */
-    notes: Array<PracticeScoreStepNoteRead>;
-    /**
-     * Pitch
-     */
-    pitch: string;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
+    pianoKey: number;
 };
 
 /**
@@ -3604,155 +1808,17 @@ export type PracticeScoreAttackTargetRead = {
  */
 export type PracticeScoreEventRead = {
     /**
-     * Durationbeats
+     * Durationticks
      */
-    durationBeats: number;
-    /**
-     * Entrycandidate
-     */
-    entryCandidate: boolean;
+    durationTicks: number;
     /**
      * Eventid
      */
     eventId: string;
     /**
-     * Measurenumbers
+     * Onsettick
      */
-    measureNumbers: Array<string>;
-    /**
-     * Onsetbeat
-     */
-    onsetBeat: number;
-    /**
-     * Pitches
-     */
-    pitches: Array<string>;
-    /**
-     * Playable
-     */
-    playable: boolean;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
-    /**
-     * Staffids
-     */
-    staffIds: Array<string>;
-    /**
-     * Tietypes
-     */
-    tieTypes: Array<string>;
-    /**
-     * Voiceids
-     */
-    voiceIds: Array<string>;
-};
-
-/**
- * PracticeScoreExpectedGroupRead
- */
-export type PracticeScoreExpectedGroupRead = {
-    /**
-     * Canonicalendbeat
-     */
-    canonicalEndBeat: number;
-    /**
-     * Eventids
-     */
-    eventIds: Array<string>;
-    /**
-     * Expectednotes
-     */
-    expectedNotes: Array<PracticeScoreExpectedNoteRead>;
-    /**
-     * Groupid
-     */
-    groupId: string;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Onsetbeat
-     */
-    onsetBeat: number;
-    /**
-     * Pitches
-     */
-    pitches: Array<string>;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
-    /**
-     * Staffids
-     */
-    staffIds: Array<string>;
-    /**
-     * Striketargets
-     */
-    strikeTargets: Array<PracticeScoreExpectedStrikeTargetRead>;
-    /**
-     * Voiceids
-     */
-    voiceIds: Array<string>;
-};
-
-/**
- * PracticeScoreExpectedNoteRead
- */
-export type PracticeScoreExpectedNoteRead = {
-    /**
-     * Eventid
-     */
-    eventId: string;
-    /**
-     * Expectednoteid
-     */
-    expectedNoteId: string;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Pitch
-     */
-    pitch: string;
-    /**
-     * Rendernoteid
-     */
-    renderNoteId: string;
-};
-
-/**
- * PracticeScoreExpectedStrikeTargetRead
- */
-export type PracticeScoreExpectedStrikeTargetRead = {
-    /**
-     * Eventids
-     */
-    eventIds: Array<string>;
-    /**
-     * Expectednotes
-     */
-    expectedNotes: Array<PracticeScoreExpectedNoteRead>;
-    /**
-     * Measurenumbers
-     */
-    measureNumbers: Array<string>;
-    /**
-     * Pitch
-     */
-    pitch: string;
-    /**
-     * Rendernoteids
-     */
-    renderNoteIds: Array<string>;
-    /**
-     * Strikeid
-     */
-    strikeId: string;
+    onsetTick: number;
 };
 
 /**
@@ -3760,63 +1826,81 @@ export type PracticeScoreExpectedStrikeTargetRead = {
  */
 export type PracticeScoreMeterSegmentRead = {
     /**
-     * Countinpulses
-     */
-    countInPulses: number;
-    /**
      * Denominator
      */
     denominator: number;
-    /**
-     * Measuredurationbeats
-     */
-    measureDurationBeats: number;
     /**
      * Numerator
      */
     numerator: number;
     /**
-     * Source
+     * Starttick
      */
-    source: 'MUSICXML' | 'DEFAULT_4_4';
-    /**
-     * Startbeat
-     */
-    startBeat: number;
+    startTick: number;
 };
 
 /**
- * PracticeScoreStepNoteRead
+ * PracticeScoreMomentRead
  */
-export type PracticeScoreStepNoteRead = {
+export type PracticeScoreMomentRead = {
+    /**
+     * Attacks
+     */
+    attacks: Array<PracticeScoreAttackRead>;
+    /**
+     * Canonicalendtick
+     */
+    canonicalEndTick: number;
+    /**
+     * Continuationnoteids
+     */
+    continuationNoteIds: Array<string>;
+    /**
+     * Groupid
+     */
+    groupId: string;
+    /**
+     * Onsettick
+     */
+    onsetTick: number;
+};
+
+/**
+ * PracticeScoreNoteRead
+ */
+export type PracticeScoreNoteRead = {
     /**
      * Eventid
      */
     eventId: string;
     /**
-     * Measurenumbers
+     * Measurenumber
      */
-    measureNumbers: Array<string>;
+    measureNumber: string;
     /**
-     * Pitch
+     * Noteid
      */
-    pitch: string;
+    noteId: string;
+    /**
+     * Pianokey
+     */
+    pianoKey: number;
     /**
      * Rendernoteid
      */
     renderNoteId: string;
     /**
-     * Staffids
+     * Staffid
      */
-    staffIds: Array<string>;
+    staffId: string;
     /**
-     * Stepnoteid
+     * Tietypes
      */
-    stepNoteId: string;
+    tieTypes: Array<'start' | 'stop'>;
     /**
-     * Voiceids
+     * Voiceid
      */
-    voiceIds: Array<string>;
+    voiceId: string;
 };
 
 /**
@@ -3828,115 +1912,9 @@ export type PracticeScoreTempoSegmentRead = {
      */
     bpm: number;
     /**
-     * Startbeat
+     * Starttick
      */
-    startBeat: number;
-};
-
-/**
- * PracticeStepNoteRead
- */
-export type PracticeStepNoteRead = {
-    /**
-     * Event Id
-     */
-    event_id: string;
-    /**
-     * Measure Numbers
-     */
-    measure_numbers?: Array<string>;
-    /**
-     * Pitch
-     */
-    pitch: string;
-    /**
-     * Render Note Id
-     */
-    render_note_id: string;
-    /**
-     * Staff Ids
-     */
-    staff_ids?: Array<string>;
-    /**
-     * Step Note Id
-     */
-    step_note_id: string;
-    /**
-     * Voice Ids
-     */
-    voice_ids?: Array<string>;
-};
-
-/**
- * PracticeTargetCatalogRead
- */
-export type PracticeTargetCatalogRead = {
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    /**
-     * Targets
-     */
-    targets?: Array<PracticeTargetRead>;
-};
-
-/**
- * PracticeTargetRead
- */
-export type PracticeTargetRead = {
-    /**
-     * Attack Targets
-     */
-    attack_targets?: Array<PracticeAttackTargetRead>;
-    /**
-     * Continuation
-     */
-    continuation?: Array<PracticeStepNoteRead>;
-    /**
-     * Event Ids
-     */
-    event_ids?: Array<string>;
-    /**
-     * Group Id
-     */
-    group_id: string;
-    /**
-     * Index
-     */
-    index: number;
-    /**
-     * Measure Numbers
-     */
-    measure_numbers?: Array<string>;
-    /**
-     * Onset Beat
-     */
-    onset_beat: number;
-    /**
-     * Pitches
-     */
-    pitches?: Array<string>;
-    /**
-     * Render Note Ids
-     */
-    render_note_ids?: Array<string>;
-    /**
-     * Staff Ids
-     */
-    staff_ids?: Array<string>;
-    /**
-     * Step Id
-     */
-    step_id: string;
-    /**
-     * Voice Ids
-     */
-    voice_ids?: Array<string>;
+    startTick: number;
 };
 
 /**
@@ -3944,16 +1922,6 @@ export type PracticeTargetRead = {
  */
 export type ProfileRead = {
     user: ProfileUserRead;
-};
-
-/**
- * ProfileUpdateRead
- */
-export type ProfileUpdateRead = {
-    /**
-     * Updated Fields
-     */
-    updated_fields: Array<string>;
 };
 
 /**
@@ -3987,78 +1955,71 @@ export type ProfileUserRead = {
 };
 
 /**
- * PublicScoreRead
+ * RationalRead
  */
-export type PublicScoreRead = {
-    capabilities: ScoreCapabilities;
-    derived_assets: ScoreDerivedAssetsRead;
-    metadata: MetadataRead | null;
-    publication: PublicationRead;
-    revision_assets: ScoreRevisionAssetsRead;
+export type RationalRead = {
     /**
-     * Taxonomy Tags
+     * Denominator
      */
-    taxonomy_tags: Array<ScoreTaxonomyTagRead>;
+    denominator: number;
     /**
-     * Title
+     * Numerator
      */
-    title: string;
+    numerator: number;
 };
 
 /**
- * PublicationRead
+ * ReadinessRead
  */
-export type PublicationRead = {
-    access_mode: ScoreAudienceAccessMode;
+export type ReadinessRead = {
     /**
-     * Allow Download
+     * Checks
      */
-    allow_download: boolean;
+    checks: {
+        [key: string]: 'ok' | 'failed' | 'degraded';
+    };
     /**
-     * Public Slug
+     * Status
      */
-    public_slug: string;
-    /**
-     * Published At
-     */
-    published_at: string;
-    /**
-     * Revision Id
-     */
-    revision_id: string;
-    /**
-     * Score Id
-     */
-    score_id: string;
-    status: PublicationStatus;
-    /**
-     * Updated At
-     */
-    updated_at: string;
+    status: 'ok' | 'degraded';
 };
 
 /**
- * PublicationStatus
+ * ReadinessUnavailableRead
  */
-export type PublicationStatus = 'PUBLISHED' | 'UNPUBLISHED';
+export type ReadinessUnavailableRead = {
+    /**
+     * Checks
+     */
+    checks: {
+        [key: string]: 'ok' | 'failed' | 'degraded';
+    };
+    /**
+     * Status
+     */
+    status: 'not_ready';
+};
 
 /**
- * PublicationUpsertRequest
+ * RecordingActiveSegment
  */
-export type PublicationUpsertRequest = {
-    access_mode?: ScoreAudienceAccessMode;
+export type RecordingActiveSegment = {
     /**
-     * Allow Download
+     * Mediaendus
      */
-    allow_download?: boolean;
+    mediaEndUs: number;
     /**
-     * Public Slug
+     * Mediastartus
      */
-    public_slug?: string | null;
+    mediaStartUs: number;
     /**
-     * Revision Id
+     * Performanceendus
      */
-    revision_id?: string | null;
+    performanceEndUs: number;
+    /**
+     * Performancestartus
+     */
+    performanceStartUs: number;
 };
 
 /**
@@ -4068,33 +2029,11 @@ export type RecordingTimebase = {
     /**
      * Activesegments
      */
-    activeSegments: Array<RecordingTimebaseSegment>;
+    activeSegments: Array<RecordingActiveSegment>;
     /**
-     * Nominalmediadurationms
+     * Nominalmediadurationus
      */
-    nominalMediaDurationMs: number;
-};
-
-/**
- * RecordingTimebaseSegment
- */
-export type RecordingTimebaseSegment = {
-    /**
-     * Mediaendms
-     */
-    mediaEndMs: number;
-    /**
-     * Mediastartms
-     */
-    mediaStartMs: number;
-    /**
-     * Perfendms
-     */
-    perfEndMs: number;
-    /**
-     * Perfstartms
-     */
-    perfStartMs: number;
+    nominalMediaDurationUs: number;
 };
 
 /**
@@ -4135,10 +2074,6 @@ export type RenderAssetKind = 'RENDERED_PAGE';
  */
 export type RenderAssetRead = {
     /**
-     * Available
-     */
-    available: boolean;
-    /**
      * Created At
      */
     created_at: string;
@@ -4154,11 +2089,15 @@ export type RenderAssetRead = {
     /**
      * Page Number
      */
-    page_number: number | null;
+    page_number: number;
     /**
      * Render Asset Id
      */
     render_asset_id: string;
+    /**
+     * Render Profile
+     */
+    render_profile: string;
     /**
      * Revision Id
      */
@@ -4258,13 +2197,13 @@ export type ReviewConfirmRequest = {
      */
     content: string;
     /**
-     * Taxonomy Tags
+     * Display Title
      */
-    taxonomy_tags?: Array<ScoreTaxonomyTagInput> | null;
+    display_title?: string | null;
     /**
-     * Title
+     * Genres
      */
-    title?: string | null;
+    genres?: Array<ScoreGenre> | null;
 };
 
 /**
@@ -4348,13 +2287,13 @@ export type RevisionContentRead = {
  */
 export type RevisionCreateRequest = {
     /**
-     * Base Revision Id
-     */
-    base_revision_id: string;
-    /**
      * Content
      */
     content: string;
+    /**
+     * Expected Head Revision Id
+     */
+    expected_head_revision_id: string;
     /**
      * Idempotency Key
      */
@@ -4456,6 +2395,10 @@ export type RevisionRestoreRead = {
  */
 export type RevisionRestoreRequest = {
     /**
+     * Expected Head Revision Id
+     */
+    expected_head_revision_id: string;
+    /**
      * Note
      */
     note?: string | null;
@@ -4470,10 +2413,6 @@ export type RevisionSourceFormat = 'MUSICXML';
  * RevisionSourceRead
  */
 export type RevisionSourceRead = {
-    /**
-     * Available
-     */
-    available: boolean;
     /**
      * Created At
      */
@@ -4502,9 +2441,36 @@ export type RevisionSourceRead = {
 };
 
 /**
- * ScoreAudienceAccessMode
+ * RootRead
  */
-export type ScoreAudienceAccessMode = 'VIEW' | 'PRACTICE';
+export type RootRead = {
+    /**
+     * Docs
+     */
+    docs: string;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Status
+     */
+    status: 'operational';
+    /**
+     * Version
+     */
+    version: string;
+};
+
+/**
+ * ScoreBatchDeleteRead
+ */
+export type ScoreBatchDeleteRead = {
+    /**
+     * Removed
+     */
+    removed: number;
+};
 
 /**
  * ScoreBatchDeleteRequest
@@ -4533,21 +2499,21 @@ export type ScoreCapabilities = {
      */
     can_edit: boolean;
     /**
+     * Can Leave
+     */
+    can_leave: boolean;
+    /**
+     * Can Manage Guest Previews
+     */
+    can_manage_guest_previews: boolean;
+    /**
      * Can Manage Members
      */
     can_manage_members: boolean;
     /**
-     * Can Manage Sharing
-     */
-    can_manage_sharing: boolean;
-    /**
      * Can Practice
      */
     can_practice: boolean;
-    /**
-     * Can Publish
-     */
-    can_publish: boolean;
     /**
      * Can View
      */
@@ -4563,14 +2529,6 @@ export type ScoreDerivedAssetRead = {
      */
     asset_id: string | null;
     /**
-     * Is Fallback
-     */
-    is_fallback: boolean;
-    /**
-     * Revision Id
-     */
-    revision_id: string | null;
-    /**
      * Status
      */
     status: 'pending' | 'processing' | 'ready' | 'unavailable';
@@ -4583,6 +2541,11 @@ export type ScoreDerivedAssetsRead = {
     audio: ScoreDerivedAssetRead;
     preview: ScoreDerivedAssetRead;
 };
+
+/**
+ * ScoreGenre
+ */
+export type ScoreGenre = 'classical' | 'pop' | 'jazz' | 'rock' | 'folk' | 'blues' | 'soundtrack' | 'anime_game' | 'religious' | 'latin' | 'children' | 'original' | 'other';
 
 /**
  * ScoreInputAssetRead
@@ -4611,18 +2574,73 @@ export type ScoreInputAssetRead = {
 };
 
 /**
- * ScorePublicationSummaryRead
+ * ScoreInviteAcceptedNotificationRead
  */
-export type ScorePublicationSummaryRead = {
+export type ScoreInviteAcceptedNotificationRead = {
+    actor: NotificationActorRead;
     /**
-     * Public Slug
+     * Created At
      */
-    public_slug: string;
+    created_at: string;
     /**
-     * Revision Id
+     * Invite Id
      */
-    revision_id: string;
-    status: PublicationStatus;
+    invite_id: string;
+    /**
+     * Kind
+     */
+    kind: 'score_invite.accepted';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
+};
+
+/**
+ * ScoreInviteDeclinedNotificationRead
+ */
+export type ScoreInviteDeclinedNotificationRead = {
+    actor: NotificationActorRead;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Invite Id
+     */
+    invite_id: string;
+    /**
+     * Kind
+     */
+    kind: 'score_invite.declined';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
 };
 
 /**
@@ -4636,39 +2654,38 @@ export type ScoreRead = {
     created_at: string;
     derived_assets: ScoreDerivedAssetsRead;
     /**
+     * Display Title
+     */
+    display_title: string;
+    /**
+     * Genres
+     */
+    genres: Array<ScoreGenre>;
+    /**
      * Head Revision Id
      */
     head_revision_id: string | null;
     /**
-     * In Library
+     * Head Revision Number
      */
-    in_library: boolean;
+    head_revision_number: number | null;
     /**
      * Input Assets
      */
     input_assets: Array<ScoreInputAssetRead>;
     metadata: MetadataRead | null;
-    publication: ScorePublicationSummaryRead | null;
+    /**
+     * Metadata Version
+     */
+    metadata_version: number;
     /**
      * Score Id
      */
     score_id: string;
     /**
-     * Taxonomy Tags
-     */
-    taxonomy_tags: Array<ScoreTaxonomyTagRead>;
-    /**
-     * Title
-     */
-    title: string;
-    /**
      * Updated At
      */
     updated_at: string;
-    /**
-     * Version
-     */
-    version: number;
 };
 
 /**
@@ -4686,39 +2703,21 @@ export type ScoreRevisionAssetsRead = {
 };
 
 /**
- * ScoreTaxonomyTagInput
+ * ScoreRevisionPracticeBindingRead
  */
-export type ScoreTaxonomyTagInput = {
+export type ScoreRevisionPracticeBindingRead = {
     /**
-     * Category
+     * Bundle Id
      */
-    category: string;
+    bundle_id: string;
     /**
-     * Code
+     * Revision Id
      */
-    code: string;
-};
-
-/**
- * ScoreTaxonomyTagRead
- */
-export type ScoreTaxonomyTagRead = {
+    revision_id: string;
     /**
-     * Category
+     * Score Id
      */
-    category: string;
-    /**
-     * Code
-     */
-    code: string;
-    /**
-     * Confidence
-     */
-    confidence: number | null;
-    /**
-     * Source
-     */
-    source: string;
+    score_id: string;
 };
 
 /**
@@ -4736,17 +2735,52 @@ export type ScoreTempoPlanSelection = {
  */
 export type ScoreUpdateRequest = {
     /**
-     * Expected Version
+     * Display Title
      */
-    expected_version: number;
+    display_title?: string | null;
     /**
-     * Taxonomy Tags
+     * Expected Metadata Version
      */
-    taxonomy_tags?: Array<ScoreTaxonomyTagInput> | null;
+    expected_metadata_version: number;
     /**
-     * Title
+     * Genres
      */
-    title?: string | null;
+    genres?: Array<ScoreGenre> | null;
+};
+
+/**
+ * ScoreVersionCreatedNotificationRead
+ */
+export type ScoreVersionCreatedNotificationRead = {
+    actor: NotificationActorRead;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Kind
+     */
+    kind: 'score.version.created';
+    /**
+     * Notification Id
+     */
+    notification_id: string;
+    /**
+     * Read At
+     */
+    read_at: string | null;
+    /**
+     * Revision Id
+     */
+    revision_id: string;
+    /**
+     * Score Display Title
+     */
+    score_display_title: string;
+    /**
+     * Score Id
+     */
+    score_id: string;
 };
 
 /**
@@ -4831,20 +2865,6 @@ export type SessionsRead = {
 };
 
 /**
- * ShareActorRead
- */
-export type ShareActorRead = {
-    /**
-     * Avatar Url
-     */
-    avatar_url: string | null;
-    /**
-     * Display Name
-     */
-    display_name: string | null;
-};
-
-/**
  * StorageUsageBreakdownRead
  */
 export type StorageUsageBreakdownRead = {
@@ -4902,27 +2922,47 @@ export type StorageUsageRead = {
 };
 
 /**
- * SuccessResponsePayload
- *
- * Default success response payload shape.
+ * TempoEvent
  */
-export type SuccessResponsePayload = {
+export type TempoEvent = {
     /**
-     * Code
+     * Bpm
      */
-    code?: string;
+    bpm: number;
     /**
-     * Data
+     * Measure
      */
-    data?: unknown;
+    measure: string;
     /**
-     * Message
+     * Offset Quarters
      */
-    message?: string;
+    offset_quarters: number;
     /**
-     * Success
+     * Part
      */
-    success?: boolean;
+    part: number;
+};
+
+/**
+ * TimeSignatureEvent
+ */
+export type TimeSignatureEvent = {
+    /**
+     * Beat Type
+     */
+    beat_type: number;
+    /**
+     * Beats
+     */
+    beats: number;
+    /**
+     * Measure
+     */
+    measure: string;
+    /**
+     * Part
+     */
+    part: number;
 };
 
 /**
@@ -4938,21 +2978,144 @@ export type UpdateProfileRequest = {
 };
 
 /**
- * UploadFileRead
+ * UploadAdmissionRead
  */
-export type UploadFileRead = {
+export type UploadAdmissionRead = {
     /**
-     * File Id
+     * Client Request Id
      */
-    file_id: string;
+    client_request_id: string;
+    upload?: UploadRead | null;
+    upload_session: UploadSessionRead;
+};
+
+/**
+ * UploadCreateRequest
+ */
+export type UploadCreateRequest = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Client Request Id
+     */
+    client_request_id: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
     /**
      * Filename
      */
     filename: string;
+};
+
+/**
+ * UploadMode
+ */
+export type UploadMode = 'SINGLE_PUT' | 'MULTIPART';
+
+/**
+ * UploadPartRead
+ */
+export type UploadPartRead = {
     /**
-     * Size
+     * Byte Size
      */
-    size: number;
+    byte_size: number;
+    /**
+     * Etag
+     */
+    etag: string;
+    /**
+     * Part Number
+     */
+    part_number: number;
+};
+
+/**
+ * UploadRead
+ */
+export type UploadRead = {
+    /**
+     * Byte Size
+     */
+    byte_size: number;
+    /**
+     * Original Filename
+     */
+    original_filename: string;
+    /**
+     * Upload Id
+     */
+    upload_id: string;
+};
+
+/**
+ * UploadSessionRead
+ */
+export type UploadSessionRead = {
+    /**
+     * Expected Byte Size
+     */
+    expected_byte_size: number;
+    /**
+     * Expected Content Type
+     */
+    expected_content_type: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    mode: UploadMode;
+    /**
+     * Part Count
+     */
+    part_count: number;
+    /**
+     * Part Size
+     */
+    part_size: number;
+    /**
+     * Recommended Concurrency
+     */
+    recommended_concurrency: number;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    status: UploadStatus;
+    upload_target?: UploadTargetRead | null;
+};
+
+/**
+ * UploadStatus
+ */
+export type UploadStatus = 'CREATING' | 'UPLOADING' | 'COMPLETING' | 'COMPLETED' | 'CONSUMED' | 'CANCELLED' | 'EXPIRED' | 'FAILED';
+
+/**
+ * UploadTargetRead
+ */
+export type UploadTargetRead = {
+    /**
+     * Expires In
+     */
+    expires_in: number;
+    /**
+     * Headers
+     */
+    headers: {
+        [key: string]: string;
+    };
+    /**
+     * Method
+     */
+    method: string;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -4999,34 +3162,6 @@ export type User = {
 };
 
 /**
- * ValidationError
- */
-export type ValidationError = {
-    /**
-     * Context
-     */
-    ctx?: {
-        [key: string]: unknown;
-    };
-    /**
-     * Input
-     */
-    input?: unknown;
-    /**
-     * Location
-     */
-    loc: Array<string | number>;
-    /**
-     * Message
-     */
-    msg: string;
-    /**
-     * Error Type
-     */
-    type: string;
-};
-
-/**
  * VerifyEmailRequest
  */
 export type VerifyEmailRequest = {
@@ -5038,274 +3173,405 @@ export type VerifyEmailRequest = {
     token: string;
 };
 
-export type RootGetData = {
+/**
+ * PageNumberPage[ImportJobRead]
+ */
+export type PageNumberPageImportJobReadWritable = {
+    /**
+     * Items
+     */
+    items: Array<ImportJobRead>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * PageNumberPage[LibraryScoreRead]
+ */
+export type PageNumberPageLibraryScoreReadWritable = {
+    /**
+     * Items
+     */
+    items: Array<LibraryScoreRead>;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+export type ServiceInfoGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/';
 };
 
-export type RootGetResponses = {
+export type ServiceInfoGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: RootRead;
 };
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostData = {
+export type ServiceInfoGetResponse = ServiceInfoGetResponses[keyof ServiceInfoGetResponses];
+
+export type AuthEmailChangeConfirmData = {
     body: ConfirmEmailChangeRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/email/change/confirm';
 };
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostErrors = {
+export type AuthEmailChangeConfirmErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostError = ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostErrors[keyof ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostErrors];
+export type AuthEmailChangeConfirmError = AuthEmailChangeConfirmErrors[keyof AuthEmailChangeConfirmErrors];
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostResponses = {
+export type AuthEmailChangeConfirmResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseEmailChangeConfirmedRead;
+    200: EmailChangeConfirmedRead;
 };
 
-export type ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostResponse = ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostResponses[keyof ConfirmEmailChangeApiV1AuthEmailChangeConfirmPostResponses];
+export type AuthEmailChangeConfirmResponse = AuthEmailChangeConfirmResponses[keyof AuthEmailChangeConfirmResponses];
 
-export type VerifyEmailApiV1AuthEmailVerifyPostData = {
+export type AuthEmailVerifyData = {
     body: VerifyEmailRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/email/verify';
 };
 
-export type VerifyEmailApiV1AuthEmailVerifyPostErrors = {
+export type AuthEmailVerifyErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type VerifyEmailApiV1AuthEmailVerifyPostError = VerifyEmailApiV1AuthEmailVerifyPostErrors[keyof VerifyEmailApiV1AuthEmailVerifyPostErrors];
+export type AuthEmailVerifyError = AuthEmailVerifyErrors[keyof AuthEmailVerifyErrors];
 
-export type VerifyEmailApiV1AuthEmailVerifyPostResponses = {
+export type AuthEmailVerifyResponses = {
     /**
      * Successful Response
      */
     200: User;
 };
 
-export type VerifyEmailApiV1AuthEmailVerifyPostResponse = VerifyEmailApiV1AuthEmailVerifyPostResponses[keyof VerifyEmailApiV1AuthEmailVerifyPostResponses];
+export type AuthEmailVerifyResponse = AuthEmailVerifyResponses[keyof AuthEmailVerifyResponses];
 
-export type LoginAccessTokenApiV1AuthLoginPostData = {
-    body: BodyLoginAccessTokenApiV1AuthLoginPost;
+export type AuthLoginData = {
+    body: BodyAuthLogin;
     path?: never;
     query?: never;
     url: '/api/v1/auth/login';
 };
 
-export type LoginAccessTokenApiV1AuthLoginPostErrors = {
+export type AuthLoginErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type LoginAccessTokenApiV1AuthLoginPostError = LoginAccessTokenApiV1AuthLoginPostErrors[keyof LoginAccessTokenApiV1AuthLoginPostErrors];
+export type AuthLoginError = AuthLoginErrors[keyof AuthLoginErrors];
 
-export type LoginAccessTokenApiV1AuthLoginPostResponses = {
+export type AuthLoginResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    200: ProfileUserRead;
 };
 
-export type LoginAccessTokenApiV1AuthLoginPostResponse = LoginAccessTokenApiV1AuthLoginPostResponses[keyof LoginAccessTokenApiV1AuthLoginPostResponses];
+export type AuthLoginResponse = AuthLoginResponses[keyof AuthLoginResponses];
 
-export type LogoutApiV1AuthLogoutPostData = {
+export type AuthLogoutData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/auth/logout';
 };
 
-export type LogoutApiV1AuthLogoutPostErrors = {
+export type AuthLogoutErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type LogoutApiV1AuthLogoutPostError = LogoutApiV1AuthLogoutPostErrors[keyof LogoutApiV1AuthLogoutPostErrors];
+export type AuthLogoutError = AuthLogoutErrors[keyof AuthLogoutErrors];
 
-export type LogoutApiV1AuthLogoutPostResponses = {
+export type AuthLogoutResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
-export type LogoutApiV1AuthLogoutPostResponse = LogoutApiV1AuthLogoutPostResponses[keyof LogoutApiV1AuthLogoutPostResponses];
+export type AuthLogoutResponse = AuthLogoutResponses[keyof AuthLogoutResponses];
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostData = {
+export type AuthPasswordResetRequestData = {
     body: ForgotPasswordRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/password/forgot';
 };
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostErrors = {
+export type AuthPasswordResetRequestErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostError = ForgotPasswordApiV1AuthPasswordForgotPostErrors[keyof ForgotPasswordApiV1AuthPasswordForgotPostErrors];
+export type AuthPasswordResetRequestError = AuthPasswordResetRequestErrors[keyof AuthPasswordResetRequestErrors];
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostResponses = {
+export type AuthPasswordResetRequestResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
-export type ForgotPasswordApiV1AuthPasswordForgotPostResponse = ForgotPasswordApiV1AuthPasswordForgotPostResponses[keyof ForgotPasswordApiV1AuthPasswordForgotPostResponses];
+export type AuthPasswordResetRequestResponse = AuthPasswordResetRequestResponses[keyof AuthPasswordResetRequestResponses];
 
-export type ResetPasswordApiV1AuthPasswordResetPostData = {
+export type AuthPasswordResetData = {
     body: ResetPasswordRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/password/reset';
 };
 
-export type ResetPasswordApiV1AuthPasswordResetPostErrors = {
+export type AuthPasswordResetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ResetPasswordApiV1AuthPasswordResetPostError = ResetPasswordApiV1AuthPasswordResetPostErrors[keyof ResetPasswordApiV1AuthPasswordResetPostErrors];
+export type AuthPasswordResetError = AuthPasswordResetErrors[keyof AuthPasswordResetErrors];
 
-export type ResetPasswordApiV1AuthPasswordResetPostResponses = {
+export type AuthPasswordResetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    204: void;
 };
 
-export type RefreshAccessTokenApiV1AuthRefreshPostData = {
+export type AuthPasswordResetResponse = AuthPasswordResetResponses[keyof AuthPasswordResetResponses];
+
+export type AuthRefreshData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/auth/refresh';
 };
 
-export type RefreshAccessTokenApiV1AuthRefreshPostErrors = {
+export type AuthRefreshErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RefreshAccessTokenApiV1AuthRefreshPostError = RefreshAccessTokenApiV1AuthRefreshPostErrors[keyof RefreshAccessTokenApiV1AuthRefreshPostErrors];
+export type AuthRefreshError = AuthRefreshErrors[keyof AuthRefreshErrors];
 
-export type RefreshAccessTokenApiV1AuthRefreshPostResponses = {
+export type AuthRefreshResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
-export type RefreshAccessTokenApiV1AuthRefreshPostResponse = RefreshAccessTokenApiV1AuthRefreshPostResponses[keyof RefreshAccessTokenApiV1AuthRefreshPostResponses];
+export type AuthRefreshResponse = AuthRefreshResponses[keyof AuthRefreshResponses];
 
-export type RegisterUserApiV1AuthRegisterPostData = {
+export type AuthRegisterData = {
     body: RegisterRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/register';
 };
 
-export type RegisterUserApiV1AuthRegisterPostErrors = {
+export type AuthRegisterErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type RegisterUserApiV1AuthRegisterPostError = RegisterUserApiV1AuthRegisterPostErrors[keyof RegisterUserApiV1AuthRegisterPostErrors];
-
-export type RegisterUserApiV1AuthRegisterPostResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: SuccessResponsePayload;
+    default: ApiErrorResponse;
 };
 
-export type RegisterUserApiV1AuthRegisterPostResponse = RegisterUserApiV1AuthRegisterPostResponses[keyof RegisterUserApiV1AuthRegisterPostResponses];
+export type AuthRegisterError = AuthRegisterErrors[keyof AuthRegisterErrors];
 
-export type UploadFileApiV1FilesUploadPostData = {
-    body: BodyUploadFileApiV1FilesUploadPost;
-    path?: never;
-    query?: never;
-    url: '/api/v1/files/upload';
-};
-
-export type UploadFileApiV1FilesUploadPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UploadFileApiV1FilesUploadPostError = UploadFileApiV1FilesUploadPostErrors[keyof UploadFileApiV1FilesUploadPostErrors];
-
-export type UploadFileApiV1FilesUploadPostResponses = {
+export type AuthRegisterResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseUploadFileRead;
+    204: void;
 };
 
-export type UploadFileApiV1FilesUploadPostResponse = UploadFileApiV1FilesUploadPostResponses[keyof UploadFileApiV1FilesUploadPostResponses];
+export type AuthRegisterResponse = AuthRegisterResponses[keyof AuthRegisterResponses];
 
-export type DeleteFileApiV1FilesFilenameDeleteData = {
+export type GuestPreviewGetData = {
     body?: never;
     path: {
         /**
-         * Filename
+         * Token
          */
-        filename: string;
+        token: string;
     };
     query?: never;
-    url: '/api/v1/files/{filename}';
+    url: '/api/v1/guest-previews/{token}';
 };
 
-export type DeleteFileApiV1FilesFilenameDeleteErrors = {
+export type GuestPreviewGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type DeleteFileApiV1FilesFilenameDeleteError = DeleteFileApiV1FilesFilenameDeleteErrors[keyof DeleteFileApiV1FilesFilenameDeleteErrors];
+export type GuestPreviewGetError = GuestPreviewGetErrors[keyof GuestPreviewGetErrors];
 
-export type DeleteFileApiV1FilesFilenameDeleteResponses = {
+export type GuestPreviewGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseDeleteUploadedFileRead;
+    200: GuestPreviewRead;
 };
 
-export type DeleteFileApiV1FilesFilenameDeleteResponse = DeleteFileApiV1FilesFilenameDeleteResponses[keyof DeleteFileApiV1FilesFilenameDeleteResponses];
+export type GuestPreviewGetResponse = GuestPreviewGetResponses[keyof GuestPreviewGetResponses];
 
-export type ListJobsApiV1ImportJobsGetData = {
+export type GuestPreviewPlaybackAccessGetData = {
+    body?: never;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/api/v1/guest-previews/{token}/playback';
+};
+
+export type GuestPreviewPlaybackAccessGetErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type GuestPreviewPlaybackAccessGetError = GuestPreviewPlaybackAccessGetErrors[keyof GuestPreviewPlaybackAccessGetErrors];
+
+export type GuestPreviewPlaybackAccessGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: MediaAccessRead;
+};
+
+export type GuestPreviewPlaybackAccessGetResponse = GuestPreviewPlaybackAccessGetResponses[keyof GuestPreviewPlaybackAccessGetResponses];
+
+export type GuestPreviewPageViewData = {
+    body?: never;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+        /**
+         * Asset Id
+         */
+        asset_id: string;
+    };
+    query?: never;
+    url: '/api/v1/guest-previews/{token}/render-assets/{asset_id}/view';
+};
+
+export type GuestPreviewPageViewErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type GuestPreviewPageViewError = GuestPreviewPageViewErrors[keyof GuestPreviewPageViewErrors];
+
+export type GuestPreviewPageViewResponses = {
+    /**
+     * Stored bytes; Content-Type identifies the selected resource format.
+     */
+    200: Blob | File;
+};
+
+export type GuestPreviewPageViewResponse = GuestPreviewPageViewResponses[keyof GuestPreviewPageViewResponses];
+
+export type ImportJobsListData = {
     body?: never;
     path?: never;
     query?: {
@@ -5321,75 +3587,87 @@ export type ListJobsApiV1ImportJobsGetData = {
     url: '/api/v1/import-jobs';
 };
 
-export type ListJobsApiV1ImportJobsGetErrors = {
+export type ImportJobsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListJobsApiV1ImportJobsGetError = ListJobsApiV1ImportJobsGetErrors[keyof ListJobsApiV1ImportJobsGetErrors];
+export type ImportJobsListError = ImportJobsListErrors[keyof ImportJobsListErrors];
 
-export type ListJobsApiV1ImportJobsGetResponses = {
+export type ImportJobsListResponses = {
     /**
      * Successful Response
      */
-    200: PaginatedResponseImportJobRead;
+    200: PageNumberPageImportJobRead;
 };
 
-export type ListJobsApiV1ImportJobsGetResponse = ListJobsApiV1ImportJobsGetResponses[keyof ListJobsApiV1ImportJobsGetResponses];
+export type ImportJobsListResponse = ImportJobsListResponses[keyof ImportJobsListResponses];
 
-export type SubmitJobApiV1ImportJobsPostData = {
+export type ImportJobsSubmitData = {
     body: ImportJobSubmitRequest;
     path?: never;
     query?: never;
     url: '/api/v1/import-jobs';
 };
 
-export type SubmitJobApiV1ImportJobsPostErrors = {
+export type ImportJobsSubmitErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type SubmitJobApiV1ImportJobsPostError = SubmitJobApiV1ImportJobsPostErrors[keyof SubmitJobApiV1ImportJobsPostErrors];
+export type ImportJobsSubmitError = ImportJobsSubmitErrors[keyof ImportJobsSubmitErrors];
 
-export type SubmitJobApiV1ImportJobsPostResponses = {
+export type ImportJobsSubmitResponses = {
     /**
      * Successful Response
      */
-    202: ApiResponseImportJobSubmitRead;
+    202: ImportJobSubmitRead;
 };
 
-export type SubmitJobApiV1ImportJobsPostResponse = SubmitJobApiV1ImportJobsPostResponses[keyof SubmitJobApiV1ImportJobsPostResponses];
+export type ImportJobsSubmitResponse = ImportJobsSubmitResponses[keyof ImportJobsSubmitResponses];
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostData = {
+export type ImportJobsBatchStatusGetData = {
     body: BatchImportJobStatusRequest;
     path?: never;
     query?: never;
     url: '/api/v1/import-jobs/status/batch';
 };
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostErrors = {
+export type ImportJobsBatchStatusGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostError = BatchJobStatusApiV1ImportJobsStatusBatchPostErrors[keyof BatchJobStatusApiV1ImportJobsStatusBatchPostErrors];
+export type ImportJobsBatchStatusGetError = ImportJobsBatchStatusGetErrors[keyof ImportJobsBatchStatusGetErrors];
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostResponses = {
+export type ImportJobsBatchStatusGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseImportJobBatchStatusRead;
+    200: ImportJobBatchStatusRead;
 };
 
-export type BatchJobStatusApiV1ImportJobsStatusBatchPostResponse = BatchJobStatusApiV1ImportJobsStatusBatchPostResponses[keyof BatchJobStatusApiV1ImportJobsStatusBatchPostResponses];
+export type ImportJobsBatchStatusGetResponse = ImportJobsBatchStatusGetResponses[keyof ImportJobsBatchStatusGetResponses];
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteData = {
+export type ImportJobDeleteData = {
     body?: never;
     path: {
         /**
@@ -5401,25 +3679,29 @@ export type DeleteJobApiV1ImportJobsJobIdDeleteData = {
     url: '/api/v1/import-jobs/{job_id}';
 };
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteErrors = {
+export type ImportJobDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteError = DeleteJobApiV1ImportJobsJobIdDeleteErrors[keyof DeleteJobApiV1ImportJobsJobIdDeleteErrors];
+export type ImportJobDeleteError = ImportJobDeleteErrors[keyof ImportJobDeleteErrors];
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteResponses = {
+export type ImportJobDeleteResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
-export type DeleteJobApiV1ImportJobsJobIdDeleteResponse = DeleteJobApiV1ImportJobsJobIdDeleteResponses[keyof DeleteJobApiV1ImportJobsJobIdDeleteResponses];
+export type ImportJobDeleteResponse = ImportJobDeleteResponses[keyof ImportJobDeleteResponses];
 
-export type GetJobApiV1ImportJobsJobIdGetData = {
+export type ImportJobGetData = {
     body?: never;
     path: {
         /**
@@ -5431,25 +3713,29 @@ export type GetJobApiV1ImportJobsJobIdGetData = {
     url: '/api/v1/import-jobs/{job_id}';
 };
 
-export type GetJobApiV1ImportJobsJobIdGetErrors = {
+export type ImportJobGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetJobApiV1ImportJobsJobIdGetError = GetJobApiV1ImportJobsJobIdGetErrors[keyof GetJobApiV1ImportJobsJobIdGetErrors];
+export type ImportJobGetError = ImportJobGetErrors[keyof ImportJobGetErrors];
 
-export type GetJobApiV1ImportJobsJobIdGetResponses = {
+export type ImportJobGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseImportJobRead;
+    200: ImportJobRead;
 };
 
-export type GetJobApiV1ImportJobsJobIdGetResponse = GetJobApiV1ImportJobsJobIdGetResponses[keyof GetJobApiV1ImportJobsJobIdGetResponses];
+export type ImportJobGetResponse = ImportJobGetResponses[keyof ImportJobGetResponses];
 
-export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetData = {
+export type ImportJobArtifactDownloadData = {
     body?: never;
     path: {
         /**
@@ -5465,23 +3751,29 @@ export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGe
     url: '/api/v1/import-jobs/{job_id}/artifacts/{artifact_id}/download';
 };
 
-export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetErrors = {
+export type ImportJobArtifactDownloadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetError = DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetErrors[keyof DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetErrors];
+export type ImportJobArtifactDownloadError = ImportJobArtifactDownloadErrors[keyof ImportJobArtifactDownloadErrors];
 
-export type DownloadJobArtifactApiV1ImportJobsJobIdArtifactsArtifactIdDownloadGetResponses = {
+export type ImportJobArtifactDownloadResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostData = {
+export type ImportJobArtifactDownloadResponse = ImportJobArtifactDownloadResponses[keyof ImportJobArtifactDownloadResponses];
+
+export type ImportJobRetryData = {
     body?: never;
     path: {
         /**
@@ -5493,25 +3785,131 @@ export type RetryJobApiV1ImportJobsJobIdRetryPostData = {
     url: '/api/v1/import-jobs/{job_id}/retry';
 };
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostErrors = {
+export type ImportJobRetryErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostError = RetryJobApiV1ImportJobsJobIdRetryPostErrors[keyof RetryJobApiV1ImportJobsJobIdRetryPostErrors];
+export type ImportJobRetryError = ImportJobRetryErrors[keyof ImportJobRetryErrors];
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostResponses = {
+export type ImportJobRetryResponses = {
     /**
      * Successful Response
      */
-    202: ApiResponseImportJobSubmitRead;
+    202: ImportJobSubmitRead;
 };
 
-export type RetryJobApiV1ImportJobsJobIdRetryPostResponse = RetryJobApiV1ImportJobsJobIdRetryPostResponses[keyof RetryJobApiV1ImportJobsJobIdRetryPostResponses];
+export type ImportJobRetryResponse = ImportJobRetryResponses[keyof ImportJobRetryResponses];
 
-export type InspectInviteApiV1InvitesTokenGetData = {
+export type ImportJobReviewGetData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/api/v1/import-jobs/{job_id}/review';
+};
+
+export type ImportJobReviewGetErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ImportJobReviewGetError = ImportJobReviewGetErrors[keyof ImportJobReviewGetErrors];
+
+export type ImportJobReviewGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportJobReviewRead;
+};
+
+export type ImportJobReviewGetResponse = ImportJobReviewGetResponses[keyof ImportJobReviewGetResponses];
+
+export type ImportJobReviewUpdateData = {
+    body: ReviewUpdateRequest;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/api/v1/import-jobs/{job_id}/review';
+};
+
+export type ImportJobReviewUpdateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ImportJobReviewUpdateError = ImportJobReviewUpdateErrors[keyof ImportJobReviewUpdateErrors];
+
+export type ImportJobReviewUpdateResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportJobReviewRead;
+};
+
+export type ImportJobReviewUpdateResponse = ImportJobReviewUpdateResponses[keyof ImportJobReviewUpdateResponses];
+
+export type ImportJobReviewConfirmData = {
+    body: ReviewConfirmRequest;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/api/v1/import-jobs/{job_id}/review/confirm';
+};
+
+export type ImportJobReviewConfirmErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ImportJobReviewConfirmError = ImportJobReviewConfirmErrors[keyof ImportJobReviewConfirmErrors];
+
+export type ImportJobReviewConfirmResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReviewConfirmRead;
+};
+
+export type ImportJobReviewConfirmResponse = ImportJobReviewConfirmResponses[keyof ImportJobReviewConfirmResponses];
+
+export type ScoreInviteInspectData = {
     body?: never;
     path: {
         /**
@@ -5523,25 +3921,29 @@ export type InspectInviteApiV1InvitesTokenGetData = {
     url: '/api/v1/invites/{token}';
 };
 
-export type InspectInviteApiV1InvitesTokenGetErrors = {
+export type ScoreInviteInspectErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type InspectInviteApiV1InvitesTokenGetError = InspectInviteApiV1InvitesTokenGetErrors[keyof InspectInviteApiV1InvitesTokenGetErrors];
+export type ScoreInviteInspectError = ScoreInviteInspectErrors[keyof ScoreInviteInspectErrors];
 
-export type InspectInviteApiV1InvitesTokenGetResponses = {
+export type ScoreInviteInspectResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteAccessRead;
+    200: InviteAccessRead;
 };
 
-export type InspectInviteApiV1InvitesTokenGetResponse = InspectInviteApiV1InvitesTokenGetResponses[keyof InspectInviteApiV1InvitesTokenGetResponses];
+export type ScoreInviteInspectResponse = ScoreInviteInspectResponses[keyof ScoreInviteInspectResponses];
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostData = {
+export type ScoreInviteAcceptData = {
     body?: never;
     path: {
         /**
@@ -5553,25 +3955,155 @@ export type AcceptInviteApiV1InvitesTokenAcceptPostData = {
     url: '/api/v1/invites/{token}/accept';
 };
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostErrors = {
+export type ScoreInviteAcceptErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostError = AcceptInviteApiV1InvitesTokenAcceptPostErrors[keyof AcceptInviteApiV1InvitesTokenAcceptPostErrors];
+export type ScoreInviteAcceptError = ScoreInviteAcceptErrors[keyof ScoreInviteAcceptErrors];
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostResponses = {
+export type ScoreInviteAcceptResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteAcceptRead;
+    200: InviteAcceptRead;
 };
 
-export type AcceptInviteApiV1InvitesTokenAcceptPostResponse = AcceptInviteApiV1InvitesTokenAcceptPostResponses[keyof AcceptInviteApiV1InvitesTokenAcceptPostResponses];
+export type ScoreInviteAcceptResponse = ScoreInviteAcceptResponses[keyof ScoreInviteAcceptResponses];
 
-export type ListLibraryEntriesApiV1LibraryEntriesGetData = {
+export type LibraryFoldersOverviewGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/library/folders';
+};
+
+export type LibraryFoldersOverviewGetErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type LibraryFoldersOverviewGetError = LibraryFoldersOverviewGetErrors[keyof LibraryFoldersOverviewGetErrors];
+
+export type LibraryFoldersOverviewGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: LibraryFolderOverviewRead;
+};
+
+export type LibraryFoldersOverviewGetResponse = LibraryFoldersOverviewGetResponses[keyof LibraryFoldersOverviewGetResponses];
+
+export type LibraryFoldersCreateData = {
+    body: LibraryFolderCreateRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/library/folders';
+};
+
+export type LibraryFoldersCreateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type LibraryFoldersCreateError = LibraryFoldersCreateErrors[keyof LibraryFoldersCreateErrors];
+
+export type LibraryFoldersCreateResponses = {
+    /**
+     * Successful Response
+     */
+    200: LibraryFolderRead;
+};
+
+export type LibraryFoldersCreateResponse = LibraryFoldersCreateResponses[keyof LibraryFoldersCreateResponses];
+
+export type LibraryFolderDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: string;
+    };
+    query?: never;
+    url: '/api/v1/library/folders/{folder_id}';
+};
+
+export type LibraryFolderDeleteErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type LibraryFolderDeleteError = LibraryFolderDeleteErrors[keyof LibraryFolderDeleteErrors];
+
+export type LibraryFolderDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type LibraryFolderDeleteResponse = LibraryFolderDeleteResponses[keyof LibraryFolderDeleteResponses];
+
+export type LibraryFolderUpdateData = {
+    body: LibraryFolderUpdateRequest;
+    path: {
+        /**
+         * Folder Id
+         */
+        folder_id: string;
+    };
+    query?: never;
+    url: '/api/v1/library/folders/{folder_id}';
+};
+
+export type LibraryFolderUpdateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type LibraryFolderUpdateError = LibraryFolderUpdateErrors[keyof LibraryFolderUpdateErrors];
+
+export type LibraryFolderUpdateResponses = {
+    /**
+     * Successful Response
+     */
+    200: LibraryFolderRead;
+};
+
+export type LibraryFolderUpdateResponse = LibraryFolderUpdateResponses[keyof LibraryFolderUpdateResponses];
+
+export type LibraryScoresListData = {
     body?: never;
     path?: never;
     query?: {
@@ -5594,395 +4126,278 @@ export type ListLibraryEntriesApiV1LibraryEntriesGetData = {
          */
         page_size?: number;
     };
-    url: '/api/v1/library/entries';
+    url: '/api/v1/library/scores';
 };
 
-export type ListLibraryEntriesApiV1LibraryEntriesGetErrors = {
+export type LibraryScoresListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListLibraryEntriesApiV1LibraryEntriesGetError = ListLibraryEntriesApiV1LibraryEntriesGetErrors[keyof ListLibraryEntriesApiV1LibraryEntriesGetErrors];
+export type LibraryScoresListError = LibraryScoresListErrors[keyof LibraryScoresListErrors];
 
-export type ListLibraryEntriesApiV1LibraryEntriesGetResponses = {
+export type LibraryScoresListResponses = {
     /**
      * Successful Response
      */
-    200: PaginatedResponseLibraryEntryRead;
+    200: PageNumberPageLibraryScoreRead;
 };
 
-export type ListLibraryEntriesApiV1LibraryEntriesGetResponse = ListLibraryEntriesApiV1LibraryEntriesGetResponses[keyof ListLibraryEntriesApiV1LibraryEntriesGetResponses];
+export type LibraryScoresListResponse = LibraryScoresListResponses[keyof LibraryScoresListResponses];
 
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostData = {
-    body: LibraryOwnedScoreBatchRequest;
+export type LibraryScoresBatchFavoriteData = {
+    body: LibraryScoreBatchFavoriteRequest;
     path?: never;
     query?: never;
-    url: '/api/v1/library/entries/batch-add-owned';
+    url: '/api/v1/library/scores/batch-favorite';
 };
 
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostErrors = {
+export type LibraryScoresBatchFavoriteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostError = BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostErrors[keyof BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostErrors];
+export type LibraryScoresBatchFavoriteError = LibraryScoresBatchFavoriteErrors[keyof LibraryScoresBatchFavoriteErrors];
 
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostResponses = {
+export type LibraryScoresBatchFavoriteResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryOwnedScoreBatchRead;
+    200: LibraryBatchUpdateRead;
 };
 
-export type BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostResponse = BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostResponses[keyof BatchAddOwnedScoresToLibraryApiV1LibraryEntriesBatchAddOwnedPostResponses];
+export type LibraryScoresBatchFavoriteResponse = LibraryScoresBatchFavoriteResponses[keyof LibraryScoresBatchFavoriteResponses];
 
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostData = {
-    body: LibraryEntryBatchUpdateRequest;
+export type LibraryScoresBatchMoveData = {
+    body: LibraryScoreBatchMoveRequest;
     path?: never;
     query?: never;
-    url: '/api/v1/library/entries/batch-favorite';
+    url: '/api/v1/library/scores/batch-move';
 };
 
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostErrors = {
+export type LibraryScoresBatchMoveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostError = BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostErrors[keyof BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostErrors];
+export type LibraryScoresBatchMoveError = LibraryScoresBatchMoveErrors[keyof LibraryScoresBatchMoveErrors];
 
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostResponses = {
+export type LibraryScoresBatchMoveResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryBatchUpdateRead;
+    200: LibraryBatchMoveRead;
 };
 
-export type BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostResponse = BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostResponses[keyof BatchFavoriteLibraryEntriesApiV1LibraryEntriesBatchFavoritePostResponses];
+export type LibraryScoresBatchMoveResponse = LibraryScoresBatchMoveResponses[keyof LibraryScoresBatchMoveResponses];
 
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostData = {
-    body: LibraryEntryBatchMoveRequest;
+export type AccountDeleteData = {
+    body: DeleteAccountRequest;
     path?: never;
     query?: never;
-    url: '/api/v1/library/entries/batch-move';
+    url: '/api/v1/me';
 };
 
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostErrors = {
+export type AccountDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostError = BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostErrors[keyof BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostErrors];
-
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponseLibraryBatchMoveRead;
+    default: ApiErrorResponse;
 };
 
-export type BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostResponse = BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostResponses[keyof BatchMoveLibraryEntriesApiV1LibraryEntriesBatchMovePostResponses];
+export type AccountDeleteError = AccountDeleteErrors[keyof AccountDeleteErrors];
 
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostData = {
-    body: LibraryEntryBatchPracticeStateRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/entries/batch-practice-state';
-};
-
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostError = BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostErrors[keyof BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostErrors];
-
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostResponses = {
+export type AccountDeleteResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseLibraryBatchUpdateRead;
+    202: AccountDeletionRead;
 };
 
-export type BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostResponse = BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostResponses[keyof BatchPracticeStateLibraryEntriesApiV1LibraryEntriesBatchPracticeStatePostResponses];
+export type AccountDeleteResponse = AccountDeleteResponses[keyof AccountDeleteResponses];
 
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostData = {
-    body: LibraryEntryBatchUpdateRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/entries/batch-trash';
-};
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostError = BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostErrors[keyof BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostErrors];
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryBatchUpdateRead;
-};
-
-export type BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostResponse = BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostResponses[keyof BatchTrashLibraryEntriesApiV1LibraryEntriesBatchTrashPostResponses];
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchData = {
-    body: LibraryEntryUpdateRequest;
-    path: {
-        /**
-         * Entry Id
-         */
-        entry_id: string;
-    };
-    query?: never;
-    url: '/api/v1/library/entries/{entry_id}';
-};
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchError = UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchErrors[keyof UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchErrors];
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryEntryRead;
-};
-
-export type UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchResponse = UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchResponses[keyof UpdateLibraryEntryApiV1LibraryEntriesEntryIdPatchResponses];
-
-export type ListLibraryFoldersApiV1LibraryFoldersGetData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/folders';
-};
-
-export type ListLibraryFoldersApiV1LibraryFoldersGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListLibraryFoldersApiV1LibraryFoldersGetError = ListLibraryFoldersApiV1LibraryFoldersGetErrors[keyof ListLibraryFoldersApiV1LibraryFoldersGetErrors];
-
-export type ListLibraryFoldersApiV1LibraryFoldersGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryFolderTreeRead;
-};
-
-export type ListLibraryFoldersApiV1LibraryFoldersGetResponse = ListLibraryFoldersApiV1LibraryFoldersGetResponses[keyof ListLibraryFoldersApiV1LibraryFoldersGetResponses];
-
-export type CreateLibraryFolderApiV1LibraryFoldersPostData = {
-    body: LibraryFolderCreateRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/library/folders';
-};
-
-export type CreateLibraryFolderApiV1LibraryFoldersPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type CreateLibraryFolderApiV1LibraryFoldersPostError = CreateLibraryFolderApiV1LibraryFoldersPostErrors[keyof CreateLibraryFolderApiV1LibraryFoldersPostErrors];
-
-export type CreateLibraryFolderApiV1LibraryFoldersPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryFolderRead;
-};
-
-export type CreateLibraryFolderApiV1LibraryFoldersPostResponse = CreateLibraryFolderApiV1LibraryFoldersPostResponses[keyof CreateLibraryFolderApiV1LibraryFoldersPostResponses];
-
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Folder Id
-         */
-        folder_id: string;
-    };
-    query?: {
-        mode?: FolderDeleteMode;
-    };
-    url: '/api/v1/library/folders/{folder_id}';
-};
-
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteError = DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteErrors[keyof DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteErrors];
-
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseNoneType;
-};
-
-export type DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteResponse = DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteResponses[keyof DeleteLibraryFolderApiV1LibraryFoldersFolderIdDeleteResponses];
-
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchData = {
-    body: LibraryFolderUpdateRequest;
-    path: {
-        /**
-         * Folder Id
-         */
-        folder_id: string;
-    };
-    query?: never;
-    url: '/api/v1/library/folders/{folder_id}';
-};
-
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchError = UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchErrors[keyof UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchErrors];
-
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseLibraryFolderRead;
-};
-
-export type UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponse = UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses[keyof UpdateLibraryFolderApiV1LibraryFoldersFolderIdPatchResponses];
-
-export type DeleteAvatarApiV1MeAvatarDeleteData = {
+export type AccountAvatarDeleteData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/avatar';
 };
 
-export type DeleteAvatarApiV1MeAvatarDeleteErrors = {
+export type AccountAvatarDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type DeleteAvatarApiV1MeAvatarDeleteError = DeleteAvatarApiV1MeAvatarDeleteErrors[keyof DeleteAvatarApiV1MeAvatarDeleteErrors];
+export type AccountAvatarDeleteError = AccountAvatarDeleteErrors[keyof AccountAvatarDeleteErrors];
 
-export type DeleteAvatarApiV1MeAvatarDeleteResponses = {
+export type AccountAvatarDeleteResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
-export type DeleteAvatarApiV1MeAvatarDeleteResponse = DeleteAvatarApiV1MeAvatarDeleteResponses[keyof DeleteAvatarApiV1MeAvatarDeleteResponses];
+export type AccountAvatarDeleteResponse = AccountAvatarDeleteResponses[keyof AccountAvatarDeleteResponses];
 
-export type UploadAvatarApiV1MeAvatarPostData = {
-    body: BodyUploadAvatarApiV1MeAvatarPost;
+export type AccountAvatarUploadData = {
+    body: BodyAccountAvatarUpload;
     path?: never;
     query?: never;
     url: '/api/v1/me/avatar';
 };
 
-export type UploadAvatarApiV1MeAvatarPostErrors = {
+export type AccountAvatarUploadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type UploadAvatarApiV1MeAvatarPostError = UploadAvatarApiV1MeAvatarPostErrors[keyof UploadAvatarApiV1MeAvatarPostErrors];
+export type AccountAvatarUploadError = AccountAvatarUploadErrors[keyof AccountAvatarUploadErrors];
 
-export type UploadAvatarApiV1MeAvatarPostResponses = {
+export type AccountAvatarUploadResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseAvatarRead;
+    200: AvatarRead;
 };
 
-export type UploadAvatarApiV1MeAvatarPostResponse = UploadAvatarApiV1MeAvatarPostResponses[keyof UploadAvatarApiV1MeAvatarPostResponses];
+export type AccountAvatarUploadResponse = AccountAvatarUploadResponses[keyof AccountAvatarUploadResponses];
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostData = {
+export type AccountAvatarResolveData = {
+    body?: never;
+    path: {
+        /**
+         * Filename
+         */
+        filename: string;
+    };
+    query?: never;
+    url: '/api/v1/me/avatars/{filename}';
+};
+
+export type AccountAvatarResolveErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type AccountAvatarResolveError = AccountAvatarResolveErrors[keyof AccountAvatarResolveErrors];
+
+export type AccountAvatarResolveResponses = {
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type AccountAvatarResolveResponse = AccountAvatarResolveResponses[keyof AccountAvatarResolveResponses];
+
+export type AccountEmailChangeRequestData = {
     body: RequestEmailChangeRequest;
     path?: never;
     query?: never;
     url: '/api/v1/me/email/change';
 };
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostErrors = {
+export type AccountEmailChangeRequestErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostError = RequestMyEmailChangeApiV1MeEmailChangePostErrors[keyof RequestMyEmailChangeApiV1MeEmailChangePostErrors];
+export type AccountEmailChangeRequestError = AccountEmailChangeRequestErrors[keyof AccountEmailChangeRequestErrors];
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostResponses = {
+export type AccountEmailChangeRequestResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
-export type RequestMyEmailChangeApiV1MeEmailChangePostResponse = RequestMyEmailChangeApiV1MeEmailChangePostResponses[keyof RequestMyEmailChangeApiV1MeEmailChangePostResponses];
+export type AccountEmailChangeRequestResponse = AccountEmailChangeRequestResponses[keyof AccountEmailChangeRequestResponses];
 
-export type ListMyPendingInvitesApiV1MeInvitesGetData = {
+export type AccountPendingInvitesListData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+    };
     url: '/api/v1/me/invites';
 };
 
-export type ListMyPendingInvitesApiV1MeInvitesGetErrors = {
+export type AccountPendingInvitesListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListMyPendingInvitesApiV1MeInvitesGetError = ListMyPendingInvitesApiV1MeInvitesGetErrors[keyof ListMyPendingInvitesApiV1MeInvitesGetErrors];
+export type AccountPendingInvitesListError = AccountPendingInvitesListErrors[keyof AccountPendingInvitesListErrors];
 
-export type ListMyPendingInvitesApiV1MeInvitesGetResponses = {
+export type AccountPendingInvitesListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListPendingInviteRead;
+    200: PendingInviteListRead;
 };
 
-export type ListMyPendingInvitesApiV1MeInvitesGetResponse = ListMyPendingInvitesApiV1MeInvitesGetResponses[keyof ListMyPendingInvitesApiV1MeInvitesGetResponses];
+export type AccountPendingInvitesListResponse = AccountPendingInvitesListResponses[keyof AccountPendingInvitesListResponses];
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostData = {
+export type AccountPendingInviteAcceptData = {
     body?: never;
     path: {
         /**
@@ -5994,25 +4409,29 @@ export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostData = {
     url: '/api/v1/me/invites/{invite_id}/accept';
 };
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostErrors = {
+export type AccountPendingInviteAcceptErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostError = AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostErrors[keyof AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostErrors];
+export type AccountPendingInviteAcceptError = AccountPendingInviteAcceptErrors[keyof AccountPendingInviteAcceptErrors];
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostResponses = {
+export type AccountPendingInviteAcceptResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteAcceptRead;
+    200: InviteAcceptRead;
 };
 
-export type AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostResponse = AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostResponses[keyof AcceptMyPendingInviteApiV1MeInvitesInviteIdAcceptPostResponses];
+export type AccountPendingInviteAcceptResponse = AccountPendingInviteAcceptResponses[keyof AccountPendingInviteAcceptResponses];
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostData = {
+export type AccountPendingInviteDeclineData = {
     body?: never;
     path: {
         /**
@@ -6024,25 +4443,29 @@ export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostData = {
     url: '/api/v1/me/invites/{invite_id}/decline';
 };
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostErrors = {
+export type AccountPendingInviteDeclineErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostError = DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostErrors[keyof DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostErrors];
+export type AccountPendingInviteDeclineError = AccountPendingInviteDeclineErrors[keyof AccountPendingInviteDeclineErrors];
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostResponses = {
+export type AccountPendingInviteDeclineResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePendingInviteRead;
+    200: PendingInviteRead;
 };
 
-export type DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostResponse = DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostResponses[keyof DeclineMyPendingInviteApiV1MeInvitesInviteIdDeclinePostResponses];
+export type AccountPendingInviteDeclineResponse = AccountPendingInviteDeclineResponses[keyof AccountPendingInviteDeclineResponses];
 
-export type ListMyNotificationsApiV1MeNotificationsGetData = {
+export type NotificationsListData = {
     body?: never;
     path?: never;
     query?: {
@@ -6050,79 +4473,95 @@ export type ListMyNotificationsApiV1MeNotificationsGetData = {
          * Limit
          */
         limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
     };
     url: '/api/v1/me/notifications';
 };
 
-export type ListMyNotificationsApiV1MeNotificationsGetErrors = {
+export type NotificationsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListMyNotificationsApiV1MeNotificationsGetError = ListMyNotificationsApiV1MeNotificationsGetErrors[keyof ListMyNotificationsApiV1MeNotificationsGetErrors];
+export type NotificationsListError = NotificationsListErrors[keyof NotificationsListErrors];
 
-export type ListMyNotificationsApiV1MeNotificationsGetResponses = {
+export type NotificationsListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListNotificationEventRead;
+    200: NotificationListRead;
 };
 
-export type ListMyNotificationsApiV1MeNotificationsGetResponse = ListMyNotificationsApiV1MeNotificationsGetResponses[keyof ListMyNotificationsApiV1MeNotificationsGetResponses];
+export type NotificationsListResponse = NotificationsListResponses[keyof NotificationsListResponses];
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostData = {
+export type NotificationsMarkAllReadData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/notifications/read-all';
 };
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostErrors = {
+export type NotificationsMarkAllReadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostError = MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostErrors[keyof MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostErrors];
+export type NotificationsMarkAllReadError = NotificationsMarkAllReadErrors[keyof NotificationsMarkAllReadErrors];
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostResponses = {
+export type NotificationsMarkAllReadResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseNotificationUnreadCountRead;
+    200: NotificationUnreadCountRead;
 };
 
-export type MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostResponse = MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostResponses[keyof MarkAllMyNotificationsReadApiV1MeNotificationsReadAllPostResponses];
+export type NotificationsMarkAllReadResponse = NotificationsMarkAllReadResponses[keyof NotificationsMarkAllReadResponses];
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetData = {
+export type NotificationsUnreadCountGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/notifications/unread-count';
 };
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetErrors = {
+export type NotificationsUnreadCountGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetError = MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetErrors[keyof MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetErrors];
+export type NotificationsUnreadCountGetError = NotificationsUnreadCountGetErrors[keyof NotificationsUnreadCountGetErrors];
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetResponses = {
+export type NotificationsUnreadCountGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseNotificationUnreadCountRead;
+    200: NotificationUnreadCountRead;
 };
 
-export type MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetResponse = MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetResponses[keyof MyNotificationUnreadCountApiV1MeNotificationsUnreadCountGetResponses];
+export type NotificationsUnreadCountGetResponse = NotificationsUnreadCountGetResponses[keyof NotificationsUnreadCountGetResponses];
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostData = {
+export type NotificationMarkReadData = {
     body?: never;
     path: {
         /**
@@ -6134,150 +4573,208 @@ export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostData
     url: '/api/v1/me/notifications/{notification_id}/read';
 };
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostErrors = {
+export type NotificationMarkReadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostError = MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostErrors[keyof MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostErrors];
+export type NotificationMarkReadError = NotificationMarkReadErrors[keyof NotificationMarkReadErrors];
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostResponses = {
+export type NotificationMarkReadResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseNotificationEventRead;
+    200: NotificationRead;
 };
 
-export type MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostResponse = MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostResponses[keyof MarkMyNotificationReadApiV1MeNotificationsNotificationIdReadPostResponses];
+export type NotificationMarkReadResponse = NotificationMarkReadResponses[keyof NotificationMarkReadResponses];
 
-export type ChangeMyPasswordApiV1MePasswordPutData = {
+export type AccountPasswordChangeData = {
     body: ChangePasswordRequest;
     path?: never;
     query?: never;
     url: '/api/v1/me/password';
 };
 
-export type ChangeMyPasswordApiV1MePasswordPutErrors = {
+export type AccountPasswordChangeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ChangeMyPasswordApiV1MePasswordPutError = ChangeMyPasswordApiV1MePasswordPutErrors[keyof ChangeMyPasswordApiV1MePasswordPutErrors];
+export type AccountPasswordChangeError = AccountPasswordChangeErrors[keyof AccountPasswordChangeErrors];
 
-export type ChangeMyPasswordApiV1MePasswordPutResponses = {
+export type AccountPasswordChangeResponses = {
     /**
      * Successful Response
      */
-    200: SuccessResponsePayload;
+    204: void;
 };
 
-export type ChangeMyPasswordApiV1MePasswordPutResponse = ChangeMyPasswordApiV1MePasswordPutResponses[keyof ChangeMyPasswordApiV1MePasswordPutResponses];
+export type AccountPasswordChangeResponse = AccountPasswordChangeResponses[keyof AccountPasswordChangeResponses];
 
-export type GetUserProfileApiV1MeProfileGetData = {
+export type AccountProfileGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/profile';
 };
 
-export type GetUserProfileApiV1MeProfileGetErrors = {
+export type AccountProfileGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetUserProfileApiV1MeProfileGetError = GetUserProfileApiV1MeProfileGetErrors[keyof GetUserProfileApiV1MeProfileGetErrors];
+export type AccountProfileGetError = AccountProfileGetErrors[keyof AccountProfileGetErrors];
 
-export type GetUserProfileApiV1MeProfileGetResponses = {
+export type AccountProfileGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseProfileRead;
+    200: ProfileRead;
 };
 
-export type GetUserProfileApiV1MeProfileGetResponse = GetUserProfileApiV1MeProfileGetResponses[keyof GetUserProfileApiV1MeProfileGetResponses];
+export type AccountProfileGetResponse = AccountProfileGetResponses[keyof AccountProfileGetResponses];
 
-export type UpdateUserProfileApiV1MeProfilePutData = {
+export type AccountProfileUpdateData = {
     body: UpdateProfileRequest;
     path?: never;
     query?: never;
     url: '/api/v1/me/profile';
 };
 
-export type UpdateUserProfileApiV1MeProfilePutErrors = {
+export type AccountProfileUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type UpdateUserProfileApiV1MeProfilePutError = UpdateUserProfileApiV1MeProfilePutErrors[keyof UpdateUserProfileApiV1MeProfilePutErrors];
+export type AccountProfileUpdateError = AccountProfileUpdateErrors[keyof AccountProfileUpdateErrors];
 
-export type UpdateUserProfileApiV1MeProfilePutResponses = {
+export type AccountProfileUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseProfileUpdateRead;
+    204: void;
 };
 
-export type UpdateUserProfileApiV1MeProfilePutResponse = UpdateUserProfileApiV1MeProfilePutResponses[keyof UpdateUserProfileApiV1MeProfilePutResponses];
+export type AccountProfileUpdateResponse = AccountProfileUpdateResponses[keyof AccountProfileUpdateResponses];
 
-export type GetMySecurityOverviewApiV1MeSecurityGetData = {
+export type ScoreMembershipLeaveData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+    };
+    query?: never;
+    url: '/api/v1/me/scores/{score_id}/membership';
+};
+
+export type ScoreMembershipLeaveErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ScoreMembershipLeaveError = ScoreMembershipLeaveErrors[keyof ScoreMembershipLeaveErrors];
+
+export type ScoreMembershipLeaveResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ScoreMembershipLeaveResponse = ScoreMembershipLeaveResponses[keyof ScoreMembershipLeaveResponses];
+
+export type AccountSecurityGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/security';
 };
 
-export type GetMySecurityOverviewApiV1MeSecurityGetErrors = {
+export type AccountSecurityGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetMySecurityOverviewApiV1MeSecurityGetError = GetMySecurityOverviewApiV1MeSecurityGetErrors[keyof GetMySecurityOverviewApiV1MeSecurityGetErrors];
+export type AccountSecurityGetError = AccountSecurityGetErrors[keyof AccountSecurityGetErrors];
 
-export type GetMySecurityOverviewApiV1MeSecurityGetResponses = {
+export type AccountSecurityGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseSecurityRead;
+    200: SecurityRead;
 };
 
-export type GetMySecurityOverviewApiV1MeSecurityGetResponse = GetMySecurityOverviewApiV1MeSecurityGetResponses[keyof GetMySecurityOverviewApiV1MeSecurityGetResponses];
+export type AccountSecurityGetResponse = AccountSecurityGetResponses[keyof AccountSecurityGetResponses];
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteData = {
+export type AccountOtherSessionsRevokeData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/sessions';
 };
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteErrors = {
+export type AccountOtherSessionsRevokeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteError = RevokeMyOtherSessionsApiV1MeSessionsDeleteErrors[keyof RevokeMyOtherSessionsApiV1MeSessionsDeleteErrors];
+export type AccountOtherSessionsRevokeError = AccountOtherSessionsRevokeErrors[keyof AccountOtherSessionsRevokeErrors];
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteResponses = {
+export type AccountOtherSessionsRevokeResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
-export type RevokeMyOtherSessionsApiV1MeSessionsDeleteResponse = RevokeMyOtherSessionsApiV1MeSessionsDeleteResponses[keyof RevokeMyOtherSessionsApiV1MeSessionsDeleteResponses];
+export type AccountOtherSessionsRevokeResponse = AccountOtherSessionsRevokeResponses[keyof AccountOtherSessionsRevokeResponses];
 
-export type ListMySessionsApiV1MeSessionsGetData = {
+export type AccountSessionsListData = {
     body?: never;
     path?: never;
     query?: {
@@ -6289,25 +4786,29 @@ export type ListMySessionsApiV1MeSessionsGetData = {
     url: '/api/v1/me/sessions';
 };
 
-export type ListMySessionsApiV1MeSessionsGetErrors = {
+export type AccountSessionsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListMySessionsApiV1MeSessionsGetError = ListMySessionsApiV1MeSessionsGetErrors[keyof ListMySessionsApiV1MeSessionsGetErrors];
+export type AccountSessionsListError = AccountSessionsListErrors[keyof AccountSessionsListErrors];
 
-export type ListMySessionsApiV1MeSessionsGetResponses = {
+export type AccountSessionsListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseSessionsRead;
+    200: SessionsRead;
 };
 
-export type ListMySessionsApiV1MeSessionsGetResponse = ListMySessionsApiV1MeSessionsGetResponses[keyof ListMySessionsApiV1MeSessionsGetResponses];
+export type AccountSessionsListResponse = AccountSessionsListResponses[keyof AccountSessionsListResponses];
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteData = {
+export type AccountSessionRevokeData = {
     body?: never;
     path: {
         /**
@@ -6319,115 +4820,87 @@ export type RevokeMySessionApiV1MeSessionsSessionIdDeleteData = {
     url: '/api/v1/me/sessions/{session_id}';
 };
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteErrors = {
+export type AccountSessionRevokeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteError = RevokeMySessionApiV1MeSessionsSessionIdDeleteErrors[keyof RevokeMySessionApiV1MeSessionsSessionIdDeleteErrors];
+export type AccountSessionRevokeError = AccountSessionRevokeErrors[keyof AccountSessionRevokeErrors];
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteResponses = {
+export type AccountSessionRevokeResponses = {
     /**
      * Successful Response
      */
-    200: EmptyResponse;
+    204: void;
 };
 
-export type RevokeMySessionApiV1MeSessionsSessionIdDeleteResponse = RevokeMySessionApiV1MeSessionsSessionIdDeleteResponses[keyof RevokeMySessionApiV1MeSessionsSessionIdDeleteResponses];
+export type AccountSessionRevokeResponse = AccountSessionRevokeResponses[keyof AccountSessionRevokeResponses];
 
-export type GetStorageUsageApiV1MeStorageUsageGetData = {
+export type AccountStorageUsageGetData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/api/v1/me/storage-usage';
 };
 
-export type GetStorageUsageApiV1MeStorageUsageGetErrors = {
+export type AccountStorageUsageGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetStorageUsageApiV1MeStorageUsageGetError = GetStorageUsageApiV1MeStorageUsageGetErrors[keyof GetStorageUsageApiV1MeStorageUsageGetErrors];
+export type AccountStorageUsageGetError = AccountStorageUsageGetErrors[keyof AccountStorageUsageGetErrors];
 
-export type GetStorageUsageApiV1MeStorageUsageGetResponses = {
+export type AccountStorageUsageGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseStorageUsageRead;
+    200: StorageUsageRead;
 };
 
-export type GetStorageUsageApiV1MeStorageUsageGetResponse = GetStorageUsageApiV1MeStorageUsageGetResponses[keyof GetStorageUsageApiV1MeStorageUsageGetResponses];
+export type AccountStorageUsageGetResponse = AccountStorageUsageGetResponses[keyof AccountStorageUsageGetResponses];
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetData = {
+export type PracticeAcousticModelAccessGetData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/v1/model-assets/practice-acoustic-robust-browser-v1/access';
+    url: '/api/v1/model-assets/practice-acoustic/access';
 };
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors = {
+export type PracticeAcousticModelAccessGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetError = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetErrors];
-
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponsePracticeAcousticAccessRead;
+    default: ApiErrorResponse;
 };
 
-export type GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponse = GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses[keyof GetPracticeAcousticAccessApiV1ModelAssetsPracticeAcousticRobustBrowserV1AccessGetResponses];
+export type PracticeAcousticModelAccessGetError = PracticeAcousticModelAccessGetErrors[keyof PracticeAcousticModelAccessGetErrors];
 
-export type ListMyScoresApiV1MyScoresGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Page
-         */
-        page?: number;
-        /**
-         * Page Size
-         */
-        page_size?: number;
-        view?: MyScoresView;
-        /**
-         * Search
-         */
-        search?: string | null;
-        sort?: MyScoresSort;
-    };
-    url: '/api/v1/my-scores';
-};
-
-export type ListMyScoresApiV1MyScoresGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListMyScoresApiV1MyScoresGetError = ListMyScoresApiV1MyScoresGetErrors[keyof ListMyScoresApiV1MyScoresGetErrors];
-
-export type ListMyScoresApiV1MyScoresGetResponses = {
+export type PracticeAcousticModelAccessGetResponses = {
     /**
      * Successful Response
      */
-    200: PaginatedResponseScoreRead;
+    200: PracticeAcousticAccessRead;
 };
 
-export type ListMyScoresApiV1MyScoresGetResponse = ListMyScoresApiV1MyScoresGetResponses[keyof ListMyScoresApiV1MyScoresGetResponses];
+export type PracticeAcousticModelAccessGetResponse = PracticeAcousticModelAccessGetResponses[keyof PracticeAcousticModelAccessGetResponses];
 
-export type ListTakesApiV1PerformanceTakesGetData = {
+export type PerformanceTakesListData = {
     body?: never;
     path?: never;
     query?: {
@@ -6440,82 +4913,65 @@ export type ListTakesApiV1PerformanceTakesGetData = {
          */
         limit?: number;
         /**
-         * Offset
+         * Cursor
          */
-        offset?: number;
+        cursor?: string | null;
     };
     url: '/api/v1/performance-takes';
 };
 
-export type ListTakesApiV1PerformanceTakesGetErrors = {
+export type PerformanceTakesListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListTakesApiV1PerformanceTakesGetError = ListTakesApiV1PerformanceTakesGetErrors[keyof ListTakesApiV1PerformanceTakesGetErrors];
+export type PerformanceTakesListError = PerformanceTakesListErrors[keyof PerformanceTakesListErrors];
 
-export type ListTakesApiV1PerformanceTakesGetResponses = {
+export type PerformanceTakesListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakeListResponse;
+    200: PerformanceTakeListRead;
 };
 
-export type ListTakesApiV1PerformanceTakesGetResponse = ListTakesApiV1PerformanceTakesGetResponses[keyof ListTakesApiV1PerformanceTakesGetResponses];
+export type PerformanceTakesListResponse = PerformanceTakesListResponses[keyof PerformanceTakesListResponses];
 
-export type FinalizeTakeApiV1PerformanceTakesPostData = {
-    body: PerformanceTakeCreateRequest;
+export type PerformanceTakeUploadsReserveData = {
+    body: PerformanceTakeUploadReservationRequest;
     path?: never;
     query?: never;
-    url: '/api/v1/performance-takes';
+    url: '/api/v1/performance-takes/upload-reservations';
 };
 
-export type FinalizeTakeApiV1PerformanceTakesPostErrors = {
+export type PerformanceTakeUploadsReserveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type FinalizeTakeApiV1PerformanceTakesPostError = FinalizeTakeApiV1PerformanceTakesPostErrors[keyof FinalizeTakeApiV1PerformanceTakesPostErrors];
-
-export type FinalizeTakeApiV1PerformanceTakesPostResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponsePerformanceTakeRead;
+    default: ApiErrorResponse;
 };
 
-export type FinalizeTakeApiV1PerformanceTakesPostResponse = FinalizeTakeApiV1PerformanceTakesPostResponses[keyof FinalizeTakeApiV1PerformanceTakesPostResponses];
+export type PerformanceTakeUploadsReserveError = PerformanceTakeUploadsReserveErrors[keyof PerformanceTakeUploadsReserveErrors];
 
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostData = {
-    body: PerformanceTakeUploadAuthorizationRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/performance-takes/upload-authorizations';
-};
-
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostError = AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors[keyof AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostErrors];
-
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses = {
+export type PerformanceTakeUploadsReserveResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakeUploadAuthorizationRead;
+    200: PerformanceTakeUploadReservationRead;
 };
 
-export type AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponse = AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses[keyof AuthorizeTakeUploadApiV1PerformanceTakesUploadAuthorizationsPostResponses];
+export type PerformanceTakeUploadsReserveResponse = PerformanceTakeUploadsReserveResponses[keyof PerformanceTakeUploadsReserveResponses];
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteData = {
+export type PerformanceTakeUploadCancelData = {
     body?: never;
     path: {
         /**
@@ -6524,28 +4980,66 @@ export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizatio
         reservation_id: string;
     };
     query?: never;
-    url: '/api/v1/performance-takes/upload-authorizations/{reservation_id}';
+    url: '/api/v1/performance-takes/upload-reservations/{reservation_id}';
 };
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors = {
+export type PerformanceTakeUploadCancelErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteError = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteErrors];
+export type PerformanceTakeUploadCancelError = PerformanceTakeUploadCancelErrors[keyof PerformanceTakeUploadCancelErrors];
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses = {
+export type PerformanceTakeUploadCancelResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseDictStrBool;
+    204: void;
 };
 
-export type CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponse = CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses[keyof CancelTakeUploadAuthorizationApiV1PerformanceTakesUploadAuthorizationsReservationIdDeleteResponses];
+export type PerformanceTakeUploadCancelResponse = PerformanceTakeUploadCancelResponses[keyof PerformanceTakeUploadCancelResponses];
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteData = {
+export type PerformanceTakeUploadFinalizeData = {
+    body?: never;
+    path: {
+        /**
+         * Reservation Id
+         */
+        reservation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/performance-takes/upload-reservations/{reservation_id}/finalize';
+};
+
+export type PerformanceTakeUploadFinalizeErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type PerformanceTakeUploadFinalizeError = PerformanceTakeUploadFinalizeErrors[keyof PerformanceTakeUploadFinalizeErrors];
+
+export type PerformanceTakeUploadFinalizeResponses = {
+    /**
+     * Successful Response
+     */
+    200: PerformanceTakeRead;
+};
+
+export type PerformanceTakeUploadFinalizeResponse = PerformanceTakeUploadFinalizeResponses[keyof PerformanceTakeUploadFinalizeResponses];
+
+export type PerformanceTakeDeleteData = {
     body?: never;
     path: {
         /**
@@ -6557,25 +5051,29 @@ export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteData = {
     url: '/api/v1/performance-takes/{take_id}';
 };
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors = {
+export type PerformanceTakeDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteError = DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors[keyof DeleteTakeApiV1PerformanceTakesTakeIdDeleteErrors];
+export type PerformanceTakeDeleteError = PerformanceTakeDeleteErrors[keyof PerformanceTakeDeleteErrors];
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses = {
+export type PerformanceTakeDeleteResponses = {
     /**
      * Successful Response
      */
-    202: ApiResponsePerformanceTakeDeleteResponse;
+    204: void;
 };
 
-export type DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponse = DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses[keyof DeleteTakeApiV1PerformanceTakesTakeIdDeleteResponses];
+export type PerformanceTakeDeleteResponse = PerformanceTakeDeleteResponses[keyof PerformanceTakeDeleteResponses];
 
-export type GetTakeApiV1PerformanceTakesTakeIdGetData = {
+export type PerformanceTakeGetData = {
     body?: never;
     path: {
         /**
@@ -6587,53 +5085,29 @@ export type GetTakeApiV1PerformanceTakesTakeIdGetData = {
     url: '/api/v1/performance-takes/{take_id}';
 };
 
-export type GetTakeApiV1PerformanceTakesTakeIdGetErrors = {
+export type PerformanceTakeGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type GetTakeApiV1PerformanceTakesTakeIdGetError = GetTakeApiV1PerformanceTakesTakeIdGetErrors[keyof GetTakeApiV1PerformanceTakesTakeIdGetErrors];
-
-export type GetTakeApiV1PerformanceTakesTakeIdGetResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponsePerformanceTakeRead;
+    default: ApiErrorResponse;
 };
 
-export type GetTakeApiV1PerformanceTakesTakeIdGetResponse = GetTakeApiV1PerformanceTakesTakeIdGetResponses[keyof GetTakeApiV1PerformanceTakesTakeIdGetResponses];
+export type PerformanceTakeGetError = PerformanceTakeGetErrors[keyof PerformanceTakeGetErrors];
 
-export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetData = {
-    body?: never;
-    path: {
-        /**
-         * Take Id
-         */
-        take_id: string;
-    };
-    query?: never;
-    url: '/api/v1/performance-takes/{take_id}/media';
-};
-
-export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetError = StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors[keyof StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetErrors];
-
-export type StreamTakeMediaApiV1PerformanceTakesTakeIdMediaGetResponses = {
+export type PerformanceTakeGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: PerformanceTakeRead;
 };
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetData = {
+export type PerformanceTakeGetResponse = PerformanceTakeGetResponses[keyof PerformanceTakeGetResponses];
+
+export type PerformanceTakePlaybackUrlGetData = {
     body?: never;
     path: {
         /**
@@ -6645,119 +5119,87 @@ export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetData = {
     url: '/api/v1/performance-takes/{take_id}/playback-url';
 };
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors = {
+export type PerformanceTakePlaybackUrlGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetError = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetErrors];
+export type PerformanceTakePlaybackUrlGetError = PerformanceTakePlaybackUrlGetErrors[keyof PerformanceTakePlaybackUrlGetErrors];
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses = {
+export type PerformanceTakePlaybackUrlGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePerformanceTakePlaybackRead;
+    200: PerformanceTakePlaybackRead;
 };
 
-export type GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponse = GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses[keyof GetPlaybackUrlApiV1PerformanceTakesTakeIdPlaybackUrlGetResponses];
+export type PerformanceTakePlaybackUrlGetResponse = PerformanceTakePlaybackUrlGetResponses[keyof PerformanceTakePlaybackUrlGetResponses];
 
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetData = {
-    body?: never;
-    path: {
-        /**
-         * Take Id
-         */
-        take_id: string;
-    };
+export type PlaybackPerformancePlanCreateData = {
+    body: PerformancePlanRequest;
+    path?: never;
     query?: never;
-    url: '/api/v1/performance-takes/{take_id}/practice-source/artifact';
+    url: '/api/v1/playback/performance-plan';
 };
 
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors = {
+export type PlaybackPerformancePlanCreateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetError = GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors[keyof GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetErrors];
+export type PlaybackPerformancePlanCreateError = PlaybackPerformancePlanCreateErrors[keyof PlaybackPerformancePlanCreateErrors];
 
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses = {
+export type PlaybackPerformancePlanCreateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeScoreArtifactRead;
+    200: PerformancePlanRead;
 };
 
-export type GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponse = GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses[keyof GetTakePracticeSourceArtifactApiV1PerformanceTakesTakeIdPracticeSourceArtifactGetResponses];
+export type PlaybackPerformancePlanCreateResponse = PlaybackPerformancePlanCreateResponses[keyof PlaybackPerformancePlanCreateResponses];
 
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetData = {
-    body?: never;
-    path: {
-        /**
-         * Take Id
-         */
-        take_id: string;
-    };
+export type PracticeActivityCreateData = {
+    body: PracticeActivityCreateRequest;
+    path?: never;
     query?: never;
-    url: '/api/v1/performance-takes/{take_id}/practice-source/content';
+    url: '/api/v1/practice-activities';
 };
 
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors = {
+export type PracticeActivityCreateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetError = GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors[keyof GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetErrors];
-
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponsePracticeReadyScoreContentRead;
+    default: ApiErrorResponse;
 };
 
-export type GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponse = GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses[keyof GetTakePracticeSourceContentApiV1PerformanceTakesTakeIdPracticeSourceContentGetResponses];
+export type PracticeActivityCreateError = PracticeActivityCreateErrors[keyof PracticeActivityCreateErrors];
 
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetData = {
-    body?: never;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-        /**
-         * Revision Id
-         */
-        revision_id: string;
-    };
-    query?: never;
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/artifact';
-};
-
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetError = GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors[keyof GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetErrors];
-
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses = {
+export type PracticeActivityCreateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePracticeScoreArtifactRead;
+    200: PracticeActivityRead;
 };
 
-export type GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponse = GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses[keyof GetPracticeScoreArtifactApiV1PracticeScoresScoreIdRevisionsRevisionIdArtifactGetResponses];
+export type PracticeActivityCreateResponse = PracticeActivityCreateResponses[keyof PracticeActivityCreateResponses];
 
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetData = {
+export type PracticeScoreRevisionBundleGetData = {
     body?: never;
     path: {
         /**
@@ -6769,217 +5211,38 @@ export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevis
          */
         revision_id: string;
     };
-    query?: never;
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/content';
-};
-
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetError = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetErrors];
-
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePracticeReadyScoreContentRead;
-};
-
-export type GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponse = GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses[keyof GetPracticeReadyScoreContentApiV1PracticeScoresScoreIdRevisionsRevisionIdContentGetResponses];
-
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetData = {
-    body?: never;
-    path: {
+    query?: {
         /**
-         * Score Id
+         * Include Notation
          */
-        score_id: string;
-        /**
-         * Revision Id
-         */
-        revision_id: string;
+        include_notation?: boolean;
     };
-    query?: never;
-    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/targets';
+    url: '/api/v1/practice/scores/{score_id}/revisions/{revision_id}/bundle';
 };
 
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors = {
+export type PracticeScoreRevisionBundleGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetError = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetErrors];
-
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponsePracticeTargetCatalogRead;
+    default: ApiErrorResponse;
 };
 
-export type ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponse = ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses[keyof ListPracticeTargetsApiV1PracticeScoresScoreIdRevisionsRevisionIdTargetsGetResponses];
+export type PracticeScoreRevisionBundleGetError = PracticeScoreRevisionBundleGetErrors[keyof PracticeScoreRevisionBundleGetErrors];
 
-export type GetPublicScoreApiV1PublicationsSlugGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}';
-};
-
-export type GetPublicScoreApiV1PublicationsSlugGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetPublicScoreApiV1PublicationsSlugGetError = GetPublicScoreApiV1PublicationsSlugGetErrors[keyof GetPublicScoreApiV1PublicationsSlugGetErrors];
-
-export type GetPublicScoreApiV1PublicationsSlugGetResponses = {
+export type PracticeScoreRevisionBundleGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePublicScoreRead;
+    200: PracticeBundleRead;
 };
 
-export type GetPublicScoreApiV1PublicationsSlugGetResponse = GetPublicScoreApiV1PublicationsSlugGetResponses[keyof GetPublicScoreApiV1PublicationsSlugGetResponses];
+export type PracticeScoreRevisionBundleGetResponse = PracticeScoreRevisionBundleGetResponses[keyof PracticeScoreRevisionBundleGetResponses];
 
-export type StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}/playback';
-};
-
-export type StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetError = StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetErrors[keyof StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetErrors];
-
-export type StreamPublicScorePlaybackApiV1PublicationsSlugPlaybackGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-        /**
-         * Render Asset Id
-         */
-        render_asset_id: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}/render-assets/{render_asset_id}/download';
-};
-
-export type DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetError = DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetErrors[keyof DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetErrors];
-
-export type DownloadPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdDownloadGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-        /**
-         * Render Asset Id
-         */
-        render_asset_id: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}/render-assets/{render_asset_id}/view';
-};
-
-export type ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetError = ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetErrors[keyof ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetErrors];
-
-export type ViewPublicRenderAssetApiV1PublicationsSlugRenderAssetsRenderAssetIdViewGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetData = {
-    body?: never;
-    path: {
-        /**
-         * Slug
-         */
-        slug: string;
-        /**
-         * Source Id
-         */
-        source_id: string;
-    };
-    query?: never;
-    url: '/api/v1/publications/{slug}/revision-sources/{source_id}/download';
-};
-
-export type DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetError = DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetErrors[keyof DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetErrors];
-
-export type DownloadPublicRevisionSourceApiV1PublicationsSlugRevisionSourcesSourceIdDownloadGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type RealtimeEventsApiV1RealtimeEventsGetData = {
+export type RealtimeEventsStreamData = {
     body?: never;
     headers?: {
         /**
@@ -6992,23 +5255,29 @@ export type RealtimeEventsApiV1RealtimeEventsGetData = {
     url: '/api/v1/realtime/events';
 };
 
-export type RealtimeEventsApiV1RealtimeEventsGetErrors = {
+export type RealtimeEventsStreamErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RealtimeEventsApiV1RealtimeEventsGetError = RealtimeEventsApiV1RealtimeEventsGetErrors[keyof RealtimeEventsApiV1RealtimeEventsGetErrors];
+export type RealtimeEventsStreamError = RealtimeEventsStreamErrors[keyof RealtimeEventsStreamErrors];
 
-export type RealtimeEventsApiV1RealtimeEventsGetResponses = {
+export type RealtimeEventsStreamResponses = {
     /**
-     * Successful Response
+     * Versioned change delivery and resync-required controls with sequence cursors and heartbeat comments.
      */
-    200: unknown;
+    200: string;
 };
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetData = {
+export type RealtimeEventsStreamResponse = RealtimeEventsStreamResponses[keyof RealtimeEventsStreamResponses];
+
+export type ScoreRenderAssetAccessUrlGetData = {
     body?: never;
     path: {
         /**
@@ -7020,25 +5289,29 @@ export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetDat
     url: '/api/v1/render-assets/{render_asset_id}/access-url';
 };
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetErrors = {
+export type ScoreRenderAssetAccessUrlGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetError = GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetErrors[keyof GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetErrors];
+export type ScoreRenderAssetAccessUrlGetError = ScoreRenderAssetAccessUrlGetErrors[keyof ScoreRenderAssetAccessUrlGetErrors];
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetResponses = {
+export type ScoreRenderAssetAccessUrlGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseAssetAccessRead;
+    200: AssetAccessRead;
 };
 
-export type GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetResponse = GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetResponses[keyof GetRenderAssetAccessUrlApiV1RenderAssetsRenderAssetIdAccessUrlGetResponses];
+export type ScoreRenderAssetAccessUrlGetResponse = ScoreRenderAssetAccessUrlGetResponses[keyof ScoreRenderAssetAccessUrlGetResponses];
 
-export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetData = {
+export type ScoreRenderAssetDownloadData = {
     body?: never;
     path: {
         /**
@@ -7050,113 +5323,63 @@ export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetData = {
     url: '/api/v1/render-assets/{render_asset_id}/download';
 };
 
-export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors = {
+export type ScoreRenderAssetDownloadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetError = DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors[keyof DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetErrors];
+export type ScoreRenderAssetDownloadError = ScoreRenderAssetDownloadErrors[keyof ScoreRenderAssetDownloadErrors];
 
-export type DownloadRenderAssetApiV1RenderAssetsRenderAssetIdDownloadGetResponses = {
+export type ScoreRenderAssetDownloadResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type GetImportJobReviewApiV1ReviewJobIdGetData = {
+export type ScoreRenderAssetDownloadResponse = ScoreRenderAssetDownloadResponses[keyof ScoreRenderAssetDownloadResponses];
+
+export type ScoreRenderAssetViewData = {
     body?: never;
     path: {
         /**
-         * Job Id
+         * Render Asset Id
          */
-        job_id: string;
+        render_asset_id: string;
     };
     query?: never;
-    url: '/api/v1/review/{job_id}';
+    url: '/api/v1/render-assets/{render_asset_id}/view';
 };
 
-export type GetImportJobReviewApiV1ReviewJobIdGetErrors = {
+export type ScoreRenderAssetViewErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type GetImportJobReviewApiV1ReviewJobIdGetError = GetImportJobReviewApiV1ReviewJobIdGetErrors[keyof GetImportJobReviewApiV1ReviewJobIdGetErrors];
-
-export type GetImportJobReviewApiV1ReviewJobIdGetResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponseImportJobReviewRead;
+    default: ApiErrorResponse;
 };
 
-export type GetImportJobReviewApiV1ReviewJobIdGetResponse = GetImportJobReviewApiV1ReviewJobIdGetResponses[keyof GetImportJobReviewApiV1ReviewJobIdGetResponses];
+export type ScoreRenderAssetViewError = ScoreRenderAssetViewErrors[keyof ScoreRenderAssetViewErrors];
 
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchData = {
-    body: ReviewUpdateRequest;
-    path: {
-        /**
-         * Job Id
-         */
-        job_id: string;
-    };
-    query?: never;
-    url: '/api/v1/review/{job_id}';
-};
-
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchErrors = {
+export type ScoreRenderAssetViewResponses = {
     /**
-     * Validation Error
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    422: HttpValidationError;
+    200: Blob | File;
 };
 
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchError = UpdateImportJobReviewApiV1ReviewJobIdPatchErrors[keyof UpdateImportJobReviewApiV1ReviewJobIdPatchErrors];
+export type ScoreRenderAssetViewResponse = ScoreRenderAssetViewResponses[keyof ScoreRenderAssetViewResponses];
 
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseImportJobReviewRead;
-};
-
-export type UpdateImportJobReviewApiV1ReviewJobIdPatchResponse = UpdateImportJobReviewApiV1ReviewJobIdPatchResponses[keyof UpdateImportJobReviewApiV1ReviewJobIdPatchResponses];
-
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostData = {
-    body: ReviewConfirmRequest;
-    path: {
-        /**
-         * Job Id
-         */
-        job_id: string;
-    };
-    query?: never;
-    url: '/api/v1/review/{job_id}/confirm';
-};
-
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostError = ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostErrors[keyof ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostErrors];
-
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseReviewConfirmRead;
-};
-
-export type ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostResponse = ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostResponses[keyof ConfirmImportJobReviewApiV1ReviewJobIdConfirmPostResponses];
-
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetData = {
+export type ScoreRevisionSourceAccessUrlGetData = {
     body?: never;
     path: {
         /**
@@ -7168,25 +5391,29 @@ export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetDa
     url: '/api/v1/revision-sources/{source_id}/access-url';
 };
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetErrors = {
+export type ScoreRevisionSourceAccessUrlGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetError = GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetErrors[keyof GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetErrors];
+export type ScoreRevisionSourceAccessUrlGetError = ScoreRevisionSourceAccessUrlGetErrors[keyof ScoreRevisionSourceAccessUrlGetErrors];
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetResponses = {
+export type ScoreRevisionSourceAccessUrlGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseAssetAccessRead;
+    200: AssetAccessRead;
 };
 
-export type GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetResponse = GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetResponses[keyof GetRevisionSourceAccessUrlApiV1RevisionSourcesSourceIdAccessUrlGetResponses];
+export type ScoreRevisionSourceAccessUrlGetResponse = ScoreRevisionSourceAccessUrlGetResponses[keyof ScoreRevisionSourceAccessUrlGetResponses];
 
-export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetData = {
+export type ScoreRevisionSourceDownloadData = {
     body?: never;
     path: {
         /**
@@ -7198,352 +5425,58 @@ export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetData = 
     url: '/api/v1/revision-sources/{source_id}/download';
 };
 
-export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetErrors = {
+export type ScoreRevisionSourceDownloadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetError = DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetErrors[keyof DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetErrors];
-
-export type DownloadRevisionSourceApiV1RevisionSourcesSourceIdDownloadGetResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: unknown;
+    default: ApiErrorResponse;
 };
 
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}';
-};
+export type ScoreRevisionSourceDownloadError = ScoreRevisionSourceDownloadErrors[keyof ScoreRevisionSourceDownloadErrors];
 
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetErrors = {
+export type ScoreRevisionSourceDownloadResponses = {
     /**
-     * Validation Error
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    422: HttpValidationError;
+    200: Blob | File;
 };
 
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetError = AccessScoreGrantApiV1ScoreGrantsTokenGetErrors[keyof AccessScoreGrantApiV1ScoreGrantsTokenGetErrors];
+export type ScoreRevisionSourceDownloadResponse = ScoreRevisionSourceDownloadResponses[keyof ScoreRevisionSourceDownloadResponses];
 
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantAccessRead;
-};
-
-export type AccessScoreGrantApiV1ScoreGrantsTokenGetResponse = AccessScoreGrantApiV1ScoreGrantsTokenGetResponses[keyof AccessScoreGrantApiV1ScoreGrantsTokenGetResponses];
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/bookmark';
-};
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostError = BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostErrors[keyof BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostErrors];
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantBookmarkRead;
-};
-
-export type BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostResponse = BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostResponses[keyof BookmarkScoreGrantApiV1ScoreGrantsTokenBookmarkPostResponses];
-
-export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/playback';
-};
-
-export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetError = StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetErrors[keyof StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetErrors];
-
-export type StreamScoreGrantPlaybackApiV1ScoreGrantsTokenPlaybackGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/redeem';
-};
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostError = RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors[keyof RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostErrors];
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantRedeemRead;
-};
-
-export type RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponse = RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses[keyof RedeemScoreGrantApiV1ScoreGrantsTokenRedeemPostResponses];
-
-export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-        /**
-         * Render Asset Id
-         */
-        render_asset_id: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/render-assets/{render_asset_id}/download';
-};
-
-export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetError = DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetErrors[keyof DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetErrors];
-
-export type DownloadScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdDownloadGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-        /**
-         * Render Asset Id
-         */
-        render_asset_id: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/render-assets/{render_asset_id}/view';
-};
-
-export type ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetError = ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetErrors[keyof ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetErrors];
-
-export type ViewScoreGrantRenderAssetApiV1ScoreGrantsTokenRenderAssetsRenderAssetIdViewGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetData = {
-    body?: never;
-    path: {
-        /**
-         * Token
-         */
-        token: string;
-        /**
-         * Source Id
-         */
-        source_id: string;
-    };
-    query?: never;
-    url: '/api/v1/score-grants/{token}/revision-sources/{source_id}/download';
-};
-
-export type DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetError = DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetErrors[keyof DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetErrors];
-
-export type DownloadScoreGrantRevisionSourceApiV1ScoreGrantsTokenRevisionSourcesSourceIdDownloadGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostData = {
+export type ScoresBatchDeleteData = {
     body: ScoreBatchDeleteRequest;
     path?: never;
     query?: never;
     url: '/api/v1/scores/batch-delete';
 };
 
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostErrors = {
+export type ScoresBatchDeleteErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostError = BatchDeleteScoresApiV1ScoresBatchDeletePostErrors[keyof BatchDeleteScoresApiV1ScoresBatchDeletePostErrors];
-
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponseDictStrInt;
+    default: ApiErrorResponse;
 };
 
-export type BatchDeleteScoresApiV1ScoresBatchDeletePostResponse = BatchDeleteScoresApiV1ScoresBatchDeletePostResponses[keyof BatchDeleteScoresApiV1ScoresBatchDeletePostResponses];
+export type ScoresBatchDeleteError = ScoresBatchDeleteErrors[keyof ScoresBatchDeleteErrors];
 
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Grant Id
-         */
-        grant_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/grants/{grant_id}';
-};
-
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteError = DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteErrors[keyof DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteErrors];
-
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteResponses = {
+export type ScoresBatchDeleteResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseDictStrBool;
+    200: ScoreBatchDeleteRead;
 };
 
-export type DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteResponse = DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteResponses[keyof DeleteScoreGrantApiV1ScoresGrantsGrantIdDeleteResponses];
+export type ScoresBatchDeleteResponse = ScoresBatchDeleteResponses[keyof ScoresBatchDeleteResponses];
 
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostData = {
-    body?: never;
-    path: {
-        /**
-         * Grant Id
-         */
-        grant_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/grants/{grant_id}/restore';
-};
-
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostError = RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostErrors[keyof RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostErrors];
-
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantRead;
-};
-
-export type RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostResponse = RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostResponses[keyof RestoreScoreGrantApiV1ScoresGrantsGrantIdRestorePostResponses];
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostData = {
-    body?: never;
-    path: {
-        /**
-         * Grant Id
-         */
-        grant_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/grants/{grant_id}/revoke';
-};
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostError = RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostErrors[keyof RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostErrors];
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponseGrantRead;
-};
-
-export type RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostResponse = RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostResponses[keyof RevokeScoreGrantApiV1ScoresGrantsGrantIdRevokePostResponses];
-
-export type GetScoreApiV1ScoresScoreIdGetData = {
+export type ScoresGetData = {
     body?: never;
     path: {
         /**
@@ -7555,25 +5488,29 @@ export type GetScoreApiV1ScoresScoreIdGetData = {
     url: '/api/v1/scores/{score_id}';
 };
 
-export type GetScoreApiV1ScoresScoreIdGetErrors = {
+export type ScoresGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetScoreApiV1ScoresScoreIdGetError = GetScoreApiV1ScoresScoreIdGetErrors[keyof GetScoreApiV1ScoresScoreIdGetErrors];
+export type ScoresGetError = ScoresGetErrors[keyof ScoresGetErrors];
 
-export type GetScoreApiV1ScoresScoreIdGetResponses = {
+export type ScoresGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseScoreRead;
+    200: ScoreRead;
 };
 
-export type GetScoreApiV1ScoresScoreIdGetResponse = GetScoreApiV1ScoresScoreIdGetResponses[keyof GetScoreApiV1ScoresScoreIdGetResponses];
+export type ScoresGetResponse = ScoresGetResponses[keyof ScoresGetResponses];
 
-export type UpdateScoreApiV1ScoresScoreIdPatchData = {
+export type ScoresUpdateData = {
     body: ScoreUpdateRequest;
     path: {
         /**
@@ -7585,25 +5522,29 @@ export type UpdateScoreApiV1ScoresScoreIdPatchData = {
     url: '/api/v1/scores/{score_id}';
 };
 
-export type UpdateScoreApiV1ScoresScoreIdPatchErrors = {
+export type ScoresUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type UpdateScoreApiV1ScoresScoreIdPatchError = UpdateScoreApiV1ScoresScoreIdPatchErrors[keyof UpdateScoreApiV1ScoresScoreIdPatchErrors];
+export type ScoresUpdateError = ScoresUpdateErrors[keyof ScoresUpdateErrors];
 
-export type UpdateScoreApiV1ScoresScoreIdPatchResponses = {
+export type ScoresUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseScoreRead;
+    200: ScoreRead;
 };
 
-export type UpdateScoreApiV1ScoresScoreIdPatchResponse = UpdateScoreApiV1ScoresScoreIdPatchResponses[keyof UpdateScoreApiV1ScoresScoreIdPatchResponses];
+export type ScoresUpdateResponse = ScoresUpdateResponses[keyof ScoresUpdateResponses];
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostData = {
+export type ScoreFingeringGenerateData = {
     body: FingeringRequest;
     path: {
         /**
@@ -7615,25 +5556,29 @@ export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostData = {
     url: '/api/v1/scores/{score_id}/fingering';
 };
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostErrors = {
+export type ScoreFingeringGenerateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostError = GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostErrors[keyof GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostErrors];
+export type ScoreFingeringGenerateError = ScoreFingeringGenerateErrors[keyof ScoreFingeringGenerateErrors];
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses = {
+export type ScoreFingeringGenerateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseFingeringResultRead;
+    200: FingeringResultRead;
 };
 
-export type GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponse = GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses[keyof GenerateScoreFingeringApiV1ScoresScoreIdFingeringPostResponses];
+export type ScoreFingeringGenerateResponse = ScoreFingeringGenerateResponses[keyof ScoreFingeringGenerateResponses];
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetData = {
+export type ScoreGuestPreviewSettingsGetData = {
     body?: never;
     path: {
         /**
@@ -7641,35 +5586,34 @@ export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetData = {
          */
         score_id: string;
     };
-    query?: {
-        /**
-         * Limit
-         */
-        limit?: number;
-    };
-    url: '/api/v1/scores/{score_id}/grants';
+    query?: never;
+    url: '/api/v1/scores/{score_id}/guest-preview';
 };
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetErrors = {
+export type ScoreGuestPreviewSettingsGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetError = ListScoreGrantsApiV1ScoresScoreIdGrantsGetErrors[keyof ListScoreGrantsApiV1ScoresScoreIdGrantsGetErrors];
+export type ScoreGuestPreviewSettingsGetError = ScoreGuestPreviewSettingsGetErrors[keyof ScoreGuestPreviewSettingsGetErrors];
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetResponses = {
+export type ScoreGuestPreviewSettingsGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListGrantRead;
+    200: GuestPreviewSettingsRead;
 };
 
-export type ListScoreGrantsApiV1ScoresScoreIdGrantsGetResponse = ListScoreGrantsApiV1ScoresScoreIdGrantsGetResponses[keyof ListScoreGrantsApiV1ScoresScoreIdGrantsGetResponses];
+export type ScoreGuestPreviewSettingsGetResponse = ScoreGuestPreviewSettingsGetResponses[keyof ScoreGuestPreviewSettingsGetResponses];
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostData = {
-    body: GrantCreateRequest;
+export type ScoreGuestPreviewCredentialRevokeData = {
+    body?: never;
     path: {
         /**
          * Score Id
@@ -7677,28 +5621,100 @@ export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostData = {
         score_id: string;
     };
     query?: never;
-    url: '/api/v1/scores/{score_id}/grants';
+    url: '/api/v1/scores/{score_id}/guest-preview/credential';
 };
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostErrors = {
+export type ScoreGuestPreviewCredentialRevokeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostError = CreateScoreGrantApiV1ScoresScoreIdGrantsPostErrors[keyof CreateScoreGrantApiV1ScoresScoreIdGrantsPostErrors];
+export type ScoreGuestPreviewCredentialRevokeError = ScoreGuestPreviewCredentialRevokeErrors[keyof ScoreGuestPreviewCredentialRevokeErrors];
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostResponses = {
+export type ScoreGuestPreviewCredentialRevokeResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseGrantCreatedRead;
+    204: void;
 };
 
-export type CreateScoreGrantApiV1ScoresScoreIdGrantsPostResponse = CreateScoreGrantApiV1ScoresScoreIdGrantsPostResponses[keyof CreateScoreGrantApiV1ScoresScoreIdGrantsPostResponses];
+export type ScoreGuestPreviewCredentialRevokeResponse = ScoreGuestPreviewCredentialRevokeResponses[keyof ScoreGuestPreviewCredentialRevokeResponses];
 
-export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetData = {
+export type ScoreGuestPreviewCredentialIssueData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+    };
+    query?: never;
+    url: '/api/v1/scores/{score_id}/guest-preview/credential';
+};
+
+export type ScoreGuestPreviewCredentialIssueErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ScoreGuestPreviewCredentialIssueError = ScoreGuestPreviewCredentialIssueErrors[keyof ScoreGuestPreviewCredentialIssueErrors];
+
+export type ScoreGuestPreviewCredentialIssueResponses = {
+    /**
+     * Successful Response
+     */
+    200: GuestPreviewCredentialIssuedRead;
+};
+
+export type ScoreGuestPreviewCredentialIssueResponse = ScoreGuestPreviewCredentialIssueResponses[keyof ScoreGuestPreviewCredentialIssueResponses];
+
+export type ScoreGuestPreviewCredentialRotateData = {
+    body?: never;
+    path: {
+        /**
+         * Score Id
+         */
+        score_id: string;
+    };
+    query?: never;
+    url: '/api/v1/scores/{score_id}/guest-preview/credential/rotate';
+};
+
+export type ScoreGuestPreviewCredentialRotateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type ScoreGuestPreviewCredentialRotateError = ScoreGuestPreviewCredentialRotateErrors[keyof ScoreGuestPreviewCredentialRotateErrors];
+
+export type ScoreGuestPreviewCredentialRotateResponses = {
+    /**
+     * Successful Response
+     */
+    200: GuestPreviewCredentialIssuedRead;
+};
+
+export type ScoreGuestPreviewCredentialRotateResponse = ScoreGuestPreviewCredentialRotateResponses[keyof ScoreGuestPreviewCredentialRotateResponses];
+
+export type ScoreInputAssetDownloadData = {
     body?: never;
     path: {
         /**
@@ -7714,23 +5730,29 @@ export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadG
     url: '/api/v1/scores/{score_id}/input-assets/{asset_id}/download';
 };
 
-export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetErrors = {
+export type ScoreInputAssetDownloadErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetError = DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetErrors[keyof DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetErrors];
+export type ScoreInputAssetDownloadError = ScoreInputAssetDownloadErrors[keyof ScoreInputAssetDownloadErrors];
 
-export type DownloadScoreInputAssetApiV1ScoresScoreIdInputAssetsAssetIdDownloadGetResponses = {
+export type ScoreInputAssetDownloadResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetData = {
+export type ScoreInputAssetDownloadResponse = ScoreInputAssetDownloadResponses[keyof ScoreInputAssetDownloadResponses];
+
+export type ScoreInvitesListData = {
     body?: never;
     path: {
         /**
@@ -7743,29 +5765,37 @@ export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetData = {
          * Limit
          */
         limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
     };
     url: '/api/v1/scores/{score_id}/invites';
 };
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetErrors = {
+export type ScoreInvitesListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetError = ListScoreInvitesApiV1ScoresScoreIdInvitesGetErrors[keyof ListScoreInvitesApiV1ScoresScoreIdInvitesGetErrors];
+export type ScoreInvitesListError = ScoreInvitesListErrors[keyof ScoreInvitesListErrors];
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses = {
+export type ScoreInvitesListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListInviteRead;
+    200: InviteListRead;
 };
 
-export type ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponse = ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses[keyof ListScoreInvitesApiV1ScoresScoreIdInvitesGetResponses];
+export type ScoreInvitesListResponse = ScoreInvitesListResponses[keyof ScoreInvitesListResponses];
 
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostData = {
+export type ScoreInvitesCreateData = {
     body: InviteCreateRequest;
     path: {
         /**
@@ -7777,59 +5807,29 @@ export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostData = {
     url: '/api/v1/scores/{score_id}/invites';
 };
 
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostErrors = {
+export type ScoreInvitesCreateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostError = CreateScoreInviteApiV1ScoresScoreIdInvitesPostErrors[keyof CreateScoreInviteApiV1ScoresScoreIdInvitesPostErrors];
-
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponseInviteCreatedRead;
+    default: ApiErrorResponse;
 };
 
-export type CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponse = CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses[keyof CreateScoreInviteApiV1ScoresScoreIdInvitesPostResponses];
+export type ScoreInvitesCreateError = ScoreInvitesCreateErrors[keyof ScoreInvitesCreateErrors];
 
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-        /**
-         * Invite Id
-         */
-        invite_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/{score_id}/invites/{invite_id}';
-};
-
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteError = DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteErrors[keyof DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteErrors];
-
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteResponses = {
+export type ScoreInvitesCreateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseDictStrBool;
+    200: InviteCreatedRead;
 };
 
-export type DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteResponse = DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteResponses[keyof DeleteScoreInviteApiV1ScoresScoreIdInvitesInviteIdDeleteResponses];
+export type ScoreInvitesCreateResponse = ScoreInvitesCreateResponses[keyof ScoreInvitesCreateResponses];
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostData = {
+export type ScoreInviteRevokeData = {
     body?: never;
     path: {
         /**
@@ -7845,25 +5845,29 @@ export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostData = {
     url: '/api/v1/scores/{score_id}/invites/{invite_id}/revoke';
 };
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostErrors = {
+export type ScoreInviteRevokeErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostError = RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostErrors[keyof RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostErrors];
+export type ScoreInviteRevokeError = ScoreInviteRevokeErrors[keyof ScoreInviteRevokeErrors];
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostResponses = {
+export type ScoreInviteRevokeResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseInviteRead;
+    200: InviteRead;
 };
 
-export type RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostResponse = RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostResponses[keyof RevokeScoreInviteApiV1ScoresScoreIdInvitesInviteIdRevokePostResponses];
+export type ScoreInviteRevokeResponse = ScoreInviteRevokeResponses[keyof ScoreInviteRevokeResponses];
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetData = {
+export type ScoreMembersListData = {
     body?: never;
     path: {
         /**
@@ -7876,29 +5880,37 @@ export type ListScoreMembersApiV1ScoresScoreIdMembersGetData = {
          * Limit
          */
         limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
     };
     url: '/api/v1/scores/{score_id}/members';
 };
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetErrors = {
+export type ScoreMembersListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetError = ListScoreMembersApiV1ScoresScoreIdMembersGetErrors[keyof ListScoreMembersApiV1ScoresScoreIdMembersGetErrors];
+export type ScoreMembersListError = ScoreMembersListErrors[keyof ScoreMembersListErrors];
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetResponses = {
+export type ScoreMembersListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseListMemberRead;
+    200: MemberListRead;
 };
 
-export type ListScoreMembersApiV1ScoresScoreIdMembersGetResponse = ListScoreMembersApiV1ScoresScoreIdMembersGetResponses[keyof ListScoreMembersApiV1ScoresScoreIdMembersGetResponses];
+export type ScoreMembersListResponse = ScoreMembersListResponses[keyof ScoreMembersListResponses];
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteData = {
+export type ScoreMemberRemoveData = {
     body?: never;
     path: {
         /**
@@ -7914,25 +5926,29 @@ export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteData = {
     url: '/api/v1/scores/{score_id}/members/{membership_id}';
 };
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteErrors = {
+export type ScoreMemberRemoveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteError = RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteErrors[keyof RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteErrors];
+export type ScoreMemberRemoveError = ScoreMemberRemoveErrors[keyof ScoreMemberRemoveErrors];
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteResponses = {
+export type ScoreMemberRemoveResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseMemberRead;
+    204: void;
 };
 
-export type RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteResponse = RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteResponses[keyof RemoveScoreMemberApiV1ScoresScoreIdMembersMembershipIdDeleteResponses];
+export type ScoreMemberRemoveResponse = ScoreMemberRemoveResponses[keyof ScoreMemberRemoveResponses];
 
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchData = {
+export type ScoreMemberUpdateData = {
     body: MemberUpdateRequest;
     path: {
         /**
@@ -7948,115 +5964,29 @@ export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchData = {
     url: '/api/v1/scores/{score_id}/members/{membership_id}';
 };
 
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchErrors = {
+export type ScoreMemberUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
-};
-
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchError = UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchErrors[keyof UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchErrors];
-
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses = {
+    422: ApiErrorResponse;
     /**
-     * Successful Response
+     * Application failure.
      */
-    200: ApiResponseMemberRead;
+    default: ApiErrorResponse;
 };
 
-export type UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponse = UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses[keyof UpdateScoreMemberApiV1ScoresScoreIdMembersMembershipIdPatchResponses];
+export type ScoreMemberUpdateError = ScoreMemberUpdateErrors[keyof ScoreMemberUpdateErrors];
 
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteData = {
-    body?: never;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/{score_id}/publication';
-};
-
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteError = UnpublishScoreApiV1ScoresScoreIdPublicationDeleteErrors[keyof UnpublishScoreApiV1ScoresScoreIdPublicationDeleteErrors];
-
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteResponses = {
+export type ScoreMemberUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponsePublicationRead;
+    200: MemberRead;
 };
 
-export type UnpublishScoreApiV1ScoresScoreIdPublicationDeleteResponse = UnpublishScoreApiV1ScoresScoreIdPublicationDeleteResponses[keyof UnpublishScoreApiV1ScoresScoreIdPublicationDeleteResponses];
+export type ScoreMemberUpdateResponse = ScoreMemberUpdateResponses[keyof ScoreMemberUpdateResponses];
 
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetData = {
-    body?: never;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/{score_id}/publication';
-};
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetError = GetScorePublicationApiV1ScoresScoreIdPublicationGetErrors[keyof GetScorePublicationApiV1ScoresScoreIdPublicationGetErrors];
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePublicationRead;
-};
-
-export type GetScorePublicationApiV1ScoresScoreIdPublicationGetResponse = GetScorePublicationApiV1ScoresScoreIdPublicationGetResponses[keyof GetScorePublicationApiV1ScoresScoreIdPublicationGetResponses];
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutData = {
-    body: PublicationUpsertRequest;
-    path: {
-        /**
-         * Score Id
-         */
-        score_id: string;
-    };
-    query?: never;
-    url: '/api/v1/scores/{score_id}/publication';
-};
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutError = PublishScoreApiV1ScoresScoreIdPublicationPutErrors[keyof PublishScoreApiV1ScoresScoreIdPublicationPutErrors];
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutResponses = {
-    /**
-     * Successful Response
-     */
-    200: ApiResponsePublicationRead;
-};
-
-export type PublishScoreApiV1ScoresScoreIdPublicationPutResponse = PublishScoreApiV1ScoresScoreIdPublicationPutResponses[keyof PublishScoreApiV1ScoresScoreIdPublicationPutResponses];
-
-export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetData = {
+export type ScoreRenderAssetsArchiveData = {
     body?: never;
     path: {
         /**
@@ -8067,6 +5997,10 @@ export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetData 
     query: {
         kind: RenderAssetKind;
         /**
+         * Render Profile
+         */
+        render_profile: string;
+        /**
          * Revision Id
          */
         revision_id?: string | null;
@@ -8074,23 +6008,29 @@ export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetData 
     url: '/api/v1/scores/{score_id}/render-asset-archive';
 };
 
-export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetErrors = {
+export type ScoreRenderAssetsArchiveErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetError = ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetErrors[keyof ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetErrors];
+export type ScoreRenderAssetsArchiveError = ScoreRenderAssetsArchiveErrors[keyof ScoreRenderAssetsArchiveErrors];
 
-export type ArchiveScoreRenderAssetsApiV1ScoresScoreIdRenderAssetArchiveGetResponses = {
+export type ScoreRenderAssetsArchiveResponses = {
     /**
-     * Successful Response
+     * Stored bytes; Content-Type identifies the selected resource format.
      */
-    200: unknown;
+    200: Blob | File;
 };
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetData = {
+export type ScoreRenderAssetsArchiveResponse = ScoreRenderAssetsArchiveResponses[keyof ScoreRenderAssetsArchiveResponses];
+
+export type ScoreRevisionAssetsListData = {
     body?: never;
     path: {
         /**
@@ -8107,25 +6047,29 @@ export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetData = {
     url: '/api/v1/scores/{score_id}/revision-assets';
 };
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetErrors = {
+export type ScoreRevisionAssetsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetError = ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetErrors[keyof ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetErrors];
+export type ScoreRevisionAssetsListError = ScoreRevisionAssetsListErrors[keyof ScoreRevisionAssetsListErrors];
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetResponses = {
+export type ScoreRevisionAssetsListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseScoreRevisionAssetsRead;
+    200: ScoreRevisionAssetsRead;
 };
 
-export type ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetResponse = ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetResponses[keyof ListScoreRevisionAssetsApiV1ScoresScoreIdRevisionAssetsGetResponses];
+export type ScoreRevisionAssetsListResponse = ScoreRevisionAssetsListResponses[keyof ScoreRevisionAssetsListResponses];
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetData = {
+export type ScoreRevisionsListData = {
     body?: never;
     path: {
         /**
@@ -8146,25 +6090,29 @@ export type ListRevisionsApiV1ScoresScoreIdRevisionsGetData = {
     url: '/api/v1/scores/{score_id}/revisions';
 };
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetErrors = {
+export type ScoreRevisionsListErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetError = ListRevisionsApiV1ScoresScoreIdRevisionsGetErrors[keyof ListRevisionsApiV1ScoresScoreIdRevisionsGetErrors];
+export type ScoreRevisionsListError = ScoreRevisionsListErrors[keyof ScoreRevisionsListErrors];
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetResponses = {
+export type ScoreRevisionsListResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionListRead;
+    200: RevisionListRead;
 };
 
-export type ListRevisionsApiV1ScoresScoreIdRevisionsGetResponse = ListRevisionsApiV1ScoresScoreIdRevisionsGetResponses[keyof ListRevisionsApiV1ScoresScoreIdRevisionsGetResponses];
+export type ScoreRevisionsListResponse = ScoreRevisionsListResponses[keyof ScoreRevisionsListResponses];
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostData = {
+export type ScoreRevisionsCreateData = {
     body: RevisionCreateRequest;
     path: {
         /**
@@ -8176,25 +6124,29 @@ export type CreateRevisionApiV1ScoresScoreIdRevisionsPostData = {
     url: '/api/v1/scores/{score_id}/revisions';
 };
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostErrors = {
+export type ScoreRevisionsCreateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostError = CreateRevisionApiV1ScoresScoreIdRevisionsPostErrors[keyof CreateRevisionApiV1ScoresScoreIdRevisionsPostErrors];
+export type ScoreRevisionsCreateError = ScoreRevisionsCreateErrors[keyof ScoreRevisionsCreateErrors];
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostResponses = {
+export type ScoreRevisionsCreateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionRead;
+    200: RevisionRead;
 };
 
-export type CreateRevisionApiV1ScoresScoreIdRevisionsPostResponse = CreateRevisionApiV1ScoresScoreIdRevisionsPostResponses[keyof CreateRevisionApiV1ScoresScoreIdRevisionsPostResponses];
+export type ScoreRevisionsCreateResponse = ScoreRevisionsCreateResponses[keyof ScoreRevisionsCreateResponses];
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetData = {
+export type ScoreRevisionContentGetData = {
     body?: never;
     path: {
         /**
@@ -8210,25 +6162,29 @@ export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetDat
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/content';
 };
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetErrors = {
+export type ScoreRevisionContentGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetError = GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetErrors[keyof GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetErrors];
+export type ScoreRevisionContentGetError = ScoreRevisionContentGetErrors[keyof ScoreRevisionContentGetErrors];
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetResponses = {
+export type ScoreRevisionContentGetResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionContentRead;
+    200: RevisionContentRead;
 };
 
-export type GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetResponse = GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetResponses[keyof GetRevisionContentApiV1ScoresScoreIdRevisionsRevisionIdContentGetResponses];
+export type ScoreRevisionContentGetResponse = ScoreRevisionContentGetResponses[keyof ScoreRevisionContentGetResponses];
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchData = {
+export type ScoreRevisionNoteUpdateData = {
     body: RevisionNoteUpdateRequest;
     path: {
         /**
@@ -8244,25 +6200,29 @@ export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchData
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/note';
 };
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchErrors = {
+export type ScoreRevisionNoteUpdateErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchError = UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchErrors[keyof UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchErrors];
+export type ScoreRevisionNoteUpdateError = ScoreRevisionNoteUpdateErrors[keyof ScoreRevisionNoteUpdateErrors];
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchResponses = {
+export type ScoreRevisionNoteUpdateResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionRead;
+    200: RevisionRead;
 };
 
-export type UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchResponse = UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchResponses[keyof UpdateRevisionNoteApiV1ScoresScoreIdRevisionsRevisionIdNotePatchResponses];
+export type ScoreRevisionNoteUpdateResponse = ScoreRevisionNoteUpdateResponses[keyof ScoreRevisionNoteUpdateResponses];
 
-export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetData = {
+export type ScoreRevisionPlaybackAccessGetData = {
     body?: never;
     path: {
         /**
@@ -8278,27 +6238,30 @@ export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlay
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/playback';
 };
 
-export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetErrors = {
+export type ScoreRevisionPlaybackAccessGetErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetError = StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetErrors[keyof StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetErrors];
+export type ScoreRevisionPlaybackAccessGetError = ScoreRevisionPlaybackAccessGetErrors[keyof ScoreRevisionPlaybackAccessGetErrors];
 
-export type StreamScoreRevisionPlaybackApiV1ScoresScoreIdRevisionsRevisionIdPlaybackGetResponses = {
+export type ScoreRevisionPlaybackAccessGetResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: MediaAccessRead;
 };
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostData = {
-    /**
-     * Request
-     */
-    body?: RevisionRestoreRequest | null;
+export type ScoreRevisionPlaybackAccessGetResponse = ScoreRevisionPlaybackAccessGetResponses[keyof ScoreRevisionPlaybackAccessGetResponses];
+
+export type ScoreRevisionRestoreData = {
+    body: RevisionRestoreRequest;
     path: {
         /**
          * Score Id
@@ -8313,54 +6276,338 @@ export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostData 
     url: '/api/v1/scores/{score_id}/revisions/{revision_id}/restore';
 };
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostErrors = {
+export type ScoreRevisionRestoreErrors = {
     /**
-     * Validation Error
+     * Request or application validation failure.
      */
-    422: HttpValidationError;
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
 };
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostError = RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostErrors[keyof RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostErrors];
+export type ScoreRevisionRestoreError = ScoreRevisionRestoreErrors[keyof ScoreRevisionRestoreErrors];
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostResponses = {
+export type ScoreRevisionRestoreResponses = {
     /**
      * Successful Response
      */
-    200: ApiResponseRevisionRead;
+    200: RevisionRead;
 };
 
-export type RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostResponse = RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostResponses[keyof RestoreRevisionApiV1ScoresScoreIdRevisionsRevisionIdRestorePostResponses];
+export type ScoreRevisionRestoreResponse = ScoreRevisionRestoreResponses[keyof ScoreRevisionRestoreResponses];
 
-export type LivenessHealthLiveGetData = {
+export type UploadSessionsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/upload-sessions/{session_id}';
+};
+
+export type UploadSessionsGetErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadSessionsGetError = UploadSessionsGetErrors[keyof UploadSessionsGetErrors];
+
+export type UploadSessionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadSessionRead;
+};
+
+export type UploadSessionsGetResponse = UploadSessionsGetResponses[keyof UploadSessionsGetResponses];
+
+export type UploadSessionCompleteData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/upload-sessions/{session_id}/complete';
+};
+
+export type UploadSessionCompleteErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadSessionCompleteError = UploadSessionCompleteErrors[keyof UploadSessionCompleteErrors];
+
+export type UploadSessionCompleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadSessionRead;
+};
+
+export type UploadSessionCompleteResponse = UploadSessionCompleteResponses[keyof UploadSessionCompleteResponses];
+
+export type UploadSessionPartsListData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/upload-sessions/{session_id}/parts';
+};
+
+export type UploadSessionPartsListErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadSessionPartsListError = UploadSessionPartsListErrors[keyof UploadSessionPartsListErrors];
+
+export type UploadSessionPartsListResponses = {
+    /**
+     * Response Uploadsessionpartslist
+     *
+     * Successful Response
+     */
+    200: Array<UploadPartRead>;
+};
+
+export type UploadSessionPartsListResponse = UploadSessionPartsListResponses[keyof UploadSessionPartsListResponses];
+
+export type UploadSessionPartUploadUrlCreateData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+        /**
+         * Part Number
+         */
+        part_number: number;
+    };
+    query?: never;
+    url: '/api/v1/upload-sessions/{session_id}/parts/{part_number}/upload-url';
+};
+
+export type UploadSessionPartUploadUrlCreateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadSessionPartUploadUrlCreateError = UploadSessionPartUploadUrlCreateErrors[keyof UploadSessionPartUploadUrlCreateErrors];
+
+export type UploadSessionPartUploadUrlCreateResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadTargetRead;
+};
+
+export type UploadSessionPartUploadUrlCreateResponse = UploadSessionPartUploadUrlCreateResponses[keyof UploadSessionPartUploadUrlCreateResponses];
+
+export type UploadRequestsCreateData = {
+    body: UploadCreateRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/uploads';
+};
+
+export type UploadRequestsCreateErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadRequestsCreateError = UploadRequestsCreateErrors[keyof UploadRequestsCreateErrors];
+
+export type UploadRequestsCreateResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadAdmissionRead;
+};
+
+export type UploadRequestsCreateResponse = UploadRequestsCreateResponses[keyof UploadRequestsCreateResponses];
+
+export type UploadRequestCancelData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/uploads/{session_id}/cancel';
+};
+
+export type UploadRequestCancelErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadRequestCancelError = UploadRequestCancelErrors[keyof UploadRequestCancelErrors];
+
+export type UploadRequestCancelResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type UploadRequestCancelResponse = UploadRequestCancelResponses[keyof UploadRequestCancelResponses];
+
+export type UploadFinalizeData = {
+    body?: never;
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/uploads/{session_id}/finalize';
+};
+
+export type UploadFinalizeErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadFinalizeError = UploadFinalizeErrors[keyof UploadFinalizeErrors];
+
+export type UploadFinalizeResponses = {
+    /**
+     * Successful Response
+     */
+    200: UploadRead;
+};
+
+export type UploadFinalizeResponse = UploadFinalizeResponses[keyof UploadFinalizeResponses];
+
+export type UploadDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Upload Id
+         */
+        upload_id: string;
+    };
+    query?: never;
+    url: '/api/v1/uploads/{upload_id}';
+};
+
+export type UploadDeleteErrors = {
+    /**
+     * Request or application validation failure.
+     */
+    422: ApiErrorResponse;
+    /**
+     * Application failure.
+     */
+    default: ApiErrorResponse;
+};
+
+export type UploadDeleteError = UploadDeleteErrors[keyof UploadDeleteErrors];
+
+export type UploadDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type UploadDeleteResponse = UploadDeleteResponses[keyof UploadDeleteResponses];
+
+export type HealthLiveData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/health/live';
 };
 
-export type LivenessHealthLiveGetResponses = {
+export type HealthLiveResponses = {
     /**
-     * Response Liveness Health Live Get
-     *
      * Successful Response
      */
-    200: {
-        [key: string]: string;
-    };
+    200: LivenessRead;
 };
 
-export type LivenessHealthLiveGetResponse = LivenessHealthLiveGetResponses[keyof LivenessHealthLiveGetResponses];
+export type HealthLiveResponse = HealthLiveResponses[keyof HealthLiveResponses];
 
-export type ReadinessHealthReadyGetData = {
+export type HealthReadyData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/health/ready';
 };
 
-export type ReadinessHealthReadyGetResponses = {
+export type HealthReadyErrors = {
+    /**
+     * Process dependencies are not ready.
+     */
+    503: ReadinessUnavailableRead;
+};
+
+export type HealthReadyError = HealthReadyErrors[keyof HealthReadyErrors];
+
+export type HealthReadyResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    200: ReadinessRead;
 };
+
+export type HealthReadyResponse = HealthReadyResponses[keyof HealthReadyResponses];

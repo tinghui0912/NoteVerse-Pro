@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime
+
+from app.shared.time import Instant
 from typing import Literal
 
 from pydantic import BaseModel
 
-from app.db.models.score import RenderAssetKind, RevisionSourceFormat
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.shared.api_model import ApiModel
 
 
 class RevisionSourceRead(BaseModel):
@@ -15,23 +18,22 @@ class RevisionSourceRead(BaseModel):
     filename: str
     mime_type: str
     size_bytes: int | None
-    created_at: datetime
-    available: bool
+    created_at: Instant
 
 
 class RenderAssetRead(BaseModel):
+    render_profile: str
     render_asset_id: str
     revision_id: str
     kind: RenderAssetKind
     filename: str
     mime_type: str
     size_bytes: int | None
-    page_number: int | None
-    created_at: datetime
-    available: bool
+    page_number: int
+    created_at: Instant
 
 
-class ScoreRevisionAssetsRead(BaseModel):
+class ScoreRevisionAssetsRead(ApiModel):
     revision_sources: list[RevisionSourceRead]
     render_assets: list[RenderAssetRead]
 
@@ -42,8 +44,6 @@ DerivedAssetStatus = Literal["pending", "processing", "ready", "unavailable"]
 class ScoreDerivedAssetRead(BaseModel):
     status: DerivedAssetStatus
     asset_id: str | None
-    revision_id: str | None
-    is_fallback: bool
 
 
 class ScoreDerivedAssetsRead(BaseModel):
@@ -51,7 +51,7 @@ class ScoreDerivedAssetsRead(BaseModel):
     audio: ScoreDerivedAssetRead
 
 
-class AssetAccessRead(BaseModel):
+class AssetAccessRead(ApiModel):
     asset_id: str
     url: str
     filename: str

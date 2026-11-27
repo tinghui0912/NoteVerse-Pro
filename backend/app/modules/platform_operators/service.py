@@ -7,7 +7,7 @@ import secrets
 from datetime import timedelta
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.control_plane_settings import ControlPlaneSettings
@@ -22,8 +22,8 @@ from app.db.models import (
     OperatorSession,
     OperatorStatus,
 )
-from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.core.control_plane_errors import ControlPlaneErrorCode
+from app.shared.time import utc_now
 
 
 LOCAL_PASSWORD_ISSUER = "noteverse-control-plane-local"
@@ -40,9 +40,9 @@ class OperatorAuthenticationService:
     def _hash_token(token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
-    async def create_local_operator(
+    def create_local_operator(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         username: str,
         password: str,
@@ -50,7 +50,7 @@ class OperatorAuthenticationService:
         role: OperatorRole = OperatorRole.PLATFORM_OPERATOR,
     ) -> Operator:
         subject = self.normalize_username(username)
-        existing = await db.execute(
+        existing = db.execute(
             select(OperatorIdentity.id).where(
                 OperatorIdentity.provider == OperatorIdentityProvider.LOCAL_PASSWORD,
                 OperatorIdentity.issuer == LOCAL_PASSWORD_ISSUER,
@@ -62,7 +62,7 @@ class OperatorAuthenticationService:
 
         operator = Operator(display_name=display_name.strip(), role=role)
         db.add(operator)
-        await db.flush()
+        db.flush()
         identity = OperatorIdentity(
             operator_id=require_persisted_id(operator.id, entity="operator"),
             provider=OperatorIdentityProvider.LOCAL_PASSWORD,
@@ -70,20 +70,20 @@ class OperatorAuthenticationService:
             subject=subject,
         )
         db.add(identity)
-        await db.flush()
+        db.flush()
         db.add(
             OperatorPasswordCredential(
                 identity_id=require_persisted_id(identity.id, entity="operator identity"),
                 password_hash=security.get_password_hash(password),
             )
         )
-        await db.commit()
-        await db.refresh(operator)
+        db.commit()
+        db.refresh(operator)
         return operator
 
-    async def authenticate_local_password(
+    def authenticate_local_password(
         self,
-        db: AsyncSession,
+        db: Session,
         *,
         username: str,
         password: str,
@@ -93,7 +93,7 @@ class OperatorAuthenticationService:
     ) -> tuple[Operator, OperatorIdentity, str]:
         subject = self.normalize_username(username)
         identity = (
-            await db.execute(
+            db.execute(
                 select(OperatorIdentity).where(
                     OperatorIdentity.provider == OperatorIdentityProvider.LOCAL_PASSWORD,
                     OperatorIdentity.issuer == LOCAL_PASSWORD_ISSUER,
@@ -102,25 +102,25 @@ class OperatorAuthenticationService:
             )
         ).scalar_one_or_none()
         if identity is None:
-            raise AuthenticationException(code=ErrorCode.INVALID_CREDENTIALS)
+            raise AuthenticationException(code=ControlPlaneErrorCode.INVALID_CREDENTIALS)
 
         credential = (
-            await db.execute(
+            db.execute(
                 select(OperatorPasswordCredential).where(
                     OperatorPasswordCredential.identity_id == identity.id
                 )
             )
         ).scalar_one_or_none()
-        operator = await db.get(Operator, identity.operator_id)
+        operator = db.get(Operator, identity.operator_id)
         if (
             credential is None
             or operator is None
             or operator.status != OperatorStatus.ACTIVE
             or not security.verify_password(password, credential.password_hash)
         ):
-            raise AuthenticationException(code=ErrorCode.INVALID_CREDENTIALS)
+            raise AuthenticationException(code=ControlPlaneErrorCode.INVALID_CREDENTIALS)
 
-        now = utc_now_naive()
+        now = utc_now()
         token = secrets.token_urlsafe(48)
         db.add(
             OperatorSession(
@@ -134,39 +134,41 @@ class OperatorAuthenticationService:
             )
         )
         identity.last_authenticated_at = now
-        await db.commit()
+        db.commit()
         return operator, identity, token
 
-    async def resolve_session(self, db: AsyncSession, *, token: str) -> tuple[Operator, OperatorIdentity, OperatorSession]:
-        now = utc_now_naive()
+    def resolve_session(
+        self, db: Session, *, token: str
+    ) -> tuple[Operator, OperatorIdentity, OperatorSession]:
+        now = utc_now()
         session = (
-            await db.execute(
+            db.execute(
                 select(OperatorSession).where(OperatorSession.token_hash == self._hash_token(token))
             )
         ).scalar_one_or_none()
         if session is None or session.revoked_at is not None or session.expires_at <= now:
-            raise AuthenticationException(code=ErrorCode.TOKEN_INVALID_EXPIRED)
+            raise AuthenticationException(code=ControlPlaneErrorCode.TOKEN_INVALID_EXPIRED)
 
-        operator = await db.get(Operator, session.operator_id)
-        identity = await db.get(OperatorIdentity, session.identity_id)
+        operator = db.get(Operator, session.operator_id)
+        identity = db.get(OperatorIdentity, session.identity_id)
         if operator is None or identity is None or operator.status != OperatorStatus.ACTIVE:
-            raise AuthenticationException(code=ErrorCode.TOKEN_INVALID_EXPIRED)
+            raise AuthenticationException(code=ControlPlaneErrorCode.TOKEN_INVALID_EXPIRED)
         session.last_used_at = now
-        await db.commit()
+        db.commit()
         return operator, identity, session
 
-    async def revoke_session(self, db: AsyncSession, *, token: str | None) -> None:
+    def revoke_session(self, db: Session, *, token: str | None) -> None:
         if not token:
             return
         session = (
-            await db.execute(
+            db.execute(
                 select(OperatorSession).where(OperatorSession.token_hash == self._hash_token(token))
             )
         ).scalar_one_or_none()
         if session is None or session.revoked_at is not None:
             return
-        session.revoked_at = utc_now_naive()
-        await db.commit()
+        session.revoked_at = utc_now()
+        db.commit()
 
 
 operator_authentication_service = OperatorAuthenticationService()

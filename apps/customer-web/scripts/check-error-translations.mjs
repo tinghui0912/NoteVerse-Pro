@@ -5,14 +5,12 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, '../../..');
 const frontendDir = path.resolve(rootDir, 'apps/customer-web');
-const errorCodesPath = path.resolve(rootDir, 'backend/app/shared/error_codes.py');
+const contractPath = path.resolve(rootDir, 'backend/docs/contracts/openapi/customer-api.json');
 const locales = ['en', 'zh'];
 
 function readErrorCodes() {
-  const errorCodes = fs.readFileSync(errorCodesPath, 'utf8');
-  return new Set(
-    [...errorCodes.matchAll(/^\s+[A-Z0-9_]+\s*=\s*"([^"]+)"/gm)].map((match) => match[1])
-  );
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  return new Set(contract.components.schemas.CustomerErrorCode.enum);
 }
 
 function readMessages(locale) {
@@ -32,14 +30,14 @@ for (const locale of locales) {
   const nonBackendKeys = keys.filter((key) => !errorCodes.has(key));
   if (nonBackendKeys.length > 0) {
     failed = true;
-    console.error(`[${locale}] errors.json contains keys that are not backend ErrorCode values:`);
+    console.error(`[${locale}] errors.json contains keys that are not CustomerErrorCode values:`);
     console.error(`  ${nonBackendKeys.join(', ')}`);
   }
 
   const missingBackendCodes = [...errorCodes].filter((key) => !keys.includes(key));
   if (missingBackendCodes.length > 0) {
     failed = true;
-    console.error(`[${locale}] errors.json is missing backend ErrorCode values:`);
+    console.error(`[${locale}] errors.json is missing CustomerErrorCode values:`);
     console.error(`  ${missingBackendCodes.join(', ')}`);
   }
 }

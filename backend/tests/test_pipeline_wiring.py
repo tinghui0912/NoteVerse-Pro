@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.composition import media_resources as _media_wiring
+
 import os
 import subprocess
 import sys
@@ -10,10 +12,11 @@ from unittest.mock import patch
 
 import pytest
 
-from app.pipeline import PipelineBuilder
-from app.pipeline.steps.input import CopyImageStep
-from app.pipeline.steps.normalize import XmlNormalizeStep
-from app.pipeline.steps.omr import OmrStep
+from app.modules.import_jobs.dispatch_service import ImportExecutionLease
+from app.modules.import_jobs.pipeline import PipelineBuilder
+from app.modules.import_jobs.pipeline.steps.input import CopyImageStep
+from app.modules.import_jobs.pipeline.steps.normalize import XmlNormalizeStep
+from app.modules.import_jobs.pipeline.steps.omr import OmrStep
 from app.processing.engines.omr.factory import create_omr_engine
 from app.processing.engines.omr.legato import LegatoOmrEngine
 from app.processing.engines.render.factory import create_score_render_engine
@@ -47,8 +50,8 @@ def test_copy_image_step_copies_input_and_updates_context() -> None:
 
 
 def test_job_context_complete_records_review_musicxml_without_creating_score() -> None:
-    from app.pipeline.context import JobContext
-    from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
+    from app.modules.import_jobs.pipeline.context import JobContext
+    from app.modules.import_jobs.domain import ImportArtifactKind
 
     with tempfile.TemporaryDirectory() as temp_dir:
         main_xml = os.path.join(temp_dir, "score.musicxml")
@@ -56,25 +59,27 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
             file_handle.write("<score-partwise />")
 
         ctx = JobContext(
-            job_id="job-review-boundary",
+            lease=ImportExecutionLease(
+                dispatch_uuid="dispatch", job_uuid="job-review-boundary", attempt=1, token="token"
+            ),
             db=SimpleNamespace(),
             celery_task=SimpleNamespace(
                 request=SimpleNamespace(id="job-review-boundary"),
                 update_state=lambda *_args, **_kwargs: None,
             ),
             image_paths=[],
+            recorder=_media_wiring.build_import_artifact_recorder().recorder,
+            artifacts=_media_wiring.build_import_artifact_recorder(),
         )
         ctx.main_xml = main_xml
         ctx._tracker = None
 
-        with patch("app.pipeline.context.replace_files") as replace_files_mock:
-            with patch(
-                "app.pipeline.context.job_service.finalize_success"
-            ) as finalize_success_mock:
+        with patch.object(ctx.artifacts, "replace_files") as replace_files_mock:
+            with patch.object(ctx.recorder, "finalize_success") as finalize_success_mock:
                 ctx.complete()
 
         replace_files_mock.assert_called_once_with(
-            "job-review-boundary",
+            ctx.lease,
             ImportArtifactKind.REVIEW_MUSICXML,
             [main_xml],
         )

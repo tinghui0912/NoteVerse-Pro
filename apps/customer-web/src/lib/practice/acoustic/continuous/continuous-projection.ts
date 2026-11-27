@@ -1,13 +1,16 @@
 import type { SourcePcmBlock } from '../runtime/source-analysis-runtime';
 import { SourceAnalysisRuntime } from '../runtime/source-analysis-runtime';
-import { ACOUSTIC_MODEL, fail, onlyFields } from '../model/model-contract';
+import { isAcousticDomainIdentity } from '../runtime/source-publication';
+import { ACOUSTIC_RUNTIME_CONTRACT } from '../generated/runtime-contract';
+import { AcousticAnalysisError, fail } from '../errors';
+import { onlyFields } from '../validation';
 import type { AcousticInferencePort } from '../runtime/inference-types';
 import { deliverPublication, projectContinuousEvidence, type AcousticPublicationSink, type PerformanceSegment } from './publication';
 
 export type AcousticRuntimeOptions = Readonly<{
   sessionDomainId: string; sourceDomainId: string; sourceSampleRateHz: number;
   coefficientBytes: Uint8Array; worker: AcousticInferencePort;
-  nowAvailabilityMs(): number; onPublication: AcousticPublicationSink; onFailure?(error: Error): void;
+  nowAvailabilityRuntimeMs(): number; onPublication: AcousticPublicationSink; onFailure?(error: Error): void;
 }>;
 /** Continuous projection owns only performance mapping and terminal coverage. */
 export class ContinuousAcousticProjection {
@@ -18,20 +21,22 @@ export class ContinuousAcousticProjection {
   private terminal: number | null = null;
   private terminalPublications = 0;
   private frontier = -Infinity;
+  private availabilitySessionTimeMs = -Infinity;
   private delivering = false;
+  private failure: Error | null = null;
   private constructor(private readonly options: AcousticRuntimeOptions) {}
   static async create(options: AcousticRuntimeOptions): Promise<ContinuousAcousticProjection> {
-    onlyFields(options, ['sessionDomainId', 'sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityMs', 'onPublication', 'onFailure']);
-    if (!options.sessionDomainId || options.sessionDomainId.length > 192) fail('INVALID_ACOUSTIC_DOMAIN');
+    onlyFields(options, ['sessionDomainId', 'sourceDomainId', 'sourceSampleRateHz', 'coefficientBytes', 'worker', 'nowAvailabilityRuntimeMs', 'onPublication', 'onFailure']);
+    if (!isAcousticDomainIdentity(options.sessionDomainId)) fail('INVALID_ACOUSTIC_DOMAIN');
     const owner = new ContinuousAcousticProjection(Object.freeze({ ...options, coefficientBytes: new Uint8Array() }));
     owner.source = await SourceAnalysisRuntime.create({ sourceDomainId: options.sourceDomainId, sourceSampleRateHz: options.sourceSampleRateHz,
-      coefficientBytes: options.coefficientBytes, worker: options.worker, nowAvailabilityMs: options.nowAvailabilityMs,
-      onFailure: options.onFailure, onPublication: publication => {
+      coefficientBytes: options.coefficientBytes, worker: options.worker, nowAvailabilityRuntimeMs: options.nowAvailabilityRuntimeMs,
+      onFailure: error => { owner.failure = error; options.onFailure?.(error); }, onPublication: publication => {
         const segment = owner.segments.get(publication.window.regionIndex);
         if (!segment) fail('UNKNOWN_ACOUSTIC_PERFORMANCE_SEGMENT');
         owner.deliver(projectContinuousEvidence(publication, segment, options.sessionDomainId));
         if (segment.sourceEnd !== undefined && publication.window.ownedEndTarget >= segment.originTarget
-          + (segment.sourceEnd - segment.sourceStart) * 16000 / options.sourceSampleRateHz) owner.segments.delete(segment.index);
+          + (segment.sourceEnd - segment.sourceStart) * ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / options.sourceSampleRateHz) owner.segments.delete(segment.index);
       } });
     return owner;
   }
@@ -42,7 +47,8 @@ export class ContinuousAcousticProjection {
       if (performanceStartMs !== this.lastEnd || this.active || this.terminal !== null) fail('INVALID_ACOUSTIC_SEGMENT_START');
       const s = this.source.snapshot(), index = this.source.beginAnalysisRegion(s.nextSourceSampleIndex);
       const segment: PerformanceSegment = { index, sourceStart: s.nextSourceSampleIndex,
-        originTarget: (s.nextSourceSampleIndex - s.sourceBase!) * 16000 / this.options.sourceSampleRateHz, performanceStartMs };
+        originTarget: (s.nextSourceSampleIndex - s.sourceBase!) * ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / this.options.sourceSampleRateHz, performanceStartMs
+      };
       this.segments.set(index, segment); this.active = segment;
     } catch (error) { this.failAnalysis(error); throw error; }
   }
@@ -53,7 +59,7 @@ export class ContinuousAcousticProjection {
       const snapshot = this.source.snapshot(), next = snapshot.nextSourceSampleIndex;
       const actualEnd = this.active.performanceStartMs + (next - this.active.sourceStart) / this.options.sourceSampleRateHz * 1000;
       if (!Number.isFinite(performanceEndMs) || Math.abs(actualEnd - performanceEndMs) > 1000 / this.options.sourceSampleRateHz
-        || performanceEndMs < this.active.performanceStartMs + snapshot.activeRegion!.nextWindow * ACOUSTIC_MODEL.ownedMs) fail('ACOUSTIC_SEGMENT_END_MISMATCH');
+        || performanceEndMs < this.active.performanceStartMs + snapshot.activeRegion!.nextWindow * (ACOUSTIC_RUNTIME_CONTRACT.window.ownedSamples / (ACOUSTIC_RUNTIME_CONTRACT.input.sampleRateHz / 1000))) fail('ACOUSTIC_SEGMENT_END_MISMATCH');
       this.active.performanceEndMs = performanceEndMs; this.active.sourceEnd = next;
       const index = this.active.index;
       this.source.endAnalysisRegion(next); this.lastEnd = performanceEndMs; this.active = null;
@@ -75,7 +81,7 @@ export class ContinuousAcousticProjection {
     await this.source.drain();
     try {
       this.deliver(Object.freeze({ publicationId: `${this.options.sourceDomainId}:terminal`, sessionDomainId: this.options.sessionDomainId,
-        analyzedThroughPerformanceMs: this.terminal!, availabilityTimeMs: this.options.nowAvailabilityMs(), observations: Object.freeze([]) }));
+        analyzedThroughPerformanceMs: this.terminal!, availabilitySessionTimeMs: this.options.nowAvailabilityRuntimeMs(), observations: Object.freeze([]) }));
       await this.source.seal(); this.terminalPublications++; this.segments.clear();
     } catch (error) { this.failAnalysis(error); throw error; }
   }
@@ -91,13 +97,17 @@ export class ContinuousAcousticProjection {
   private guardReentry(): void { if (this.delivering) fail('ACOUSTIC_PUBLICATION_REENTRANCY'); }
   private guard(): void {
     this.guardReentry(); const s = this.source.snapshot();
-    if (s.state === 'FAILED') fail(s.failureCode!);
+    if (s.state === 'FAILED') throw this.failure ?? new AcousticAnalysisError('ACOUSTIC_INTERNAL_FAILURE', { cause: s.failureCode });
     if (s.state === 'SEALED' || s.state === 'DISPOSED') fail('ACOUSTIC_RUNTIME_CLOSED');
   }
   private deliver(publication: Parameters<AcousticPublicationSink>[0]): void {
-    if (publication.analyzedThroughPerformanceMs < this.frontier || publication.availabilityTimeMs < publication.analyzedThroughPerformanceMs) fail('INVALID_ACOUSTIC_PUBLICATION_TIME');
+    if (!Number.isFinite(publication.analyzedThroughPerformanceMs) || publication.analyzedThroughPerformanceMs < 0
+      || publication.analyzedThroughPerformanceMs < this.frontier
+      || !Number.isFinite(publication.availabilitySessionTimeMs) || publication.availabilitySessionTimeMs < 0
+      || publication.availabilitySessionTimeMs < this.availabilitySessionTimeMs) fail('INVALID_ACOUSTIC_PUBLICATION_TIME');
     this.delivering = true;
     try { deliverPublication(this.options.onPublication, publication); } finally { this.delivering = false; }
     this.frontier = publication.analyzedThroughPerformanceMs;
+    this.availabilitySessionTimeMs = publication.availabilitySessionTimeMs;
   }
 }

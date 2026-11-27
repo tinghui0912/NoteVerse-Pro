@@ -67,8 +67,7 @@ Update database and Redis URLs if your Windows host does not expose them through
 `host.docker.internal`:
 
 ```dotenv
-DATABASE_URL=postgresql+asyncpg://postgres:password@host.docker.internal:5432/noteverse_pro
-SYNC_DATABASE_URL=postgresql+psycopg://postgres:password@host.docker.internal:5432/noteverse_pro
+DATABASE_URL=postgresql+psycopg://postgres:password@host.docker.internal:5432/noteverse_pro
 SCHEDULER_LOCK_DATABASE_URL=postgresql+psycopg://postgres:password@host.docker.internal:5432/noteverse_pro
 REDIS_URL=redis://host.docker.internal:6379/0
 CELERY_BROKER_URL=redis://host.docker.internal:6379/0
@@ -80,7 +79,7 @@ LAN IP:
 
 ```dotenv
 REDIS_URL=redis://192.168.31.59:6379/0
-DATABASE_URL=postgresql+asyncpg://postgres:password@192.168.31.59:5432/noteverse_pro
+DATABASE_URL=postgresql+psycopg://postgres:password@192.168.31.59:5432/noteverse_pro
 ```
 
 Do not commit `backend/.env.docker`.
@@ -191,7 +190,7 @@ copy tool breaks snapshots, copy the cache as a tar archive and extract it into
 The local Docker profile uses explicit runtime directories:
 
 ```text
-backend/data/storage   durable local file storage when FILE_STORAGE_BACKEND=local
+ObjectStorage          durable objects in the configured private namespace
 backend/data/work      worker scratch space, storage cache, and Celery beat state
 models                 mounted read-only model assets
 ```
@@ -199,7 +198,6 @@ models                 mounted read-only model assets
 Inside the containers these paths are:
 
 ```text
-/app/data/storage
 /app/data/work
 /opt/noteverse/models
 /opt/noteverse/legato
@@ -250,7 +248,7 @@ exhaustion is a failure, never a reason to skip a gate.
 API selects only `api`; Beat selects only `beat`; Quality selects only `quality`.
 API owns customer/control-plane/observability and migration entrypoints. Beat
 owns PostgreSQL scheduler locking and Celery, without Worker task implementations.
-Partitura is qualified through API/Quality. Worker owns render and heavy OCR/ML.
+Worker owns render and heavy OCR/ML.
 
 Offline image contracts run the approved uv dependency check and bounded imports.
 Final Worker uses the canonical 16-task registration checker. Contracts do not
@@ -383,5 +381,5 @@ LEGATO itself.
 - The backend source is bind mounted, so code changes are visible immediately.
 - The base image should contain dependencies, not business code or model files.
 - Models are mounted read-only so application code cannot mutate them.
-- `backend/data` is bind mounted to preserve local storage and work cache across container restarts.
+- `backend/data/work` holds transient worker scratch and cache; durable objects live in ObjectStorage.
 - Use the role-aware `scripts/check_runtime.py` as the first diagnostic command after changing image, env, or model mounts.

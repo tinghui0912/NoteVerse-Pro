@@ -11,10 +11,10 @@ from opentelemetry.trace import SpanKind
 
 from app.core import background_tracing
 from app.core.logger import get_otel_trace_context, set_otel_trace_context
-from app.worker import celery_config
+from app.task_queue import config as celery_config
 from app.worker.dispatch import import_jobs
-from app.worker.dispatch import runtime as dispatch_runtime
-from app.worker.dispatch.tracing import DurableTraceContext
+from app.task_queue import producer as dispatch_runtime
+from app.task_queue.tracing import DurableTraceContext
 
 
 TRACEPARENT = "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01"
@@ -53,7 +53,9 @@ def test_attempt_spans_restore_the_same_durable_parent_for_each_retry(
     spans = exporter.get_finished_spans()
     assert len(spans) == 2
     assert len({span.context.span_id for span in spans}) == 2
-    assert {span.context.trace_id for span in spans} == {int("0123456789abcdef0123456789abcdef", 16)}
+    assert {span.context.trace_id for span in spans} == {
+        int("0123456789abcdef0123456789abcdef", 16)
+    }
     assert {span.parent.span_id for span in spans if span.parent is not None} == {
         int("0123456789abcdef", 16)
     }
@@ -67,7 +69,7 @@ def test_invalid_durable_context_creates_an_independent_attempt_root(
     exporter = _install_in_memory_tracer(monkeypatch)
 
     with background_tracing.background_attempt_span(
-        name="noteverse.render.generate",
+        name="noteverse.revision_render.generate",
         traceparent="invalid",
         tracestate=None,
         attributes={"noteverse.operation.kind": "render", "noteverse.operation.id": "outbox-1"},
@@ -130,7 +132,7 @@ def test_relay_dispatch_log_is_emitted_inside_its_producer_span(
 
     @contextmanager
     def fake_db() -> Iterator[object]:
-        yield object()
+        yield __import__("unittest.mock", fromlist=["Mock"]).Mock()
 
     class CapturingLogger:
         def bind(self, **_context: object) -> CapturingLogger:
@@ -139,16 +141,24 @@ def test_relay_dispatch_log_is_emitted_inside_its_producer_span(
         def info(self, _message: str) -> None:
             log_contexts.append(get_otel_trace_context())
 
-    monkeypatch.setattr(import_jobs, "get_worker_db", fake_db)
+    monkeypatch.setattr(import_jobs, "SessionLocal", fake_db)
+    monkeypatch.setattr(import_jobs.import_dispatch_service, "mark_dispatched", lambda *_: True)
     monkeypatch.setattr(
         import_jobs,
-        "import_trace_context",
-        lambda _db, _job_uuid: DurableTraceContext(traceparent=TRACEPARENT, tracestate=None),
+        "import_dispatch_trace_context",
+        lambda _db, _dispatch_uuid: DurableTraceContext(traceparent=TRACEPARENT, tracestate=None),
     )
-    monkeypatch.setattr(dispatch_runtime.celery_app, "send_task", lambda *_args, **_kwargs: None)
+    published = []
+    monkeypatch.setattr(
+        dispatch_runtime.celery_app,
+        "send_task",
+        lambda *args, **kwargs: published.append((args, kwargs)),
+    )
     monkeypatch.setattr(dispatch_runtime, "logger", CapturingLogger())
 
-    assert import_jobs.dispatch_import_job("job-1")
+    assert import_jobs.dispatch_import_dispatch("dispatch-1")
+    assert published[0][0] == ("app.worker.tasks.import_dispatch_task",)
+    assert published[0][1]["kwargs"] == {"dispatch_uuid": "dispatch-1"}
 
     assert len(log_contexts) == 1
     assert log_contexts[0]["trace_id"] == "0123456789abcdef0123456789abcdef"

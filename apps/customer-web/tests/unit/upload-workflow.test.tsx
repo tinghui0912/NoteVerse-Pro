@@ -1,29 +1,35 @@
 // @vitest-environment jsdom
+import { storageUsageQueryKeys } from '@/features/storage-usage/query-keys';
+import { importQueryKeys } from '@/features/imports/query-keys';
 
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/lib/api-client';
-import { translateErrorCode } from '@/lib/i18n/error-message';
-import { queryKeys } from '@/lib/query-client';
-import { getCompletedJobRoute } from '@/lib/upload/upload-workflow';
-import { useUploadWorkflow } from '@/hooks/upload/use-upload-workflow';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '@/lib/http/customer-browser-transport';
+import { translateErrorCode, userFacingErrorMessage } from '@/lib/i18n/error-message';
+import * as navigation from '@/features/imports/routes';
+import type { ImportJobRead } from '@/generated/api';
+import { useImportUploadWorkflow } from '@/features/imports/submission/use-import-upload-workflow';
 import commonMessages from '@/../messages/zh/common.json';
 import zhErrors from '@/../messages/zh/errors.json';
 import uploadMessages from '@/../messages/zh/upload.json';
+import { scoreGenresForDisplay } from '@/lib/score/genres';
 
-const uploadFileMock = vi.fn();
+const createUploadMock = vi.fn();
 const submitImportJobMock = vi.fn();
 const getImportJobMock = vi.fn();
 const toastMock = vi.fn();
 const pushMock = vi.fn();
 
 vi.mock('@/lib/api', () => ({
-  filesApi: {
-    uploadFile: (...args: unknown[]) => uploadFileMock(...args),
+  uploadsApi: {
+    createUpload: (...args: unknown[]) => createUploadMock(...args),
   },
+}));
+
+vi.mock('@/features/imports/api/jobs', () => ({
   importJobsApi: {
     getImportJob: (...args: unknown[]) => getImportJobMock(...args),
     submitImportJob: (...args: unknown[]) => submitImportJobMock(...args),
@@ -36,7 +42,6 @@ vi.mock('@/hooks/use-toast', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
-  useSearchParams: () => new URLSearchParams(),
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -72,7 +77,7 @@ function selectedImage(name = 'score.png') {
 }
 
 beforeEach(() => {
-  uploadFileMock.mockReset();
+  createUploadMock.mockReset();
   submitImportJobMock.mockReset();
   getImportJobMock.mockReset();
   toastMock.mockReset();
@@ -82,46 +87,85 @@ beforeEach(() => {
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
 });
 
-describe('upload score navigation', () => {
-  it('routes review jobs and completed scores to their product pages', () => {
-    expect(getCompletedJobRoute('review-job', null, 'PENDING_REVIEW')).toBe('/review/review-job');
-    expect(getCompletedJobRoute('result-job', 'result-score', 'CONFIRMED')).toBe('/score/result-score');
-  });
+afterEach(() => vi.restoreAllMocks());
+
+describe('upload terminal navigation', () => {
+  it.each([
+    ['READY_FOR_REVIEW', null, '/imports/job-1/review'],
+    ['CONFIRMED', 'live-score', '/score/live-score'],
+    ['CONFIRMED', null, '/upload#import-activity'],
+    ['CONFIRMED', undefined, '/upload#import-activity'],
+  ] satisfies [ImportJobRead['state'], string | null | undefined, string][])(
+    'finishes %s with score %s at %s', async (state, score_id, href) => {
+      createUploadMock.mockResolvedValue({ upload_id: 'upload-1' });
+      submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
+      const job = { job_id: 'job-1', state, score_id, progress: 100 };
+      getImportJobMock.mockResolvedValue(job);
+      const resolve = vi.spyOn(navigation, 'importJobDestination');
+      const client = createQueryClient();
+      const hook = renderHook(() => useImportUploadWorkflow(), { wrapper: createWrapper(client) });
+      act(() => hook.result.current.appendFiles([selectedImage()]));
+      await act(async () => { await hook.result.current.startRecognition(); });
+      await waitFor(() => expect(pushMock).toHaveBeenCalledWith(href));
+      expect(resolve).toHaveBeenCalledWith(job);
+      expect(pushMock).toHaveBeenCalledTimes(1);
+      expect(hook.result.current.isProcessing).toBe(false);
+      expect(hook.result.current.taskError).toBeNull();
+      expect(hook.result.current.files).toHaveLength(0);
+      expect(client.getQueryCache().find({ queryKey: importQueryKeys.jobs.detail('job-1') })?.isActive()).toBe(false);
+      hook.unmount();
+      client.clear();
+    },
+  );
+
+  it.each(['QUEUED', 'PROCESSING'] satisfies ImportJobRead['state'][])(
+    'continues polling %s without navigation', async (state) => {
+      createUploadMock.mockResolvedValue({ upload_id: 'upload-1' });
+      submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
+      getImportJobMock.mockResolvedValue({ job_id: 'job-1', state, progress: 37 });
+      const client = createQueryClient();
+      const hook = renderHook(() => useImportUploadWorkflow(), { wrapper: createWrapper(client) });
+      act(() => hook.result.current.appendFiles([selectedImage()]));
+      await act(async () => { await hook.result.current.startRecognition(); });
+      await waitFor(() => expect(hook.result.current.taskProgress).toBe(37));
+      expect(hook.result.current.isProcessing).toBe(true);
+      expect(client.getQueryCache().find({ queryKey: importQueryKeys.jobs.detail('job-1') })?.isActive()).toBe(true);
+      expect(pushMock).not.toHaveBeenCalled();
+      hook.unmount();
+      client.clear();
+    },
+  );
 });
 
 describe('upload error messages', () => {
   const tErrors = Object.assign(
-    (key: never) => zhErrors[key as keyof typeof zhErrors],
+    (key: keyof typeof zhErrors) => zhErrors[key as keyof typeof zhErrors],
     {
-      has: (key: never) => Object.prototype.hasOwnProperty.call(zhErrors, key),
-    }
+      has: (key: keyof typeof zhErrors) => Object.prototype.hasOwnProperty.call(zhErrors, key),
+    },
   );
 
   it('maps storage quota errors to a user-facing message', () => {
-    expect(
-      translateErrorCode(tErrors, 'storage_quota_exceeded', '操作失败')
-    ).toBe('存储空间不足，请删除不需要的内容或升级方案。');
+    expect(translateErrorCode(tErrors, 'storage_quota_exceeded', '操作失败')).toBe(
+      zhErrors.storage_quota_exceeded,
+    );
   });
 
   it('uses the fallback instead of exposing unknown backend codes', () => {
-    expect(
-      translateErrorCode(tErrors, 'unexpected_backend_code', '操作失败')
-    ).toBe('操作失败');
+    expect(userFacingErrorMessage(tErrors, { code: 'unexpected_backend_code' }, '操作失败')).toBe(
+      '操作失败',
+    );
   });
 });
 
 describe('upload workflow storage quota handling', () => {
   it('marks the file and toast with the quota message when upload exceeds storage quota', async () => {
-    uploadFileMock.mockRejectedValue(
-      new ApiError(
-        422,
-        'storage_quota_exceeded',
-        'storage_quota_exceeded'
-      )
+    createUploadMock.mockRejectedValue(
+      new ApiError(422, 'storage_quota_exceeded', 'storage_quota_exceeded'),
     );
     const queryClient = createQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { result } = renderHook(() => useUploadWorkflow(), {
+    const { result } = renderHook(() => useImportUploadWorkflow(), {
       wrapper: createWrapper(queryClient),
     });
 
@@ -134,53 +178,56 @@ describe('upload workflow storage quota handling', () => {
 
     expect(result.current.files[0]).toMatchObject({
       status: 'error',
-      error: '存储空间不足，请删除不需要的内容或升级方案。',
+      error: zhErrors.storage_quota_exceeded,
     });
     expect(toastMock).toHaveBeenCalledWith({
       title: '提交失败',
-      description: '存储空间不足，请删除不需要的内容或升级方案。',
+      description: zhErrors.storage_quota_exceeded,
       variant: 'destructive',
     });
+    const requestIdentity = createUploadMock.mock.calls[0][1];
+    expect(requestIdentity).toEqual(expect.any(String));
+    await act(async () => { await result.current.startRecognition(); });
+    expect(createUploadMock.mock.calls[1][1]).toBe(requestIdentity);
     expect(submitImportJobMock).not.toHaveBeenCalled();
     expect(invalidateSpy).not.toHaveBeenCalledWith({
-      queryKey: queryKeys.storageUsage.current(),
+      queryKey: storageUsageQueryKeys.all,
     });
   });
 
   it('refreshes storage usage after a successful file upload', async () => {
-    uploadFileMock.mockResolvedValue({
-      success: true,
-      data: { file_id: 'uploaded-file-id', filename: 'score.png', storage_key: 'scores/score.png', size: 3 },
+    createUploadMock.mockResolvedValue({
+      upload_id: 'uploaded-upload-id',
+      original_filename: 'score.png',
+      byte_size: 3,
     });
-    submitImportJobMock.mockResolvedValue({
-      success: true,
-      data: { job_id: 'job-1' },
-    });
+    submitImportJobMock.mockResolvedValue({ job_id: 'job-1' });
     const queryClient = createQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { result } = renderHook(() => useUploadWorkflow(), {
+    const { result } = renderHook(() => useImportUploadWorkflow(), {
       wrapper: createWrapper(queryClient),
     });
 
     act(() => {
       result.current.appendFiles([selectedImage()]);
+      result.current.setGenres([...scoreGenresForDisplay]);
     });
     await act(async () => {
       await result.current.startRecognition();
     });
 
-    expect(uploadFileMock).toHaveBeenCalledTimes(1);
+    expect(createUploadMock).toHaveBeenCalledTimes(1);
     expect(submitImportJobMock).toHaveBeenCalledWith(
-      ['uploaded-file-id'],
-      { title: undefined, taxonomy_tags: [] },
-      'upload-workflow-test-key'
+      ['uploaded-upload-id'],
+      { title: undefined, genres: [...scoreGenresForDisplay] },
+      'upload-workflow-test-key',
     );
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: queryKeys.storageUsage.current(),
+      queryKey: storageUsageQueryKeys.all,
     });
     expect(toastMock).toHaveBeenCalledWith({
       title: '识别请求已创建',
-      description: '系统会自动继续处理。你可以保持本页打开，也可以稍后到我的乐谱库查看结果。',
+      description: uploadMessages.taskStartedDesc,
     });
   });
 });

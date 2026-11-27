@@ -11,7 +11,6 @@ from app.core.runtime_checks import RuntimeRole
 def ensure_runtime_directories() -> None:
     """Create required runtime directories if they do not exist yet."""
     for raw_path in (
-        settings.STORAGE_ROOT,
         settings.WORK_ROOT,
     ):
         path = Path(raw_path)

@@ -18,14 +18,149 @@ docker compose -f docker-compose.backend-dev.yml run --rm --no-deps --entrypoint
 Use `--check` in CI to ensure a source change does not leave a stale generated
 contract behind. Do not manually edit generated JSON.
 
-`score-domain-v1.json` remains a curated, product-level invariant contract. It
-does not replace OpenAPI and should not duplicate every request/response DTO.
+## HTTP schema ownership
 
-## Frontend migration rule
+Backend domain types, Pydantic schemas, and FastAPI routes define the HTTP schemas.
+The generated OpenAPI documents project those definitions and are the HTTP schema
+authority for consumers. Customer Web API types are generated from
+`openapi/customer-api.json`. Platform Admin generates its TypeScript SDK from
+`openapi/control-plane-api.json` using its own generator configuration.
 
-OpenAPI is the source of truth for HTTP DTOs. Generated types and client code
-will replace hand-maintained frontend API DTOs incrementally. Frontend-only
-view models, form state, and presentation helpers remain owned by the frontend.
+Each Customer route declares an explicit, globally unique lowerCamelCase
+`operationId`. It is the stable semantic identity of the operation, independent
+of handler names, API version and URL topology. Names use the domain/resource
+first and action last. Related operations share a context prefix; collection
+list/create/batch operations and individual resource commands use consistent
+resource and verb vocabulary within that context.
+
+Customer success is HTTP status plus the operation's direct typed representation.
+Commands without a response representation return bodyless 204. Import submission
+and retry return 202 with `ImportJobSubmitRead`. Page-number resources contain
+`items`, `page`, `page_size`, `total` and `total_pages`; cursor resources retain
+`items` and `next_cursor`. There is no generic Customer success envelope. Frontend
+i18n owns localized success presentation. Typed API models serialize nested
+timezone-aware instants from PostgreSQL TIMESTAMPTZ as RFC3339 UTC date-times.
+
+Protocol-native success contracts retain their bodies:
+stored bytes use binary schemas, ZIP archives use `application/zip`, and realtime
+events use `text/event-stream`. Stored formats can vary by resource, so their
+OpenAPI media ranges describe that variation while the HTTP Content-Type identifies
+the selected format. Range-enabled media also declares 206 Partial Content.
+Profile image resolution is a bodyless 307 redirect with a Location header.
+
+Customer Web generates TypeScript types, SDK operations and a bundled Fetch client
+from this contract. Generated operations own HTTP method, path, path parameters,
+query serialization and body encoding. Feature adapters project generated results
+and perform frontend transformations; they do not define HTTP operations.
+The Customer browser transport owns credentials, CSRF, refresh/retry, redirect,
+cancellation and network observability.
+Frontend presentation, view-model state, and form state remain frontend-owned.
 Generic application realtime notifications use SSE under the normal API/auth
-boundary; Practice execution is browser-local and does not have an active
-Practice WebSocket contract.
+boundary; Practice execution is browser-local and has no active Practice WebSocket
+contract.
+
+## Customer application failures
+
+Customer application failures share the Pydantic `ApiErrorResponse` body:
+`code` is a stable product error code for client-side presentation and
+`request_id` is a required nonempty string correlation identifier. HTTP status expresses the
+failure category. Internal exception details and server presentation copy are
+not part of this contract.
+
+The Customer API router declares this model once for default failures and 422
+validation failures. Exception handlers and CSRF rejection serialize the same
+model. Generated OpenAPI and Customer Web types project that definition.
+Process readiness uses its own 200/503 dependency-check schemas. Redirects and
+bodyless HTTP byte-range rejection retain their protocol-specific contracts.
+Control-plane failure presentation is selected independently by its composition
+root and is separate from the Customer application contract.
+
+`HttpApplication` places `RequestCorrelationMiddleware` outside the complete
+FastAPI stack, including server-error handling and OpenTelemetry instrumentation.
+At HTTP ingress it validates the incoming `X-Request-ID` or generates a replacement,
+then binds the same ID to request state and the logging ContextVar. Every Customer
+application failure contains `{ code: string, request_id: string }`, and its body
+ID equals the `X-Request-ID` response header. CSRF, logging and exception handlers
+consume that established identity. Correlation remains active through streaming
+and error presentation, then resets at request completion. Process-specific body
+contracts remain independent of the correlation response header.
+
+Customer SDK calls select an explicit authenticated, public or silent browser
+policy client. Refresh uses the generated `authRefresh` operation through a
+non-refreshing client. Concurrent refreshes are shared and requests retry at most
+once using an unconsumed body clone. Application failures become browser
+`ApiError` instances through one adapter of generated `ApiErrorResponse`.
+Canonical failures use the required body correlation ID. Noncanonical/proxy
+failures can use a response-header ID or have no server correlation; the browser
+does not invent a server ID for malformed or network failures.
+
+EventSource, native image/audio URLs and browser resource navigation use browser
+transports. Their route metadata is generated from Customer OpenAPI operation IDs,
+methods and path templates. Native URL adapters use that metadata, generated
+operation input types and the Fetch client's URL serializer.
+Avatar presentation supplies an API-rooted browser resource URL directly.
+Signed object-storage uploads use opaque absolute target URLs and
+required headers with credentials omitted; they do not use Customer session
+refresh or CSRF policy.
+
+## Customer browser protocol identity
+
+[`contracts/http/customer-browser-protocol.json`](../../../contracts/http/customer-browser-protocol.json)
+owns the Customer API prefix and Customer session/CSRF cookie and header names.
+`scripts/generate_customer_browser_protocol.py` generates Backend Python and
+Customer Web TypeScript projections from it, and native route metadata from the
+committed Customer OpenAPI. Run it with `--check` to verify every projection.
+Customer Web exposes `generate:browser-protocol` and `check:browser-protocol`.
+Origins, Secure/SameSite policy, lifetimes and backend service topology remain
+deployment settings. Control-plane protocol configuration is independent.
+
+Customer CSRF exemptions are Backend application security policy in
+`app/api/customer_security.py`. The generic middleware uses framework route
+matching to resolve the actual operation, then applies the composition's policy.
+Only explicit public credential/token or session-bootstrap operation identities
+skip the double-submit token check. Cookie-authenticated writes still undergo
+Origin/Referer validation. Unknown operations, missing identities and method
+mismatches require CSRF; logout also requires CSRF. Control Plane supplies its own
+independent matched-operation policy. Browser protocol projections own cookie and
+header identities rather than exemption decisions.
+
+## Control Plane application contract
+
+Control Plane operations declare explicit semantic lowerCamelCase operation IDs.
+Login and logout return bodyless 204 responses and set or clear host-only operator
+cookies. Current operator, operation pages/summary/retry and audit pages return
+their direct typed representations. Both HTTP contracts use status plus a concrete
+representation, with no generic success envelope. Nested operator timestamps use
+canonical UTC serialization through the shared ApiModel primitive.
+
+Control Plane owns `ControlPlaneErrorResponse { code, request_id }`, independently
+of the Customer error schema. Its aggregate router declares default and 422
+failures; exception handlers and CSRF rejection emit that representation with the
+same ingress correlation ID as the response header. Browser presentation belongs
+to Platform Admin. Its generated SDK owns methods, paths, query/body serialization
+and DTOs; the thin browser transport owns same-origin credentials, CSRF and bounded
+error normalization. Operator sessions have no refresh/replay protocol.
+
+The independently versioned browser protocols under `contracts/http/` own each
+API prefix and cookie/header identities. Generated Backend and browser constants
+consume those protocols; deployment configures policy and service topology.
+
+Request IDs use the shared `app.shared.request_id.RequestId` representation.
+Ingress and both application-error schemas consume its one token-pattern authority;
+the schemas declare a length of 1–128. The Control Plane SDK generator also projects
+runtime schemas for browser validation. These HTTP representation constraints are
+independent of the browser identity protocols.
+
+## Instant semantics
+
+All persisted lifecycle, audit, expiry and heartbeat instants use PostgreSQL
+TIMESTAMPTZ. `app.shared.time` owns `utc_now()`, aware UTC normalization and the
+reusable `Instant` API type. Time filters and expiry inputs require an explicit
+offset: `Z` and non-UTC offsets are accepted and normalized to UTC; timezone-free
+values are invalid. The application database connection uses a UTC session policy.
+
+API date-times are RFC3339 UTC instants. Fractional-second display width is not
+part of the wire contract. ApiModel serializes aware instants as UTC and
+rejects timezone-free programming values. ORM flush admission likewise requires
+aware datetime assignments. Duration, musical position and calendar-date concepts
+retain their own units and semantics.

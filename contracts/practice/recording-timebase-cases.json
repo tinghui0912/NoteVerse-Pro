@@ -1,0 +1,532 @@
+[
+  {
+    "name": "pause_resume_performance_gap",
+    "valid": true,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "contiguous",
+    "valid": true,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 1100000,
+          "performanceEndUs": 2100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "adjacent_performance",
+    "valid": true,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 1100000,
+          "performanceEndUs": 2100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "single",
+    "valid": true,
+    "value": {
+      "nominalMediaDurationUs": 1000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 0,
+          "performanceEndUs": 1000000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "initial_offset",
+    "valid": true,
+    "value": {
+      "nominalMediaDurationUs": 1000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 1234567,
+          "performanceEndUs": 2234567,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "sub_millisecond",
+    "valid": true,
+    "value": {
+      "nominalMediaDurationUs": 37,
+      "activeSegments": [
+        {
+          "performanceStartUs": 13,
+          "performanceEndUs": 50,
+          "mediaStartUs": 0,
+          "mediaEndUs": 37
+        }
+      ]
+    }
+  },
+  {
+    "name": "safe_integer_boundary",
+    "valid": true,
+    "value": {
+      "nominalMediaDurationUs": 9007199254740991,
+      "activeSegments": [
+        {
+          "performanceStartUs": 0,
+          "performanceEndUs": 9007199254740991,
+          "mediaStartUs": 0,
+          "mediaEndUs": 9007199254740991
+        }
+      ]
+    }
+  },
+  {
+    "name": "empty_segments",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": []
+    }
+  },
+  {
+    "name": "zero_nominal",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 0,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "negative",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": -1,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "fractional",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 0.5,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "unsafe",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 9007199254740992,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "zero_performance",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "zero_media",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 0
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "reversed_performance",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 99999,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "first_media_not_zero",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000001,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 1,
+          "mediaEndUs": 1000001
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000001,
+          "mediaEndUs": 2000001
+        }
+      ]
+    }
+  },
+  {
+    "name": "rate_mismatch_one_us",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100001,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "performance_overlap",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 1099999,
+          "performanceEndUs": 2099999,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "media_gap_one_us",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000001,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000001,
+          "mediaEndUs": 2000001
+        }
+      ]
+    }
+  },
+  {
+    "name": "media_overlap_one_us",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 1999999,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 999999,
+          "mediaEndUs": 1999999
+        }
+      ]
+    }
+  },
+  {
+    "name": "reversed_media",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 999999
+        }
+      ]
+    }
+  },
+  {
+    "name": "nominal_mismatch_one_us",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000001,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "extra_object_field",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ],
+      "extra": 1
+    }
+  },
+  {
+    "name": "extra_segment_field",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000,
+          "extra": 1
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing_object_field",
+    "valid": false,
+    "value": {
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing_segment_field",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": 100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  },
+  {
+    "name": "boolean_coordinate",
+    "valid": false,
+    "value": {
+      "nominalMediaDurationUs": 2000000,
+      "activeSegments": [
+        {
+          "performanceStartUs": false,
+          "performanceEndUs": 1100000,
+          "mediaStartUs": 0,
+          "mediaEndUs": 1000000
+        },
+        {
+          "performanceStartUs": 3100000,
+          "performanceEndUs": 4100000,
+          "mediaStartUs": 1000000,
+          "mediaEndUs": 2000000
+        }
+      ]
+    }
+  }
+]

@@ -55,7 +55,6 @@ python scripts/render_k8s_release_overlay.py \
   --s3-endpoint-url https://object-storage.example.com \
   --s3-region auto \
   --s3-bucket noteverse-production \
-  --s3-public-base-url https://objects.noteverse.example.com \
   --s3-force-path-style true \
   --s3-presign-expire-seconds 900
 
@@ -81,7 +80,6 @@ Required backend Secret keys:
 
 - `SECRET_KEY`
 - `DATABASE_URL`
-- `SYNC_DATABASE_URL`
 - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session pooling only)
 - `REDIS_URL`
 - `CELERY_BROKER_URL`
@@ -107,7 +105,8 @@ Verify:
 - `CONTROL_PLANE_CORS_ORIGINS` includes only the dedicated Platform Admin origin;
 - `NEXT_BACKEND_ORIGIN` points to the internal backend Service;
 - `/api/v1` is routed by Gateway API to the backend API;
-- cookie names match backend and frontend configuration.
+- Customer protocol projections match the canonical browser protocol contract;
+  Backend and Next proxy consume the same generated cookie identities.
 
 Do not use `localhost`, private LAN IPs, or Docker host aliases in deployable
 overlays.
@@ -146,7 +145,7 @@ Verify:
 - object storage bucket exists;
 - `Secret/noteverse-registry-credentials` exists and can pull private images;
 - object storage credentials are scoped to the intended bucket;
-- `FILE_STORAGE_BACKEND=s3` has all required S3 settings;
+- The configured object-store adapter has all required endpoint, bucket and credential settings;
 - nodes that run worker pods are labeled `noteverse.io/model-cache=enabled`;
 - node-local model cache is read-only in application pods;
 - Legato source is built into the backend runtime image;

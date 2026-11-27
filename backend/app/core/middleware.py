@@ -2,19 +2,22 @@
 
 import time
 from dataclasses import dataclass
+from enum import StrEnum
 from collections.abc import Callable
 from urllib.parse import urlparse
 
 from fastapi import Request
+from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.routing import Match
 
+from app.core.http_error_policy import ErrorResponseFactory, HttpRuntimeErrorCodes
 from app.core.client_address import client_address, peer_address
-from app.core.logger import logger, set_request_id
+from app.core.logger import logger
+from app.core.request_correlation import request_correlation_id
 from app.core.metrics import record_http_request
 from app.core.tracing import capture_current_trace_context
-from app.shared.constants import ErrorCode
-from app.shared.responses import error_response
 
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
@@ -27,7 +30,7 @@ class CookieCsrfSettings:
     session_cookie_names: tuple[str, ...]
     csrf_cookie_name: str
     csrf_header_name: str
-    exempt_paths: tuple[str, ...]
+    exempt_operation: Callable[[RouteContext], bool]
     allowed_origins: tuple[str, ...] | Callable[[], tuple[str, ...]]
     debug: bool
 
@@ -50,23 +53,31 @@ def normalize_origin(origin: str) -> str | None:
 class CsrfProtectionMiddleware(BaseHTTPMiddleware):
     """Require a double-submit CSRF token for cookie-authenticated writes."""
 
-    def __init__(self, app, *, csrf_settings: CookieCsrfSettings) -> None:
+    def __init__(
+        self,
+        app,
+        *,
+        csrf_settings: CookieCsrfSettings,
+        error_response_factory: ErrorResponseFactory,
+        error_codes: HttpRuntimeErrorCodes,
+    ) -> None:
         super().__init__(app)
         self.csrf_settings = csrf_settings
+        self.error_response_factory = error_response_factory
+        self.error_codes = error_codes
 
     async def dispatch(self, request: Request, call_next):
-        if self._should_check_origin(request) and not self._has_allowed_origin(request):
+        if self._is_cookie_authenticated_write(request) and not self._has_allowed_origin(request):
             response = JSONResponse(
                 status_code=403,
                 content=self._error_payload(
                     request,
-                    ErrorCode.REQUEST_ORIGIN_INVALID,
+                    self.error_codes.request_origin_invalid,
                 ),
             )
-            self._attach_request_id_header(request, response)
             return response
 
-        if self._should_check(request):
+        if self._requires_csrf_token(request):
             csrf_cookie = request.cookies.get(self.csrf_settings.csrf_cookie_name)
             csrf_header = request.headers.get(self.csrf_settings.csrf_header_name)
             if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
@@ -74,47 +85,36 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
                     status_code=403,
                     content=self._error_payload(
                         request,
-                        ErrorCode.CSRF_TOKEN_INVALID,
+                        self.error_codes.csrf_token_invalid,
                     ),
                 )
-                self._attach_request_id_header(request, response)
                 return response
 
         return await call_next(request)
 
-    def _request_id(self, request: Request) -> str:
-        existing = getattr(request.state, "request_id", None)
-        if isinstance(existing, str) and existing:
-            return existing
-        request_id = set_request_id(request.headers.get("X-Request-ID"))
-        request.state.request_id = request_id
-        return request_id
-
     def _error_payload(
         self,
         request: Request,
-        code: str,
+        code: StrEnum,
     ):
-        return error_response(
-            public_code=code,
-            public_message=code,
-            request_id=self._request_id(request),
-        )
+        return self.error_response_factory(code, request_correlation_id(request))
 
-    def _attach_request_id_header(self, request: Request, response: JSONResponse) -> None:
-        response.headers["X-Request-ID"] = self._request_id(request)
+    def _requires_csrf_token(self, request: Request) -> bool:
+        if not self._is_cookie_authenticated_write(request):
+            return False
+        # Match in framework routing order, including effective include-router
+        # prefixes/overrides. Partial matches (405) never grant an exemption.
+        # Do not mutate the live scope before the router handles the request.
+        for operation in iter_route_contexts(request.app.routes):
+            match, _ = operation.matches(dict(request.scope))
+            if match is Match.FULL:
+                return not (
+                    isinstance(operation.original_route, APIRoute)
+                    and self.csrf_settings.exempt_operation(operation)
+                )
+        return True
 
-    def _should_check(self, request: Request) -> bool:
-        path = request.url.path
-        if request.method.upper() in SAFE_METHODS:
-            return False
-        if not path.startswith(self.csrf_settings.api_prefix):
-            return False
-        if any(path == exempt or path.startswith(exempt) for exempt in self.csrf_settings.exempt_paths):
-            return False
-        return any(request.cookies.get(cookie_name) for cookie_name in self.csrf_settings.session_cookie_names)
-
-    def _should_check_origin(self, request: Request) -> bool:
+    def _is_cookie_authenticated_write(self, request: Request) -> bool:
         return (
             request.method.upper() not in SAFE_METHODS
             and request.url.path.startswith(self.csrf_settings.api_prefix)
@@ -171,10 +171,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         # Record the start time for latency logging.
         start_time = time.time()
 
-        # Use an incoming request ID when present, otherwise generate one.
-        request_id = request.headers.get("X-Request-ID")
-        request_id = set_request_id(request_id)
-        request.state.request_id = request_id
+        request_id = request_correlation_id(request)
         capture_current_trace_context()
 
         should_log = request.url.path not in HEALTH_PATHS
@@ -219,8 +216,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     duration_ms=duration_ms,
                 ).log(level, "api.request_completed")
 
-            # Return trace metadata to the caller.
-            response.headers["X-Request-ID"] = request_id
             response.headers["X-Process-Time"] = f"{process_time:.3f}"
 
             return response

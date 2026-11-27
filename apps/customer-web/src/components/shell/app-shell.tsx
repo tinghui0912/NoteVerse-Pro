@@ -1,7 +1,18 @@
 'use client';
 
+import { NotificationBell } from '@/features/notifications/center/notification-bell';
+
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { HelpCircle, Library, Menu, Music2, Radio, Search, Settings, Upload, X } from 'lucide-react';
+import {
+  HelpCircle,
+  Library,
+  Menu,
+  Radio,
+  Search,
+  Settings,
+  Upload,
+  X,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 
@@ -14,16 +25,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { LanguageSwitcher, NotificationBell, UserMenu } from '@/components/navigation';
+import {
+  LanguageSwitcher,
+  UserMenu,
+} from '@/components/navigation';
 import { BrandLogo } from '@/components/brand';
 import { cn } from '@/lib/utils';
 
 const primaryNavItems = [
-  { href: '/upload', label: 'nav.upload', icon: Upload },
-  { href: '/my-scores', label: 'nav.myScores', icon: Music2 },
-  { href: '/my-performances', label: 'nav.myPerformances', icon: Radio },
   { href: '/library', label: 'nav.library', icon: Library },
-  { href: '/settings/profile', label: 'settings', icon: Settings, match: '/settings' },
+  { href: '/my-performances', label: 'nav.myPerformances', icon: Radio },
+  {
+    href: '/settings/profile',
+    label: 'settings',
+    icon: Settings,
+    match: '/settings',
+  },
 ] as const;
 
 function AppSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -44,7 +61,7 @@ function AppSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
           isActive
             ? 'bg-orange-50 text-orange-700'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950'
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950',
         )}
       >
         <Icon className="h-4 w-4" />
@@ -55,7 +72,10 @@ function AppSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col border-r border-gray-200 bg-white">
-      <BrandLogo href="/upload" className="flex h-16 border-b border-gray-200 px-5" />
+      <BrandLogo
+        href="/library"
+        className="flex h-16 border-b border-gray-200 px-5"
+      />
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {primaryNavItems.map(renderItem)}
@@ -84,7 +104,10 @@ function AppTopbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
             <Menu className="h-5 w-5" />
             <span className="sr-only">{t('openNavigation')}</span>
           </Button>
-          <Button asChild className="hidden bg-orange-500 text-white hover:bg-orange-600 sm:inline-flex">
+          <Button
+            asChild
+            className="hidden bg-orange-500 text-white hover:bg-orange-600 sm:inline-flex"
+          >
             <Link href="/upload">
               <Upload className="h-4 w-4" />
               {t('nav.upload')}
@@ -160,7 +183,9 @@ function TopbarSearchForm({
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = search.trim();
-    router.push(query ? `/library?search=${encodeURIComponent(query)}` : '/library');
+    router.push(
+      query ? `/library?search=${encodeURIComponent(query)}` : '/library',
+    );
     onSubmitComplete?.();
   };
 
@@ -178,7 +203,10 @@ function TopbarSearchForm({
             className="h-11 rounded-full border-gray-200 bg-gray-50 pl-9"
           />
         </div>
-        <Button type="submit" className="h-11 bg-orange-500 px-5 text-white hover:bg-orange-600">
+        <Button
+          type="submit"
+          className="h-11 bg-orange-500 px-5 text-white hover:bg-orange-600"
+        >
           <Search className="h-4 w-4" />
           <span className="sr-only">{t('searchScores')}</span>
         </Button>

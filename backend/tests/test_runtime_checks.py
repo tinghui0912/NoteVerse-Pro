@@ -1,3 +1,4 @@
+import pytest
 import sys
 import json
 from types import SimpleNamespace
@@ -33,13 +34,16 @@ def test_control_plane_runtime_checks_require_independent_identity_configuration
 
 
 def test_observability_exporter_checks_only_its_database_dependency() -> None:
-    assert ROLE_CHECK_NAMES[RuntimeRole.OBSERVABILITY_EXPORTER] == ("settings", "database")
+    assert ROLE_CHECK_NAMES[RuntimeRole.OBSERVABILITY_EXPORTER] == (
+        "settings",
+        "database",
+    )
 
 
 def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     checks = ROLE_CHECK_NAMES[RuntimeRole.WORKER]
 
-    assert "sync_database" in checks
+    assert "database" in checks
     assert "worker_settings" in checks
     assert "storage_quota_policy" in checks
     assert "celery_tasks" in checks
@@ -49,7 +53,6 @@ def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     assert "playback_renderer" in checks
     assert "paddleocr_models" in checks
     assert "huggingface_models" in checks
-    assert "database" not in checks
     assert "practice_alignment" not in checks
 
 
@@ -154,3 +157,25 @@ def test_huggingface_model_check_rejects_incomplete_sharded_snapshot(tmp_path, m
 
     assert result.ok is False
     assert "model-00001-of-00002.safetensors" in result.message
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "app.worker.tasks.run_storage_quota_expiry",
+        "app.worker.tasks.account_deletion_task",
+        "app.worker.tasks.run_account_deletion_maintenance",
+    ],
+)
+def test_resource_lifecycle_task_is_required(monkeypatch, name):
+    from app.core.runtime_checks import check_celery_tasks
+    from app.task_queue.config import celery_app
+    import app.worker.tasks  # noqa: F401
+
+    celery_app.loader.import_default_modules()
+    assert name in celery_app.tasks
+    assert check_celery_tasks().ok
+    monkeypatch.delitem(celery_app.tasks, name)
+    result = check_celery_tasks()
+    assert not result.ok
+    assert name in result.message

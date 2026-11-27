@@ -7,7 +7,14 @@ validated only; they are never silently repaired or overwritten.
 
 from __future__ import annotations
 
-import asyncio
+from app.composition.media_resources import build_revision_writer
+from app.composition.storage_resources import build_object_write_coordinator
+from app.composition.storage_resources import storage_quota_service
+from uuid import UUID, uuid4, uuid5
+from datetime import timedelta
+from app.shared.time import utc_now
+
+
 import hashlib
 import os
 
@@ -15,26 +22,36 @@ from sqlmodel import select
 
 from app.core.security import get_password_hash
 from app.db.models import Score, ScoreRevision, ScoreRevisionSource, User
-from app.db.models.score import RevisionOrigin, RevisionSourceFormat
-from app.db.session import AsyncSessionLocal
-from app.storage import file_storage
+from app.db.model_utils import require_persisted_id
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.revisions.writer import (
+    InitialRevisionWrite,
+    PreparedRevisionSource,
+)
+from app.composition.storage_resources import provision_storage_resources
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.processing.musicxml.admission import admit_musicxml_document
+from app.db.session import SessionLocal
+from app.storage import object_storage
 
 
 INTEGRATION_EMAIL = "integration@example.com"
 INTEGRATION_PASSWORD_ENV = "NOTEVERSE_INTEGRATION_PASSWORD"
-INTEGRATION_PRACTICE_SCORE_ID = "integration-practice-score"
-INTEGRATION_PRACTICE_REVISION_ID = "integration-practice-revision"
-INTEGRATION_MUSICXML = b'''<?xml version="1.0" encoding="UTF-8"?>
+INTEGRATION_RUN_ID = os.environ.get("NOTEVERSE_INTEGRATION_RUN_ID", uuid4().hex)
+INTEGRATION_PRACTICE_SCORE_ID = str(uuid5(UUID(INTEGRATION_RUN_ID), "score"))
+INTEGRATION_PRACTICE_REVISION_ID = str(uuid5(UUID(INTEGRATION_RUN_ID), "revision"))
+INTEGRATION_MUSICXML = b"""<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="3.1">
   <part-list><score-part id="P1"><part-name>Integration</part-name></score-part></part-list>
   <part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part>
-</score-partwise>'''
+</score-partwise>"""
 
 
-async def seed_user() -> None:
-    async with AsyncSessionLocal() as session:
-        result = await session.exec(select(User).where(User.email == INTEGRATION_EMAIL))
-        user = result.one_or_none()
+def seed_user() -> None:
+    with SessionLocal() as session:
+        result = session.execute(select(User).where(User.email == INTEGRATION_EMAIL))
+        user = result.scalar_one_or_none()
         created_user = False
         if user is None:
             password = os.environ.get(INTEGRATION_PASSWORD_ENV)
@@ -57,13 +74,13 @@ async def seed_user() -> None:
                     f"Preconfigured integration user {INTEGRATION_EMAIL} is inactive; "
                     "refusing to modify an existing development account."
                 )
-        await session.flush()
+        session.flush()
+        if created_user:
+            provision_storage_resources(session, require_persisted_id(user.id, entity="user"))
 
         score = (
-            await session.exec(
-                select(Score).where(Score.score_uuid == INTEGRATION_PRACTICE_SCORE_ID)
-            )
-        ).one_or_none()
+            session.execute(select(Score).where(Score.score_uuid == INTEGRATION_PRACTICE_SCORE_ID))
+        ).scalar_one_or_none()
         if score is None:
             if not created_user:
                 raise RuntimeError(
@@ -71,52 +88,58 @@ async def seed_user() -> None:
                     f"existing user {INTEGRATION_EMAIL}; refusing to create resources "
                     "under a pre-existing development account."
                 )
-            score = Score(
-                score_uuid=INTEGRATION_PRACTICE_SCORE_ID,
-                owner_user_id=user.id,
-                title="Integration practice score",
-            )
-            session.add(score)
-            await session.flush()
-            revision = ScoreRevision(
-                revision_uuid=INTEGRATION_PRACTICE_REVISION_ID,
-                score_id=score.id,
-                revision_number=1,
-                content_hash=hashlib.sha256(INTEGRATION_MUSICXML).hexdigest(),
-                origin=RevisionOrigin.IMPORT,
-                created_by_user_id=user.id,
-            )
-            session.add(revision)
-            await session.flush()
-            storage_key = (
-                f"scores/{score.score_uuid}/revisions/{revision.revision_uuid}/score.musicxml"
-            )
-            if file_storage.exists(storage_key):
+            content = admit_musicxml_document(INTEGRATION_MUSICXML)
+            storage_key = f"scores/{INTEGRATION_PRACTICE_SCORE_ID}/revisions/{INTEGRATION_PRACTICE_REVISION_ID}/score.musicxml"
+            if object_storage.exists(storage_key):
                 raise RuntimeError(
-                    f"Integration score object already exists at {storage_key}; "
-                    "refusing to overwrite existing development OSS data."
+                    "Integration canonical object already exists; refusing overwrite"
                 )
-            stored = file_storage.put_bytes(
-                key=storage_key,
-                content=INTEGRATION_MUSICXML,
-                content_type="application/vnd.recordare.musicxml+xml",
+            reservation = storage_quota_service.create_hold(
+                session,
+                user_id=user.id,
+                category=StorageUsageCategory.SOURCE,
+                bytes_count=len(content),
+                command_key=str(uuid4()),
+                expires_at=utc_now() + timedelta(minutes=15),
             )
-            session.add(
-                ScoreRevisionSource(
-                    source_uuid="integration-practice-source",
-                    revision_id=revision.id,
-                    format=RevisionSourceFormat.MUSICXML,
-                    storage_backend=file_storage.backend_name,
-                    storage_key=stored.storage_key,
-                    filename=stored.filename,
-                    mime_type="application/vnd.recordare.musicxml+xml",
-                    size_bytes=stored.size_bytes,
-                    sha256=hashlib.sha256(INTEGRATION_MUSICXML).hexdigest(),
-                    generator="integration-fixture",
-                    generator_version="1",
+            try:
+                session.commit()
+                stored = build_object_write_coordinator(object_storage).write_bytes(
+                    key=storage_key,
+                    content=content,
+                    content_type="application/vnd.recordare.musicxml+xml",
                 )
-            )
-            score.head_revision_id = revision.id
+                score = Score(
+                    score_uuid=INTEGRATION_PRACTICE_SCORE_ID,
+                    owner_user_id=user.id,
+                    display_title="Integration practice score",
+                )
+                session.add(score)
+                session.flush()
+                prepared = PreparedRevisionSource(
+                    INTEGRATION_PRACTICE_REVISION_ID,
+                    stored,
+                    hashlib.sha256(content).hexdigest(),
+                    "integration-fixture",
+                    "1",
+                    reservation.hold_id,
+                )
+                build_revision_writer().write(
+                    session,
+                    InitialRevisionWrite(
+                        INTEGRATION_PRACTICE_SCORE_ID,
+                        user.id,
+                        prepared,
+                        "integration-initial",
+                        RevisionOrigin.IMPORT,
+                    ),
+                )
+                session.commit()
+            except Exception:
+                session.rollback()
+                storage_quota_service.release_hold(session, reservation.hold_id)
+                session.commit()
+                raise
         else:
             if score.owner_user_id != user.id:
                 raise RuntimeError(
@@ -124,33 +147,33 @@ async def seed_user() -> None:
                     f"{INTEGRATION_EMAIL}; refusing to modify existing development data."
                 )
             revision = (
-                await session.exec(
+                session.execute(
                     select(ScoreRevision).where(
                         ScoreRevision.revision_uuid == INTEGRATION_PRACTICE_REVISION_ID,
                         ScoreRevision.score_id == score.id,
                     )
                 )
-            ).one_or_none()
+            ).scalar_one_or_none()
             if revision is None:
                 raise RuntimeError(
                     f"Integration revision {INTEGRATION_PRACTICE_REVISION_ID} is missing; "
                     "refusing to repair existing development data."
                 )
             source = (
-                await session.exec(
+                session.execute(
                     select(ScoreRevisionSource).where(
                         ScoreRevisionSource.revision_id == revision.id,
-                        ScoreRevisionSource.source_uuid == "integration-practice-source",
+                        ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
                     )
                 )
-            ).one_or_none()
+            ).scalar_one_or_none()
             if source is None:
                 raise RuntimeError(
                     "Integration MusicXML source is missing; refusing to overwrite or "
                     "recreate existing score resources."
                 )
-        await session.commit()
+        session.commit()
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_user())
+    seed_user()

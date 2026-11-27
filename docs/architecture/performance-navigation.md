@@ -1,0 +1,505 @@
+# Performance Navigation
+
+`app/score_semantics/performance_navigation.py` owns the domain-neutral
+`project_performance_occurrences(model)` projection. Its input is the immutable
+canonical written model. Its output is a frozen `PerformanceProjection` containing
+an ordered tuple of `PerformanceOccurrence` values, the complete canonical
+`written_spans` table and an exact performance `end`.
+
+## Occurrence coordinates
+
+Each occurrence records zero-based `ordinal` and `measure_index`, one-based `visit`,
+and `written_start`, `written_end`, `performance_start`, `performance_end`.
+Every position is a `Fraction` measured in quarters. Occurrence identity is domain
+identity; renderer occurrence suffixes carry no domain meaning.
+An occurrence is one contiguous performed interval inside one written measure,
+not necessarily the whole measure. `visit` counts entries into that measure,
+including an entry at a mid-measure destination. Jump sources, targets and Fine
+may cut intervals at exact rational points. A zero-duration occurrence is emitted
+only when an entry/exit point requires an encounter without a nonzero interval;
+it is not paired with a duplicate interval at the same entry.
+Written spans remain available independently of which branch occurrences are
+visited. Fact ownership always resolves against that complete table.
+
+An absolute quarter alone is not a complete fact identity at a measure boundary.
+`WrittenPoint(measure_index, position)` retains source measure/edge ownership;
+the same quarter can be one measure's endpoint and another measure's start.
+`WrittenPerformanceFact[T]` pairs that point with an uninterpreted value.
+`PerformanceProjection.project_position` accepts a written point, and
+`project_facts` returns ordered `ProjectedPerformanceFact[T]` values retaining
+their source fact, occurrence ordinal and exact performance position. Stable
+source order and duplicate same-value facts are preserved. No BPM/value sorting
+or set-based coalescing defines encounter order.
+Only facts inside the occurrence's inclusive owned interval are replayed. Facts
+before a mid-measure destination or after a jump/Fine cutoff are excluded from
+that visit. Complete canonical `written_spans` remain independent of partial visits.
+
+`written_point.resolve_written_point` keeps an in-source-measure point owned by
+that measure, including both endpoints. A sound offset crossing into another
+measure's strict interior has that unique playback owner; score origin and final
+endpoint also have unique owners. An offset outside its source measure that lands
+on a shared boundary lacks a unique side and fails performance projection with
+`ambiguous_cross_measure_boundary`. Canonical admission can retain that notation.
+
+Source-measure endpoint facts execute at the end of every source occurrence,
+before its jump. Destination-start facts execute only on entry to that destination.
+At one performance quarter an endpoint fact therefore precedes a destination-start
+fact, even when the destination changes the same state again. Consumers do not
+recompute measure ownership or occurrence offset arithmetic.
+
+## Supported traversal
+
+Linear scores visit each written measure once. Repeat starts may come from a
+visible left-barline forward repeat or an invisible `sound@forward-repeat="yes"`.
+Both normalize to the same exact `WrittenPoint` at the owning measure start.
+An invisible start at an interior point or previous-measure endpoint is unsupported;
+an equal absolute quarter never remaps endpoint ownership to the next start.
+A forward-repeat sound with any `time-only` is unsupported, including `(1,)`.
+Destination metadata may share that sound, but a repeat start combined with an
+executable jump/Fine/To Coda command has no supported same-event ordering.
+
+Each annotated part independently pairs its starts with right-barline backward
+repeats. Normalized region identity contains start/end WrittenPoints, optional
+source `times` and `after_jump`; visible versus invisible provenance does not
+participate in agreement. Duplicate invisible starts and a visible/invisible pair
+at the same point collapse only in performance normalization; distinct starts
+before one close are nested and unsupported. A start-only part and backward-only
+part are never stitched together. A backward
+repeat outside an ending uses `times` as total plays: performance projection applies
+two when the attribute is absent; `times="3"` means three.
+The first unmatched backward repeat can use measure zero as its implicit start.
+After a closed repeat, an unmatched backward repeat is ambiguous and rejected.
+Sequential repeat pairs are supported. Nested, overlapping, ambiguous duplicate,
+unclosed or middle/nonstandard-boundary repeats fail closed. Simple standalone
+volta contexts also accept either start representation through this normalization.
+
+## Whole-measure volta
+
+The written model stores ending markers with their raw number and normalized set
+of positive pass numbers. Blank numbers have unknown passes. Lexically malformed
+numbers such as `0`, `01`, `1-2` or `1,,2` are invalid written facts; unknown or
+unsupported branch layouts remain valid canonical notation.
+
+The performance owner pairs a left-barline start with one right-barline stop or
+discontinue having the same pass set. `EndingSpan` records start/end measure
+indices, passes and close type. Stop and discontinue have identical performance
+close semantics; their engraving distinction remains preserved in the fact.
+Unclosed, nested, overlapping, duplicate or disagreeing spans fail closed.
+
+A supported repeat context has common measures, one repeat-back ending terminating
+at its backward repeat, and one immediately following final exit ending. For total
+plays N, the final exit must name exactly one pass `{N}`, with N at least two, and
+repeat-back passes must be exactly `{1, ..., N-1}`. Total plays derive from this
+ending coverage, including `{1}/{2}` and `{1,2}/{3}`, without `repeat@times`.
+A closing repeat carrying `times` is preserved in written notation but rejected
+by performance projection as `repeat_times_with_ending`, even when it agrees with N.
+Each non-final pass visits
+common measures and the repeat-back span; the final pass visits common measures
+and the final exit span, then continues after the group. Occurrence visit counts
+follow actual visits. Explicit and first-context implicit-origin repeats and
+sequential non-overlapping volta groups are supported.
+
+Unknown passes, missing/overlapping/out-of-count coverage, unassociated endings,
+non-whole-measure boundaries and complex multi-branch layouts fail closed. Ending
+markers define navigation structure; they are not replayed as ordinary positioned
+facts. Generic tempo facts replay only when their owning measure is visited,
+including source endpoints before a repeat jump and final-ending starts on entry.
+
+All annotated parts must describe the same normalized repeat-and-ending program. An entirely
+unannotated part has no additional opinion. A later part can provide the program;
+the first part has no privileged authority. Partial programs in different parts
+are never combined. Conflicting annotated programs raise
+`PerformanceNavigationError("conflicting_part_navigation")`.
+
+## Playback navigation facts
+
+The written model preserves typed `WrittenPlaybackNavigation` events with exact
+`WrittenPoint` identity and explicit sound/barline provenance. One sound event
+retains its named segno/coda destinations,
+D.S./To Coda references, D.C./forward-repeat flags, Fine source token and optional
+strictly ascending `time_only` pass predicate together. Named tokens collapse XML
+whitespace and remain case-sensitive. Duplicate labels and unresolved references
+are preserved. Barline
+segno/coda attributes also create playback destinations, with left/start,
+right/shared-end or middle/cursor ownership, independently of visual children.
+
+Visual `WrittenNavigationMarker` facts have independent exact presentation points.
+Direction offsets always move those glyphs, while playback uses sound-owned offset,
+then direction offset only with `sound="yes"`, then zero. A visual segno/coda alone
+is not a playback destination authority, and a playback destination needs no glyph.
+Barline glyphs retain left/start, right/shared-end or middle/cursor positioning.
+Visual-only markers do not alter linear, simple repeat or supported volta traversal.
+
+Playback segno/coda destinations alone are inert, including in linear, repeat and
+supported volta scores. Visual glyphs never participate in destination resolution.
+
+## Exact D.C./D.S. and Fine
+
+A jump program supports one primary D.C. or backward D.S. command with either
+optional Fine termination or one named To Coda forward transfer. D.C. targets the
+movement origin. D.S. resolves its case-sensitive
+normalized label against playback segno destinations from sound or barline facts.
+Same-label duplicates at the same resolved `WrittenPoint` are one destination;
+different points, including opposite sides of a numerically equal boundary, are
+ambiguous. Missing labels and equal/forward D.S. targets fail closed. D.C. at origin
+is non-progressing and rejected.
+
+Unannotated parts have no additional opinion. For a jump-enabled score, annotated
+parts must provide the same complete semantic role/point/label program; source
+XML representation is irrelevant. Sound and barline destinations may agree at the
+same point. Partial or differing part programs are rejected, never stitched.
+Equivalent default and explicit supported predicates normalize consistently.
+Destination metadata may accompany one unambiguous command; compound execution
+roles, such as D.C. plus Fine on one sound, are unsupported.
+
+The single primary jump executes on its first encounter, with default applicability
+or explicit `time-only="1"`. Later encounters do not jump. Fine must be `"yes"`,
+with absent applicability or `time-only="2"`. It is ignored before the primary
+jump and armed after transfer; its next encounter stops exactly at its owned point.
+A Fine before the D.S. target is not encountered on the second leg. In the form
+without To Coda, absent Fine means the second leg continues to score end. An orphan
+Fine is unsupported.
+
+The al-Fine form is finite by construction: one origin-to-source leg and one
+target-to-Fine/end leg. No step cap or timeout controls correctness. Ordinary facts
+at the source execute before transfer; destination facts execute on entry. Facts
+at Fine execute before termination. Tempo state carries across transfer until an
+actually encountered marking changes it. A tempo before an exact D.S. target is
+not replayed. Metadata consumes the same generic fact projection without jump rules.
+
+## Ordinary repeats across primary jumps
+
+Ordinary repeat regions may coexist with D.C./D.S. A normalized context
+records its whole-measure start/end, total plays and optional backward-repeat
+`after_jump` policy. Sequential non-overlapping contexts retain independent policies.
+All annotated parts must provide the same complete jump-and-repeat program; a
+jump-only part and a repeat-only part cannot be combined into one program.
+Destination source representation remains irrelevant to semantic agreement.
+
+One state-aware leg traversal emits the intervals for linear, repeat, volta and
+jump programs. Before the primary jump, ordinary repeats always use their normal
+total play count, regardless of `after-jump`. This also means a no-jump score
+plays a backward repeat normally with either `after-jump="yes"` or `"no"`.
+After the primary D.C./D.S. transfer, an encountered repeat uses its own policy:
+
+- `after-jump="yes"` executes the normal total plays (`times`, or two if absent).
+- `after-jump="no"` traverses the section once, without skipping it.
+- Missing `after-jump` fails with `ambiguous_repeat_after_jump`.
+
+A backward repeat never encountered after the primary jump needs no policy.
+The post-primary state persists through a subsequent To Coda transfer, including
+repeat regions after the Coda destination. This is explicit control state, not
+an interpretation of occurrence visit count. Generic fact replay encounters
+tempo markings on every actual visit; tempo carries across repeat jumps until
+an encountered marking changes it.
+
+Control points (primary source/target, Fine and To Coda source/target) cannot cut
+through a repeat region. A point strictly inside its owned start/end range fails
+with `unsupported_partial_repeat_jump_interaction`. Entry at the exact forward
+start is supported. A control point owned by the backward-repeat endpoint fails
+with `ambiguous_jump_repeat_boundary`; a next-measure start at the same absolute
+quarter follows the completed repeat and retains its distinct ownership.
+An `after-jump` attribute on a forward barline repeat is unsupported. Jump programs
+with any ending remain unsupported; an ending-closing repeat with `after-jump`
+also remains outside the standalone volta subset.
+
+## Exact To Coda
+
+A Coda program contains one primary D.C./D.S., one To Coda command and no Fine.
+It has exactly three finite legs: origin to primary source, primary target to
+To Coda source, and Coda target to score end. The primary executes only on the
+first leg. To Coda is inactive before primary transfer and executes once on the
+second leg, with absent applicability or explicit `time-only="2"`. Primary
+applicability remains absent/`(1,)`. These are supported control states, not a
+general pass evaluator or an interpretation of occurrence `visit`.
+
+To Coda resolves a case-sensitive named reference only against playback
+`sound@coda` or `barline@coda` facts. Visual coda glyphs do not resolve references.
+Same-point duplicate destinations may collapse; different resolved WrittenPoints
+are ambiguous and a missing destination is unresolved. Source XML representation
+does not affect complete multi-part semantic program agreement.
+
+The To Coda source must be reachable at or after the primary target in written
+point order. The Coda target must lie forward of To Coda. Equal absolute quarters
+are non-progressing even when source-end and next-start ownership differ. Backward
+targets and unreachable second-leg commands fail closed. Sources and targets may
+be mid-measure or in the same measure; only required entry/exit points generate
+zero-duration visits. The full canonical written span table is unchanged.
+
+Ordinary facts at To Coda execute before transfer, then destination facts execute
+on entry at the same performance quarter. Tempo state carries until an encountered
+marking changes it. Facts before a mid-measure Coda target are excluded from that
+visit. If leg two passes the primary source, that command remains inactive. Leg
+three cannot encounter the earlier To Coda source, so no cycle counter is needed.
+
+The exact D.C. path `0..14 → 0..6 → 17..20` contains 23 quarters, or 17250 ms at
+80 BPM. The D.S. path `0..15 → 5..9 → 17..20` contains 22 quarters, or 16500 ms.
+Destinations alone remain inert in linear, repeat, volta and al-Fine programs.
+
+Unsupported programs fail before traversal: multiple primary commands/Fines or
+To Coda commands, orphan To Coda, any Fine plus To Coda, numeric Fine duration,
+primary predicates other than absent/`(1,)`, Fine or To Coda predicates other than
+absent/`(2,)`, gated destinations in executable programs,
+pass-gated invisible repeat starts, same-event repeat-start/execution commands,
+and any jump combined with ending notation.
+Repeat/jump programs must meet the complete-context and explicit post-jump policy
+rules above. Canonical source admission
+does not impose these performance capability limits.
+
+`time-only` is generic sound applicability, parsed by the shared canonical datatype
+owner. It alone creates no navigation command. Sound tempo facts retain their
+predicate; any gated tempo causes
+`PerformanceNavigationError("unsupported_time_only_playback")`. Pass-aware
+tempo applicability is not executed, and occurrence visit count is not used as a
+repeat pass counter. The restricted primary/Fine/To Coda predicates above do not form a
+general MusicXML pass-state model. Metadata maps errors without adding gating or jump logic.
+
+## Consumer ownership
+
+`score_semantics.performance_plan.build_performance_plan(model)` produces the
+immutable `CanonicalPerformancePlan`, the shared performance-axis contract derived
+from canonical written semantics. It contains the navigation `projection`, exact
+Fraction `initial_tempo_bpm` from the generated tempo policy, and ordered
+`PerformanceTempoEvent(occurrence_ordinal, performance_position, bpm)` encounters. Only real
+encountered source facts enter `tempo_events`; a score without explicit tempo has
+initial state 80 and no tempo events. Same-quarter source and destination encounters
+remain separate, in traversal order. Applying them in order makes the last
+encounter the active conductor state after that instant.
+
+Metadata and Browser Score Preview consume this plan.
+It owns its public DTO and exact duration integration, mapping navigation errors
+to `MetadataExtractionError`. Tempo state starts at the generated score tempo
+policy, 80 quarter notes per minute, once at performance origin. It persists
+across every transition, including backward jumps, until an encountered explicit
+tempo changes it. An explicit marking is encountered again on each corresponding
+visit. Duration stays rational until the final millisecond rounding.
+
+Backend playback admits one document and builds this plan. Verovio runs with
+`expandNever=true` solely to realize written-axis MIDI events. The SMF decoder
+retains exact input tick fractions, track/channel identity and stable source order.
+The MIDI projector replays those events through canonical occurrence intervals;
+Verovio expansion, MEI navigation and timemap repeat order are not consumed.
+The final MIDI notes and conductor share the same canonical performance axis,
+and every track ends at the plan's performance end before FluidSynth synthesis.
+
+`processing/engines/playback/standard_midi.py` owns SMF parsing and serialization.
+`written_midi_streams.py` validates logical renderer stream identity and note
+lifecycles and owns deterministic final channel allocation.
+`performance_midi.py` projects those logical streams, without parsing MusicXML.
+`midi_event_semantics.py` classifies written metadata and validates its supported
+placement independently of traversal.
+`VerovioMidiCompiler` orchestrates admission, written semantics, plan construction,
+written realization, projection and serialization. Domain score semantics has no
+binary MIDI, renderer or processing dependency.
+
+Onsets replay only inside the performed interval `[start, end)`; an onset before
+an exact destination is never invented on entry. Matching releases at endpoints
+execute before transfer. Notes can continue across contiguous written measures;
+at a discontinuity or termination, notes whose natural release lies beyond the cut
+receive explicit note-offs exactly at that cut. No controller event is synthesized.
+Natural releases retain their release envelope. Sustain, program, controller and
+pitch state carries until an actually encountered event changes it; a note-off
+under a held pedal may continue sounding according to that state and the synth.
+Equal-position source events,
+cut termination and destination-entry events retain that encounter order.
+
+Metadata classification is explicit:
+
+- Structural: Sequence Number `0x00`, Copyright `0x02`, Track Name `0x03`,
+  Instrument Name `0x04`, Program Name `0x08` and Device Name `0x09`.
+  The written-realization contract permits one descriptor
+  of each kind per source track, at origin. Each remains once on its original
+  track, independently of repeat or jump visits. Non-origin or ambiguous duplicate
+  descriptors fail closed rather than being relocated or selected.
+- Timeline: Text `0x01`, Lyric `0x05`, Marker `0x06`, Cue `0x07`, Time Signature
+  `0x58` and Key Signature `0x59` replay through actual canonical occurrences.
+- Tempo `0x51` is owned by the plan; EOT `0x2F` is generated at final performance end.
+
+Renderer `(source_track_index, source_channel)` pairs identify logical written
+MIDI sounding streams. Each stream independently owns its note lifecycles,
+program, controllers, pitch bend and pressure state. Same-pitch notes in different
+streams are independent. An onset and release must pair within the same stream.
+Source tracks retain their structural descriptors, timeline metadata and channel
+events; equal-quarter encounters retain local source order.
+
+Final synthesis channels are allocated deterministically, with one independent
+physical channel per logical stream. Distinct requested melodic channels are
+reserved first in source track/channel order; colliding requests then receive the
+lowest free melodic channel. Every channel voice message, including synthetic cut
+releases, uses that stream's allocated channel. General MIDI channel 9 is reserved
+for one percussion stream and is never assigned to a melodic stream. Multiple
+independent percussion streams fail as `unsupported_multiple_percussion_streams`;
+more than 15 melodic streams fail as `insufficient_output_midi_channels`.
+
+Source/renderer channel numbers are realization input; final synthesis channels
+are allocated output state. Explicitly equal source channel assignments do not
+merge independently realized streams. This SMF is an internal FluidSynth synthesis
+artifact, not a source-faithful MIDI export contract. Structural Channel Prefix
+`0x20` and Port `0x21` are outside the written-realization adapter contract and fail
+as `unsupported_midi_routing_metadata`, so final SMF cannot retain stale routing.
+
+Channel voice events (note-on/off, program, controllers, bend and pressure) are
+supported. SMF format 0/1 requires positive PPQ division and balanced,
+positive-duration written note lifecycles. SysEx, SMPTE timing/offset, opaque
+sequencer metadata, routing metadata, unsupported channel modes and overlapping
+same-key note lifecycles within one logical stream fail closed.
+For non-note events at a shared measure boundary, SMF lacks source-side ownership;
+projection accepts only identical encounter mappings for the candidate sides,
+otherwise it reports `ambiguous_midi_boundary_state`. No event/layout fallback
+uses renderer expansion.
+
+Canonical tempo encounters alone supply conductor state. The serializer applies
+same-position tempos in encounter order and emits the last state at that tick.
+Quarter coordinates remain Fraction throughout projection. Output PPQ is the LCM
+of input PPQ and required canonical/event denominators, bounded by SMF's 32767
+limit; positions are never rounded to ticks. Unrepresentable grids fail closed.
+Only the MIDI microseconds-per-quarter encoding rounds the rational tempo rate
+at final serialization.
+
+`POST /api/v1/playback/performance-plan` accepts `{musicxml: string}` without score
+identity, authentication or database/storage access. It admits the supplied
+document, parses written semantics, validates the Verovio Written Realization
+Contract, builds the plan and returns the exact admitted
+UTF-8 MusicXML with `performance_end`, `initial_tempo_bpm`, `occurrences` and `tempo_events`.
+Tempo events name their coordinate `performance_position`. All rational values use integer `{numerator, denominator}` pairs with positive
+denominators; no rounding or transient version field enters transport. OpenAPI
+owns this DTO and generates the customer-web types. Source-invalid input uses
+the existing 422 `revision_content_invalid` policy; unsupported performance uses
+422 `score_playback_failed`, with the domain reason retained in the application
+exception. No renderer fallback, persistence or plan cache is involved.
+
+## Written realization capability
+
+`CanonicalScoreSemanticModel` owns written semantics and
+`CanonicalPerformancePlan` owns performance chronology. The Verovio Written
+Realization Profile in `processing/musicxml/verovio_written_realization.py`
+defines an explicit playback source subset. Its centralized surfaces classify
+fields as `SUPPORTED`, `PRESENTATION_ONLY`, or `UNSUPPORTED_PLAYBACK`. Unknown
+attributes, children and assignment forms on structural/playback surfaces fail
+closed as `unsupported_verovio_playback_profile`; acceptance does not depend on
+whether a field happens to be recognized by the renderer. The profile is a
+consumer capability, not an XSD validator or a second sounding engine.
+Presentation text/layout also has an explicit vocabulary; it cannot conceal
+playback constructs or introduce unchecked extension fields.
+The closed vocabulary accepts unversioned input and known MusicXML source editions
+through 4.0. An unrecognized source edition requires an explicit profile decision.
+Both the performance-plan application service and backend
+MIDI compiler validate that same contract before building a consumer plan or
+invoking Verovio. Unsupported realization raises a typed capability error with a
+stable reason; the HTTP boundary returns 422 `score_playback_failed` and retains
+the reason in its application exception. Canonical admission, storage and written
+metadata do not depend on this renderer capability. The pure plan and transport
+contain no renderer capability flags.
+
+The application `compile_performance_plan()` compiles a playable transport plan:
+admission, renderer-profile validation, pure canonical compilation, and DTO
+projection. The renderer-independent domain entry point remains
+`score_semantics.performance_plan.build_performance_plan()`.
+
+The source vocabulary follows the [MusicXML sound surface](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/sound/)
+and [instrument surface](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/midi-instrument/):
+
+| Surface | Supported | Presentation only | Unsupported playback |
+| --- | --- | --- | --- |
+| Sound attributes | `tempo`, canonical navigation attributes, `time-only`, `forward-repeat`; `divisions` as a positive segno/coda destination hint | `id` | `dynamics`, `pizzicato`, pan/elevation and pedal controls |
+| Sound children | Canonically positioned `offset` | — | `instrument-change`, `midi-device`, dynamic `midi-instrument`, `play`, `swing` |
+| Static MIDI instrument | One origin `midi-channel` and `midi-program` | — | `midi-name`, bank, unpitched mapping, volume, pan/elevation |
+| Score instrument | One effective static assignment per part | Name, abbreviation, solo/ensemble; `instrument-sound` only with an explicit GM program | Active `virtual-instrument`, sound taxonomy without an explicit program, time-varying assignment |
+
+Sound `divisions` does not replace attributes/divisions or change the canonical
+written grid. MIDI device/port routing is outside the internal synthesis profile.
+An explicit GM program determines sound identity; descriptive instrument metadata
+does not override it. Known unreferenced instrument definitions remain descriptive
+only when they do not change effective assignment. Unknown fields in those
+definitions still fail closed. Different static instruments in different parts,
+semitone pitches, note-level dynamics and direction pedal start/stop are supported.
+Non-semitone note/key alterations are unsupported.
+
+One unnumbered integer-semitone transpose at each part's written origin is
+supported, including chromatic, diatonic/chromatic and octave-change forms.
+Mid-score changes, staff-specific transpose, doubling, fractional transposition
+and pitches outside MIDI range are unsupported. Canonical transpose positions
+gate this subset; no transpose execution state is added to the domain plan.
+Unpitched realization and grace realization are outside the current profile.
+
+Articulations, ornaments (including tremolo), arpeggiation/non-arpeggiation,
+fermata, slurs/glissandi and effectful technical notation request expression that
+this profile does not execute and are unsupported. Visual dynamics, words,
+engraving, lyrics, fingering/string/fret indications and tuplet glyphs are
+presentation-only; they request no automatic audible interpretation. Actual
+duration, pitch and sound ties remain owned written facts. Notated ties must
+accompany their canonical sound ties. Note attack/release/end-dynamics,
+note-level pass gating and playback techniques are unsupported. This classification
+does not delegate expressive policy to the renderer.
+
+The Browser applies two narrower checks after this shared source contract:
+written MIDI must fit its note/instrument realization model, and requested
+instruments must have shipped local soundfont assets. Direction pedal can produce
+CC64 that backend MIDI preserves; the Browser note model rejects that controller
+state. Static violin is supported by the shared contract and backend realization,
+while local Browser audio rejects it when no violin asset is shipped. These
+consumer capabilities do not change canonical source or chronology semantics.
+
+Browser Score Preview first compiles caller-supplied XML through the stateless
+performance-plan HTTP endpoint. It loads the returned admitted `musicxml` into
+Verovio with `expandNever: true`; engraving preparation preserves tempo and
+navigation facts. The renderer supplies SVG, written MIDI notes, written Timemap
+note IDs/qstamp and page lookup. `lib/score/performance` decodes the generated HTTP
+DTOs into immutable exact-rational runtime objects and projects written notes and
+visual onsets through canonical occurrences. It does not interpret MusicXML
+navigation. Timemap milliseconds and MIDI conductor tempos do not define timing.
+
+Browser note positions use exact integer MIDI ticks/PPQ. A numeric Timemap qstamp
+is accepted only when its IEEE rounding interval identifies one exact point on
+that written MIDI grid. Unrepresentable or ambiguous realization fails closed.
+Browser written MIDI realization accepts SMF format 0/1 with positive integer
+PPQ, balanced positive-duration note lifecycles, note velocity, and one channel
+with a static origin program or the GM default per raw music track. Separate raw
+tracks retain independent instrument identity even when channel numbers match.
+The raw SMF capability check runs before the note decoder. Multiple channels in
+one raw track, timed/conflicting programs, pitch bend, channel/poly pressure,
+all controllers including sustain, SysEx and opaque state fail closed as current
+Browser realization capabilities. They do not make the source MusicXML or MIDI
+invalid. Channel routing identity stays in the realization adapter; it is not a
+navigation or transport identity. Per-note playback does not interpret channel
+state through navigation. Onsets use `[written_start, written_end)`; entry
+never retriggers an earlier onset.
+Long notes continue through written-contiguous measures and end at discontinuity
+cuts. Repeated visits retain the same written SVG IDs with distinct occurrence
+identity. Simultaneous visual IDs are merged stably at each performed onset.
+
+The Browser time mapper integrates initial tempo and ordered plan encounters as
+rational values until the WebAudio/UI seconds boundary. Timeline duration is the
+integrated canonical performance end, including silence. The origin's final
+active tempo is `referenceTempoBpm`; choosing a preview BPM scales the complete
+source-seconds timeline by `selectedBpm / referenceTempoBpm` without replacing
+internal tempo changes. `ScorePreviewPlaybackController` owns scheduling, seeking,
+state and cursor snapshots. Every load clears the visible score, cursor, active
+voices and prior timeline. Any plan, renderer, realization, instrument, asset or
+SVG failure clears the adapter and playback state and rejects load. Only a fully
+prepared timeline and rendered score become ready; stale asynchronous loads
+cannot replace a newer score. Rendering-only clients do not load the audio stack.
+
+`score-preview/local-soundfont-manifest.ts` describes the shipped local audio
+assets. `LocalSoundfontAudioEngine` uses that authority for both preparation and
+scheduling. The supported instrument is `acoustic_grand_piano`, from the local
+MusyngKite MP3 asset. Unsupported instruments fail preparation before asset loads;
+no instrument substitution or remote soundfont lookup occurs. Audio asset decode
+failure propagates as load failure. Note velocity reaches the sample player
+without a volume floor. The engine owns the WebAudio clock, user-gesture resume,
+prepared players and stop/close resources; UI timer cadence is not musical
+identity. Deterministic injected-engine tests cover state/scheduling, and Chromium
+tests cover the local sample asset and AudioContext lifecycle.
+
+Practice uses written notes, events and moments and does not unfold repeats. Its
+Verovio instance uses `expandNever: true`. Backend and Browser realization tests
+verify written note positions and Timemap identity with expansion disabled.
+Performance tests compare canonical pitch traversal, exact end and partial source
+and destination intervals. Verovio owns engraving and written realization;
+`CanonicalPerformancePlan` owns backend and Browser performance chronology.
+
+Canonical document admission validates written semantics without calling this
+projector. Unknown ending numbers, unsupported complex ending layouts and valid
+jump scores can be stored even when performance projection is unsupported.
+See [written semantics](score-semantics.md) and
+[tempo semantics](score-tempo.md).

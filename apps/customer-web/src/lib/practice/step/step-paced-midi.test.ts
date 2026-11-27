@@ -1,7 +1,11 @@
+import { metronomeAudioFixture } from '@/lib/practice/__fixtures__/metronome';
+import { rootHealthFixture } from '@/lib/practice/__fixtures__/root-health';
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
+import { midiDeviceFixture } from '@/lib/practice/__fixtures__/device-roots';
 import { afterEach, expect, it, vi } from 'vitest';
-import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
-import type { PracticeScoreArtifact } from '../local-core/artifact';
-import { ManualClock } from '../local-core/timebase';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import { ManualClock } from '@/lib/practice/session/timebase';
 import { BrowserMidiController } from '../midi/browser-midi-controller';
 import { StepPracticeController } from './step-practice-controller';
 import type { StepPlatform } from './step-platform';
@@ -9,14 +13,13 @@ import type { StepPlatform } from './step-platform';
 afterEach(() => vi.unstubAllGlobals());
 it('real Browser MIDI preserves POST_VERDICT MIDIMessageEvent.timeStamp delivered after READY', async () => {
   const clock = new ManualClock(100), tasks: (() => void)[] = [];
-  const input = { id: 'keyboard', state: 'connected', onmidimessage: null as ((event: { data: Uint8Array; timeStamp: number }) => void) | null };
-  vi.stubGlobal('navigator', { requestMIDIAccess: async () => ({ inputs: new Map([['keyboard', input]]), onstatechange: null }) });
+  const device = midiDeviceFixture();
   const platform: StepPlatform = { clock,
     timer: { schedule: fn => { tasks.push(fn); return fn; }, cancel: () => {} },
     createMidi: options => new BrowserMidiController(options),
-    createMetronome: () => ({ start() {}, destroy() {}, setEnabled() {}, setStepContext() {} }) };
-  const owner = new StepPracticeController({ artifact: fixture as PracticeScoreArtifact, scope: { kind: 'FULL' }, inputSource: 'MIDI', platform });
-  const note = (timeStamp: number) => input.onmidimessage!({ data: new Uint8Array([0x90, 60, 90]), timeStamp });
+    createMetronomeAudio: () => metronomeAudioFixture() };
+  const owner = new StepPracticeController({ rootHealth: rootHealthFixture().port, plan: stepPracticePlan(fixture as PracticeScoreArtifact, { scope: { kind: 'FULL' }, inputSource: 'MIDI' }), devices: { inputMicrophone: null, recordingMicrophone: null, camera: null, midi: device.access }, platform });
+  const note = (timeStamp: number) => device.send([0x90, 60, 90], timeStamp);
   try {
     await owner.start(); clock.set(200); note(200);
     let staleTimestamp = 0;

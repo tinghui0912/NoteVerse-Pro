@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import type { ExpectedPracticeGroup } from '@/lib/practice/local-core/artifact';
+import type { PracticeMomentView } from '@/lib/practice/score-view/moment-view';
+import type { PracticeScope } from '@/lib/practice/planning/scope';
 import {
   fullPiecePracticeRangeSelection,
   groupById,
@@ -10,13 +11,14 @@ import {
   practiceScopeFromRangeSelection,
   transitionPracticeRangeSelection,
   type PracticeRangeSelection,
-} from '@/lib/practice/range-selection';
+} from '@/lib/practice/score-view/range-selection';
 
 type SelectionPhase = 'idle' | 'selecting-start' | 'selecting-end' | 'selected';
 
-export function usePracticeRangeSelection(expectedGroups: readonly ExpectedPracticeGroup[]) {
+export function usePracticeRangeSelection(expectedGroups: readonly PracticeMomentView[], initialScope?: PracticeScope,
+  onScopeChange?: (scope: PracticeScope) => void) {
   const [selection, setSelection] = useState<PracticeRangeSelection>(
-    fullPiecePracticeRangeSelection
+    initialScope?.kind === 'RANGE' ? { kind: 'RANGE', startGroupId: initialScope.startGroupId, endGroupId: initialScope.endGroupId } : fullPiecePracticeRangeSelection
   );
   const [isSelecting, setIsSelecting] = useState(false);
   const hasCompletedRange = selection.kind === 'RANGE';
@@ -48,16 +50,18 @@ export function usePracticeRangeSelection(expectedGroups: readonly ExpectedPract
   const beginSelection = useCallback(() => {
     setIsSelecting(true);
     setSelection(fullPiecePracticeRangeSelection);
-  }, []);
+    onScopeChange?.({ kind: 'FULL' });
+  }, [onScopeChange]);
 
   const toggleSelection = useCallback(() => {
     if (hasCompletedRange || isSelecting) {
       setIsSelecting(false);
       setSelection(fullPiecePracticeRangeSelection);
+      onScopeChange?.({ kind: 'FULL' });
     } else {
       beginSelection();
     }
-  }, [beginSelection, hasCompletedRange, isSelecting]);
+  }, [beginSelection, hasCompletedRange, isSelecting, onScopeChange]);
 
   const selectRenderNote = useCallback((renderNoteId: string) => {
     if (!isSelecting) return;
@@ -69,8 +73,12 @@ export function usePracticeRangeSelection(expectedGroups: readonly ExpectedPract
       targetGroup.groupId
     );
     setSelection(nextSelection);
-    if (completed) setIsSelecting(false);
-  }, [expectedGroups, isSelecting, selection]);
+    if (completed) {
+      setIsSelecting(false);
+      const resolved = practiceScopeFromRangeSelection(nextSelection, expectedGroups);
+      if (resolved.status === 'ready') onScopeChange?.(resolved.scope);
+    }
+  }, [expectedGroups, isSelecting, selection, onScopeChange]);
 
   const phase: SelectionPhase = isSelecting
     ? isIncomplete ? 'selecting-end' : 'selecting-start'

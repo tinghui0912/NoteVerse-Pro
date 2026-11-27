@@ -1,5 +1,3 @@
-import { createUniqueMusicXmlId } from '@/lib/musicxml';
-
 import type { NoteAtomId, PitchedEvent, ScoreDocument } from './model';
 
 export type AppendedNoteAtomIdentity = {
@@ -7,20 +5,19 @@ export type AppendedNoteAtomIdentity = {
   musicXmlElementId: string;
 };
 
-/**
- * Creates the stable identity for a note appended to an existing chord.
- *
- * A note atom id is also the MusicXML <note id> emitted by the exporter. Using
- * the same newly allocated value for both fields lets a later import recover
- * the exact domain identity and render anchor without a compatibility map.
- */
+/** Allocate a stable note identity and source anchor for an appended chord member. */
 export function createAppendedNoteAtomIdentity(
   document: ScoreDocument,
   event: PitchedEvent,
 ): AppendedNoteAtomIdentity {
   const chordMemberNumber = event.notes.length + 1;
   const baseId = `${getIdentityBase(event)}-chord-${chordMemberNumber}`;
-  const musicXmlElementId = createUniqueMusicXmlId(baseId, collectUsedIdentityValues(document));
+  const usedIds = collectUsedIdentityValues(document);
+  let musicXmlElementId = baseId;
+  let suffix = 2;
+  while (usedIds.has(musicXmlElementId)) {
+    musicXmlElementId = `${baseId}-${suffix++}`;
+  }
 
   return {
     noteAtomId: musicXmlElementId as NoteAtomId,

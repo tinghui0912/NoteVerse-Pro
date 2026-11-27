@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { Bell, Check, Globe, LayoutDashboard, LogOut, Settings, User } from 'lucide-react';
+import { Check, Globe, LayoutDashboard, LogOut, Settings, User } from 'lucide-react';
 
-import { NotificationCenterDialog } from '@/components/notifications/notification-center-dialog';
+import { NotificationBell } from '@/features/notifications/center/notification-bell';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,14 +15,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/contexts/auth-context';
-import { useMyPendingScoreInvites } from '@/hooks/queries/use-score-queries';
-import { useNotificationUnreadCount } from '@/hooks/queries/use-notification-queries';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
 export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
-  const { user, logout } = useAuth();
+  const { principal, logout } = useAuthentication();
   const t = useTranslations('common');
 
   return (
@@ -31,8 +28,8 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className={cn('relative h-10 w-10 rounded-full', triggerClassName)}>
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user?.avatar || undefined} alt={user?.name || ''} />
-            <AvatarFallback>
+            <AvatarImage src={principal?.avatar_url || undefined} alt={principal?.display_name || ''} />
+            <AvatarFallback role="img" aria-label={t('accountAvatar')}>
               <User className="h-5 w-5" />
             </AvatarFallback>
           </Avatar>
@@ -41,8 +38,8 @@ export function UserMenu({ triggerClassName }: { triggerClassName?: string }) {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">{t('premiumUser')}</p>
+            <p className="text-sm font-medium leading-none">{principal?.display_name}</p>
+            <p className="text-xs leading-none text-muted-foreground">{principal?.email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -88,40 +85,6 @@ export function AuthenticatedNavActions({
       ) : null}
       <LanguageSwitcher buttonClassName="text-gray-600 hover:bg-gray-100 hover:text-gray-950" />
       <UserMenu triggerClassName="hover:bg-gray-100" />
-    </>
-  );
-}
-
-export function NotificationBell({ buttonClassName }: { buttonClassName?: string }) {
-  const t = useTranslations('notifications');
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const pendingInvites = useMyPendingScoreInvites(true);
-  const unreadNotifications = useNotificationUnreadCount(true);
-  const pendingInviteCount = pendingInvites.data?.data?.length ?? 0;
-  const unreadNotificationCount = unreadNotifications.data?.data?.count ?? 0;
-  const badgeCount = pendingInviteCount + unreadNotificationCount;
-
-  return (
-    <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={t('bellLabel')}
-        className={cn(
-          'relative rounded-full',
-          buttonClassName ?? 'text-white hover:bg-white/20 hover:text-white'
-        )}
-        onClick={() => setIsNotificationsOpen(true)}
-      >
-        <Bell className="h-5 w-5" />
-        {badgeCount > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1 text-[11px] font-semibold text-white">
-            {badgeCount > 99 ? '99+' : badgeCount}
-          </span>
-        ) : null}
-      </Button>
-      <NotificationCenterDialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen} />
     </>
   );
 }

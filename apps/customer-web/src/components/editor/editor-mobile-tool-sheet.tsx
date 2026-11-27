@@ -11,10 +11,9 @@ import { EditorSidebar } from './editor-sidebar';
 interface EditorMobileToolSheetProps {
   fingeringPending?: boolean;
   onGenerateFingering?: (handSize: NonNullable<FingeringRequest['hand_size']>) => void;
-  onNormalizeVoices: () => void;
 }
 
-export function EditorMobileToolSheet({ fingeringPending, onGenerateFingering, onNormalizeVoices }: EditorMobileToolSheetProps) {
+export function EditorMobileToolSheet({fingeringPending,onGenerateFingering}:EditorMobileToolSheetProps) {
   const t = useTranslations('editor');
   const { editorMode, selectTool } = useEditorState();
 
@@ -35,7 +34,6 @@ export function EditorMobileToolSheet({ fingeringPending, onGenerateFingering, o
             fingeringPending={fingeringPending}
             onGenerateFingering={onGenerateFingering}
             onToolSelect={selectTool}
-            onNormalizeVoices={onNormalizeVoices}
           />
         </div>
       </SheetContent>

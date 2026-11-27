@@ -326,7 +326,7 @@ $env:GHCR_TOKEN = "<github-token-with-read-packages>"
 ```
 
 The backend secret env file must stay outside the repository and contain the
-full required key set: `DATABASE_URL`, `SYNC_DATABASE_URL`,
+full required key set: `DATABASE_URL`,
 `SCHEDULER_LOCK_DATABASE_URL`, Redis URLs, S3 keys, cookie secrets, mail API
 key, and optional Hugging Face token. `SCHEDULER_LOCK_DATABASE_URL` must point
 to direct PostgreSQL (or a PgBouncer session-pooling endpoint), never a
@@ -384,7 +384,6 @@ $env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<owner>/noteverse/platform-admin:
 $env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"
 $env:NOTEVERSE_S3_REGION = "<s3-region>"
 $env:NOTEVERSE_S3_BUCKET = "<s3-bucket>"
-$env:NOTEVERSE_S3_PUBLIC_BASE_URL = "<s3-public-base-url>"
 $env:NOTEVERSE_S3_FORCE_PATH_STYLE = "false"
 
 .\scripts\render_minikube_release_overlay.ps1 -Output build/k8s-release/minikube -Overwrite

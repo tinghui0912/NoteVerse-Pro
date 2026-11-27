@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { CreditCard, Monitor, ShieldCheck, User } from 'lucide-react';
+import { HardDrive, Monitor, ShieldCheck, User } from 'lucide-react';
 
 import { Link, usePathname } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ const settingsTabs = [
   { href: '/settings/profile', label: 'tabs.profile', icon: User },
   { href: '/settings/security', label: 'tabs.security', icon: ShieldCheck },
   { href: '/settings/sessions', label: 'tabs.sessions', icon: Monitor },
-  { href: '/settings/billing', label: 'tabs.billing', icon: CreditCard },
+  { href: '/settings/storage', label: 'tabs.storage', icon: HardDrive },
 ] as const;
 
 export function SettingsShell({ children }: { children: React.ReactNode }) {
@@ -21,7 +21,7 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
-        eyebrow={`${t('breadcrumb.settings')} / ${t('breadcrumb.account')}`}
+        eyebrow={t('breadcrumb.settings')}
         title={t('title')}
       />
 

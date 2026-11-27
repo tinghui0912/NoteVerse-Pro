@@ -12,11 +12,17 @@ import argparse
 import base64
 import http.cookiejar
 import json
+import re
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Any
 from urllib import error, parse, request
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+from app.core.generated.customer_browser_protocol import CSRF_COOKIE_NAME, CSRF_HEADER_NAME  # noqa: E402
 
 
 DEFAULT_EMAIL = "k8s-smoke@example.com"
@@ -25,7 +31,9 @@ DEFAULT_PASSWORD = "SmokePass123!"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--api-base", required=True, help="Base API URL, for example http://127.0.0.1:18000/api/v1")
+    parser.add_argument(
+        "--api-base", required=True, help="Base API URL, for example http://127.0.0.1:18000/api/v1"
+    )
     parser.add_argument("--email", default=DEFAULT_EMAIL)
     parser.add_argument("--password", default=DEFAULT_PASSWORD)
     parser.add_argument("--namespace", default="noteverse-staging")
@@ -67,7 +75,7 @@ def ensure_user(namespace: str, deployment: str, email: str, password: str) -> N
     code = f"""
 from sqlalchemy import select
 from app.core.security import get_password_hash
-from app.db.sync_session import SessionLocal
+from app.db.session import SessionLocal
 from app.db.models.user import User
 from app.utils.timezone import utc_now_naive
 
@@ -107,25 +115,19 @@ from sqlalchemy import select
 
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.db.models.playback import PlaybackAssetKind, PlaybackOutbox, PlaybackOutboxStatus
-from app.db.models.render_outbox import RenderOutbox, RenderOutboxStatus, RenderTargetType
-from app.db.models.score import (
-    MetadataStatus,
-    RevisionOrigin,
-    RevisionSourceFormat,
-    Score,
-    ScoreRevision,
-    ScoreRevisionMetadata,
-    ScoreRevisionSource,
-)
-from app.db.models.storage_usage import StorageUsageCategory
-from app.db.sync_session import SessionLocal
-from app.modules.metadata.service import rebuild_metadata_sync
-from app.modules.storage_usage.service import storage_usage_service
-from app.shared.playback_dispatcher import dispatch_playback_outbox
-from app.shared.render_dispatcher import dispatch_render_outbox
-from app.storage import file_storage
-from app.utils.timezone import utc_now_naive
+from app.db.models import Score
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.revisions.domain import RevisionOrigin
+from app.db.session import SessionLocal
+from app.modules.revisions.object_keys import canonical_revision_source_object_key
+from app.modules.revisions.writer import InitialRevisionWrite, PreparedRevisionSource
+from app.composition.media_resources import build_revision_writer
+from app.modules.revisions.post_commit import revision_post_commit
+from app.composition.storage_resources import build_object_write_coordinator, storage_quota_service
+from app.shared.time import utc_now
+from datetime import timedelta
+from app.processing.musicxml.admission import admit_musicxml_document
+from app.storage import object_storage
 
 email = {email!r}
 musicxml = b'''<?xml version="1.0" encoding="UTF-8"?>
@@ -155,114 +157,37 @@ musicxml = b'''<?xml version="1.0" encoding="UTF-8"?>
 with SessionLocal() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one()
     user_id = require_persisted_id(user.id, entity="user")
-    now = utc_now_naive()
     score_uuid = str(uuid.uuid4())
     revision_uuid = str(uuid.uuid4())
-    content_hash = hashlib.sha256(musicxml).hexdigest()
-    storage_key = f"scores/{{score_uuid}}/revisions/{{revision_uuid}}/score.musicxml"
-    reservation = storage_usage_service.reserve_sync(
-        db,
-        user_id=user_id,
-        category=StorageUsageCategory.SOURCE,
-        bytes_count=len(musicxml),
-        reason="k8s_smoke_revision_source",
-        object_type="score_revision_source",
-    )
-    stored = file_storage.put_bytes(
-        key=storage_key,
-        content=musicxml,
-        content_type="application/vnd.recordare.musicxml+xml",
-    )
+    musicxml = admit_musicxml_document(musicxml)
+    reservation = storage_quota_service.create_hold(db, user_id=user_id, category=StorageUsageCategory.SOURCE,
+        bytes_count=len(musicxml), command_key="k8s-smoke:" + revision_uuid, expires_at=utc_now() + timedelta(minutes=15))
     try:
-        score = Score(
-            score_uuid=score_uuid,
-            owner_user_id=user_id,
-            title="K8s Smoke Derived Asset",
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(score)
-        db.flush()
-        score_id = require_persisted_id(score.id, entity="score")
-        revision = ScoreRevision(
-            revision_uuid=revision_uuid,
-            score_id=score_id,
-            revision_number=1,
-            content_hash=content_hash,
-            origin=RevisionOrigin.EDIT,
-            created_by_user_id=user_id,
-            created_at=now,
-        )
-        db.add(revision)
-        db.flush()
-        revision_id = require_persisted_id(revision.id, entity="score revision")
-        source_uuid = str(uuid.uuid4())
-        db.add(ScoreRevisionSource(
-            source_uuid=source_uuid,
-            revision_id=revision_id,
-            format=RevisionSourceFormat.MUSICXML,
-            storage_backend=file_storage.backend_name,
-            storage_key=stored.storage_key,
-            filename=stored.filename,
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored.size_bytes,
-            sha256=content_hash,
-            generator="k8s-smoke",
-            generator_version="1",
-            created_at=now,
-        ))
-        db.add(ScoreRevisionMetadata(
-            revision_id=revision_id,
-            status=MetadataStatus.PENDING,
-            extractor_version="pending",
-        ))
-        render_outbox = RenderOutbox(
-            outbox_uuid=str(uuid.uuid4()),
-            target_type=RenderTargetType.SCORE_REVISION,
-            score_id=score_id,
-            revision_id=revision_id,
-            requested_by_user_id=user_id,
-            source_fingerprint=content_hash,
-            render_profile="default",
-            status=RenderOutboxStatus.PENDING,
-        )
-        playback_outbox = PlaybackOutbox(
-            outbox_uuid=str(uuid.uuid4()),
-            score_id=score_id,
-            revision_id=revision_id,
-            requested_by_user_id=user_id,
-            source_fingerprint=content_hash,
-            asset_kind=PlaybackAssetKind.AUDIO,
-            status=PlaybackOutboxStatus.PENDING,
-        )
-        db.add(render_outbox)
-        db.add(playback_outbox)
-        score.head_revision_id = revision_id
         db.commit()
-        storage_usage_service.commit_reservation_sync(
-            db,
-            reservation.reservation_id,
-            object_type="score_revision_source",
-            object_id=source_uuid,
-            storage_key=stored.storage_key,
-        )
-        try:
-            rebuild_metadata_sync(db, revision_id, file_storage)
-        except Exception:
-            db.rollback()
-        dispatch_render_outbox(render_outbox.outbox_uuid)
-        dispatch_playback_outbox(playback_outbox.outbox_uuid)
-        print(json.dumps({{
-            "score_id": score_uuid,
-            "revision_id": revision_uuid,
-            "render_outbox_id": render_outbox.outbox_uuid,
-            "playback_outbox_id": playback_outbox.outbox_uuid,
-        }}))
+        stored = build_object_write_coordinator(object_storage).write_bytes(
+            key=canonical_revision_source_object_key(score_uuid=score_uuid, revision_uuid=revision_uuid), content=musicxml,
+            content_type="application/vnd.recordare.musicxml+xml")
+        db.add(Score(score_uuid=score_uuid, owner_user_id=user_id, display_title="K8s Smoke Derived Asset"))
+        db.flush()
+        prepared = PreparedRevisionSource(revision_uuid, stored, hashlib.sha256(musicxml).hexdigest(),
+            "k8s-smoke", "1", reservation.hold_id)
+        result = build_revision_writer().write(db, InitialRevisionWrite(score_uuid, user_id, prepared,
+            "k8s-smoke-initial", RevisionOrigin.EDIT))
+        db.commit()
     except Exception:
         db.rollback()
-        file_storage.delete(stored.storage_key)
-        storage_usage_service.release_reservation_sync(db, reservation.reservation_id)
+        storage_quota_service.release_hold(db, reservation.hold_id)
+        db.commit()
         raise
+    work = result.post_commit_work
+    assert work is not None
+    revision_post_commit.dispatch_best_effort(work)
+    print(json.dumps({{
+        "score_id": score_uuid,
+        "revision_id": revision_uuid,
+        "revision_render_outbox_id": work.render_outbox_uuid,
+        "playback_outbox_id": work.playback_outbox_uuid,
+    }}))
 """
     stdout = kubectl_exec_python(namespace, deployment, code)
     last_json = stdout.strip().splitlines()[-1]
@@ -271,14 +196,19 @@ with SessionLocal() as db:
 
 class HttpError(RuntimeError):
     def __init__(self, method: str, url: str, status_code: int, body: str) -> None:
-        super().__init__(f"{method} {url} failed with HTTP {status_code}: {body}")
+        safe_url = re.sub(r"(/guest-previews/)[^/?]+", r"\1[redacted]", url)
+        super().__init__(f"{method} {safe_url} failed with HTTP {status_code}: {body}")
         self.status_code = status_code
         self.body = body
 
 
 def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
-    token = next((cookie.value for cookie in cookie_jar if cookie.name == "noteverse_csrf"), None)
-    return {"x-csrf-token": token, "content-type": "application/json"} if token else {"content-type": "application/json"}
+    token = next((cookie.value for cookie in cookie_jar if cookie.name == CSRF_COOKIE_NAME), None)
+    return (
+        {CSRF_HEADER_NAME: token, "content-type": "application/json"}
+        if token
+        else {"content-type": "application/json"}
+    )
 
 
 def request_json(
@@ -321,7 +251,9 @@ def encode_form(data: dict[str, str]) -> tuple[bytes, dict[str, str]]:
     return body, {"Content-Type": "application/x-www-form-urlencoded"}
 
 
-def login(api_base: str, email: str, password: str) -> tuple[request.OpenerDirector, http.cookiejar.CookieJar]:
+def login(
+    api_base: str, email: str, password: str
+) -> tuple[request.OpenerDirector, http.cookiejar.CookieJar]:
     cookie_jar = http.cookiejar.CookieJar()
     opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
     body, headers = encode_form({"username": email, "password": password})
@@ -361,7 +293,9 @@ def wait_for_assets(
         except (error.HTTPError, error.URLError, TimeoutError) as exc:
             last_error = str(exc)
         time.sleep(poll_seconds)
-    raise TimeoutError(f"Timed out waiting for derived assets: last_score={last_score}; last_error={last_error}")
+    raise TimeoutError(
+        f"Timed out waiting for derived assets: last_score={last_score}; last_error={last_error}"
+    )
 
 
 def assert_external_access(
@@ -371,54 +305,26 @@ def assert_external_access(
     score: dict[str, Any],
 ) -> dict[str, str]:
     score_id = str(score["score_id"])
-    revision_id = str(score["head_revision_id"])
     headers = csrf_headers(cookie_jar)
-    grant = request_json(
+    preview = request_json(
         opener,
-        f"{api_base}/scores/{score_id}/grants",
+        f"{api_base}/scores/{score_id}/guest-previews",
         method="POST",
-        data=json.dumps({"allow_download": False, "allow_practice": True, "expires_at": None}).encode("utf-8"),
+        data=b"{}",
         headers=headers,
         timeout=30,
     )
-    token = grant["data"]["token"]
-
-    slug = f"k8s-smoke-{score_id[:8]}"
-    request_json(
-        opener,
-        f"{api_base}/scores/{score_id}/publication",
-        method="PUT",
-        data=json.dumps({
-            "revision_id": revision_id,
-            "public_slug": slug,
-            "allow_download": False,
-            "allow_practice": True,
-        }).encode("utf-8"),
-        headers=headers,
-        timeout=30,
-    )
+    token = preview["data"]["token"]
 
     anonymous = request.build_opener()
-    share_data = request_json(anonymous, f"{api_base}/score-grants/{token}", timeout=30)["data"]
-    public_data = request_json(anonymous, f"{api_base}/publications/{slug}", timeout=30)["data"]
-    for label, payload in (("share", share_data), ("public", public_data)):
-        assets = payload["derived_assets"]
-        if assets["preview"]["status"] != "ready" or assets["audio"]["status"] != "ready":
-            raise AssertionError(f"{label} derived assets are not ready: {assets}")
-        if payload["capabilities"]["can_download"]:
-            raise AssertionError(f"{label} can_download leaked as true")
-        sources = payload["revision_assets"].get("revision_sources") or []
-        if sources:
-            raise AssertionError(f"{label} exposed revision sources when downloads are disabled")
-
-    for url in (
-        f"{api_base}/score-grants/{token}/playback",
-        f"{api_base}/publications/{slug}/playback",
-    ):
-        status_code = request_status(anonymous, url, timeout=30)
-        if status_code not in {200, 302, 307}:
-            raise AssertionError(f"Playback endpoint failed: {url} -> {status_code}")
-    return {"share_token": token, "public_slug": slug}
+    preview_data = request_json(anonymous, f"{api_base}/guest-previews/{token}", timeout=30)["data"]
+    if not preview_data["render_assets"] or not preview_data["audio_available"]:
+        raise AssertionError("Exact Guest Preview presentation is not ready")
+    url = f"{api_base}/guest-previews/{token}/playback"
+    status_code = request_status(anonymous, url, timeout=30)
+    if status_code not in {200, 302, 307}:
+        raise AssertionError(f"Guest Preview playback failed with HTTP {status_code}")
+    return {"guest_preview": "verified"}
 
 
 def delete_score(
@@ -440,8 +346,28 @@ def delete_score(
         raise AssertionError(f"Expected one score to be deleted, got {removed}")
 
 
-def trigger_cleanup(namespace: str, deployment: str) -> None:
-    code = "from app.worker.tasks import run_score_deletion_cleanup; print(run_score_deletion_cleanup())"
+def wait_for_score_deletion(namespace: str, deployment: str, score_id: str) -> None:
+    code = f"""
+import time
+from sqlalchemy import select
+from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus
+from app.db.session import SessionLocal
+from app.worker.tasks import run_score_deletion_maintenance
+
+run_score_deletion_maintenance()
+deadline = time.monotonic() + 180
+while True:
+    with SessionLocal() as db:
+        operation = db.scalar(select(ScoreDeletionOperation).where(
+            ScoreDeletionOperation.score_uuid == {score_id!r}
+        ))
+        if operation is not None and operation.status == ScoreDeletionOperationStatus.COMPLETED:
+            print(operation.operation_uuid)
+            break
+    if time.monotonic() >= deadline:
+        raise SystemExit("Score deletion operation did not complete")
+    time.sleep(1)
+"""
     kubectl_exec_python(namespace, deployment, code)
 
 
@@ -450,7 +376,7 @@ def assert_owner_usage_zero(namespace: str, deployment: str, email: str) -> None
 from sqlalchemy import select
 from app.db.models.storage_usage import StorageUsageCounter
 from app.db.models.user import User
-from app.db.sync_session import SessionLocal
+from app.db.session import SessionLocal
 
 email = {email!r}
 with SessionLocal() as db:
@@ -483,7 +409,7 @@ def cleanup_score(
     except HttpError as exc:
         if exc.status_code not in {404, 410, 422}:
             raise
-    trigger_cleanup(namespace, worker_deployment)
+    wait_for_score_deletion(namespace, worker_deployment, score_id)
 
 
 def main() -> int:
@@ -503,19 +429,34 @@ def main() -> int:
             poll_seconds=args.poll_seconds,
         )
         external = assert_external_access(args.api_base, opener, cookie_jar, score)
-        cleanup_score(opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id)
+        cleanup_score(
+            opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id
+        )
         assert_owner_usage_zero(args.namespace, args.backend_deployment, args.email)
     except Exception:
         print(json.dumps({"score_id": score_id, "created": created}, indent=2), file=sys.stderr)
         if not args.keep_on_failure:
             try:
-                cleanup_score(opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id)
+                cleanup_score(
+                    opener,
+                    cookie_jar,
+                    args.api_base,
+                    args.namespace,
+                    args.worker_deployment,
+                    score_id,
+                )
                 assert_owner_usage_zero(args.namespace, args.backend_deployment, args.email)
             except Exception as cleanup_error:
                 print(f"cleanup failed: {cleanup_error}", file=sys.stderr)
         raise
 
-    print(json.dumps({"score_id": score_id, **created, **external, "cleanup": "released"}, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {"score_id": score_id, **created, **external, "cleanup": "released"},
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 

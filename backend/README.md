@@ -1,6 +1,6 @@
 # NoteVerse Pro Backend
 
-FastAPI backend for task processing, MusicXML editing, file management, sharing,
+FastAPI backend for task processing, MusicXML editing, file management, Guest Preview,
 profile management, and Celery-based background workflows.
 
 ## Stack
@@ -22,28 +22,47 @@ Canonical structure:
 - `app/db/*` for DB/session entrypoints and ORM models
 - `app/shared/*` for shared helpers and enums
 - `app/worker/*` for Celery runtime entrypoints
-- `app/pipeline/*` and `app/processing/*` for processing workflows
+- `app/modules/import_jobs/pipeline/*` and `app/processing/*` for processing workflows
 - `app/api/v1/router.py` for top-level route aggregation
 
 `scripts/` owns runtime and operational tools; `tests/` owns core backend behavior
 tests. [Research](research/README.md) owns experiments, qualification, datasets and
 scientific tests, independently of the core quality image.
 
-Main feature modules:
+Application modules:
 
 - `account`
+- `async_operations`
 - `auth`
-- `files`
+- `collaboration`
+- `durable_work`
+- `fingering`
+- `guest_previews`
 - `import_jobs`
 - `library`
+- `mail`
+- `media_storage`
+- `metadata`
+- `model_assets`
 - `notifications`
+- `ops`
+- `performance_takes`
+- `platform_operators`
+- `playback`
 - `practice`
+- `publications`
+- `realtime`
+- `rendering`
+- `review`
 - `revisions`
+- `scheduler_lock`
+- `scheduler_observability`
+- `score_access`
 - `score_assets`
-- `score_invites`
 - `score_sharing`
 - `scores`
-- `storage_usage`
+- `storage_governance`
+- `uploads`
 
 ## Quick Start
 
@@ -73,6 +92,13 @@ docker compose -f docker-compose.backend-dev.yml run --rm api check
 docker compose -f docker-compose.backend-dev.yml run --rm api migrate
 docker compose -f docker-compose.backend-dev.yml up api worker beat
 ```
+
+The database uses one standalone [current-schema baseline](alembic/versions/0001_initial_schema.py).
+Run `alembic upgrade head` against an empty application schema. Development initialization uses an empty database. The baseline installs the
+current FREE quota policy; it does not install users or history.
+[PostgreSQL schema tests](tests/test_database_schema.py) compare the complete fresh
+schema with ORM metadata and verify bootstrap, teardown and re-creation. Backend CI
+runs this schema contract explicitly against its dedicated PostgreSQL service.
 
 The control-plane runtime is intentionally opt-in. Before starting it, create
 its separate environment file; its values must use names and origins distinct
@@ -130,33 +156,23 @@ docker compose -f docker-compose.backend-dev.yml build worker
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
-## Object Storage Direct Uploads
+## Object storage transfers
 
-Practice performance replay saves use browser-to-object-storage direct upload.
-The backend returns a presigned `PUT` URL plus the required upload headers, then
-finalizes the durable replay artifact only after the object already exists.
+Score Import and Performance Takes use JSON admission followed by a user-bound
+UploadSession. Inputs up to 20 MiB use a signed staging PUT, bounded verification
+and coordinator copy to an immutable final key. Larger Take inputs use Multipart
+with exact signed part lengths and in-place adoption. The browser controls transfer
+progress, bounded concurrency, resumable part queries and explicit cancellation.
+Avatar uses bounded API upload with JPEG normalization and a 5 MiB limit.
 
-When `FILE_STORAGE_BACKEND=s3` points to Aliyun OSS or another S3-compatible
-bucket, configure bucket CORS for each Customer Web origin that can save
-replays. Local development with Customer Web on `http://localhost:3000` needs a
-rule equivalent to:
+Playback endpoints return short-lived signed JSON capabilities. Large-media Range
+requests terminate at storage/CDN. Media processing readiness controls Take playback.
 
-```json
-[
-  {
-    "AllowedOrigin": ["http://localhost:3000"],
-    "AllowedMethod": ["PUT", "GET", "HEAD"],
-    "AllowedHeader": ["content-type", "x-amz-meta-sha256"],
-    "ExposeHeader": ["ETag"],
-    "MaxAgeSeconds": 300
-  }
-]
-```
-
-Production should list the production Customer Web origins instead of using a
-wildcard. The presigned replay upload currently signs `content-type` and
-`x-amz-meta-sha256`; if the upload header contract changes, update the bucket
-CORS rule at the same time.
+Development runtime uses the bucket configured in `backend/.env.docker`; Compose
+does not override it. Development and cross-end tests use the configured
+S3-compatible cloud bucket. Unit and CI tests inject InMemoryObjectStorage. Provider policy examples and
+requirements are in [object-storage deployment](../deploy/object-storage/README.md).
+Recovery and operational metrics are in [media recovery](../docs/operations/runbooks/media-storage-recovery.md).
 
 ## Local Quality Checks
 
@@ -220,3 +236,5 @@ It runs the same baseline checks for pushes and pull requests that touch
 - [Backend engineering principles](docs/backend_engineering_principles.md)
 - [Repository quality checks](../docs/engineering/guides/repository-quality-checks.md)
 - [Docker backend runtime runbook](../docs/operations/runbooks/docker-backend-runtime-runbook.md)
+
+Durable object ownership and development configuration are described in [ObjectStorage](../docs/architecture/object-storage.md).

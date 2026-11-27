@@ -116,7 +116,7 @@ Useful fields:
 - `max_attempts`
 - `next_retry_at`
 - `public_code`
-- `internal_error_class`
+- `failure_classification`
 
 ### Import Job Lifecycle
 

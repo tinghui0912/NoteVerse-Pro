@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 
-from app.db.models import PlaybackAssetKind, ScorePlaybackAsset
+from app.db.models import ScorePlaybackAsset
+from app.modules.playback.domain import PlaybackAssetKind
 from app.processing.engines.playback import RenderedAudio
-from app.storage import StoredFile
+from app.db.models.stored_object import StoredObject
 
 
 @dataclass(frozen=True)
@@ -15,13 +15,18 @@ class PlaybackAssetUsage:
     size_bytes: int
 
 
-def playback_storage_key(
+def playback_audio_object_key(
     *,
     score_uuid: str,
     revision_uuid: str,
     asset_uuid: str,
     extension: str,
 ) -> str:
+    for component in (score_uuid, revision_uuid, asset_uuid, extension):
+        if not component or component in {".", ".."} or "/" in component or "\\" in component:
+            raise ValueError("Playback audio identity must contain safe namespace segments")
+    if not extension.startswith("."):
+        raise ValueError("Playback audio extension must start with a dot")
     return f"scores/{score_uuid}/revisions/{revision_uuid}/playback/{asset_uuid}{extension}"
 
 
@@ -30,8 +35,8 @@ def playback_asset_usage(asset: ScorePlaybackAsset | None) -> PlaybackAssetUsage
         return None
     return PlaybackAssetUsage(
         asset_uuid=asset.asset_uuid,
-        storage_key=asset.storage_key,
-        size_bytes=asset.size_bytes,
+        storage_key=asset.stored_object.object_key,
+        size_bytes=asset.stored_object.byte_size,
     )
 
 
@@ -40,8 +45,7 @@ def build_playback_asset_record(
     asset_uuid: str,
     revision_id: int,
     asset_kind: PlaybackAssetKind,
-    storage_backend: str,
-    stored: StoredFile,
+    stored_object: StoredObject,
     audio: RenderedAudio,
     execution_manifest_id: int,
     source_fingerprint: str,
@@ -50,12 +54,8 @@ def build_playback_asset_record(
         asset_uuid=asset_uuid,
         revision_id=revision_id,
         kind=asset_kind,
-        storage_backend=storage_backend,
-        storage_key=stored.storage_key,
-        filename=stored.filename,
-        mime_type=audio.mime_type,
-        size_bytes=stored.size_bytes,
-        sha256=hashlib.sha256(audio.content).hexdigest(),
+        stored_object=stored_object,
+        filename=stored_object.object_key.rsplit("/", 1)[-1],
         execution_manifest_id=execution_manifest_id,
         duration_ms=audio.duration_ms,
         source_fingerprint=source_fingerprint,

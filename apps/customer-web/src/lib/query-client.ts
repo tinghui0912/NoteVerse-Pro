@@ -18,93 +18,20 @@ export const queryClient = new QueryClient({
         },
     },
 });
-export interface LibraryEntryQueryFilters {
-    view?: string;
-    folderId?: string;
-    search?: string;
-    sort?: string;
-    page: number;
-    pageSize: number;
-}
-
-export interface MyScoresQueryFilters {
-    view?: string;
-    search?: string;
-    sort?: string;
-    page: number;
-    pageSize: number;
-}
-
 /**
  * Query keys follow [domain, scope, identity/filter]. Prefix factories are
  * used for broad invalidation; leaf factories own complete cache identity.
  */
 export const queryKeys = {
-    importJobs: {
-        all: ['import-jobs'] as const,
-        lists: () => ['import-jobs', 'list'] as const,
-        list: (page: number, pageSize: number) => ['import-jobs', 'list', { page, pageSize }] as const,
-        detail: (id: string) => ['import-jobs', 'detail', { id }] as const,
-    },
-    scores: {
-        all: ['scores'] as const,
-        details: () => ['scores', 'detail'] as const,
-        detail: (scoreId: string) => ['scores', 'detail', { scoreId }] as const,
-        revisions: (scoreId: string) => ['scores', 'revision', { scoreId }] as const,
-        revision: (scoreId: string, revisionId: string) =>
-            ['scores', 'revision', { scoreId, revisionId }] as const,
-        revisionAssets: (scoreId: string, revisionId?: string) =>
-            ['scores', 'revision-assets', { scoreId, revisionId: revisionId ?? null }] as const,
-        grants: (scoreId: string) => ['scores', 'grant', { scoreId }] as const,
-        grantAccess: (token: string) => ['scores', 'grant-access', { token }] as const,
-        myInvites: () => ['scores', 'my-invites'] as const,
-        invites: (scoreId: string) => ['scores', 'invite', { scoreId }] as const,
-        inviteAccess: (token: string) => ['scores', 'invite-access', { token }] as const,
-        members: (scoreId: string) => ['scores', 'member', { scoreId }] as const,
-        publication: (slug: string) => ['scores', 'publication', { slug }] as const,
-        scorePublication: (scoreId: string) => ['scores', 'score-publication', { scoreId }] as const,
-    },
-    library: {
-        all: ['library'] as const,
-        folders: () => ['library', 'folders'] as const,
-        entries: () => ['library', 'entries'] as const,
-        entryList: (filters: LibraryEntryQueryFilters) => ['library', 'entries', filters] as const,
-    },
-    myScores: {
-        all: ['my-scores'] as const,
-        lists: () => ['my-scores', 'list'] as const,
-        list: (filters: MyScoresQueryFilters) => ['my-scores', 'list', filters] as const,
-    },
-    notifications: {
-        all: ['notifications'] as const,
-        list: () => ['notifications', 'list'] as const,
-        unreadCount: () => ['notifications', 'unread-count'] as const,
-    },
-    review: {
-        all: ['review'] as const,
-        detail: (jobId: string) => ['review', 'detail', { jobId }] as const,
-    },
-    practice: {
-        all: ['practice'] as const,
-        artifact: (scoreId: string, revisionId: string) =>
-            ['practice', 'artifact', { scoreId, revisionId }] as const,
-        readyContent: (scoreId: string, revisionId: string) =>
-            ['practice', 'ready-content', { scoreId, revisionId }] as const,
-    },
-    storageUsage: {
-        all: ['storage-usage'] as const,
-        current: () => ['storage-usage', 'current'] as const,
+    performanceTakeExport: {
+        bundle: (bundleId: string) => ['performance-take-export-bundle', { bundleId }] as const,
     },
     performanceTakes: {
         all: ['performance-takes'] as const,
         lists: () => ['performance-takes', 'list'] as const,
-        list: (params?: { score_id?: string; limit?: number; offset?: number }) =>
+        list: (params?: { score_id?: string | null; limit?: number }) =>
             ['performance-takes', 'list', params ?? {}] as const,
         detail: (takeId: string) => ['performance-takes', 'detail', { takeId }] as const,
         playbackUrl: (takeId: string) => ['performance-takes', 'playback-url', { takeId }] as const,
-        practiceSourceContent: (takeId: string) =>
-            ['performance-takes', 'practice-source-content', { takeId }] as const,
-        practiceSourceArtifact: (takeId: string) =>
-            ['performance-takes', 'practice-source-artifact', { takeId }] as const,
     },
 } as const;

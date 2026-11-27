@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 from app.core.settings.worker_runtime import get_worker_runtime_settings
 from app.core.logger import logger
 from app.processing.musicxml import normalize_initial_musicxml_clefs
-from app.shared.constants import ErrorCode
+from app.shared.error_codes import CustomerErrorCode
 
 from .base import OmrFailureResult, OmrOutputFiles, OmrResult, OmrSuccessResult
 from .legato_manifest import LEGATO_MODEL_REPOSITORY, LEGATO_PROCESSOR_REPOSITORY
@@ -76,7 +76,7 @@ class LegatoOmrEngine:
             )
             if inference.returncode != 0:
                 return self._failure(
-                    ErrorCode.SCORE_RECOGNITION_FAILED,
+                    CustomerErrorCode.SCORE_RECOGNITION_FAILED,
                     "LEGATO inference failed",
                     inference.stderr,
                 )
@@ -90,7 +90,7 @@ class LegatoOmrEngine:
             abcs = self._read_abcs(prediction_path)
             if len(abcs) != len(image_paths):
                 return self._failure(
-                    ErrorCode.SCORE_RECOGNITION_FAILED,
+                    CustomerErrorCode.SCORE_RECOGNITION_FAILED,
                     "LEGATO prediction count does not match input page count",
                 )
 
@@ -134,7 +134,7 @@ class LegatoOmrEngine:
                 timeout_seconds=self.timeout_seconds,
             ).opt(exception=exc).warning("LEGATO OMR processing timed out")
             return self._failure(
-                ErrorCode.TASK_TIMEOUT,
+                CustomerErrorCode.TASK_TIMEOUT,
                 "LEGATO processing timed out",
             )
         except FileNotFoundError as exc:
@@ -144,7 +144,7 @@ class LegatoOmrEngine:
                 exception_type=type(exc).__name__,
             ).opt(exception=exc).warning("LEGATO OMR prerequisite missing")
             return self._failure(
-                ErrorCode.SCORE_RECOGNITION_FAILED,
+                CustomerErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
             )
         except LegatoConversionError as exc:
@@ -154,7 +154,7 @@ class LegatoOmrEngine:
                 exception_type=type(exc).__name__,
             ).opt(exception=exc).warning("LEGATO OMR conversion failed")
             return self._failure(
-                ErrorCode.SCORE_RECOGNITION_FAILED,
+                CustomerErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
             )
         except Exception as exc:
@@ -164,7 +164,7 @@ class LegatoOmrEngine:
                 exception_type=type(exc).__name__,
             ).opt(exception=exc).error("LEGATO OMR processing failed")
             return self._failure(
-                ErrorCode.SCORE_RECOGNITION_FAILED,
+                CustomerErrorCode.SCORE_RECOGNITION_FAILED,
                 str(exc),
             )
 

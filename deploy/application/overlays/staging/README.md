@@ -15,7 +15,6 @@ Required objects supplied outside this overlay:
 - `Secret/noteverse-backend-secret`
   - `SECRET_KEY`
   - `DATABASE_URL`
-  - `SYNC_DATABASE_URL`
   - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session pooling only)
   - `REDIS_URL`
   - `CELERY_BROKER_URL`

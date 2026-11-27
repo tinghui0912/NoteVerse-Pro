@@ -1,66 +1,27 @@
 from __future__ import annotations
 
-from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from app.shared.time import Instant
 
-from app.db.models.score_access import PublicationStatus
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.modules.metadata.schemas import MetadataRead
 from app.modules.score_access.schemas import ScoreCapabilities
 from app.modules.score_assets.schemas import ScoreDerivedAssetsRead
-from app.modules.scores.taxonomy import ordered_unique_pairs, validate_taxonomy_pair
-
-
-class ScoreTaxonomyTagRead(BaseModel):
-    category: str
-    code: str
-    source: str
-    confidence: float | None
-
-
-class ScoreTaxonomyTagInput(BaseModel):
-    category: str = Field(max_length=64)
-    code: str = Field(max_length=64)
-
-    @field_validator("category", "code")
-    @classmethod
-    def normalize_value(cls, value: str) -> str:
-        return value.strip().lower().replace("-", "_")
-
-    @model_validator(mode="after")
-    def validate_known_tag(self):
-        category, code = validate_taxonomy_pair(self.category, self.code)
-        self.category = category
-        self.code = code
-        return self
+from app.modules.scores.genres import Genres
+from app.shared.api_model import ApiModel
 
 
 class ScoreUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: str | None = Field(default=None, min_length=1, max_length=255)
-    taxonomy_tags: list[ScoreTaxonomyTagInput] | None = None
-    expected_version: int = Field(ge=1)
-
-    @field_validator("taxonomy_tags")
-    @classmethod
-    def normalize_taxonomy_tags(
-        cls, value: list[ScoreTaxonomyTagInput] | None
-    ) -> list[ScoreTaxonomyTagInput] | None:
-        if value is None:
-            return None
-        pairs = ordered_unique_pairs((item.category, item.code) for item in value)
-        return [ScoreTaxonomyTagInput(category=category, code=code) for category, code in pairs]
+    display_title: str | None = Field(default=None, min_length=1, max_length=255)
+    genres: Genres | None = None
+    expected_metadata_version: int = Field(ge=1)
 
 
 class ScoreBatchDeleteRequest(BaseModel):
     score_ids: list[str] = Field(min_length=1)
-
-
-class ScorePublicationSummaryRead(BaseModel):
-    public_slug: str
-    revision_id: str
-    status: PublicationStatus
 
 
 class ScoreInputAssetRead(BaseModel):
@@ -71,17 +32,20 @@ class ScoreInputAssetRead(BaseModel):
     page_number: int | None
 
 
-class ScoreRead(BaseModel):
+class ScoreRead(ApiModel):
     score_id: str
-    title: str
-    taxonomy_tags: list[ScoreTaxonomyTagRead]
-    version: int
+    display_title: str
+    genres: Genres
+    metadata_version: int
     head_revision_id: str | None
+    head_revision_number: int | None
     derived_assets: ScoreDerivedAssetsRead
     input_assets: list[ScoreInputAssetRead]
-    publication: ScorePublicationSummaryRead | None
-    in_library: bool
     metadata: MetadataRead | None
     capabilities: ScoreCapabilities
-    created_at: datetime
-    updated_at: datetime
+    created_at: Instant
+    updated_at: Instant
+
+
+class ScoreBatchDeleteRead(ApiModel):
+    removed: int

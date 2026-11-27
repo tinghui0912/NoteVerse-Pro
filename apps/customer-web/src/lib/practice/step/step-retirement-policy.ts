@@ -1,4 +1,4 @@
-import type { LocalClock, PracticeTimebase, SessionTime } from '../local-core/timebase';
+import type { LocalClock, PracticeTimebase, SessionTime } from '@/lib/practice/session/timebase';
 
 /** Input owners establish safe physical coverage; only the runtime commits progression. */
 export interface StepRetirementPolicy {

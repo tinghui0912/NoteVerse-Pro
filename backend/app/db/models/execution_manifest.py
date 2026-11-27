@@ -7,7 +7,7 @@ from sqlalchemy import BigInteger, Column, DateTime, Integer, JSON, String, Uniq
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
@@ -27,6 +27,6 @@ class ExecutionManifest(SQLModel, table=True):  # type: ignore[call-arg]
     sha256: str = Field(sa_column=Column(String(64), nullable=False))
     manifest: dict[str, object] = Field(sa_column=Column(manifest_json_type, nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )

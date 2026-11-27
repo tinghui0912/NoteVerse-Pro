@@ -1,0 +1,6 @@
+"""Generated from contracts/practice/score/artifact.schema.json. Do not edit."""
+
+PRACTICE_SCORE_ARTIFACT_SCHEMA_VERSION = 1
+MAX_JSON_SAFE_INTEGER = 9007199254740991
+PRACTICE_PIANO_KEY_MIN = 21
+PRACTICE_PIANO_KEY_MAX = 108

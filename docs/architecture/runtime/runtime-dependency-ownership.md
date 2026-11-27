@@ -27,7 +27,6 @@ changes rather than ordinary build side effects.
 | `storage` | Object storage clients |
 | `image` | Pillow operations |
 | `fingering` | NumPy and PianoPlayer |
-| `practice-score` | Partitura MusicXML/artifact processing |
 | `render` | NumPy and Verovio |
 | `ocr` | Linux x86_64 PaddleOCR |
 | `migrations` | Alembic and database capability |
@@ -39,7 +38,7 @@ Nested `include-group` entries compose responsibilities without copying roots.
 
 | Group | Composition |
 | --- | --- |
-| `api` | HTTP, DB/migrations, storage, dispatch, auth, image, fingering, practice-score |
+| `api` | HTTP, DB/migrations, storage, dispatch, auth, image, fingering |
 | `beat` | Celery/shared settings and PostgreSQL advisory-lock driver |
 | `worker-app` | DB, storage, Celery, image, render, tracing |
 | `worker` | Worker application, OCR, Torch, CPU Paddle, Legato execution libraries |
@@ -49,8 +48,7 @@ Nested `include-group` entries compose responsibilities without copying roots.
 The API artifact ships customer API, control-plane API, observability exporter
 and migration entrypoints. Beat publishes named tasks and owns PostgreSQL
 advisory locking; it must not import Worker execution or acquire OCR/render/ML
-packages. Partitura belongs to API/Quality, not Worker. Its SciPy transitive is
-not a mandatory Worker qualification gate.
+packages. Worker owns rendering and heavy OCR/ML execution.
 
 ## Sources and Builds
 

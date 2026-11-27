@@ -1,13 +1,31 @@
 from __future__ import annotations
+from tests.support.uploads import settled_upload_session
+
+from app.storage import object_storage as _storage_provider
+
+from app.composition import storage_resources as _resource_wiring
+from app.composition import media_resources as _media_wiring
+
+from app.composition.storage_resources import storage_usage_service
+from app.modules.revisions.object_keys import canonical_revision_source_object_key
+
+from app.modules.import_jobs.requested_options import encode_requested_options
+
+from app.modules.durable_work.failure import DurableFailure
+from app.shared.durable_failure import DurableFailureClass
 
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
+import hashlib
 from typing import Any, TypeVar
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
-from sqlalchemy import event, func, select
-from sqlmodel import Session, SQLModel, create_engine
+from app.modules.collaboration.invite_lifecycle import InviteStatus
+from app.db.models.score_access import InviteTerminalOutcome
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel
 
 from app.core.exceptions import (
     ConflictException,
@@ -16,18 +34,18 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.db.model_utils import require_persisted_id
+from tests.support.import_execution import processing_lease
 from app.db.models import (
+    ImportDispatch,
     ImportJob,
     ImportJobUpload,
     ImportDispatchStatus,
     ImportArtifact,
     MailOutbox,
     MailOutboxStatus,
-    NotificationEvent,
-    PlaybackAssetKind,
+    Notification,
     PlaybackOutbox,
-    PlaybackOutboxStatus,
-    RealtimeEvent,
+    RealtimeChange,
     Score,
     ScorePlaybackAsset,
     ScoreRenderAsset,
@@ -36,31 +54,27 @@ from app.db.models import (
     ScoreRevisionMetadata,
     ScoreRevisionNote,
     ScoreRevisionSource,
-    StorageBlob,
-    StorageQuotaPolicy,
+    StoredObject,
+    StoragePlanPolicy,
     StorageUsageCounter,
-    StorageUsageCategory,
-    ScoreLibraryEntry,
+    ScoreLibraryOrganization,
     ScoreInvite,
     ScoreMembership,
-    ScorePublication,
-    RenderOutbox,
-    RenderOutboxStatus,
-    RenderTargetType,
-    ScoreShareGrant,
-    ShareGrantRedemption,
+    ScoreRevisionRenderOutbox,
     User,
     Upload,
 )
-from app.db.models.library import LibraryEntrySourceType
-from app.db.models.import_job import ImportJobState
-from app.db.models.score import RenderAssetKind, RevisionOrigin, RevisionSourceFormat
-from app.db.models.score import MetadataStatus
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.playback.domain import PlaybackOutboxStatus
+from app.modules.storage_governance.usage.domain import StorageUsageCategory
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.import_jobs.domain import ImportJobState
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionOrigin
+from app.modules.revisions.domain import RevisionSourceFormat
+from app.modules.metadata.domain import MetadataStatus
 from app.db.models.score_access import (
-    InviteStatus,
     MembershipRole,
-    PublicationStatus,
-    ScoreAudienceAccessMode,
 )
 from app.modules.revisions.schemas import (
     RevisionCreateRequest,
@@ -72,34 +86,29 @@ from app.modules.revisions.derived_asset_retention_service import (
 )
 from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.service import RevisionService
-from app.modules.score_assets.service import ScoreAssetService
 from app.modules.score_assets.derived_assets import derived_asset_status
-from app.modules.score_assets.render_outbox_service import RenderOutboxService
+from app.modules.revisions.render_delivery import ScoreRevisionRenderDelivery
 from app.modules.mail.outbox_service import MailOutboxService
-from app.modules.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
-from app.modules.review.service import ReviewService
-from app.modules.review.thumbnail_service import ReviewThumbnailService
+from app.modules.import_jobs.review.schemas import ReviewConfirmRequest, ReviewUpdateRequest
+from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.scores.service import ScoreService
-from app.modules.scores.repository import ScoreRepository
-from app.modules.scores.creation_service import SyncConfirmedScoreCreationService
-from app.modules.import_jobs.worker_service import SyncImportJobService
+from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
+from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction, hash_share_token
-from app.modules.score_sharing.schemas import GrantCreateRequest
-from app.modules.score_sharing.service import ScoreSharingService
-from app.modules.score_invites.schemas import InviteCreateRequest
-from app.modules.score_invites.rules import hash_invite_token
-from app.modules.score_invites.service import ScoreInviteService
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
+from app.modules.collaboration.schemas import InviteCreateRequest
+from app.modules.collaboration.invite_lifecycle import hash_invite_token
+from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.notifications.maintenance_service import NotificationMaintenanceService
-from app.modules.notifications.service import NotificationService, NotificationTypes
+from app.modules.notifications.service import NotificationService
+from app.db.models import NotificationKind
 from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
-from app.modules.publications.schemas import PublicationUpsertRequest
-from app.modules.publications.service import PublicationService
-from app.modules.playback.delivery import PlaybackDeliveryService
-from app.shared.constants import ErrorCode
-from app.modules.import_jobs.artifact_kinds import ImportArtifactKind
-from app.storage import LocalFileStorage
-from app.utils.timezone import utc_now_naive
+from app.shared.error_codes import CustomerErrorCode
+from app.modules.import_jobs.domain import ImportArtifactKind
+from tests.support.object_storage import InMemoryObjectStorage
+from app.shared.time import utc_now
+from tests.support.storage_state import provision_storage_users
 
 MUSICXML_1 = b"""<?xml version='1.0'?><score-partwise version='4.0'>
 <part-list><score-part id='P1'><part-name>Piano</part-name></score-part></part-list>
@@ -113,18 +122,28 @@ MUSICXML_2 = """<?xml version='1.0'?><score-partwise version='4.0'>
 
 
 def test_derived_asset_status_uses_public_product_states() -> None:
-    assert derived_asset_status(
-        has_current_asset=False,
-        outbox_status=RenderOutboxStatus.FAILED,
-    ) == "unavailable"
-    assert derived_asset_status(
-        has_current_asset=False,
-        outbox_status=PlaybackOutboxStatus.FAILED,
-    ) == "unavailable"
-    assert derived_asset_status(
-        has_current_asset=True,
-        outbox_status=RenderOutboxStatus.FAILED,
-    ) == "ready"
+    assert (
+        derived_asset_status(
+            has_current_asset=False,
+            outbox_status=ScoreRevisionRenderStatus.FAILED,
+        )
+        == "unavailable"
+    )
+    assert (
+        derived_asset_status(
+            has_current_asset=False,
+            outbox_status=PlaybackOutboxStatus.FAILED,
+        )
+        == "unavailable"
+    )
+    assert (
+        derived_asset_status(
+            has_current_asset=True,
+            outbox_status=ScoreRevisionRenderStatus.FAILED,
+        )
+        == "ready"
+    )
+
 
 T = TypeVar("T")
 
@@ -148,35 +167,6 @@ def count_rows(session: Session, model: type[T], **filters: Any) -> int:
     return int(session.execute(statement).scalar_one())
 
 
-class AsyncSessionAdapter:
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    async def execute(self, statement, params=None, *args, **kwargs):
-        return self.session.execute(statement, params=params, *args, **kwargs)
-
-    async def commit(self) -> None:
-        self.session.commit()
-
-    async def rollback(self) -> None:
-        self.session.rollback()
-
-    async def flush(self) -> None:
-        self.session.flush()
-
-    async def refresh(self, instance) -> None:
-        self.session.refresh(instance)
-
-    async def get(self, model, identity):
-        return self.session.get(model, identity)
-
-    async def delete(self, instance) -> None:
-        self.session.delete(instance)
-
-    def add(self, instance) -> None:
-        self.session.add(instance)
-
-
 def add_active_score_with_head_revision(
     session: Session,
     *,
@@ -190,7 +180,7 @@ def add_active_score_with_head_revision(
         id=score_id,
         score_uuid=score_uuid,
         owner_user_id=1,
-        title=title,
+        display_title=title,
     )
     revision = ScoreRevision(
         id=revision_id,
@@ -210,17 +200,13 @@ def add_active_score_with_head_revision(
 
 
 @pytest.fixture
-def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]]:
-    engine = create_engine("sqlite:///:memory:")
-
-    @event.listens_for(engine, "connect")
-    def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+def score_service_session(
+    postgres_engine, tmp_path
+) -> Iterator[tuple[Session, InMemoryObjectStorage]]:
+    engine = postgres_engine
 
     SQLModel.metadata.create_all(engine)
-    storage = LocalFileStorage(storage_root=str(tmp_path / "storage"))
+    storage = InMemoryObjectStorage()
     with Session(engine) as session:
         session.add_all(
             [
@@ -236,22 +222,23 @@ def score_service_session(tmp_path) -> Iterator[tuple[Session, LocalFileStorage]
                     display_name="other",
                     password_hash="hash",
                 ),
-                StorageQuotaPolicy(
+                StoragePlanPolicy(
                     plan_code="FREE",
-                    quota_limit_bytes=100 * 1024 * 1024,
-                    created_at=utc_now_naive(),
-                    updated_at=utc_now_naive(),
+                    default_limit_bytes=100 * 1024 * 1024,
+                    created_at=utc_now(),
+                    updated_at=utc_now(),
                 ),
             ]
         )
+        session.flush()
+        provision_storage_users(session)
         session.commit()
         yield session, storage
     engine.dispose()
 
 
-@pytest.mark.asyncio
-async def test_revision_read_model_projects_actor_restore_and_note(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_revision_read_model_projects_actor_restore_and_note(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -267,8 +254,6 @@ async def test_revision_read_model_projects_actor_restore_and_note(
         revision_uuid="read-model-restored",
         score_id=3500,
         revision_number=2,
-        parent_revision_id=3501,
-        base_revision_id=3501,
         content_hash="a" * 64,
         origin=RevisionOrigin.EDIT,
         created_by_user_id=2,
@@ -297,8 +282,8 @@ async def test_revision_read_model_projects_actor_restore_and_note(
     )
     session.commit()
 
-    read = await RevisionReadModel().revision_read(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    read = RevisionReadModel().revision_read(
+        session,  # type: ignore[arg-type]
         restored,
     )
 
@@ -317,9 +302,8 @@ async def test_revision_read_model_projects_actor_restore_and_note(
     assert read.note.author.email == "other@example.com"
 
 
-@pytest.mark.asyncio
-async def test_collaborator_revision_source_usage_counts_against_score_owner(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_collaborator_revision_source_usage_counts_against_score_owner(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     add_active_score_with_head_revision(
@@ -339,15 +323,19 @@ async def test_collaborator_revision_source_usage_counts_against_score_owner(
         )
     )
     session.commit()
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
-    result = await service.create(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    result = service.create(
+        session,  # type: ignore[arg-type]
         "collab-score",
         2,
         RevisionCreateRequest(
             content=MUSICXML_2,
-            base_revision_id="base-revision",
+            expected_head_revision_id="base-revision",
             origin=RevisionOrigin.EDIT,
             idempotency_key="collab-edit-1",
         ),
@@ -355,68 +343,28 @@ async def test_collaborator_revision_source_usage_counts_against_score_owner(
 
     created = one_row(session, ScoreRevision, revision_uuid=result.revision_id)
     assert created.created_by_user_id == 2
-    owner_counter = (
-        one_row(session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.SOURCE)
+    owner_counter = one_row(
+        session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.SOURCE
     )
     assert owner_counter.used_bytes == len(MUSICXML_2.encode("utf-8"))
-    collaborator_counter = (
-        maybe_one_row(session, StorageUsageCounter, user_id=2, category=StorageUsageCategory.SOURCE)
+    collaborator_counter = maybe_one_row(
+        session, StorageUsageCounter, user_id=2, category=StorageUsageCategory.SOURCE
     )
     assert collaborator_counter is None or collaborator_counter.used_bytes == 0
 
 
-def test_confirmed_job_creates_one_active_score_and_initial_revision(
-    score_service_session: tuple[Session, LocalFileStorage], tmp_path
-) -> None:
-    session, storage = score_service_session
-    session.add_all(
-        [
-            ImportJob(
-                id=10,
-                job_uuid="job-1",
-                user_id=1,
-                state=ImportJobState.RUNNING,
-            ),
-        ]
-    )
-    session.commit()
-    source = tmp_path / "score.musicxml"
-    source.write_bytes(MUSICXML_1)
-    service = SyncConfirmedScoreCreationService(storage)
-
-    first_id = service.create_confirmed_from_job(
-        session, "job-1", str(source), title="Recognized score"
-    )
-    second_id = service.create_confirmed_from_job(
-        session, "job-1", str(source), title="Recognized score"
-    )
-
-    assert first_id == second_id
-    assert count_rows(session, Score) == 1
-    score = one_row(session, Score)
-    revision = one_row(session, ScoreRevision)
-    revision_source = one_row(session, ScoreRevisionSource)
-    metadata = session.get(ScoreRevisionMetadata, revision.id)
-    assert score.head_revision_id == revision.id
-    assert revision_source.format == RevisionSourceFormat.MUSICXML
-    assert storage.exists(revision_source.storage_key)
-    assert metadata is not None
-    assert metadata.status == MetadataStatus.READY
-    assert metadata.measure_count == 1
-    assert metadata.playback_duration_ms == 2000
-
-
-def test_completed_job_notifies_owner_when_ready_for_review(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_processing_success_notifies_owner_when_ready_for_review(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
             id=11,
             job_uuid="job-complete-notification",
             user_id=1,
-            state=ImportJobState.RUNNING,
-            requested_options={"title": "Ready Score"},
+            state=ImportJobState.PROCESSING,
+            requested_options=encode_requested_options({"display_title": "Ready Score"}),
         )
     )
     session.commit()
@@ -429,90 +377,83 @@ def test_completed_job_notifies_owner_when_ready_for_review(
         ImportArtifact(
             job_id=11,
             artifact_uuid="completed-review-xml",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
-            storage_key=stored_xml.storage_key,
-            filename=stored_xml.filename,
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored_xml.size_bytes,
-            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
+            stored_object=StoredObject(
+                object_key=stored_xml.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=stored_xml.size_bytes,
+                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            ),
+            filename=stored_xml.object_key.rsplit("/", 1)[-1],
         )
     )
     session.commit()
-    job_service = SyncImportJobService()
+    job_service = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
 
-    job_service.finalize_success(session, "job-complete-notification")
-    job_service.finalize_success(session, "job-complete-notification")
+    job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
+    job_service.finalize_success(session, processing_lease(session, session.get(ImportJob, 11)))
 
-    notification = (
-        one_row(
-            session,
-            NotificationEvent,
-            recipient_user_id=1,
-            type=NotificationTypes.IMPORT_COMPLETED,
-        )
+    notification = one_row(
+        session,
+        Notification,
+        recipient_user_id=1,
+        kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
     )
-    assert notification.resource_type == "job"
-    assert notification.resource_id == "job-complete-notification"
+    assert notification.import_job_id == "job-complete-notification"
     assert notification.score_id is None
-    assert notification.data["job_id"] == "job-complete-notification"
-    assert notification.data["job_title"] == "Ready Score"
-    assert maybe_one_row(session, Score, title="Ready Score") is None
-    render_outbox = one_row(session, RenderOutbox)
-    assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
-    assert render_outbox.import_job_id == 11
-    assert render_outbox.status == RenderOutboxStatus.PENDING
+    assert notification.import_job_id == "job-complete-notification"
+    assert notification.import_display_title_snapshot == "Ready Score"
+    assert maybe_one_row(session, Score, display_title="Ready Score") is None
+    assert count_rows(session, ScoreRevisionRenderOutbox) == 0
+    assert count_rows(session, ScoreRenderAsset) == 0
 
 
 def test_failed_job_notifies_owner_once(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
+            processing_started_at=utc_now(),
             id=12,
             job_uuid="job-failure-notification",
             user_id=1,
-            state=ImportJobState.RUNNING,
+            state=ImportJobState.PROCESSING,
         )
     )
     session.commit()
-    job_service = SyncImportJobService()
+    job_service = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
 
     job_service.finalize_failure(
         session,
-        "job-failure-notification",
-        error="OCR failed",
-        error_type="PipelineError",
-        code=ErrorCode.UNKNOWN_ERROR,
+        processing_lease(session, session.get(ImportJob, 12)),
+        failure=DurableFailure(
+            "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+        ),
     )
     job_service.finalize_failure(
         session,
-        "job-failure-notification",
-        error="OCR failed again",
-        error_type="PipelineError",
-        code=ErrorCode.UNKNOWN_ERROR,
+        processing_lease(session, session.get(ImportJob, 12)),
+        failure=DurableFailure(
+            "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
+        ),
     )
 
-    notification = (
-        one_row(
-            session,
-            NotificationEvent,
-            recipient_user_id=1,
-            type=NotificationTypes.IMPORT_FAILED,
-        )
+    notification = one_row(
+        session,
+        Notification,
+        recipient_user_id=1,
+        kind=NotificationKind.IMPORT_FAILED,
     )
-    assert notification.resource_type == "job"
-    assert notification.resource_id == "job-failure-notification"
+    assert notification.import_job_id == "job-failure-notification"
     assert notification.score_id is None
-    assert notification.data["job_id"] == "job-failure-notification"
-    assert "code" not in notification.data
-    assert "error_type" not in notification.data
+    assert notification.import_job_id == "job-failure-notification"
+    assert notification.kind == NotificationKind.IMPORT_FAILED
 
 
-@pytest.mark.asyncio
-async def test_review_detail_reads_pending_job_artifacts(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_review_detail_reads_review_ready_artifacts(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     stored_xml = storage.put_bytes(
@@ -527,14 +468,18 @@ async def test_review_detail_reads_pending_job_artifacts(
     )
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=13,
             job_uuid="job-review",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
-            requested_options={
-                "title": "Review Score",
-                "taxonomy_tags": [{"category": "level", "code": "beginner"}],
-            },
+            state=ImportJobState.READY_FOR_REVIEW,
+            requested_options=encode_requested_options(
+                {
+                    "display_title": "Review Score",
+                    "genres": ["jazz"],
+                }
+            ),
         )
     )
     session.commit()
@@ -543,45 +488,52 @@ async def test_review_detail_reads_pending_job_artifacts(
             ImportArtifact(
                 job_id=13,
                 artifact_uuid="review-musicxml-artifact",
-                kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-                storage_backend="local",
-                storage_key=stored_xml.storage_key,
-                filename=stored_xml.filename,
-                mime_type="application/vnd.recordare.musicxml+xml",
-                size_bytes=stored_xml.size_bytes,
-                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+                kind=ImportArtifactKind.REVIEW_MUSICXML,
+                stored_object=StoredObject(
+                    object_key=stored_xml.object_key,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                    byte_size=stored_xml.size_bytes,
+                    sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+                ),
+                filename=stored_xml.object_key.rsplit("/", 1)[-1],
                 page_number=1,
             ),
-            StorageBlob(
+            StoredObject(
                 id=131,
-                sha256="upload-sha",
-                storage_backend="local",
-                storage_key=uploaded_image.storage_key,
-                filename=uploaded_image.filename,
-                size_bytes=uploaded_image.size_bytes,
-                mime_type="image/png",
+                sha256="8a10d5bc2234674caf6623192c43720a4dd822fc4ecb31eca6d6dff67ec12ec3",
+                object_key=uploaded_image.object_key,
+                byte_size=uploaded_image.size_bytes,
+                content_type="image/png",
             ),
             Upload(
+                upload_session=settled_upload_session(user_id=1),
                 id=130,
-                blob_id=131,
+                stored_object_id=131,
                 original_filename="page-1.png",
                 uploader_user_id=1,
             ),
-            ImportJobUpload(job_id=13, upload_id=130, page_number=1, sort_order=1),
         ]
     )
     session.commit()
-    service = ReviewService(storage=storage)
+    session.add(ImportJobUpload(job_id=13, upload_id=130, page_number=1, sort_order=1))
+    session.commit()
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
-    detail = await service.detail(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    detail = service.detail(
+        session,  # type: ignore[arg-type]
         "job-review",
         1,
     )
 
     assert detail.job_id == "job-review"
-    assert detail.title == "Review Score"
-    assert detail.taxonomy_tags == [{"category": "level", "code": "beginner"}]
+    assert detail.display_title == "Review Score"
+    assert detail.genres == ["jazz"]
     assert detail.musicxml.artifact_id == "review-musicxml-artifact"
     assert detail.musicxml.content == MUSICXML_1.decode("utf-8")
     assert detail.original_images[0].artifact_id == "upload:130"
@@ -591,218 +543,125 @@ async def test_review_detail_reads_pending_job_artifacts(
     assert "sha256" not in dumped["original_images"][0]
 
 
-def test_job_detail_uses_review_preview_image_only(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, _ = score_service_session
+def test_import_job_detail_hides_original_upload_storage_details(score_service_session):
+    session, storage = score_service_session
     session.add(
         ImportJob(
-            id=16,
-            job_uuid="job-thumbnail",
+            id=60,
+            job_uuid="private-job",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
+            requested_options=encode_requested_options(None),
+            state=ImportJobState.QUEUED,
         )
     )
-    session.commit()
-    session.add_all(
-        [
-            ImportArtifact(
-                job_id=16,
-                artifact_uuid="result-thumbnail-artifact",
-                kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-                storage_backend="local",
-                storage_key="jobs/job-thumbnail/review_preview_image/001-result.svg",
-                filename="001-result.svg",
-                mime_type="image/svg+xml",
-                page_number=1,
-            ),
-        ]
+    upload = Upload(
+        upload_session=settled_upload_session(user_id=1),
+        upload_uuid="private-upload",
+        uploader_user_id=1,
+        original_filename="page.png",
+        stored_object=StoredObject(
+            object_key="private/image", byte_size=4, sha256="a" * 64, content_type="image/png"
+        ),
     )
+    session.add(upload)
+    session.flush()
+    session.add(ImportJobUpload(job_id=60, upload_id=upload.id, sort_order=1, page_number=1))
     session.commit()
-
-    detail = SyncImportJobService().get_detail(session, "job-thumbnail")
-
-    assert detail["thumbnail"] is not None
-    assert detail["thumbnail"]["artifact_id"] == "result-thumbnail-artifact"
-
-
-def test_import_job_detail_hides_artifact_storage_details(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, _ = score_service_session
-    session.add(
-        ImportJob(
-            id=181,
-            job_uuid="job-public-artifact",
-            user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
-            current_step="ocr_internal_step",
+    detail = (
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(storage),
         )
+        .detail(session, "private-job", 1)
+        .model_dump(mode="json")
     )
-    session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=181,
-            artifact_uuid="public-artifact-id",
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-            storage_backend="local",
-            storage_key="jobs/job-public-artifact/review_preview_image/001-result.svg",
-            filename="001-result.svg",
-            mime_type="image/svg+xml",
-            page_number=1,
-            size_bytes=123,
-            sha256="abc123",
-        )
-    )
-    session.commit()
-
-    detail = SyncImportJobService().get_detail(session, "job-public-artifact")
-    artifact = detail["thumbnail"]
-
-    assert artifact == {
-        "artifact_id": "public-artifact-id",
-        "filename": "001-result.svg",
-        "page_number": 1,
-        "size": 123,
-        "mime_type": "image/svg+xml",
-    }
-    assert "sha256" not in artifact
-    assert "current_step" not in detail
-    assert "steps" not in detail
-    assert "upload_ids" not in detail
-    assert "artifacts" not in detail
-    assert detail["original_images"] == []
+    image = detail["original_images"][0]
+    assert image["upload_id"] == "private-upload"
+    assert image["filename"] == "page.png"
+    assert "storage_key" not in image and "object_key" not in image
 
 
 def test_import_job_detail_exposes_public_failure_fields_only(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _ = score_service_session
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
+            processing_finished_at=utc_now(),
             id=18,
             job_uuid="job-public-failure",
             user_id=1,
-            state=ImportJobState.FAILURE,
-            error=ErrorCode.SCORE_RECOGNITION_FAILED,
-            code=ErrorCode.SCORE_RECOGNITION_FAILED,
-            error_type="PipelineEngineError",
+            state=ImportJobState.FAILED,
+            failure_code="import_pipeline_rejected",
+            failure_stage="pipeline",
+            failure_classification="user_error",
+            failure_retryable=False,
+            failure_detail=CustomerErrorCode.SCORE_RECOGNITION_FAILED,
         )
     )
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
+            processing_finished_at=utc_now(),
             id=19,
             job_uuid="job-raw-failure",
             user_id=1,
-            state=ImportJobState.FAILURE,
-            error="paddleocr crashed while reading /internal/path/score.png",
-            code=None,
-            error_type="PipelineEngineError",
+            state=ImportJobState.FAILED,
+            failure_code="import_pipeline_failed",
+            failure_stage="pipeline",
+            failure_classification="system_error",
+            failure_retryable=False,
+            failure_detail="paddleocr crashed while reading /internal/path/score.png",
         )
     )
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
+            processing_finished_at=utc_now(),
             id=20,
             job_uuid="job-unsafe-code-failure",
             user_id=1,
-            state=ImportJobState.FAILURE,
-            error="redis broker unavailable",
-            code="redis broker unavailable",
-            error_type="ImportDispatchFailure",
+            state=ImportJobState.FAILED,
+            failure_code="unclassified_dispatch_fault",
+            failure_stage="dispatch",
+            failure_classification="system_error",
+            failure_retryable=False,
+            failure_detail="redis broker unavailable",
         )
     )
     session.commit()
 
-    detail = SyncImportJobService().get_detail(session, "job-public-failure")
-    raw_detail = SyncImportJobService().get_detail(session, "job-raw-failure")
-    unsafe_code_detail = SyncImportJobService().get_detail(session, "job-unsafe-code-failure")
+    detail = (
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).detail(session, "job-public-failure", 1)
+    ).model_dump(exclude_unset=True)
+    raw_detail = (
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).detail(session, "job-raw-failure", 1)
+    ).model_dump(exclude_unset=True)
+    unsafe_code_detail = (
+        ImportJobService(
+            usage=_resource_wiring.storage_usage_service,
+            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        ).detail(session, "job-unsafe-code-failure", 1)
+    ).model_dump(exclude_unset=True)
 
-    assert detail["public_code"] == ErrorCode.SCORE_RECOGNITION_FAILED
-    assert detail["public_message"] == ErrorCode.SCORE_RECOGNITION_FAILED
-    assert "error" not in detail
-    assert "code" not in detail
-    assert "error_type" not in detail
-    assert raw_detail["public_code"] == ErrorCode.TASK_ERROR
-    assert raw_detail["public_message"] == ErrorCode.TASK_ERROR
+    assert detail["public_code"] == CustomerErrorCode.SCORE_RECOGNITION_FAILED
+    assert "failure_detail" not in detail
+    assert raw_detail["public_code"] == CustomerErrorCode.TASK_ERROR
     assert "paddleocr" not in str(raw_detail)
     assert "/internal/path" not in str(raw_detail)
-    assert unsafe_code_detail["public_code"] == ErrorCode.TASK_ERROR
-    assert unsafe_code_detail["public_message"] == ErrorCode.TASK_ERROR
+    assert unsafe_code_detail["public_code"] is None
     assert "redis" not in str(unsafe_code_detail)
 
 
-def test_review_thumbnail_records_temp_import_usage(
-    score_service_session: tuple[Session, LocalFileStorage], tmp_path
-) -> None:
-    session, storage = score_service_session
-    stored_xml = storage.put_bytes(
-        key="jobs/job-thumbnail-usage/review_musicxml/001-score.musicxml",
-        content=MUSICXML_1,
-        content_type="application/vnd.recordare.musicxml+xml",
-    )
-    session.add(
-        ImportJob(
-            id=17,
-            job_uuid="job-thumbnail-usage",
-            user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
-        )
-    )
-    session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=17,
-            artifact_uuid="thumbnail-usage-review-xml",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
-            storage_key=stored_xml.storage_key,
-            filename=stored_xml.filename,
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored_xml.size_bytes,
-            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
-        )
-    )
-    session.commit()
-
-    class FakeEngine:
-        def __init__(self, output_folder: str) -> None:
-            self.output_folder = output_folder
-
-        def render_score(self, *, xml_path: str, output_name: str):
-            output = tmp_path / "thumbnail.svg"
-            output.write_bytes(b"<svg />")
-            return {
-                "success": True,
-                "engine": "fake-renderer",
-                "files": [
-                    {
-                        "path": str(output),
-                        "page": 1,
-                        "mime_type": "image/svg+xml",
-                    }
-                ],
-            }
-
-    with patch(
-        "app.modules.review.thumbnail_service.create_score_render_engine",
-        side_effect=lambda output_folder: FakeEngine(output_folder),
-    ):
-        artifact_id = ReviewThumbnailService(storage=storage).render(
-            session,
-            "job-thumbnail-usage",
-            expected_source_fingerprint="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
-        )
-
-    assert artifact_id is not None
-    counter = (
-        one_row(session, StorageUsageCounter, user_id=1, category=StorageUsageCategory.TEMP_IMPORT)
-    )
-    assert counter.used_bytes == len(b"<svg />")
-
-
-@pytest.mark.asyncio
-async def test_review_update_replaces_pending_review_musicxml(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_review_update_replaces_review_musicxml(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     stored_xml = storage.put_bytes(
@@ -812,10 +671,13 @@ async def test_review_update_replaces_pending_review_musicxml(
     )
     session.add(
         ImportJob(
+            requested_options=encode_requested_options(None),
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=15,
             job_uuid="job-review-update",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
+            state=ImportJobState.READY_FOR_REVIEW,
         )
     )
     session.commit()
@@ -823,20 +685,35 @@ async def test_review_update_replaces_pending_review_musicxml(
         ImportArtifact(
             job_id=15,
             artifact_uuid="review-update-artifact",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
-            storage_key=stored_xml.storage_key,
-            filename=stored_xml.filename,
-            mime_type="application/vnd.recordare.musicxml+xml",
-            size_bytes=stored_xml.size_bytes,
-            sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            kind=ImportArtifactKind.REVIEW_MUSICXML,
+            stored_object=StoredObject(
+                object_key=stored_xml.object_key,
+                content_type="application/vnd.recordare.musicxml+xml",
+                byte_size=stored_xml.size_bytes,
+                sha256="5d17f78acc41e8e8ad4fe9dfc2c0e998b718a0acb7283f077b797581fb9f715d",
+            ),
+            filename=stored_xml.object_key.rsplit("/", 1)[-1],
         )
     )
     session.commit()
-    service = ReviewService(storage=storage)
+    storage_usage_service.record_allocation(
+        session,
+        user_id=1,
+        category=StorageUsageCategory.TEMP_IMPORT,
+        bytes_count=stored_xml.size_bytes,
+        reason="fixture",
+    )
+    session.commit()
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
-    detail = await service.update(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    detail = service.update(
+        session,  # type: ignore[arg-type]
         "job-review-update",
         1,
         ReviewUpdateRequest(content=MUSICXML_2),
@@ -845,74 +722,52 @@ async def test_review_update_replaces_pending_review_musicxml(
     assert detail.musicxml is not None
     assert detail.musicxml.content == MUSICXML_2
     artifact = one_row(session, ImportArtifact, artifact_uuid="review-update-artifact")
-    assert artifact.storage_key != stored_xml.storage_key
-    assert storage.read_bytes(artifact.storage_key).decode("utf-8") == MUSICXML_2
+    assert artifact.stored_object.object_key != stored_xml.object_key
+    assert storage.read_bytes(artifact.stored_object.object_key).decode("utf-8") == MUSICXML_2
     assert count_rows(session, Score) == 0
-    render_outbox = one_row(session, RenderOutbox)
-    assert render_outbox.target_type == RenderTargetType.REVIEW_THUMBNAIL
-    assert render_outbox.import_job_id == 15
-    assert render_outbox.source_fingerprint == artifact.sha256
-    assert render_outbox.status == RenderOutboxStatus.PENDING
+    assert count_rows(session, ScoreRevisionRenderOutbox) == 0
+    assert count_rows(session, ScoreRenderAsset) == 0
 
 
-@pytest.mark.asyncio
-async def test_review_confirm_creates_active_score_once(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_review_confirm_creates_active_score_once(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
-    stored_thumbnail = storage.put_bytes(
-        key="jobs/job-confirm-review/review_preview_image/001-result.svg",
-        content=b"<svg />",
-        content_type="image/svg+xml",
-    )
     session.add(
         ImportJob(
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
             id=14,
             job_uuid="job-confirm-review",
             user_id=1,
-            state=ImportJobState.PENDING_REVIEW,
-            requested_options={"title": "Confirmed Score"},
+            state=ImportJobState.READY_FOR_REVIEW,
+            requested_options=encode_requested_options({"display_title": "Confirmed Score"}),
         )
     )
-    session.add(
-        NotificationEvent(
-            notification_uuid="notification-review-ready",
-            recipient_user_id=1,
-            actor_user_id=None,
-            type=NotificationTypes.IMPORT_COMPLETED,
-            resource_type="job",
-            resource_id="job-confirm-review",
-            score_id=None,
-            title="Processing complete",
-            data={"job_id": "job-confirm-review", "job_title": "Confirmed Score"},
-        )
-    )
-    session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=14,
-            artifact_uuid="confirm-review-thumbnail",
-            kind=ImportArtifactKind.REVIEW_PREVIEW_IMAGE.value,
-            storage_backend="local",
-            storage_key=stored_thumbnail.storage_key,
-            filename=stored_thumbnail.filename,
-            mime_type="image/svg+xml",
-            size_bytes=stored_thumbnail.size_bytes,
-            page_number=1,
-            sha256="thumbnail",
-        )
-    )
-    session.commit()
-    service = ReviewService(storage=storage)
-    db = AsyncSessionAdapter(session)
 
-    first = await service.confirm(
+    from app.modules.import_jobs.notifications import admit_import_processing_outcome
+
+    admit_import_processing_outcome(session, session.get(ImportJob, 14), created_at=utc_now())
+    session.flush()
+    session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
+    session.commit()
+    session.commit()
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
+    db = session
+
+    first = service.confirm(
         db,  # type: ignore[arg-type]
         "job-confirm-review",
         1,
         ReviewConfirmRequest(content=MUSICXML_1.decode("utf-8")),
     )
-    second = await service.confirm(
+    second = service.confirm(
         db,  # type: ignore[arg-type]
         "job-confirm-review",
         1,
@@ -924,20 +779,17 @@ async def test_review_confirm_creates_active_score_once(
     score = one_row(session, Score)
     revision = one_row(session, ScoreRevision)
     job = one_row(session, ImportJob, job_uuid="job-confirm-review")
-    library_entry = one_row(session, ScoreLibraryEntry)
+    assert count_rows(session, ScoreLibraryOrganization) == 0
     assert score.score_uuid == first.score_id
-    assert score.title == "Confirmed Score"
+    assert score.display_title == "Confirmed Score"
     assert score.head_revision_id == revision.id
     assert job.state == ImportJobState.CONFIRMED
-    assert job.score_id == score.id
-    assert library_entry.score_id == score.id
-    notification = (
-        one_row(session, NotificationEvent, notification_uuid="notification-review-ready")
-    )
+    assert score.created_from_import_job_id == job.id
+    notification = one_row(session, Notification, import_job_id="job-confirm-review")
     assert notification.score_id == score.score_uuid
-    assert notification.data["score_id"] == score.score_uuid
-    assert notification.data["score_title"] == "Confirmed Score"
-    detail_after_confirm = await service.detail(
+    assert notification.score_id == score.score_uuid
+    assert notification.score_display_title_snapshot == "Confirmed Score"
+    detail_after_confirm = service.detail(
         db,  # type: ignore[arg-type]
         "job-confirm-review",
         1,
@@ -945,34 +797,20 @@ async def test_review_confirm_creates_active_score_once(
     assert detail_after_confirm.state == ImportJobState.CONFIRMED
     assert detail_after_confirm.score_id == score.score_uuid
     assert detail_after_confirm.musicxml is None
-    assert (
-        one_row(
-            session,
-            ScoreRevisionSource,
-            revision_id=revision.id,
-            format=RevisionSourceFormat.MUSICXML,
-        )
+    assert one_row(
+        session,
+        ScoreRevisionSource,
+        revision_id=revision.id,
+        format=RevisionSourceFormat.MUSICXML,
     )
-    copied_thumbnail = (
-        one_row(
-            session,
-            ScoreRenderAsset,
-            revision_id=revision.id,
-            kind=RenderAssetKind.RENDERED_PAGE,
-            render_profile="default",
-            page_number=1,
-        )
-    )
-    assert copied_thumbnail.generator == "review-thumbnail"
-    assert storage.read_bytes(copied_thumbnail.storage_key) == b"<svg />"
-    render_outbox = one_row(session, RenderOutbox)
-    assert render_outbox.revision_id == revision.id
-    assert render_outbox.status == RenderOutboxStatus.PENDING
+    assert count_rows(session, ScoreRenderAsset) == 0
+    score_revision_render_outbox = one_row(session, ScoreRevisionRenderOutbox)
+    assert score_revision_render_outbox.revision_id == revision.id
+    assert score_revision_render_outbox.status == ScoreRevisionRenderStatus.PENDING
 
 
-@pytest.mark.asyncio
-async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_score_detail_describes_only_head_presentation(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     stored_thumbnail = storage.put_bytes(
@@ -984,7 +822,7 @@ async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending
         id=20,
         score_uuid="score-fallback",
         owner_user_id=1,
-        title="Fallback Score",
+        display_title="Fallback Score",
     )
     old_revision = ScoreRevision(
         id=21,
@@ -1001,8 +839,6 @@ async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending
         revision_number=2,
         content_hash="2" * 64,
         origin=RevisionOrigin.EDIT,
-        parent_revision_id=21,
-        base_revision_id=21,
     )
     session.add_all([score, old_revision, new_revision])
     session.commit()
@@ -1013,48 +849,48 @@ async def test_score_detail_uses_previous_thumbnail_while_head_render_is_pending
                 asset_uuid="old-thumbnail",
                 revision_id=21,
                 kind=RenderAssetKind.RENDERED_PAGE,
-                storage_backend="local",
-                storage_key=stored_thumbnail.storage_key,
-                filename=stored_thumbnail.filename,
-                mime_type="image/svg+xml",
-                size_bytes=stored_thumbnail.size_bytes,
-                sha256="3" * 64,
+                stored_object=StoredObject(
+                    object_key=stored_thumbnail.object_key,
+                    content_type="image/svg+xml",
+                    byte_size=stored_thumbnail.size_bytes,
+                    sha256="3" * 64,
+                ),
+                filename=stored_thumbnail.object_key.rsplit("/", 1)[-1],
                 page_number=1,
                 render_profile="default",
                 generator="test",
                 generator_version="1",
             ),
-            RenderOutbox(
+            ScoreRevisionRenderOutbox(
                 outbox_uuid="render-new",
-                target_type=RenderTargetType.SCORE_REVISION,
                 score_id=20,
                 revision_id=22,
                 requested_by_user_id=1,
                 source_fingerprint="2" * 64,
                 render_profile="default",
-                status=RenderOutboxStatus.PENDING,
+                status=ScoreRevisionRenderStatus.PENDING,
             ),
         ]
     )
     session.commit()
 
-    detail = await ScoreService(storage=storage).get(
-        AsyncSessionAdapter(session),  # type: ignore[arg-type]
+    detail = ScoreService(
+        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
+        delivery=_resource_wiring.build_media_delivery_service(storage),
+    ).get(
+        session,  # type: ignore[arg-type]
         "score-fallback",
         1,
     )
 
     assert detail.head_revision_id == "revision-new"
-    assert detail.derived_assets.preview.asset_id == "old-thumbnail"
-    assert detail.derived_assets.preview.revision_id == "revision-old"
-    assert detail.derived_assets.preview.is_fallback is True
+    assert detail.derived_assets.preview.asset_id is None
     assert detail.derived_assets.preview.status == "processing"
     assert detail.derived_assets.audio.status == "pending"
 
 
-@pytest.mark.asyncio
-async def test_revision_save_deduplicates_and_rejects_stale_base(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_revision_snapshots_preserve_noop_replay_and_expected_head_conflict(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     initial = storage.put_bytes(
@@ -1066,7 +902,7 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
         id=30,
         score_uuid="score-1",
         owner_user_id=1,
-        title="Score",
+        display_title="Score",
     )
     session.add(score)
     session.commit()
@@ -1087,62 +923,130 @@ async def test_revision_save_deduplicates_and_rejects_stale_base(
             source_uuid="artifact-1",
             revision_id=40,
             format=RevisionSourceFormat.MUSICXML,
-            storage_backend="local",
-            storage_key=initial.storage_key,
-            filename=initial.filename,
-            mime_type="application/vnd.recordare.musicxml+xml",
-            sha256=revision.content_hash,
+            stored_object=StoredObject(
+                object_key=initial.object_key,
+                byte_size=initial.size_bytes,
+                content_type="application/vnd.recordare.musicxml+xml",
+                sha256=revision.content_hash,
+            ),
+            filename=initial.object_key.rsplit("/", 1)[-1],
             generator="test",
             generator_version="1",
         )
     )
     session.commit()
-    async_db = AsyncSessionAdapter(session)
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
-    created = await service.create(
-        async_db,  # type: ignore[arg-type]
+    created = service.create(
+        session,  # type: ignore[arg-type]
         "score-1",
         1,
-        RevisionCreateRequest(content=MUSICXML_2, base_revision_id="revision-1"),
+        RevisionCreateRequest(
+            content=MUSICXML_2,
+            expected_head_revision_id="revision-1",
+            idempotency_key="snapshot-save-0001",
+        ),
     )
-    duplicate = await service.create(
-        async_db,  # type: ignore[arg-type]
+    assert created.revision_number == 2
+    session.refresh(score)
+    assert (
+        score.head_revision_id
+        == one_row(session, ScoreRevision, revision_uuid=created.revision_id).id
+    )
+    counts = tuple(
+        count_rows(session, model)
+        for model in (ScoreRevision, ScoreRevisionSource, ScoreRevisionRenderOutbox, PlaybackOutbox)
+    )
+    duplicate = service.create(
+        session,  # type: ignore[arg-type]
         "score-1",
         1,
-        RevisionCreateRequest(content=MUSICXML_2, base_revision_id=created.revision_id),
+        RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id=created.revision_id),
     )
-    reverted = await service.create(
-        async_db,  # type: ignore[arg-type]
+    session.refresh(score)
+    assert duplicate.revision_id == created.revision_id
+    assert (
+        score.head_revision_id
+        == one_row(session, ScoreRevision, revision_uuid=created.revision_id).id
+    )
+    assert (
+        tuple(
+            count_rows(session, model)
+            for model in (
+                ScoreRevision,
+                ScoreRevisionSource,
+                ScoreRevisionRenderOutbox,
+                PlaybackOutbox,
+            )
+        )
+        == counts
+    )
+    reverted = service.create(
+        session,  # type: ignore[arg-type]
         "score-1",
         1,
         RevisionCreateRequest(
             content=MUSICXML_1.decode("utf-8"),
-            base_revision_id=created.revision_id,
+            expected_head_revision_id=created.revision_id,
         ),
     )
 
     assert duplicate.revision_id == created.revision_id
     assert reverted.revision_id not in {"revision-1", created.revision_id}
     assert count_rows(session, ScoreRevision) == 3
-    assert count_rows(session, RenderOutbox) == 2
+    assert count_rows(session, ScoreRevisionRenderOutbox) == 2
 
     with pytest.raises(ConflictException) as conflict:
-        await service.create(
-            async_db,  # type: ignore[arg-type]
+        service.create(
+            session,  # type: ignore[arg-type]
             "score-1",
             1,
             RevisionCreateRequest(
                 content=MUSICXML_2.replace("P1", "P2"),
-                base_revision_id="revision-1",
+                expected_head_revision_id="revision-1",
             ),
         )
-    assert conflict.value.code == ErrorCode.REVISION_CONFLICT
+    assert conflict.value.code == CustomerErrorCode.REVISION_CONFLICT
+    assert conflict.value.details == {
+        "score_id": "score-1",
+        "expected_head_revision_id": "revision-1",
+        "current_head_revision_id": reverted.revision_id,
+    }
+    replay = service.create(
+        session,
+        "score-1",
+        1,
+        RevisionCreateRequest(
+            content=MUSICXML_2,
+            expected_head_revision_id="revision-1",
+            idempotency_key="snapshot-save-0001",
+        ),
+    )
+    assert replay.revision_id == created.revision_id
+    session.refresh(score)
+    assert (
+        score.head_revision_id
+        == one_row(session, ScoreRevision, revision_uuid=reverted.revision_id).id
+    )
+    snapshots = all_rows(session, ScoreRevision, score_id=30)
+    assert sorted(revision.revision_number for revision in snapshots) == [1, 2, 3]
+    expected_bytes = [MUSICXML_1, MUSICXML_2.encode(), MUSICXML_1]
+    for revision, content in zip(
+        sorted(snapshots, key=lambda row: row.revision_number), expected_bytes
+    ):
+        source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
+        assert storage.read_bytes(source.stored_object.object_key) == content
+    assert (
+        count_rows(session, ScoreRevisionRenderOutbox) == count_rows(session, PlaybackOutbox) == 2
+    )
 
 
-@pytest.mark.asyncio
-async def test_revision_restore_creates_new_head_from_target_revision(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_revision_restore_creates_new_head_from_target_revision(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     first = storage.put_bytes(
@@ -1159,8 +1063,8 @@ async def test_revision_restore_creates_new_head_from_target_revision(
         id=31,
         score_uuid="score-restore",
         owner_user_id=1,
-        title="Restore Score",
-        version=2,
+        display_title="Restore Score",
+        metadata_version=2,
     )
     revision_1 = ScoreRevision(
         id=41,
@@ -1175,12 +1079,16 @@ async def test_revision_restore_creates_new_head_from_target_revision(
         revision_uuid="revision-2",
         score_id=31,
         revision_number=2,
-        parent_revision_id=41,
-        base_revision_id=41,
         content_hash="ffbbab55af2ecf00497ab235508d9d3af816c1808458bd6bc88b3076f7f15cc3",
         origin=RevisionOrigin.EDIT,
     )
     session.add_all([score, revision_1, revision_2])
+    from app.processing.musicxml.admission import admit_musicxml_document
+
+    revision_1.content_hash = hashlib.sha256(admit_musicxml_document(MUSICXML_1)).hexdigest()
+    revision_2.content_hash = hashlib.sha256(
+        admit_musicxml_document(MUSICXML_2.encode())
+    ).hexdigest()
     session.commit()
     score.head_revision_id = 42
     session.add_all(
@@ -1189,11 +1097,13 @@ async def test_revision_restore_creates_new_head_from_target_revision(
                 source_uuid="restore-source-1",
                 revision_id=41,
                 format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
-                storage_key=first.storage_key,
-                filename=first.filename,
-                mime_type="application/vnd.recordare.musicxml+xml",
-                sha256=revision_1.content_hash,
+                stored_object=StoredObject(
+                    object_key=first.object_key,
+                    byte_size=first.size_bytes,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                    sha256=revision_1.content_hash,
+                ),
+                filename=first.object_key.rsplit("/", 1)[-1],
                 generator="test",
                 generator_version="1",
             ),
@@ -1201,58 +1111,92 @@ async def test_revision_restore_creates_new_head_from_target_revision(
                 source_uuid="restore-source-2",
                 revision_id=42,
                 format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
-                storage_key=second.storage_key,
-                filename=second.filename,
-                mime_type="application/vnd.recordare.musicxml+xml",
-                sha256=revision_2.content_hash,
+                stored_object=StoredObject(
+                    object_key=second.object_key,
+                    byte_size=second.size_bytes,
+                    content_type="application/vnd.recordare.musicxml+xml",
+                    sha256=revision_2.content_hash,
+                ),
+                filename=second.object_key.rsplit("/", 1)[-1],
                 generator="test",
                 generator_version="1",
             ),
         ]
     )
     session.commit()
-    async_db = AsyncSessionAdapter(session)
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
-    restored = await service.restore(  # type: ignore[arg-type]
-        async_db,
+    third = service.create(
+        session,
         "score-restore",
-        "revision-1",
         1,
-        RevisionRestoreRequest(note="Return to the imported baseline"),
+        RevisionCreateRequest(
+            content=MUSICXML_2.replace("<step>C</step>", "<step>D</step>"),
+            expected_head_revision_id="revision-2",
+        ),
+    )
+    fourth = service.create(
+        session,
+        "score-restore",
+        1,
+        RevisionCreateRequest(
+            content=MUSICXML_2.replace("<step>C</step>", "<step>E</step>"),
+            expected_head_revision_id=third.revision_id,
+        ),
+    )
+    restored = service.restore(  # type: ignore[arg-type]
+        session,
+        "score-restore",
+        "revision-2",
+        1,
+        RevisionRestoreRequest(
+            expected_head_revision_id=fourth.revision_id, note="Return to revision 2"
+        ),
     )
 
     session.refresh(score)
     new_revision = one_row(session, ScoreRevision, revision_uuid=restored.revision_id)
     new_artifact = one_row(session, ScoreRevisionSource, revision_id=new_revision.id)
+    from tests.support.revision_metadata import drain_revision_metadata
+
+    assert all(r["status"] == "completed" for r in drain_revision_metadata(session, storage))
     metadata = session.get(ScoreRevisionMetadata, new_revision.id)
-    assert restored.revision_number == 3
-    assert new_revision.parent_revision_id == revision_2.id
-    assert new_revision.base_revision_id == revision_1.id
+    assert new_artifact.stored_object.object_key == canonical_revision_source_object_key(
+        score_uuid=score.score_uuid, revision_uuid=new_revision.revision_uuid
+    )
+    assert restored.revision_number == 5
     assert restored.revision_id not in {"revision-1", "revision-2"}
     assert restored.created_by is not None
     assert restored.created_by.email == "owner@example.com"
     assert restored.restore is not None
-    assert restored.restore.restored_from_revision_id == "revision-1"
-    assert restored.restore.restored_from_revision_number == 1
-    assert restored.restore.note == "Return to the imported baseline"
+    assert restored.restore.restored_from_revision_id == "revision-2"
+    assert restored.restore.restored_from_revision_number == 2
+    assert restored.restore.note == "Return to revision 2"
     assert score.head_revision_id == new_revision.id
-    assert score.version == 3
-    assert storage.read_bytes(new_artifact.storage_key) == MUSICXML_1
+    assert score.metadata_version == 2
+    assert storage.read_bytes(new_artifact.stored_object.object_key) == MUSICXML_2.encode()
     assert metadata is not None
     assert metadata.status == MetadataStatus.READY
-    assert count_rows(session, RenderOutbox) == 1
-    assert count_rows(session, PlaybackOutbox) == 1
+    assert count_rows(session, ScoreRevisionRenderOutbox) == 3
+    assert count_rows(session, PlaybackOutbox) == 3
     event = one_row(session, ScoreRevisionEvent)
     assert event.revision_id == new_revision.id
-    assert event.target_revision_id == 41
-    assert event.note == "Return to the imported baseline"
+    assert event.target_revision_id == 42
+    assert event.note == "Return to revision 2"
+
+    assert count_rows(session, ScoreRevision, score_id=31) == 5
+    for read in (third, fourth):
+        assert one_row(session, ScoreRevision, revision_uuid=read.revision_id)
+    assert storage.read_bytes(first.object_key) == MUSICXML_1
+    assert storage.read_bytes(second.object_key) == MUSICXML_2.encode()
 
 
-@pytest.mark.asyncio
-async def test_revision_note_can_be_added_updated_and_cleared(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_revision_note_can_be_added_updated_and_cleared(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     add_active_score_with_head_revision(
@@ -1263,25 +1207,28 @@ async def test_revision_note_can_be_added_updated_and_cleared(
         revision_uuid="revision-note",
         title="Revision Note Score",
     )
-    async_db = AsyncSessionAdapter(session)
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
-    created = await service.update_note(  # type: ignore[arg-type]
-        async_db,
+    created = service.update_note(  # type: ignore[arg-type]
+        session,
         "score-revision-note",
         "revision-note",
         1,
         RevisionNoteUpdateRequest(note="Fixed page 3 rhythm"),
     )
-    updated = await service.update_note(  # type: ignore[arg-type]
-        async_db,
+    updated = service.update_note(  # type: ignore[arg-type]
+        session,
         "score-revision-note",
         "revision-note",
         1,
         RevisionNoteUpdateRequest(note="Fixed page 3 rhythm and fingering"),
     )
-    cleared = await service.update_note(  # type: ignore[arg-type]
-        async_db,
+    cleared = service.update_note(  # type: ignore[arg-type]
+        session,
         "score-revision-note",
         "revision-note",
         1,
@@ -1298,17 +1245,16 @@ async def test_revision_note_can_be_added_updated_and_cleared(
     assert count_rows(session, ScoreRevisionNote) == 0
 
 
-@pytest.mark.asyncio
-async def test_derived_asset_retention_keeps_current_and_recent_history(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_derived_asset_retention_protects_current_head_only(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     score = Score(
         id=34,
         score_uuid="retention-score",
         owner_user_id=1,
-        title="Retention Score",
-        version=5,
+        display_title="Retention Score",
+        metadata_version=5,
     )
     revisions = [
         ScoreRevision(
@@ -1343,21 +1289,22 @@ async def test_derived_asset_retention_keeps_current_and_recent_history(
             content=MUSICXML_1,
             content_type="application/vnd.recordare.musicxml+xml",
         )
-        stored_keys[f"render-{revision.revision_number}"] = rendered.storage_key
-        stored_keys[f"audio-{revision.revision_number}"] = audio.storage_key
-        stored_keys[f"xml-{revision.revision_number}"] = musicxml.storage_key
+        stored_keys[f"render-{revision.revision_number}"] = rendered.object_key
+        stored_keys[f"audio-{revision.revision_number}"] = audio.object_key
+        stored_keys[f"xml-{revision.revision_number}"] = musicxml.object_key
         session.add_all(
             [
                 ScoreRenderAsset(
                     asset_uuid=f"retention-render-{revision.revision_number}",
                     revision_id=revision_id,
                     kind=RenderAssetKind.RENDERED_PAGE,
-                    storage_backend="local",
-                    storage_key=rendered.storage_key,
-                    filename=rendered.filename,
-                    mime_type="image/svg+xml",
-                    size_bytes=rendered.size_bytes,
-                    sha256=f"r{revision.revision_number}" * 32,
+                    stored_object=StoredObject(
+                        object_key=rendered.object_key,
+                        content_type="image/svg+xml",
+                        byte_size=rendered.size_bytes,
+                        sha256=hashlib.sha256(b"<svg />").hexdigest(),
+                    ),
+                    filename=rendered.object_key.rsplit("/", 1)[-1],
                     page_number=1,
                     render_profile="default",
                     generator="test",
@@ -1367,12 +1314,13 @@ async def test_derived_asset_retention_keeps_current_and_recent_history(
                     source_uuid=f"retention-xml-{revision.revision_number}",
                     revision_id=revision_id,
                     format=RevisionSourceFormat.MUSICXML,
-                    storage_backend="local",
-                    storage_key=musicxml.storage_key,
-                    filename=musicxml.filename,
-                    mime_type="application/vnd.recordare.musicxml+xml",
-                    size_bytes=musicxml.size_bytes,
-                    sha256=f"x{revision.revision_number}" * 32,
+                    stored_object=StoredObject(
+                        object_key=musicxml.object_key,
+                        content_type="application/vnd.recordare.musicxml+xml",
+                        byte_size=musicxml.size_bytes,
+                        sha256=hashlib.sha256(MUSICXML_1).hexdigest(),
+                    ),
+                    filename=musicxml.object_key.rsplit("/", 1)[-1],
                     generator="test",
                     generator_version="1",
                 ),
@@ -1380,54 +1328,66 @@ async def test_derived_asset_retention_keeps_current_and_recent_history(
                     asset_uuid=f"retention-audio-{revision.revision_number}",
                     revision_id=revision_id,
                     kind=PlaybackAssetKind.AUDIO,
-                    storage_backend="local",
-                    storage_key=audio.storage_key,
-                    filename=audio.filename,
-                    mime_type="audio/wav",
-                    size_bytes=audio.size_bytes,
-                    sha256=f"a{revision.revision_number}" * 32,
+                    stored_object=StoredObject(
+                        object_key=audio.object_key,
+                        content_type="audio/wav",
+                        byte_size=audio.size_bytes,
+                        sha256=hashlib.sha256(b"RIFF").hexdigest(),
+                    ),
+                    filename=audio.object_key.rsplit("/", 1)[-1],
                     source_fingerprint=f"{revision.revision_number:064x}",
                     generator="test",
                     generator_version="1",
                 ),
             ]
         )
+        for category, size in [
+            (StorageUsageCategory.DERIVED_RENDER, rendered.size_bytes),
+            (StorageUsageCategory.DERIVED_AUDIO, audio.size_bytes),
+            (StorageUsageCategory.SOURCE, musicxml.size_bytes),
+        ]:
+            storage_usage_service.record_allocation(
+                session, user_id=1, category=category, bytes_count=size, reason="fixture"
+            )
     session.commit()
-    service = DerivedAssetRetentionService(storage=storage)
+    service = DerivedAssetRetentionService(usage=_resource_wiring.storage_usage_service)
 
-    result = await service.cleanup_for_score(  # type: ignore[arg-type]
-        AsyncSessionAdapter(session),
+    result = service.cleanup_for_score(  # type: ignore[arg-type]
+        session,
         score_id=34,
-        head_revision_id=require_persisted_id(score.head_revision_id, entity="score revision"),
-        retain_recent_revisions=2,
     )
 
-    assert result.rendered_pages_deleted == 2
-    assert result.playback_assets_deleted == 2
-    assert count_rows(session, ScoreRenderAsset, kind=RenderAssetKind.RENDERED_PAGE) == 3
-    assert count_rows(session, ScorePlaybackAsset) == 3
+    session.commit()
+    assert result.rendered_pages_deleted == 4
+    assert result.playback_assets_deleted == 4
+    assert count_rows(session, ScoreRenderAsset, kind=RenderAssetKind.RENDERED_PAGE) == 1
+    assert count_rows(session, ScorePlaybackAsset) == 1
     assert count_rows(session, ScoreRevisionSource, format=RevisionSourceFormat.MUSICXML) == 5
-    for number in (1, 2):
+    from tests.support.retirement import drain_retirements
+
+    assert result.object_retirements_queued == 8
+    assert all(storage.exists(key) for key in stored_keys.values())
+    assert all(item["status"] == "completed" for item in drain_retirements(session, storage))
+    for number in (1, 2, 3, 4):
         assert not storage.exists(stored_keys[f"render-{number}"])
         assert not storage.exists(stored_keys[f"audio-{number}"])
         assert storage.exists(stored_keys[f"xml-{number}"])
-    for number in (3, 4, 5):
+    for number in (5,):
         assert storage.exists(stored_keys[f"render-{number}"])
         assert storage.exists(stored_keys[f"audio-{number}"])
         assert storage.exists(stored_keys[f"xml-{number}"])
 
 
-@pytest.mark.asyncio
-async def test_revision_list_uses_cursor_pagination(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_revision_list_uses_cursor_pagination(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     score = Score(
         id=32,
         score_uuid="score-revision-list",
         owner_user_id=1,
-        title="Revision List Score",
-        version=5,
+        display_title="Revision List Score",
+        metadata_version=5,
     )
     revisions = [
         ScoreRevision(
@@ -1435,8 +1395,6 @@ async def test_revision_list_uses_cursor_pagination(
             revision_uuid=f"revision-{number}",
             score_id=32,
             revision_number=number,
-            parent_revision_id=49 + number if number > 1 else None,
-            base_revision_id=49 + number if number > 1 else None,
             content_hash=f"{number:064x}",
             origin=RevisionOrigin.EDIT if number > 1 else RevisionOrigin.IMPORT,
         )
@@ -1448,17 +1406,20 @@ async def test_revision_list_uses_cursor_pagination(
     score.head_revision_id = revisions[-1].id
     session.add(score)
     session.commit()
-    async_db = AsyncSessionAdapter(session)
-    service = RevisionService(storage=storage)
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
-    first_page = await service.list(  # type: ignore[arg-type]
-        async_db,
+    first_page = service.list(  # type: ignore[arg-type]
+        session,
         "score-revision-list",
         1,
         limit=2,
     )
-    second_page = await service.list(  # type: ignore[arg-type]
-        async_db,
+    second_page = service.list(  # type: ignore[arg-type]
+        session,
         "score-revision-list",
         1,
         limit=2,
@@ -1473,7 +1434,7 @@ async def test_revision_list_uses_cursor_pagination(
 
 
 def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -1484,44 +1445,42 @@ def test_render_outbox_recovers_stale_delivery_and_lists_due_work(
         revision_uuid="render-outbox-revision",
         title="Render Outbox",
     )
-    now = utc_now_naive()
-    stale = RenderOutbox(
+    now = utc_now()
+    stale = ScoreRevisionRenderOutbox(
         outbox_uuid="render-outbox-stale",
-        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
-        source_fingerprint="stale-source",
+        source_fingerprint="16a3fe9f344807aa7b7a8dd1da722daa56043317e557bd535cc98ffbaf519867",
         requested_by_user_id=1,
         render_profile="default",
-        status=RenderOutboxStatus.DISPATCHED,
+        status=ScoreRevisionRenderStatus.DISPATCHED,
         dispatched_at=now - timedelta(hours=1),
         next_attempt_at=now - timedelta(minutes=1),
     )
-    due_failure = RenderOutbox(
+    due_failure = ScoreRevisionRenderOutbox(
         outbox_uuid="render-outbox-failed",
-        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
-        source_fingerprint="failed-source",
+        source_fingerprint="0ef0b734ebb94ff1fa6af550527abcbca2c07f799b9dfa7820519348943ce070",
         requested_by_user_id=1,
         render_profile="compact",
-        status=RenderOutboxStatus.FAILED,
+        status=ScoreRevisionRenderStatus.FAILED,
         attempt_count=1,
         next_attempt_at=now - timedelta(minutes=1),
     )
     session.add_all([stale, due_failure])
     session.commit()
 
-    due = RenderOutboxService().recover_and_list_due(session)
+    due = ScoreRevisionRenderDelivery().recover_and_list_due(session)
 
     assert due == ["render-outbox-stale", "render-outbox-failed"]
     session.refresh(stale)
-    assert stale.status == RenderOutboxStatus.FAILED
-    assert stale.last_error == "Render delivery lease expired"
+    assert stale.status == ScoreRevisionRenderStatus.FAILED
+    assert stale.failure_detail == "Render delivery lease expired"
 
 
 def test_render_outbox_claim_failure_and_completion_are_persistent(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -1532,101 +1491,66 @@ def test_render_outbox_claim_failure_and_completion_are_persistent(
         revision_uuid="render-claim-revision",
         title="Render Claim",
     )
-    outbox = RenderOutbox(
+    revision = session.get(ScoreRevision, score.head_revision_id)
+    session.add(
+        ScoreRevisionSource(
+            source_uuid="render-claim-source",
+            revision_id=revision.id,
+            format=RevisionSourceFormat.MUSICXML,
+            stored_object=StoredObject(
+                object_key="render-claim.musicxml",
+                byte_size=len(MUSICXML_1),
+                content_type="application/vnd.recordare.musicxml+xml",
+                sha256=revision.content_hash,
+            ),
+            filename="score.musicxml",
+            generator="test",
+            generator_version="1",
+        )
+    )
+    outbox = ScoreRevisionRenderOutbox(
         outbox_uuid="render-outbox-claim",
-        target_type=RenderTargetType.SCORE_REVISION,
         score_id=score.id,
         revision_id=score.head_revision_id,
-        source_fingerprint="claim-source",
+        source_fingerprint=revision.content_hash,
         requested_by_user_id=1,
     )
     session.add(outbox)
     session.commit()
-    service = RenderOutboxService()
+    service = ScoreRevisionRenderDelivery()
 
     payload = service.claim(session, outbox.outbox_uuid)
     session.commit()
     assert payload is not None
-    assert payload.score_uuid == score.score_uuid
-    assert payload.revision_uuid == "render-claim-revision"
-    assert outbox.status == RenderOutboxStatus.PROCESSING
+    assert payload.target.score_uuid == score.score_uuid
+    assert payload.target.revision_uuid == "render-claim-revision"
+    assert outbox.status == ScoreRevisionRenderStatus.PROCESSING
     assert outbox.attempt_count == 1
 
-    service.fail(session, outbox.outbox_uuid, "temporary failure")
+    service.fail(session, outbox.outbox_uuid, "temporary failure", lease=payload.lease)
     session.commit()
-    assert outbox.status == RenderOutboxStatus.FAILED
-    assert outbox.last_error == "temporary failure"
+    assert outbox.status == ScoreRevisionRenderStatus.FAILED
+    assert outbox.failure_detail == "temporary failure"
 
-    outbox.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
+    outbox.next_attempt_at = utc_now() - timedelta(seconds=1)
     session.commit()
     payload = service.claim(session, outbox.outbox_uuid)
     session.commit()
     assert payload is not None
-    service.complete(session, outbox.outbox_uuid)
+    service.complete(session, outbox.outbox_uuid, lease=payload.lease)
     session.commit()
-    assert outbox.status == RenderOutboxStatus.COMPLETED
+    assert outbox.status == ScoreRevisionRenderStatus.COMPLETED
     assert outbox.completed_at is not None
-    assert outbox.last_error is None
-
-
-def test_review_thumbnail_outbox_claims_only_the_current_musicxml(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, _storage = score_service_session
-    job = ImportJob(
-        id=413,
-        job_uuid="review-thumbnail-job",
-        user_id=1,
-        state=ImportJobState.PENDING_REVIEW,
-    )
-    session.add(job)
-    session.commit()
-    session.add(
-        ImportArtifact(
-            job_id=413,
-            artifact_uuid="review-thumbnail-source",
-            kind=ImportArtifactKind.REVIEW_MUSICXML.value,
-            storage_backend="local",
-            storage_key="jobs/review-thumbnail-job/review_musicxml/score.musicxml",
-            filename="score.musicxml",
-            mime_type="application/vnd.recordare.musicxml+xml",
-            sha256="current-source",
-        )
-    )
-    current = RenderOutbox(
-        outbox_uuid="review-thumbnail-current",
-        target_type=RenderTargetType.REVIEW_THUMBNAIL,
-        import_job_id=413,
-        source_fingerprint="current-source",
-        render_profile="review-thumbnail",
-    )
-    stale = RenderOutbox(
-        outbox_uuid="review-thumbnail-stale",
-        target_type=RenderTargetType.REVIEW_THUMBNAIL,
-        import_job_id=413,
-        source_fingerprint="stale-source",
-        render_profile="review-thumbnail",
-    )
-    session.add_all([current, stale])
-    session.commit()
-    service = RenderOutboxService()
-
-    payload = service.claim(session, current.outbox_uuid)
-    stale_payload = service.claim(session, stale.outbox_uuid)
-    session.commit()
-
-    assert payload is not None
-    assert payload.target_type == RenderTargetType.REVIEW_THUMBNAIL
-    assert payload.job_uuid == job.job_uuid
-    assert stale_payload is None
-    assert stale.status == RenderOutboxStatus.COMPLETED
+    assert outbox.failure_detail is None
 
 
 def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     outbox = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         outbox_uuid="mail-outbox-test",
         category="verification.register",
         dedupe_key="verification:test",
@@ -1634,7 +1558,7 @@ def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
         subject="Verification code",
         text_body="123456",
         html_body="<strong>123456</strong>",
-        expires_at=utc_now_naive() + timedelta(minutes=10),
+        expires_at=utc_now() + timedelta(minutes=10),
     )
     session.add(outbox)
     session.commit()
@@ -1646,15 +1570,18 @@ def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
     assert payload.text_body == "123456"
     assert outbox.status == MailOutboxStatus.PROCESSING
 
-    service.transient_failure(session, outbox.outbox_uuid, "provider unavailable")
+    service.transient_failure(
+        session, outbox.outbox_uuid, "provider unavailable", lease=payload.lease
+    )
     session.commit()
     assert outbox.status == MailOutboxStatus.FAILED
     assert outbox.text_body == "123456"
 
-    outbox.next_attempt_at = utc_now_naive() - timedelta(seconds=1)
+    outbox.next_attempt_at = utc_now() - timedelta(seconds=1)
     session.commit()
-    assert service.claim(session, outbox.outbox_uuid) is not None
-    service.sent(session, outbox.outbox_uuid, "resend-message-id")
+    payload = service.claim(session, outbox.outbox_uuid)
+    assert payload is not None
+    service.sent(session, outbox.outbox_uuid, "resend-message-id", lease=payload.lease)
     session.commit()
 
     assert outbox.status == MailOutboxStatus.SENT
@@ -1664,10 +1591,12 @@ def test_mail_outbox_retries_and_scrubs_sensitive_content_after_delivery(
 
 
 def test_expired_verification_mail_is_never_dispatched(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     outbox = MailOutbox(
+        source_kind="ACCOUNT",
+        source_id=1,
         outbox_uuid="expired-mail-outbox",
         category="verification.password_reset",
         dedupe_key="verification:expired",
@@ -1675,7 +1604,7 @@ def test_expired_verification_mail_is_never_dispatched(
         subject="Expired code",
         text_body="654321",
         html_body="<strong>654321</strong>",
-        expires_at=utc_now_naive() - timedelta(seconds=1),
+        expires_at=utc_now() - timedelta(seconds=1),
     )
     session.add(outbox)
     session.commit()
@@ -1688,110 +1617,122 @@ def test_expired_verification_mail_is_never_dispatched(
     assert outbox.html_body is None
 
 
-def test_import_dispatch_claim_reconstructs_persisted_request(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_import_dispatch_claim_resolves_persisted_execution_inputs(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     job = ImportJob(
         id=501,
         job_uuid="import-dispatch-job",
         user_id=1,
-        state=ImportJobState.PENDING,
-        requested_options={"title": "Queued score"},
+        state=ImportJobState.QUEUED,
+        requested_options=encode_requested_options({"display_title": "Queued score"}),
     )
     upload = Upload(
+        upload_session=settled_upload_session(user_id=1),
         id=502,
         upload_uuid="queued-upload",
-        blob_id=602,
+        stored_object_id=602,
         original_filename="queued.png",
         uploader_user_id=1,
     )
-    blob = StorageBlob(
+    blob = StoredObject(
         id=602,
-        blob_uuid="queued-blob",
-        sha256="queued-upload-sha",
-        storage_backend="local",
-        storage_key="blobs/qu/queued-upload-sha.png",
-        filename="queued.png",
-        size_bytes=5,
-        mime_type="image/png",
+        sha256="c6a6aef50795992f8112412a4171cda3f041225642c94b4dfef40d2755edf2ef",
+        object_key="blobs/qu/queued-upload-sha.png",
+        byte_size=5,
+        content_type="image/png",
     )
     session.add_all([job, blob, upload])
     session.flush()
     session.add(ImportJobUpload(job_id=501, upload_id=502, page_number=1, sort_order=1))
     session.commit()
 
-    payload = ImportDispatchService().claim(session, job.job_uuid)
+    dispatch = ImportDispatch(job_id=job.id)
+    session.add(dispatch)
+    session.commit()
+    payload = ImportDispatchService().claim(session, dispatch.dispatch_uuid)
     session.commit()
 
     assert payload is not None
     assert payload.job_uuid == job.job_uuid
-    assert payload.storage_keys == ["blobs/qu/queued-upload-sha.png"]
-    assert payload.options == {"title": "Queued score"}
-    assert job.dispatch_status == ImportDispatchStatus.PROCESSING
-    assert job.dispatch_attempt_count == 1
+    assert [item.storage_key for item in payload.inputs] == ["blobs/qu/queued-upload-sha.png"]
+    assert not hasattr(payload, "options")
+    assert dispatch.status == ImportDispatchStatus.PROCESSING
+    assert dispatch.attempt_count == 1
 
 
 def test_import_dispatch_recovers_stale_worker_without_failing_business_job(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    now = utc_now_naive()
+    now = utc_now()
     job = ImportJob(
+        requested_options=encode_requested_options(None),
+        processing_started_at=utc_now(),
         id=503,
         job_uuid="stale-import-dispatch",
         user_id=1,
-        state=ImportJobState.RUNNING,
+        state=ImportJobState.PROCESSING,
         progress=65,
         current_step="ocr",
-        dispatch_status=ImportDispatchStatus.PROCESSING,
-        dispatch_attempt_count=1,
-        dispatch_started_at=now - timedelta(hours=1),
-        next_dispatch_at=now - timedelta(minutes=1),
     )
     session.add(job)
     session.commit()
 
-    due = ImportDispatchService().recover_and_claim_due(session)
+    dispatch = ImportDispatch(
+        job_id=job.id,
+        status=ImportDispatchStatus.PROCESSING,
+        attempt_count=1,
+        attempt_token="token",
+        started_at=now - timedelta(hours=1),
+    )
+    session.add(dispatch)
+    session.commit()
+    due = ImportDispatchService().recover_and_list_due(session)
 
-    assert due == [job.job_uuid]
-    assert job.state == ImportJobState.PENDING
-    assert job.dispatch_status == ImportDispatchStatus.DISPATCHED
+    assert due == [dispatch.dispatch_uuid]
+    assert job.state == ImportJobState.QUEUED
+    assert dispatch.status == ImportDispatchStatus.FAILED
     assert job.progress == 0
     assert job.current_step is None
-    assert job.error is None
 
 
-def test_import_dispatch_publish_failure_uses_exponential_backoff(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_import_dispatch_publish_release_preserves_domain_and_attempt(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    now = utc_now_naive()
+    now = utc_now()
     job = ImportJob(
+        requested_options=encode_requested_options(None),
         id=504,
         job_uuid="broker-backoff-job",
         user_id=1,
-        state=ImportJobState.PENDING,
-        dispatch_status=ImportDispatchStatus.DISPATCHED,
-        dispatched_at=now,
-        next_dispatch_at=now,
+        state=ImportJobState.QUEUED,
     )
     session.add(job)
     session.commit()
 
-    ImportDispatchService().release_dispatch(session, job.job_uuid, "broker unavailable")
+    dispatch = ImportDispatch(
+        job_id=job.id,
+        status=ImportDispatchStatus.DISPATCHED,
+        dispatched_at=now,
+        next_attempt_at=now,
+    )
+    session.add(dispatch)
+    session.commit()
+    ImportDispatchService().release_dispatch(session, dispatch.dispatch_uuid, "broker unavailable")
     session.commit()
 
-    assert job.state == ImportJobState.PENDING
-    assert job.dispatch_status == ImportDispatchStatus.PENDING
-    assert job.publish_attempt_count == 1
-    assert job.next_dispatch_at > now
-    assert job.dispatch_error == "broker unavailable"
+    assert job.state == ImportJobState.QUEUED
+    assert dispatch.status == ImportDispatchStatus.PENDING
+    assert dispatch.attempt_count == 0
+    assert dispatch.next_attempt_at == now
+    assert dispatch.failure_detail == "broker unavailable"
 
 
-@pytest.mark.asyncio
-async def test_collaborator_revision_save_notifies_score_owner(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_collaborator_revision_save_notifies_score_owner(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -1811,103 +1752,56 @@ async def test_collaborator_revision_save_notifies_score_owner(
         )
     )
     session.commit()
-    db = AsyncSessionAdapter(session)
-    service = RevisionService(storage=storage)
+    db = session
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
 
-    created = await service.create(
+    created = service.create(
         db,  # type: ignore[arg-type]
         score.score_uuid,
         2,
-        RevisionCreateRequest(content=MUSICXML_2, base_revision_id="collab-base-revision"),
+        RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id="collab-base-revision"),
     )
 
-    notification = (
-        one_row(
-            session,
-            NotificationEvent,
-            recipient_user_id=1,
-            actor_user_id=2,
-            type=NotificationTypes.SCORE_VERSION_CREATED,
-        )
+    notification = one_row(
+        session,
+        Notification,
+        recipient_user_id=1,
+        actor_user_id=2,
+        kind=NotificationKind.SCORE_VERSION_CREATED,
     )
     assert notification.score_id == "collab-revision-score"
-    assert notification.resource_id == "collab-revision-score"
-    assert notification.data == {"score_title": "Collaborative Score"}
-    assert count_rows(session, NotificationEvent, recipient_user_id=2) == 0
+    assert notification.revision_id == created.revision_id
+    assert notification.score_display_title_snapshot == "Collaborative Score"
+    assert count_rows(session, Notification, recipient_user_id=2) == 0
 
-    revision = one_row(session, ScoreRevision, revision_uuid=created.revision_id)
+    assert one_row(session, ScoreRevision, revision_uuid=created.revision_id) is not None
     actor = session.get(User, 2)
     assert actor is not None
-    await service.notification_service.notify_score_version_created_best_effort(
-        db,  # type: ignore[arg-type]
-        score=score,
-        revision=revision,
-        actor=actor,
-    )
     assert (
         count_rows(
             session,
-            NotificationEvent,
+            Notification,
             recipient_user_id=1,
             actor_user_id=2,
-            type=NotificationTypes.SCORE_VERSION_CREATED,
+            kind=NotificationKind.SCORE_VERSION_CREATED,
         )
         == 1
     )
 
 
-@pytest.mark.asyncio
-async def test_source_delivery_checks_score_access_and_reports_missing_objects(
-    score_service_session: tuple[Session, LocalFileStorage], tmp_path
-) -> None:
-    session, storage = score_service_session
-    source = tmp_path / "score.musicxml"
-    source.write_bytes(MUSICXML_1)
-    session.add_all(
-        [
-            ImportJob(
-                id=60,
-                job_uuid="job-source",
-                user_id=1,
-                state=ImportJobState.RUNNING,
-            ),
-        ]
-    )
-    session.commit()
-    score_uuid = SyncConfirmedScoreCreationService(storage).create_confirmed_from_job(
-        session, "job-source", str(source), title="Source score"
-    )
-    score = one_row(session, Score, score_uuid=score_uuid)
-    revision = session.get(ScoreRevision, score.head_revision_id)
-    revision_source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
-    service = ScoreAssetService(storage=storage)
-    async_db = AsyncSessionAdapter(session)
-
-    delivery = await service.source_delivery(
-        async_db,
-        revision_source.source_uuid,
-        1,  # type: ignore[arg-type]
-    )
-    assert delivery.storage_key == revision_source.storage_key
-    assert storage.read_bytes(delivery.storage_key) == MUSICXML_1
-
-    with pytest.raises(UnauthorizedException):
-        await service.source_delivery(
-            async_db,
-            revision_source.source_uuid,
-            2,  # type: ignore[arg-type]
-        )
-
-@pytest.mark.asyncio
-async def test_score_access_policy_is_deny_by_default_and_context_aware(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_score_access_policy_is_deny_by_default_and_context_aware(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = Score(
         id=70,
         score_uuid="policy-score",
         owner_user_id=1,
-        title="Policy score",
+        display_title="Policy score",
     )
     session.add(score)
     session.commit()
@@ -1924,8 +1818,6 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
         revision_uuid="policy-revision-2",
         score_id=70,
         revision_number=2,
-        parent_revision_id=71,
-        base_revision_id=71,
         content_hash="8" * 64,
         origin=RevisionOrigin.EDIT,
     )
@@ -1940,349 +1832,42 @@ async def test_score_access_policy_is_deny_by_default_and_context_aware(
                 role=MembershipRole.VIEWER,
                 created_by_user_id=1,
             ),
-            ScoreShareGrant(
-                score_id=70,
-                token_hash=hash_share_token("view-token"),
-                allow_download=True,
-                access_mode="VIEW",
-                created_by_user_id=1,
-            ),
-            ScoreShareGrant(
-                score_id=70,
-                token_hash=hash_share_token("expired-token"),
-                expires_at=utc_now_naive() - timedelta(minutes=1),
-                created_by_user_id=1,
-            ),
-            ScorePublication(
-                score_id=70,
-                public_slug="public-policy-score",
-                published_revision_id=71,
-                status=PublicationStatus.PUBLISHED,
-                allow_download=False,
-                access_mode="PRACTICE",
-                published_by_user_id=1,
-            ),
         ]
     )
     session.commit()
-    db = AsyncSessionAdapter(session)
+    db = session
     policy = ScoreAccessPolicy()
 
-    owner = await policy.resolve(db, "policy-score", user_id=1)  # type: ignore[arg-type]
+    owner = policy.resolve_score(db, "policy-score", user_id=1)  # type: ignore[arg-type]
     assert owner.capabilities.can_edit is True
-    assert owner.capabilities.can_publish is True
 
-    member = await policy.resolve(db, "policy-score", user_id=2)  # type: ignore[arg-type]
+    member = policy.resolve_score(db, "policy-score", user_id=2)  # type: ignore[arg-type]
     assert member.capabilities.can_view is True
     assert member.capabilities.can_edit is False
+    assert member.capabilities.can_practice is False
+    assert member.capabilities.can_download is False
+    assert member.capabilities.can_manage_guest_previews is False
     with pytest.raises(UnauthorizedException):
-        await policy.authorize(
+        policy.authorize_score(
             db,
             "policy-score",
             ScoreAction.EDIT,
             user_id=2,  # type: ignore[arg-type]
         )
 
-    shared = await policy.resolve(
-        db,
-        "policy-score",
-        share_token="view-token",  # type: ignore[arg-type]
-    )
-    assert shared.revision.revision_uuid == "policy-revision-2"
-    assert shared.capabilities.can_download is True
-    assert shared.capabilities.can_edit is False
-
-    published = await policy.resolve(
-        db,
-        "policy-score",
-        public_slug="public-policy-score",  # type: ignore[arg-type]
-    )
-    assert published.revision.revision_uuid == "policy-revision-1"
-    assert published.capabilities.can_practice is True
-    assert published.capabilities.can_download is False
-
     with pytest.raises(UnauthorizedException):
-        await policy.resolve(db, "policy-score")  # type: ignore[arg-type]
-    with pytest.raises(UnauthorizedException):
-        await policy.resolve(
-            db,
-            "policy-score",
-            share_token="expired-token",  # type: ignore[arg-type]
-        )
-    with pytest.raises(UnauthorizedException):
-        await policy.resolve(
-            db,  # type: ignore[arg-type]
-            "policy-score",
-            public_slug="public-policy-score",
-            revision_uuid="policy-revision-2",
-        )
+        policy.resolve_score(db, "policy-score")  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
-async def test_grant_redemption_and_bookmark_have_distinct_lifecycles(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, _storage = score_service_session
-    score = Score(
-        id=80,
-        score_uuid="sharing-score",
-        owner_user_id=1,
-        title="Sharing score",
-    )
-    session.add(score)
-    session.commit()
-    revision = ScoreRevision(
-        id=81,
-        revision_uuid="sharing-revision",
-        score_id=80,
-        revision_number=1,
-        content_hash="9" * 64,
-        origin=RevisionOrigin.IMPORT,
-    )
-    session.add(revision)
-    session.commit()
-    score.head_revision_id = 81
-    session.commit()
-    db = AsyncSessionAdapter(session)
-    service = ScoreSharingService()
-
-    created = await service.create_grant(
-        db,  # type: ignore[arg-type]
-        "sharing-score",
-        1,
-        GrantCreateRequest(),
-    )
-    stored_grant = one_row(session, ScoreShareGrant, grant_uuid=created.grant_id)
-    assert "." not in created.token
-    assert created.grant_id not in created.token
-    assert stored_grant.token_hash == hash_share_token(created.token)
-    assert created.token not in stored_grant.token_hash
-    listed_grants = await service.list_grants(db, "sharing-score", 1)  # type: ignore[arg-type]
-    assert listed_grants[0].token is None
-
-    redeemed = await service.redeem_grant(
-        db,
-        created.token,
-        2,  # type: ignore[arg-type]
-    )
-    assert redeemed.score_id == "sharing-score"
-    assert redeemed.can_practice is True
-    assert count_rows(session, ShareGrantRedemption) == 1
-    assert count_rows(session, ScoreLibraryEntry) == 0
-
-    bookmarked = await service.bookmark_grant(
-        db,
-        created.token,
-        2,  # type: ignore[arg-type]
-    )
-    assert bookmarked.available is True
-    assert count_rows(session, ShareGrantRedemption) == 1
-    access = await service.access_grant(db, created.token, None)  # type: ignore[arg-type]
-    assert access.shared_by is not None
-    assert access.shared_by.display_name == "owner"
-    assert access.shared_at == stored_grant.created_at
-
-    await service.revoke_grant(db, created.grant_id, 1)  # type: ignore[arg-type]
-    assert count_rows(session, ShareGrantRedemption) == 1
-    library_entry = one_row(session, ScoreLibraryEntry)
-    assert library_entry.source_type == LibraryEntrySourceType.BOOKMARK
-    assert library_entry.is_favorite is True
-    assert library_entry.deleted_at is None
-
-    view_only = await service.create_grant(
-        db,  # type: ignore[arg-type]
-        "sharing-score",
-        1,
-        GrantCreateRequest(access_mode=ScoreAudienceAccessMode.VIEW),
-    )
-    with pytest.raises(ValidationException):
-        await service.redeem_grant(
-            db,
-            view_only.token,
-            3,  # type: ignore[arg-type]
-        )
-
-
-@pytest.mark.asyncio
-async def test_create_grant_normalizes_aware_expiration_to_naive_utc(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, _storage = score_service_session
-    score = Score(
-        id=85,
-        score_uuid="sharing-expiration-score",
-        owner_user_id=1,
-        title="Sharing expiration score",
-    )
-    revision = ScoreRevision(
-        id=86,
-        revision_uuid="sharing-expiration-revision",
-        score_id=85,
-        revision_number=1,
-        content_hash="8" * 64,
-        origin=RevisionOrigin.IMPORT,
-    )
-    session.add_all([score, revision])
-    session.commit()
-    score.head_revision_id = 86
-    session.commit()
-
-    db = AsyncSessionAdapter(session)
-    service = ScoreSharingService()
-    expires_at = datetime(2026, 6, 30, 13, 41, 35, tzinfo=timezone.utc)
-
-    created = await service.create_grant(
-        db,  # type: ignore[arg-type]
-        "sharing-expiration-score",
-        1,
-        GrantCreateRequest(expires_at=expires_at),
-    )
-
-    stored_grant = one_row(session, ScoreShareGrant, grant_uuid=created.grant_id)
-    assert stored_grant.expires_at == datetime(2026, 6, 30, 13, 41, 35)
-    assert stored_grant.expires_at.tzinfo is None
-
-
-@pytest.mark.asyncio
-async def test_share_detail_exposes_display_assets_without_musicxml_when_download_blocked(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, storage = score_service_session
-    score = Score(
-        id=210,
-        score_uuid="share-derived-score",
-        owner_user_id=1,
-        title="Share Derived Score",
-    )
-    old_revision = ScoreRevision(
-        id=211,
-        revision_uuid="share-derived-revision-1",
-        score_id=210,
-        revision_number=1,
-        content_hash="b1" * 32,
-        origin=RevisionOrigin.IMPORT,
-    )
-    new_revision = ScoreRevision(
-        id=212,
-        revision_uuid="share-derived-revision-2",
-        score_id=210,
-        revision_number=2,
-        content_hash="b2" * 32,
-        origin=RevisionOrigin.EDIT,
-        parent_revision_id=211,
-        base_revision_id=211,
-    )
-    session.add_all([score, old_revision, new_revision])
-    session.commit()
-    score.head_revision_id = 212
-    old_thumbnail = storage.put_bytes(
-        key="scores/share-derived/revisions/old/render.svg",
-        content=b"<svg />",
-        content_type="image/svg+xml",
-    )
-    old_audio = storage.put_bytes(
-        key="scores/share-derived/revisions/old/playback.wav",
-        content=b"RIFF....WAVE",
-        content_type="audio/wav",
-    )
-    new_xml = storage.put_bytes(
-        key="scores/share-derived/revisions/new/score.musicxml",
-        content=MUSICXML_2.encode("utf-8"),
-        content_type="application/vnd.recordare.musicxml+xml",
-    )
-    session.add_all(
-        [
-            ScoreRenderAsset(
-                asset_uuid="share-old-preview",
-                revision_id=211,
-                kind=RenderAssetKind.RENDERED_PAGE,
-                storage_backend="local",
-                storage_key=old_thumbnail.storage_key,
-                filename=old_thumbnail.filename,
-                mime_type="image/svg+xml",
-                size_bytes=old_thumbnail.size_bytes,
-                sha256="b" * 64,
-                page_number=1,
-                render_profile="default",
-                generator="test",
-                generator_version="1",
-            ),
-            ScorePlaybackAsset(
-                asset_uuid="share-old-audio",
-                revision_id=211,
-                kind=PlaybackAssetKind.AUDIO,
-                storage_backend="local",
-                storage_key=old_audio.storage_key,
-                filename=old_audio.filename,
-                mime_type="audio/wav",
-                size_bytes=old_audio.size_bytes,
-                sha256="c" * 64,
-                duration_ms=1000,
-                source_fingerprint="b1" * 32,
-                generator="test",
-                generator_version="1",
-            ),
-            ScoreRevisionSource(
-                source_uuid="share-new-musicxml",
-                revision_id=212,
-                format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
-                storage_key=new_xml.storage_key,
-                filename=new_xml.filename,
-                mime_type="application/vnd.recordare.musicxml+xml",
-                size_bytes=new_xml.size_bytes,
-                sha256="d" * 64,
-                generator="test",
-                generator_version="1",
-            ),
-        ]
-    )
-    session.commit()
-
-    db = AsyncSessionAdapter(session)
-    sharing_service = ScoreSharingService()
-    created = await sharing_service.create_grant(
-        db,  # type: ignore[arg-type]
-        "share-derived-score",
-        1,
-        GrantCreateRequest(
-            allow_download=False,
-            access_mode=ScoreAudienceAccessMode.PRACTICE,
-        ),
-    )
-
-    detail = await sharing_service.access_grant(db, created.token, None)  # type: ignore[arg-type]
-    assert detail.revision_assets.revision_sources == []
-    assert detail.derived_assets.preview.asset_id == "share-old-preview"
-    assert detail.derived_assets.preview.is_fallback is True
-    assert detail.derived_assets.audio.asset_id == "share-old-audio"
-    assert detail.derived_assets.audio.is_fallback is True
-
-    playback = await PlaybackDeliveryService(storage=storage).grant_delivery(
-        db, created.token, None  # type: ignore[arg-type]
-    )
-    assert playback.storage_key == old_audio.storage_key
-    assert storage.read_bytes(playback.storage_key) == b"RIFF....WAVE"
-
-    with pytest.raises(UnauthorizedException):
-        await sharing_service.grant_revision_source_delivery(
-            db,  # type: ignore[arg-type]
-            created.token,
-            "share-new-musicxml",
-            None,
-        )
-
-
-@pytest.mark.asyncio
-async def test_invite_acceptance_creates_editable_membership(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_invite_acceptance_creates_editable_membership(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = Score(
         id=87,
         score_uuid="invite-score",
         owner_user_id=1,
-        title="Invite score",
+        display_title="Invite score",
     )
     revision = ScoreRevision(
         id=88,
@@ -2297,9 +1882,9 @@ async def test_invite_acceptance_creates_editable_membership(
     score.head_revision_id = 88
     session.commit()
 
-    db = AsyncSessionAdapter(session)
-    service = ScoreInviteService()
-    created = await service.create_invite(
+    db = session
+    service = InvitationService()
+    created = service.create_invite(
         db,  # type: ignore[arg-type]
         "invite-score",
         1,
@@ -2317,52 +1902,48 @@ async def test_invite_acceptance_creates_editable_membership(
     assert "<html" in (queued_mail.html_body or "")
     assert f"/invite/{created.token}" in (queued_mail.html_body or "")
 
-    listed = await service.list_invites(db, "invite-score", 1)  # type: ignore[arg-type]
-    assert listed[0].invite_id == created.invite_id
-    assert not hasattr(listed[0], "token")
+    listed = service.list_invites(db, "invite-score", 1)  # type: ignore[arg-type]
+    assert listed.items[0].invite_id == created.invite_id
+    assert not hasattr(listed.items[0], "token")
 
-    anonymous = await service.inspect_invite(db, created.token, None)  # type: ignore[arg-type]
+    anonymous = service.inspect_invite(db, created.token, None)  # type: ignore[arg-type]
     assert anonymous.requires_login is True
     assert anonymous.can_accept is False
 
-    accepted = await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+    accepted = service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert accepted.score_id == "invite-score"
     assert accepted.role == MembershipRole.EDITOR
     assert accepted.membership_id is not None
-    stored_membership = (
-        one_row(
-            session,
-            ScoreMembership,
-            score_id=87,
-            user_id=2,
-        )
+    stored_membership = one_row(
+        session,
+        ScoreMembership,
+        score_id=87,
+        user_id=2,
     )
     assert stored_membership.role == MembershipRole.EDITOR
-    assert stored_invite.status == InviteStatus.ACCEPTED
-    notification = (
-        one_row(
-            session,
-            NotificationEvent,
-            recipient_user_id=1,
-            actor_user_id=2,
-            type=NotificationTypes.SCORE_INVITE_ACCEPTED,
-        )
+    assert stored_invite.terminal_outcome == InviteTerminalOutcome.ACCEPTED
+
+    notification = one_row(
+        session,
+        Notification,
+        recipient_user_id=1,
+        actor_user_id=2,
+        kind=NotificationKind.SCORE_INVITE_ACCEPTED,
     )
     assert notification.score_id == "invite-score"
-    assert notification.resource_id == "invite-score"
+    assert notification.invite_id == created.invite_id
     assert notification.read_at is None
 
     policy = ScoreAccessPolicy()
-    member_access = await policy.resolve(db, "invite-score", user_id=2)  # type: ignore[arg-type]
+    member_access = policy.resolve_score(db, "invite-score", user_id=2)  # type: ignore[arg-type]
     assert member_access.capabilities.can_edit is True
     with pytest.raises(ValidationException) as accepted_again:
-        await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
-    assert accepted_again.value.code == ErrorCode.INVITE_ALREADY_ACCEPTED
+        service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+    assert accepted_again.value.code == CustomerErrorCode.INVITE_ALREADY_ACCEPTED
 
 
-@pytest.mark.asyncio
-async def test_invite_email_target_is_enforced(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_invite_email_target_is_enforced(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     score = add_active_score_with_head_revision(
@@ -2374,29 +1955,28 @@ async def test_invite_email_target_is_enforced(
         title="Targeted Invite",
     )
     assert score.score_uuid == "targeted-invite-score"
-    db = AsyncSessionAdapter(session)
-    service = ScoreInviteService()
+    db = session
+    service = InvitationService()
 
-    created = await service.create_invite(
+    created = service.create_invite(
         db,  # type: ignore[arg-type]
         "targeted-invite-score",
         1,
         InviteCreateRequest(email="someone-else@example.com", role=MembershipRole.EDITOR),
     )
 
-    inspected = await service.inspect_invite(db, created.token, 2)  # type: ignore[arg-type]
+    inspected = service.inspect_invite(db, created.token, 2)  # type: ignore[arg-type]
     assert inspected.requires_login is False
     assert inspected.can_accept is False
     assert count_rows(session, MailOutbox) == 1
     with pytest.raises(ValidationException) as mismatch:
-        await service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
-    assert mismatch.value.code == ErrorCode.INVITE_EMAIL_MISMATCH
+        service.accept_invite(db, created.token, 2)  # type: ignore[arg-type]
+    assert mismatch.value.code == CustomerErrorCode.INVITE_EMAIL_MISMATCH
     assert maybe_one_row(session, ScoreMembership, score_id=89, user_id=2) is None
 
 
-@pytest.mark.asyncio
-async def test_user_pending_invites_can_be_accepted_without_token(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_user_pending_invites_can_be_accepted_without_token(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     add_active_score_with_head_revision(
@@ -2407,22 +1987,22 @@ async def test_user_pending_invites_can_be_accepted_without_token(
         revision_uuid="pending-invite-revision",
         title="Pending Invite",
     )
-    db = AsyncSessionAdapter(session)
-    service = ScoreInviteService()
+    db = session
+    service = InvitationService()
 
-    created = await service.create_invite(
+    created = service.create_invite(
         db,  # type: ignore[arg-type]
         "pending-invite-score",
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole.EDITOR),
     )
-    pending = await service.list_my_pending_invites(db, 2)  # type: ignore[arg-type]
+    pending = service.list_my_pending_invites(db, 2)  # type: ignore[arg-type]
 
-    assert [invite.invite_id for invite in pending] == [created.invite_id]
-    assert pending[0].score_id == "pending-invite-score"
-    assert pending[0].score_title == "Pending Invite"
+    assert [invite.invite_id for invite in pending.items] == [created.invite_id]
+    assert pending.items[0].score_id == "pending-invite-score"
+    assert pending.items[0].score_display_title == "Pending Invite"
 
-    accepted = await service.accept_pending_invite(
+    accepted = service.accept_pending_invite(
         db,  # type: ignore[arg-type]
         created.invite_id,
         2,
@@ -2431,12 +2011,11 @@ async def test_user_pending_invites_can_be_accepted_without_token(
     assert accepted.score_id == "pending-invite-score"
     assert accepted.role == MembershipRole.EDITOR
     assert maybe_one_row(session, ScoreMembership, score_id=91, user_id=2)
-    assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
+    assert (service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
-async def test_user_pending_invites_can_be_declined(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_user_pending_invites_can_be_declined(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     add_active_score_with_head_revision(
@@ -2447,16 +2026,16 @@ async def test_user_pending_invites_can_be_declined(
         revision_uuid="decline-invite-revision",
         title="Decline Invite",
     )
-    db = AsyncSessionAdapter(session)
-    service = ScoreInviteService()
+    db = session
+    service = InvitationService()
 
-    created = await service.create_invite(
+    created = service.create_invite(
         db,  # type: ignore[arg-type]
         "decline-invite-score",
         1,
         InviteCreateRequest(email="other@example.com", role=MembershipRole.VIEWER),
     )
-    declined = await service.decline_pending_invite(
+    declined = service.decline_pending_invite(
         db,  # type: ignore[arg-type]
         created.invite_id,
         2,
@@ -2464,178 +2043,110 @@ async def test_user_pending_invites_can_be_declined(
 
     stored_invite = one_row(session, ScoreInvite, invite_uuid=created.invite_id)
     assert declined.status == InviteStatus.DECLINED
-    assert stored_invite.status == InviteStatus.DECLINED
-    assert stored_invite.declined_at is not None
-    notification = (
-        one_row(
-            session,
-            NotificationEvent,
-            recipient_user_id=1,
-            actor_user_id=2,
-            type=NotificationTypes.SCORE_INVITE_DECLINED,
-        )
+    assert stored_invite.terminal_outcome == InviteTerminalOutcome.DECLINED
+    assert stored_invite.terminal_at is not None
+
+    notification = one_row(
+        session,
+        Notification,
+        recipient_user_id=1,
+        actor_user_id=2,
+        kind=NotificationKind.SCORE_INVITE_DECLINED,
     )
     assert notification.score_id == "decline-invite-score"
-    assert notification.data == {"score_title": "Decline Invite"}
-    assert await service.list_my_pending_invites(db, 2) == []  # type: ignore[arg-type]
+    assert notification.score_display_title_snapshot == "Decline Invite"
+    assert (service.list_my_pending_invites(db, 2)).items == []  # type: ignore[arg-type]
     with pytest.raises(ValidationException) as declined_again:
-        await service.accept_pending_invite(
+        service.accept_pending_invite(
             db,  # type: ignore[arg-type]
             created.invite_id,
             2,
         )
-    assert declined_again.value.code == ErrorCode.INVITE_DECLINED
+    assert declined_again.value.code == CustomerErrorCode.INVITE_DECLINED
 
 
-@pytest.mark.asyncio
-async def test_notifications_are_scoped_and_can_be_marked_read(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_notifications_are_scoped_and_can_be_marked_read(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    db = AsyncSessionAdapter(session)
+    db = session
     service = NotificationService()
 
-    created = await service.create_event(
-        db,  # type: ignore[arg-type]
+    created = service.admit_import_ready_for_review(
+        db,
         recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="score-1",
-        score_id="score-1",
-        title="System update",
-        body="A score update is ready.",
-        data={"kind": "test"},
+        import_job_id="score-1",
+        import_display_title="Etudes",
+        created_at=utc_now(),
     )
     assert created is not None
 
-    owner_notifications = await service.list_for_user(db, 1)  # type: ignore[arg-type]
-    other_notifications = await service.list_for_user(db, 2)  # type: ignore[arg-type]
-    assert [item.notification_id for item in owner_notifications] == [created.notification_id]
+    owner_notifications = service.list_for_user(db, 1).items  # type: ignore[arg-type]
+    other_notifications = service.list_for_user(db, 2).items  # type: ignore[arg-type]
+    assert [item.notification_id for item in owner_notifications] == [created.notification_uuid]
     public_notification = owner_notifications[0].model_dump()
     assert "resource_type" not in public_notification
     assert "resource_id" not in public_notification
     assert other_notifications == []
-    assert (await service.unread_count(db, 1)).count == 1  # type: ignore[arg-type]
-    assert (await service.unread_count(db, 2)).count == 0  # type: ignore[arg-type]
+    assert (service.unread_count(db, 1)).count == 1  # type: ignore[arg-type]
+    assert (service.unread_count(db, 2)).count == 0  # type: ignore[arg-type]
 
     with pytest.raises(ResourceNotFoundException):
-        await service.mark_read(db, created.notification_id, 2)  # type: ignore[arg-type]
+        service.mark_read(db, created.notification_uuid, 2)  # type: ignore[arg-type]
 
-    marked = await service.mark_read(db, created.notification_id, 1)  # type: ignore[arg-type]
+    marked = service.mark_read(db, created.notification_uuid, 1)  # type: ignore[arg-type]
     assert marked.read_at is not None
-    assert (await service.unread_count(db, 1)).count == 0  # type: ignore[arg-type]
+    assert (service.unread_count(db, 1)).count == 0  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
-async def test_notification_dedupe_key_returns_existing_event(
-    score_service_session: tuple[Session, LocalFileStorage],
+def test_notification_dedupe_key_returns_existing_event(
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
-    db = AsyncSessionAdapter(session)
+    db = session
     service = NotificationService()
 
-    first = await service.create_event(
-        db,  # type: ignore[arg-type]
+    first = service.admit_import_ready_for_review(
+        db,
         recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="score-1",
-        score_id="score-1",
-        title="First",
-        body="First notification.",
-        dedupe_key="system:test:score-1:owner",
+        import_job_id="score-1",
+        import_display_title="Etudes",
+        created_at=utc_now(),
     )
-    second = await service.create_event(
-        db,  # type: ignore[arg-type]
+    second = service.admit_import_ready_for_review(
+        db,
         recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="score-1",
-        score_id="score-1",
-        title="Second",
-        body="Second notification.",
-        dedupe_key="system:test:score-1:owner",
+        import_job_id="score-1",
+        import_display_title="Etudes",
+        created_at=utc_now(),
     )
 
     assert first is not None
     assert second is not None
-    assert second.notification_id == first.notification_id
-    assert (
-        count_rows(session, NotificationEvent, dedupe_key="system:test:score-1:owner")
-        == 1
-    )
-
-
-@pytest.mark.asyncio
-async def test_notification_cleanup_removes_events_older_than_retention(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
-    session, _storage = score_service_session
-    db = AsyncSessionAdapter(session)
-    service = NotificationService()
-    now = utc_now_naive()
-
-    old_event = NotificationEvent(
-        recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="old-score",
-        title="Old notification",
-        created_at=now - timedelta(days=91),
-    )
-    fresh_event = NotificationEvent(
-        recipient_user_id=1,
-        actor_user_id=2,
-        type=NotificationTypes.SYSTEM,
-        resource_type="score",
-        resource_id="fresh-score",
-        title="Fresh notification",
-        created_at=now - timedelta(days=2),
-    )
-    session.add(old_event)
-    session.add(fresh_event)
-    session.commit()
-
-    deleted = await service.cleanup_expired_events(
-        db,  # type: ignore[arg-type]
-        retention_days=90,
-    )
-
-    assert deleted == 1
-    remaining = all_rows(session, NotificationEvent)
-    assert [event.resource_id for event in remaining] == ["fresh-score"]
+    assert second.notification_uuid == first.notification_uuid
+    assert count_rows(session, Notification, dedupe_key="import.ready_for_review:score-1:1") == 1
 
 
 def test_notification_maintenance_removes_events_older_than_retention(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     service = NotificationMaintenanceService()
-    now = utc_now_naive()
+    now = utc_now()
 
     session.add(
-        NotificationEvent(
+        Notification(
             recipient_user_id=1,
-            actor_user_id=2,
-            type=NotificationTypes.SYSTEM,
-            resource_type="score",
-            resource_id="old-score",
-            title="Old notification",
+            kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
+            import_job_id="old-score",
             created_at=now - timedelta(days=91),
         )
     )
     session.add(
-        NotificationEvent(
+        Notification(
             recipient_user_id=1,
-            actor_user_id=2,
-            type=NotificationTypes.SYSTEM,
-            resource_type="score",
-            resource_id="fresh-score",
-            title="Fresh notification",
+            kind=NotificationKind.IMPORT_READY_FOR_REVIEW,
+            import_job_id="fresh-score",
             created_at=now - timedelta(days=2),
         )
     )
@@ -2644,224 +2155,379 @@ def test_notification_maintenance_removes_events_older_than_retention(
     result = service.run(session)
 
     assert result.expired_notifications_deleted == 1
-    remaining = all_rows(session, NotificationEvent)
-    assert [event.resource_id for event in remaining] == ["fresh-score"]
+    remaining = all_rows(session, Notification)
+    assert [event.import_job_id for event in remaining] == ["fresh-score"]
 
 
 def test_realtime_maintenance_removes_events_older_than_retention(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
+    monkeypatch,
 ) -> None:
     session, _storage = score_service_session
-    service = RealtimeMaintenanceService()
-    now = utc_now_naive()
+    now = utc_now()
 
-    session.add(
-        RealtimeEvent(
+    from app.modules.realtime.publisher import publish_change
+    from app.shared.realtime import RealtimeChangeKind
+
+    for score_id, age in (("old-score", 8), ("fresh-score", 2)):
+        change = publish_change(
+            session,
             recipient_user_id=1,
-            type="score.derived_asset.updated",
-            resource_type="score",
-            resource_id="old-score",
-            score_id="old-score",
-            payload={"status": "ready"},
-            created_at=now - timedelta(days=8),
+            kind=RealtimeChangeKind.SCORE_DERIVED_ASSETS_CHANGED,
+            score_id=score_id,
+            revision_id="revision",
         )
-    )
-    session.add(
-        RealtimeEvent(
-            recipient_user_id=1,
-            type="score.derived_asset.updated",
-            resource_type="score",
-            resource_id="fresh-score",
-            score_id="fresh-score",
-            payload={"status": "ready"},
-            created_at=now - timedelta(days=2),
-        )
-    )
+        change.created_at = now - timedelta(days=age)
     session.commit()
 
-    result = service.run(session)
+    from tests.support.maintenance import configure_maintenance
 
-    assert result.expired_events_deleted == 1
-    remaining = all_rows(session, RealtimeEvent)
-    assert [event.resource_id for event in remaining] == ["fresh-score"]
+    worker = configure_maintenance(monkeypatch, session.get_bind())
+    assert worker.execute_realtime_maintenance() == {"expired_changes_deleted": 1}
+    remaining = all_rows(session, RealtimeChange)
+    assert [event.score_id for event in remaining] == ["fresh-score"]
 
 
 def test_realtime_maintenance_rejects_non_positive_retention(
-    score_service_session: tuple[Session, LocalFileStorage],
+    score_service_session: tuple[Session, InMemoryObjectStorage],
 ) -> None:
     session, _storage = score_service_session
     service = RealtimeMaintenanceService()
 
-    with pytest.raises(ValueError, match="realtime event retention days must be positive"):
-        service.cleanup_expired_events(session, retention_days=0)
+    with pytest.raises(ValueError, match="realtime change retention days must be positive"):
+        service.retention_cutoff(retention_days=0)
 
 
-@pytest.mark.asyncio
-async def test_publication_pins_revision_until_explicit_republish(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
+@pytest.mark.parametrize("expected", ["missing-revision", "other-score-revision"])
+def test_expected_head_must_resolve_within_the_score(score_service_session, expected):
     session, storage = score_service_session
-    score = Score(
-        id=90,
-        score_uuid="publication-score",
-        owner_user_id=1,
-        title="Public Score",
+    add_active_score_with_head_revision(
+        session,
+        score_id=600,
+        revision_id=601,
+        score_uuid="expected-score",
+        revision_uuid="expected-head",
+        title="Expected",
     )
-    session.add(score)
-    session.commit()
-    first = ScoreRevision(
-        id=91,
-        revision_uuid="publication-revision-1",
-        score_id=90,
-        revision_number=1,
-        content_hash="a1" * 32,
-        origin=RevisionOrigin.IMPORT,
+    add_active_score_with_head_revision(
+        session,
+        score_id=610,
+        revision_id=611,
+        score_uuid="other-score",
+        revision_uuid="other-score-revision",
+        title="Other",
     )
-    second = ScoreRevision(
-        id=92,
-        revision_uuid="publication-revision-2",
-        score_id=90,
-        revision_number=2,
-        parent_revision_id=91,
-        base_revision_id=91,
-        content_hash="a2" * 32,
-        origin=RevisionOrigin.EDIT,
+    with pytest.raises(ResourceNotFoundException) as rejected:
+        RevisionService(
+            quota=_resource_wiring.storage_quota_service,
+            revision_writer=_media_wiring.build_revision_writer(),
+            writes=_resource_wiring.build_object_write_coordinator(storage),
+        ).create(
+            session,
+            "expected-score",
+            1,
+            RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id=expected),
+        )
+    assert rejected.value.code == CustomerErrorCode.REVISION_NOT_FOUND
+    assert count_rows(session, ScoreRevision, score_id=600) == 1
+    assert count_rows(session, ScoreRevisionSource) == 0
+    assert (
+        count_rows(session, ScoreRevisionRenderOutbox) == count_rows(session, PlaybackOutbox) == 0
     )
-    session.add_all([first, second])
-    session.commit()
-    score.head_revision_id = 92
-    session.commit()
-    db = AsyncSessionAdapter(session)
-    policy = ScoreAccessPolicy()
-    asset_service = ScoreAssetService(storage=storage, access_policy=policy)
-    service = PublicationService(access_policy=policy, asset_service=asset_service)
-
-    published = await service.publish(
-        db,  # type: ignore[arg-type]
-        "publication-score",
-        1,
-        PublicationUpsertRequest(revision_id="publication-revision-1"),
-    )
-    public_detail = await service.public_detail(
-        db,
-        published.public_slug,  # type: ignore[arg-type]
-    )
-    assert public_detail.publication.revision_id == "publication-revision-1"
-
-    republished = await service.publish(
-        db,  # type: ignore[arg-type]
-        "publication-score",
-        1,
-        PublicationUpsertRequest(revision_id="publication-revision-2"),
-    )
-    assert republished.revision_id == "publication-revision-2"
-
-    await service.unpublish(db, "publication-score", 1)  # type: ignore[arg-type]
-    with pytest.raises(ResourceNotFoundException):
-        await service.public_detail(db, published.public_slug)  # type: ignore[arg-type]
 
 
-@pytest.mark.asyncio
-async def test_public_detail_exposes_derived_fallback_without_musicxml_when_download_blocked(
-    score_service_session: tuple[Session, LocalFileStorage],
-) -> None:
+def test_two_editors_cannot_branch_the_same_expected_head(score_service_session):
     session, storage = score_service_session
-    score = Score(
-        id=220,
-        score_uuid="public-derived-score",
-        owner_user_id=1,
-        title="Public Derived Score",
+    score = add_active_score_with_head_revision(
+        session,
+        score_id=620,
+        revision_id=621,
+        score_uuid="linear-score",
+        revision_uuid="revision-10",
+        title="Linear",
     )
-    old_revision = ScoreRevision(
-        id=221,
-        revision_uuid="public-derived-revision-1",
-        score_id=220,
-        revision_number=1,
-        content_hash="e1" * 32,
-        origin=RevisionOrigin.IMPORT,
+    head = session.get(ScoreRevision, 621)
+    head.revision_number = 10
+    session.add(
+        User(id=3, email="editor-b@example.com", display_name="Editor B", password_hash="hash")
     )
-    new_revision = ScoreRevision(
-        id=222,
-        revision_uuid="public-derived-revision-2",
-        score_id=220,
-        revision_number=2,
-        content_hash="e2" * 32,
-        origin=RevisionOrigin.EDIT,
-        parent_revision_id=221,
-        base_revision_id=221,
-    )
-    session.add_all([score, old_revision, new_revision])
     session.commit()
-    score.head_revision_id = 222
-    old_thumbnail = storage.put_bytes(
-        key="scores/public-derived/revisions/old/render.svg",
-        content=b"<svg />",
-        content_type="image/svg+xml",
-    )
-    new_xml = storage.put_bytes(
-        key="scores/public-derived/revisions/new/score.musicxml",
-        content=MUSICXML_2.encode("utf-8"),
-        content_type="application/vnd.recordare.musicxml+xml",
-    )
     session.add_all(
         [
-            ScoreRenderAsset(
-                asset_uuid="public-old-preview",
-                revision_id=221,
-                kind=RenderAssetKind.RENDERED_PAGE,
-                storage_backend="local",
-                storage_key=old_thumbnail.storage_key,
-                filename=old_thumbnail.filename,
-                mime_type="image/svg+xml",
-                size_bytes=old_thumbnail.size_bytes,
-                sha256="e" * 64,
-                page_number=1,
-                render_profile="default",
-                generator="test",
-                generator_version="1",
-            ),
-            ScoreRevisionSource(
-                source_uuid="public-new-musicxml",
-                revision_id=222,
-                format=RevisionSourceFormat.MUSICXML,
-                storage_backend="local",
-                storage_key=new_xml.storage_key,
-                filename=new_xml.filename,
-                mime_type="application/vnd.recordare.musicxml+xml",
-                size_bytes=new_xml.size_bytes,
-                sha256="f" * 64,
-                generator="test",
-                generator_version="1",
-            ),
+            ScoreMembership(
+                score_id=620, user_id=user_id, role=MembershipRole.EDITOR, created_by_user_id=1
+            )
+            for user_id in (2, 3)
         ]
     )
     session.commit()
-
-    db = AsyncSessionAdapter(session)
-    service = PublicationService(
-        asset_service=ScoreAssetService(storage=storage),
-        score_repository=ScoreRepository(),
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
     )
-    published = await service.publish(
-        db,  # type: ignore[arg-type]
-        "public-derived-score",
-        1,
-        PublicationUpsertRequest(
-            revision_id="public-derived-revision-2",
-            public_slug="public-derived-score",
-            allow_download=False,
-            access_mode="PRACTICE",
-        ),
+    db = session
+    created = service.create(
+        db,
+        "linear-score",
+        2,
+        RevisionCreateRequest(content=MUSICXML_2, expected_head_revision_id="revision-10"),
     )
-
-    detail = await service.public_detail(db, published.public_slug)  # type: ignore[arg-type]
-    assert detail.revision_assets.revision_sources == []
-    assert detail.derived_assets.preview.asset_id == "public-old-preview"
-    assert detail.derived_assets.preview.is_fallback is True
-
-    with pytest.raises(UnauthorizedException):
-        await service.public_revision_source_delivery(
-            db,  # type: ignore[arg-type]
-            published.public_slug,
-            "public-new-musicxml",
+    assert created.revision_number == 11
+    with pytest.raises(ConflictException) as rejected:
+        service.create(
+            db,
+            "linear-score",
+            3,
+            RevisionCreateRequest(
+                content=MUSICXML_1.decode(), expected_head_revision_id="revision-10"
+            ),
         )
+    assert rejected.value.details == {
+        "score_id": "linear-score",
+        "expected_head_revision_id": "revision-10",
+        "current_head_revision_id": created.revision_id,
+    }
+    session.refresh(score)
+    assert (
+        score.head_revision_id
+        == one_row(session, ScoreRevision, revision_uuid=created.revision_id).id
+    )
+    assert count_rows(session, ScoreRevision, score_id=620) == 2
+
+
+INVALID_WRITTEN_XML = MUSICXML_2.replace(
+    "<note>", "<backup><duration>1</duration></backup><note>", 1
+)
+MATERIALIZING_XML = MUSICXML_2.replace(
+    "<note>",
+    "<direction><direction-type><metronome><beat-unit>half</beat-unit><per-minute>60</per-minute></metronome></direction-type></direction><note>",
+    1,
+)
+
+
+def test_revision_semantic_admission_precedes_reservation_and_durable_put(
+    score_service_session,
+):
+    session, storage = score_service_session
+    score = add_active_score_with_head_revision(
+        session,
+        score_id=301,
+        revision_id=401,
+        score_uuid="admission-score",
+        revision_uuid="admission-head",
+        title="Admission",
+    )
+    service = RevisionService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
+    with (
+        patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
+        patch.object(service.quota, "create_hold", new_callable=Mock) as reserve,
+    ):
+        with pytest.raises(ValidationException) as caught:
+            service.create(
+                session,
+                score.score_uuid,
+                1,
+                RevisionCreateRequest(
+                    content=INVALID_WRITTEN_XML, expected_head_revision_id="admission-head"
+                ),
+            )
+        put.assert_not_called()
+        reserve.assert_not_called()
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
+    assert score.head_revision_id == 401
+    assert count_rows(session, ScoreRevision) == 1
+    assert count_rows(session, ScoreRevisionSource) == 0
+
+
+@pytest.mark.parametrize("operation", ["confirm", "update"])
+def test_review_semantic_admission_precedes_storage(score_service_session, operation):
+    session, storage = score_service_session
+    original = storage.put_bytes(
+        key="jobs/admission-review/review.musicxml",
+        content=MUSICXML_1,
+        content_type="application/vnd.recordare.musicxml+xml",
+    )
+    session.add(
+        ImportJob(
+            requested_options=encode_requested_options(None),
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
+            id=14,
+            job_uuid="admission-review",
+            user_id=1,
+            state=ImportJobState.READY_FOR_REVIEW,
+        )
+    )
+    session.flush()
+    session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
+    session.commit()
+    artifact = ImportArtifact(
+        job_id=14,
+        artifact_uuid="admission-artifact",
+        kind=ImportArtifactKind.REVIEW_MUSICXML,
+        stored_object=StoredObject(
+            object_key=original.object_key,
+            content_type="application/vnd.recordare.musicxml+xml",
+            byte_size=original.size_bytes,
+            sha256=hashlib.sha256(MUSICXML_1).hexdigest(),
+        ),
+        filename=original.object_key.rsplit("/", 1)[-1],
+    )
+    session.add(artifact)
+    session.commit()
+    service = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    )
+    with (
+        patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put,
+        patch.object(service.quota, "create_hold", new_callable=Mock) as reserve,
+    ):
+        with pytest.raises(ValidationException) as caught:
+            if operation == "confirm":
+                service.confirm(
+                    session,
+                    "admission-review",
+                    1,
+                    ReviewConfirmRequest(content=INVALID_WRITTEN_XML),
+                )
+            else:
+                service.update(
+                    session,
+                    "admission-review",
+                    1,
+                    ReviewUpdateRequest(content=INVALID_WRITTEN_XML),
+                )
+        put.assert_not_called()
+        reserve.assert_not_called()
+    assert caught.value.code == CustomerErrorCode.REVISION_CONTENT_INVALID
+    assert artifact.stored_object.object_key == original.object_key
+    assert storage.read_bytes(original.object_key) == MUSICXML_1
+    assert count_rows(session, Score) == count_rows(session, ScoreRevisionSource) == 0
+
+
+@pytest.mark.parametrize("operation", ["revision", "review-confirm"])
+def test_service_hash_and_storage_use_exact_admitted_bytes(score_service_session, operation):
+    from app.processing.musicxml.admission import admit_musicxml_document
+
+    session, storage = score_service_session
+    raw = MATERIALIZING_XML.encode()
+    admitted = admit_musicxml_document(raw)
+    assert admitted != raw
+    expected_hash = hashlib.sha256(admitted).hexdigest()
+    if operation == "revision":
+        add_active_score_with_head_revision(
+            session,
+            score_id=301,
+            revision_id=401,
+            score_uuid="admission-score",
+            revision_uuid="admission-head",
+            title="Admission",
+        )
+    else:
+        session.add(
+            ImportJob(
+                requested_options=encode_requested_options(None),
+                processing_started_at=utc_now(),
+                processing_finished_at=utc_now(),
+                id=14,
+                job_uuid="admission-review",
+                user_id=1,
+                state=ImportJobState.READY_FOR_REVIEW,
+            )
+        )
+        session.flush()
+        session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
+        session.commit()
+    with patch.object(storage, "put_bytes", wraps=storage.put_bytes) as put:
+        if operation == "revision":
+            result = RevisionService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).create(
+                session,
+                "admission-score",
+                1,
+                RevisionCreateRequest(
+                    content=MATERIALIZING_XML, expected_head_revision_id="admission-head"
+                ),
+            )
+            revision = one_row(session, ScoreRevision, revision_uuid=result.revision_id)
+        else:
+            result = ImportReviewService(
+                quota=_resource_wiring.storage_quota_service,
+                revision_writer=_media_wiring.build_revision_writer(),
+                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                usage=_resource_wiring.storage_usage_service,
+                writes=_resource_wiring.build_object_write_coordinator(storage),
+            ).confirm(
+                session,
+                "admission-review",
+                1,
+                ReviewConfirmRequest(content=MATERIALIZING_XML),
+            )
+            score = one_row(session, Score, score_uuid=result.score_id)
+            revision = session.get(ScoreRevision, score.head_revision_id)
+        put.assert_called_once()
+        assert put.call_args.kwargs["content"] == admitted
+    source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
+    assert revision.content_hash == source.stored_object.sha256 == expected_hash
+    assert source.stored_object.byte_size == len(admitted)
+    owner = session.get(Score, revision.score_id)
+    assert source.stored_object.object_key == canonical_revision_source_object_key(
+        score_uuid=owner.score_uuid, revision_uuid=revision.revision_uuid
+    )
+    assert storage.read_bytes(source.stored_object.object_key) == admitted
+
+
+def test_admitted_revision_survives_unsupported_metadata_projection(score_service_session):
+    from app.processing.musicxml.admission import admit_musicxml_document
+    from app.score_semantics.musicxml_score import parse_score_semantics
+
+    session, storage = score_service_session
+    session.add(
+        ImportJob(
+            requested_options=encode_requested_options(None),
+            processing_started_at=utc_now(),
+            processing_finished_at=utc_now(),
+            id=14,
+            job_uuid="admission-review",
+            user_id=1,
+            state=ImportJobState.READY_FOR_REVIEW,
+        )
+    )
+    session.flush()
+    session.add(ImportDispatch(job_id=14, status=ImportDispatchStatus.COMPLETED))
+    session.commit()
+    content = MUSICXML_2.replace(
+        "</attributes>", "<key><key-step>B</key-step><key-alter>-1</key-alter></key></attributes>"
+    )
+    admitted = admit_musicxml_document(content.encode())
+    assert parse_score_semantics(admitted).keys[0].fifths is None
+    result = ImportReviewService(
+        quota=_resource_wiring.storage_quota_service,
+        revision_writer=_media_wiring.build_revision_writer(),
+        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        usage=_resource_wiring.storage_usage_service,
+        writes=_resource_wiring.build_object_write_coordinator(storage),
+    ).confirm(session, "admission-review", 1, ReviewConfirmRequest(content=content))
+    score = one_row(session, Score, score_uuid=result.score_id)
+    revision = session.get(ScoreRevision, score.head_revision_id)
+    source = one_row(session, ScoreRevisionSource, revision_id=revision.id)
+    from tests.support.revision_metadata import drain_revision_metadata
+
+    assert all(r["status"] == "completed" for r in drain_revision_metadata(session, storage))
+    projection = session.get(ScoreRevisionMetadata, revision.id)
+    assert storage.read_bytes(source.stored_object.object_key) == admitted
+    assert revision.content_hash == hashlib.sha256(admitted).hexdigest()
+    assert projection.status == MetadataStatus.FAILED
+    assert projection.error_code == "unsupported_nontraditional_key"

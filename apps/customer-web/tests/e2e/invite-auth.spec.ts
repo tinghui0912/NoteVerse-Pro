@@ -4,7 +4,7 @@ import { mockAnonymousSession } from './support/api-mocks';
 const inviteAccess = {
   invite_id: 'invite-1',
   score_id: 'score-1',
-  score_title: 'Collab Score',
+  score_display_title: 'Collab Score',
   inviter: { display_name: 'Owner', email: 'owner@example.com', avatar_url: null },
   email: 'member@example.com',
   role: 'EDITOR',
@@ -19,7 +19,7 @@ test('invite login and registration links preserve returnUrl', async ({ page }) 
   await page.route('**/api/v1/invites/invite-token', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({ success: true, data: inviteAccess }),
+    body: JSON.stringify(inviteAccess),
   }));
 
   await page.goto('/en/invite/invite-token');

@@ -338,6 +338,7 @@ export function deleteVoiceEvent(params: {
     document: {
       ...params.document,
       events,
+      voices: params.document.voices.filter(voice=>voice.id!==event.voiceId||events.some(candidate=>candidate.voiceId===voice.id)),
       beamRelationships: params.document.beamRelationships.filter((relationship) => (
         !relationship.eventIds.includes(params.eventId)
       )),
@@ -351,6 +352,7 @@ export function deleteVoiceEvent(params: {
         (control.kind !== 'eventNotation' || control.eventId !== params.eventId)
         && (control.kind !== 'tieNotation' || !removedTieIds.has(control.tieId))
         && (control.kind !== 'slurNotation' || !removedSlurIds.has(control.notationId))
+        && (control.kind !== 'beamNotation' || !control.eventIds.includes(params.eventId))
       )),
     },
     ...(gaps ? { gaps } : {}),
@@ -668,7 +670,14 @@ function splitBeamRelationship(
 
   const left = voiceEvents.slice(bounds[0], splitAfter + 1);
   const right = voiceEvents.slice(splitAfter + 1, bounds[1] + 1);
-  return replaceBeamRelationships(document, ...[left, right].filter((events) => events.length >= 2));
+  const splitEventIds = new Set(voiceEvents.slice(bounds[0], bounds[1] + 1).map((event) => event.id));
+  const withoutSplitGroup = {
+    ...document,
+    beamRelationships: document.beamRelationships.filter((relationship) => (
+      !relationship.eventIds.some((eventId) => splitEventIds.has(eventId))
+    )),
+  };
+  return replaceBeamRelationships(withoutSplitGroup, ...[left, right].filter((events) => events.length >= 2));
 }
 
 function replaceBeamRelationships(document: ScoreDocument, ...groups: VoiceEvent[][]): CommandResult {

@@ -1,8 +1,8 @@
 {
-  "title": "Upload Your Sheet Music",
+  "title": "Create a score",
   "subtitle": "Drag & drop or click to select image files to start your musical journey.",
   "dropzoneText": "Drag files here, or click to select files",
-  "dropzoneHint": "Supports PNG, JPG, BMP formats",
+  "dropzoneHint": "Recommended: PNG, JPG, or BMP",
   "startRecognition": "Start Recognition",
   "scoreNameLabel": "Score Name",
   "scoreNamePlaceholder": "e.g., Canon in D",
@@ -16,16 +16,19 @@
   "processingProgress": "Processing ({progress}%)",
   "awaitingProcessing": "Waiting for recognition...",
   "taskStarted": "Recognition request created",
-  "taskStartedDesc": "The system will continue processing automatically. You can keep this page open or check My Library later.",
+  "taskStartedDesc": "Processing continues automatically. Track your imports in Import Activity below.",
   "submitFailed": "Submit Failed",
   "processingFailed": "Processing Failed",
   "processingTimeout": "Processing Timeout",
-  "processingTimeoutDesc": "Recognition is taking longer than expected. You can retry, or check My Library later to see whether it has finished.",
+  "processingTimeoutDesc": "Recognition is taking longer than expected. Check Import Activity for the current status.",
   "uploadFailedFile": "File {name} upload failed",
   "taskProcessingFailed": "An error occurred during recognition",
   "processingFailedStatus": "Processing failed",
   "uploadedStatus": "Uploaded",
   "removeImage": "Remove {name}",
   "closePreview": "Close preview",
-  "restoredFileUnavailable": "The reusable upload data for {name} is missing. Please re-select the original image."
+  "fileUnavailable": "The file {name} is empty. Please select a non-empty image.",
+  "cancelUpload": "Cancel upload",
+  "uploadCancelled": "Upload cancelled.",
+  "transferProgress": "Uploading: {percent}%"
 }

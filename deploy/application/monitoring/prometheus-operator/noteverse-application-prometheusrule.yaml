@@ -81,6 +81,40 @@ spec:
             summary: "NoteVerse async operation processing appears stuck"
             description: "A NoteVerse async operation kind has been processing for more than 30 minutes."
             runbook_url: "docs/operations/runbooks/alerts/async-operation-processing-stuck.md"
+        - alert: NoteVerseResourceErasureFailed
+          expr: |
+            sum by (namespace, kind) (
+              noteverse_async_operations_by_status{namespace=~"noteverse-.*", job="noteverse-backend-api", kind=~"account_deletion|stored_object_retirement", status="failed"}
+            ) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NoteVerse resource erasure requires operator recovery"
+            description: "Account erasure or physical retirement has stopped automatic retry. Inspect the safe failure facts and repair the responsible domain."
+            runbook_url: "docs/operations/runbooks/alerts/async-operation-backlog.md"
+        - alert: NoteVerseMediaResponsibilityUnsettled
+          expr: |
+            sum by (namespace, kind) (
+              noteverse_media_resource_backlog{namespace=~"noteverse-.*", kind=~"write_unknown|upload_unknown|take_processing_failed|take_processing_lease_expired"}
+            ) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Media work needs recovery or integrity review"
+            description: "Persistent unknown IO, failed verification or an expired media lease remains visible. Preserve physical cleanup evidence."
+            runbook_url: "docs/operations/runbooks/media-storage-recovery.md"
+        - alert: NoteVerseUploadCleanupOverdue
+          expr: |
+            max by (namespace) (noteverse_media_resource_oldest_age_seconds{namespace=~"noteverse-.*", kind="upload_expired_uncleaned"}) > 172800
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Expired upload cleanup is overdue"
+            description: "An expired uncleaned session is older than two days. Check capability expiry, unknown IO and maintenance scans."
+            runbook_url: "docs/operations/runbooks/media-storage-recovery.md"
         - alert: NoteVerseOutboxFailuresPresent
           expr: |
             sum by (namespace, kind, status) (

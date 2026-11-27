@@ -5,37 +5,95 @@
 
 ## 领域与页面职责
 
-路由负责参数、权限、页面级状态和 UI 组合。复杂算法、状态机、浏览器资源、
-Verovio DOM 操作和 API 数据转换由对应领域模块承担。
+路由负责 Next 参数边界和页面组合。领域状态、命令编排、API 适配、query identity
+和缓存 consequence 由明确的领域 owner 承担；共享能力按其资源生命周期组织。
 
-- `src/app/[locale]/`：路由、layout、loading/error/not-found 和页面编排。
-- `src/components/<domain>/`：领域 UI；`components/ui/`：通用基础组件。
-- `src/hooks/<domain>/`：React 状态和交互适配。
-- `src/hooks/queries/`：服务端查询、mutation 和缓存失效。
-- `src/lib/api/`：统一后端请求边界。
-- `src/lib/<domain>/`：可独立测试的领域逻辑与 imperative controller。
+- `src/features/<domain>/`：已建立 feature boundary 的领域拥有自己的 UI、application
+  adapters、API、query keys、queries、cache consequences 和 routes/route state。
+- `src/features/imports/`：Import submission、activity/job lifecycle 与 Review/editor adapter。
+- `src/features/library/`：个人 folders、favorite、organization、浏览和批量 Move/Favorite。
+- `src/features/scores/core/`：Score detail/capability、revision/assets、editor adapter 和下载。
+- `src/features/scores/collaboration/`：Invite、Membership、self Leave、pending invites 和外部 Invite 页面。
+- `src/features/scores/guest-preview/`：owner credential commands 与独立 public bearer presentation。
+- `src/features/scores/` parent：产品页面组合、Score route locations 和跨生命周期 cache consequences。
+- `src/features/notifications/`：durable Notification history/read-state 的 API、query/cache、presentation、target 与 Center/Bell。
+- `src/features/account/profile/`：current Profile、Avatar API、表单与 512x512 PNG crop。
+- `src/features/account/security/`：Security overview、password/email-change workflow 与 confirmation。
+- `src/features/account/sessions/`：authenticated refresh-session inventory、revoke 和 presentation。
+- `src/features/storage-usage/`：Storage Usage API、query identity、queries、cache consequence 与 quota presentation。
+- `src/features/authentication/`：browser session/principal、login/register/verification/recovery 与 safe returnUrl。
+- `src/app/[locale]/`：route entry、layout、loading/error/not-found 和页面组合。
+- `src/components/`：共享 UI、shell、基础组件和跨领域 presentation。
+- `src/lib/`：跨领域 browser infrastructure 与共享纯能力。
 - `src/generated/api/`：由后端 OpenAPI 生成的 HTTP DTO。
 - `messages/en/`、`messages/zh/`：用户可见文案。
 
-按所有权和生命周期拆分模块。组件根目录只保留跨领域入口；纯逻辑不依赖
-页面或 React。高频 DOM 更新留在 controller，避免驱动整棵 React 树重渲染。
+其他当前领域继续由其明确的 components/hooks/lib owner 管理；这些位置不是所有
+领域的唯一结构。纯逻辑不依赖页面或 React。高频 DOM 更新留在 controller，避免
+驱动整棵 React 树重渲染。
+
+Library 的复杂选择、folder/dialog 状态和 query coordination 属于 Library feature。
+Score Delete 和 membership Leave 仍由各自领域拥有，Library 页面仅调用这些命令。Score parent consequences 组合各 lifecycle cache owner，
+local cache 不相互依赖。Score deletion 失效 Guest Preview 和 Import 域；Leave 不改变
+这两项 authority。Frontend 只消费 backend ScoreCapabilities，不从角色重新推导授权。
 
 ## API、类型与服务端状态
 
-所有产品请求通过 `src/lib/api/*` 和统一 `apiClient` 管理认证、错误、base URL
-与响应解析。下载、blob、stream 和 signed URL 也使用专用 helper。
+Customer HTTP 请求通过 OpenAPI generated SDK operation 发起；method、path、
+path params、query 与 body encoding 由 generated code 拥有。Import、Library 与 Score 各生命周期的
+API adapter 位于各自 feature，其余领域使用各自明确的当前 adapter owner。
+Adapter 只进行前端语义适配和 generated result 投影。统一 browser transport 管理
+credentials、CSRF、refresh/retry、redirect、AbortSignal、错误与 observability。
+下载和 stream 同样使用 generated operation；native media/EventSource 与
+外部 signed storage upload 使用各自明确的 browser transport。
 
-HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generate:api-types`；
+HTTP DTO 直接导入生成类型。后端契约变更后运行 `npm run generate:api`；
 视图模型、表单状态和浏览器内部消息由前端拥有。API helper 返回稳定类型，
 页面不猜测字段、不通过 `any` 掩盖契约问题。
 
-- Query key 通过 `src/lib/query-client.ts` 的 `queryKeys` 生成，使用稳定、
-  可序列化的 domain/scope/identity；不放 File、函数或临时对象。
+- Import、Library、Notifications、Account 和 Score core/Collaboration/Guest Preview 的 query keys、queries 与
+  cache consequences 各有独立 owner。`src/lib/query-client.ts` 配置 QueryClient，并管理其余当前领域的 keys。
+  Identity 使用稳定、可序列化的 domain/scope/identity，不放 File 或函数。
 - Query function 在 API helper 支持时传递 AbortSignal，取消失效请求。
-- Mutation 的领域 hook 拥有 cache update/invalidation。
+- Mutation 的领域 hook 调用所属领域的 cache consequence；跨领域调用不复制目标领域的 keys。
 - 页面拥有当前语境的成功提示；API helper 不发 toast，错误由一层展示。
 - 客户端临时状态留在 component、Context 或普通 hook。
-- 必需环境变量通过 `src/lib/env.ts` 读取，缺失时显式报错。
+- Next server 在 `next.config.ts` 校验必需的 backend origin；固定 Customer cookie/header identity 使用 generated browser protocol projection。
+
+Notification Center 组合 Collaboration pending actions 与 durable Notification Updates，
+但不接管 Invite API、query keys 或 accept/decline 命令。Bell 合并 pending action contribution
+与 server unread count，不写入新的计数 authority；两处复用同一 query state。
+`notifications.changed` 仅收敛 Notification history/read-state，不代表 pending Invite change。
+
+Account Profile read adapter 同时 hydrate Authentication principal；current user 不另建 TanStack profile cache。
+`features/account/cache.ts` 组合 Account projection consequences：password change 收敛 security
+与 sessions，email confirmation 收敛 security 并尝试刷新 current principal；后续 refresh 失败
+不改变 confirmation 成功。Sessions 请求显式限制为 100，device label 仅作 User-Agent presentation。
+SettingsShell 只负责跨 Account/Storage 的导航与布局。Storage settings 位于 `/settings/storage`，
+显示 server quota、used、reserved 与 available；available_bytes 来自服务端，百分比仅为 presentation。
+零 quota 显示无容量状态。StorageUsage 通过 local mutation consequence 和手动 Refresh 收敛，
+普通跨 session 变更没有专用 realtime event。当前不存在 Billing/Subscription frontend bounded context；
+公开 `/plans` 仅描述免费可用与付费方案未开放，不复制 quota default 或承诺虚构商业权益。
+StoragePlanPolicy 是存储 quota policy，不是 commercial feature entitlement。Authentication feature 拥有 session/principal
+和五个 auth entry flows；route files 仅组合 feature。email-change confirmation 仍由 Account Security 拥有，
+AuthCard 仅为两个 lifecycle 共享的 presentation。
+
+Authentication 状态区分 bootstrapping、authenticated、anonymous 与 unavailable。Profile 401 才确认
+anonymous；bootstrap 的 network/5xx failure 必须报告并投影 unavailable。已有 principal 的 transient
+refresh failure 保留身份并 reject/report。Login 200 在设置 session cookies 的同时返回 canonical
+ProfileUserRead，直接建立 principal，不再发第二次 Profile GET。
+
+Principal transition 先取消并移除 principal-sensitive queries，再发布新的 principal；mutation cache 单独清理。
+未标记的 query 默认 principal-sensitive。`src/lib/query-auth-scope.ts` 统一定义 typed `authScope` metadata，
+只有显式 `principal-independent` 的 query 保留自身 lifecycle。Guest Preview bearer read 与 principal 无关，
+可声明该标记；owner settings 和使用 optional current user 的 Invite inspection 仍随 principal 清理。
+不能仅凭 public transport 判断 scope。
+
+Logout 成功、password reset 和 principal switch 按上述 scope 清理 server-state。Reset 撤销所有
+既有 sessions，并清除当前 browser session/refresh/CSRF cookies。returnUrl 必须是 URL parser 验证的
+same-origin app-relative path intent；拒绝 external/backslash open redirects。Next proxy 只作 cookie
+existence soft gate，不是 authenticated principal authority。QueryClient → Authentication → Realtime
+保持 provider 顺序；Realtime 只依赖 Authentication public state。
 
 ## 产品能力、权限与文案
 
@@ -78,19 +136,21 @@ Verovio。详情、分享和公开页面使用后端 render assets 与 playback 
   其它 program 回退到 piano，产品不宣称完整乐器保真。
 
 Score 工作区使用 `/score/:id`、`/score/:id/edit`、`/score/:id/practice`。
-Score 编辑读取 canonical revision source 并保存新 revision。
+Score 编辑读取 canonical revision source 并保存新 revision；Score-specific adapter 位于
+`features/scores/core/editor`，保存返回 canonical Score detail，不接受自定义 returnUrl。
 `EditorWorkspacePage` 组合共享编辑器 UI，source hook 返回
 `EditorWorkspaceDocument`。编辑文档 hook 拥有 query、草稿恢复、校验、
 base-revision save target、autosave 与原图 cleanup。
 
-OCR Review 是 job-scoped pipeline。`/review/:jobId` 通过
-`use-review-page-data` 读取数据；`/review/:jobId/edit` 保存临时 job artifact。
+OCR Review 是 job-scoped pipeline。`/imports/:jobId/review` 通过
+`features/imports/review/use-review-page-data` 读取数据；`/imports/:jobId/review/edit` 保存临时 job artifact。
 确认后导航到 Score。Review 的临时产物与 Score revision assets 分属不同契约。
 上传提交与轮询使用 jobs API、job_id 和对应 query keys。
 
-分享入口组合 auth/access、权限操作、允许的下载和可取消图片请求。
-`/share/[shareId]` 可在 auth 初始化后匿名加载授权数据，具体动作受服务端
-capability 控制。Review 校验、确认、对比图和 carousel 也由专属 hook/component
+`/preview/:token` 由 `features/scores/guest-preview` 提供独立的匿名图片与试听展示；
+它不提供下载、编辑或 Practice authority。`/invite/:token` 由 `features/scores/collaboration`
+拥有，读取当前邀请并通过登录后的 recipient command 接受。两类入口使用各自的 route shell。
+Review 校验、确认、对比图和 carousel 也由专属 hook/component
 拥有，页面只组合这些接口。
 
 ## Practice
@@ -98,8 +158,13 @@ capability 控制。Review 校验、确认、对比图和 carousel 也由专属 
 Practice execution is browser-local. 后端提供 canonical score/source/artifact 和
 模型资产；所需资产加载后，当前 session 的执行不依赖持续网络连接。
 
-- `local-core/`：纯 STEP/Continuous 产品语义、timebase、clock、evaluator 和
-  finalized ledger。
+- `score/`：admitted artifact、piano-key、meter 与 exact score-time。
+- `planning/`：PracticeIntent 到 immutable PracticePlan 的纯解析，拥有 scope、tempo、resources、metronome 和 count-in policy。
+- `session/`：Start 后 local execution identity、PracticePlan 引用与 runtime timebase。
+- `step/domain/`：STEP attempt、verdict、progression 和 STEP snapshot。
+- `continuous/domain/`：performance clock、session 和 evaluation/finalized ledger。
+- `continuous/input/`：MIDI evidence identity、coverage 和 completion publication。
+- `score-view/`：renderer-facing cursor scope 与 note-ID projection。
 - `step/`：`StepPracticeController`、MIDI/microphone attempt 和资源生命周期。
 - `continuous/`：`ContinuousPracticeController`、transport/input/recording 的
   应用生命周期和 completion transaction。
@@ -154,3 +219,16 @@ i18n、乐谱渲染和 Practice 输入/时钟/evaluation。测试公开行为与
 文档记录当前事实和稳定规则，架构基线见
 [Customer Web Architecture Baseline](customer-web_architecture_baseline.md)。
 变更能力或 ownership 时同步更新对应文档，不追加日期流水账。
+
+
+Account Security owns permanent account-deletion confirmation. Accepted deletion clears
+the authenticated principal and its private server state; backend domain cleanup remains
+durable background work. Storage Usage presents finite server-projected limits and
+availability. Import upload commands retain a stable request identity across retries.
+
+Account deletion HTTP 202 ends this browser principal immediately and clears
+principal-sensitive queries/mutation state before navigation. The session cookies are
+cleared by the accepted backend response; browser storage contains no auth token copy.
+The UI does not query erasure progress or wait for workers. Rejected deletion preserves
+the authenticated session. Copy distinguishes immediate closure, asynchronous resource
+erasure and policy-governed retention of backups/provider versions.

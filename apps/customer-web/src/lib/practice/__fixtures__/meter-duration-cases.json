@@ -1,0 +1,44 @@
+[
+  {
+    "numerator": 3,
+    "denominator": 4,
+    "durationTicks": 3,
+    "ticksPerQuarter": 1
+  },
+  {
+    "numerator": 6,
+    "denominator": 8,
+    "durationTicks": 6,
+    "ticksPerQuarter": 2
+  },
+  {
+    "numerator": 2,
+    "denominator": 2,
+    "durationTicks": 4,
+    "ticksPerQuarter": 1
+  },
+  {
+    "numerator": 1,
+    "denominator": 3,
+    "durationTicks": 4,
+    "ticksPerQuarter": 3
+  },
+  {
+    "numerator": 1,
+    "denominator": 512,
+    "durationTicks": 1,
+    "ticksPerQuarter": 128
+  },
+  {
+    "numerator": 3,
+    "denominator": 512,
+    "durationTicks": 3,
+    "ticksPerQuarter": 128
+  },
+  {
+    "numerator": 1,
+    "denominator": 8192,
+    "durationTicks": 1,
+    "ticksPerQuarter": 2048
+  }
+]

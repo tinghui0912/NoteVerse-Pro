@@ -1,73 +1,70 @@
 from __future__ import annotations
 
-import enum
 from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
+    Enum as SAEnum,
     Column,
     DateTime,
-    Enum as SAEnum,
-    Float,
     ForeignKey,
-    Index,
+    ForeignKeyConstraint,
     Integer,
-    String,
-    Text,
+    Index,
     UniqueConstraint,
 )
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.orm import relationship
+from .performance_take_manifest import PerformanceTakeManifest
+from .stored_object import StoredObject
+from app.modules.performance_takes.processing_states import TakeMediaStatus
 
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
-
-
-class PerformanceTakeMediaKind(str, enum.Enum):
-    AUDIO = "AUDIO"
-    VIDEO = "VIDEO"
-
-
-class PerformanceTakeDeletionStatus(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-    DELETING = "DELETING"
 
 
 class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "performance_takes"
     __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "client_request_id",
-            name="uq_performance_takes_user_client_request_id",
+        ForeignKeyConstraint(
+            ["manifest_id", "owner_user_id"],
+            ["performance_take_manifests.id", "performance_take_manifests.user_id"],
+            name="fk_performance_takes_manifest_owner",
+            ondelete="CASCADE",
         ),
-        Index("ix_performance_takes_user_created", "user_id", "created_at"),
-        Index("ix_performance_takes_user_deletion_status", "user_id", "deletion_status"),
+        Index("idx_performance_takes_owner_created", "owner_user_id", "created_at", "id"),
+        Index(
+            "idx_performance_takes_owner_score_created",
+            "owner_user_id",
+            "linked_score_id",
+            "created_at",
+            "id",
+        ),
+        UniqueConstraint("manifest_id", name="uq_performance_takes_manifest"),
+        UniqueConstraint("recording_object_id", name="uq_performance_takes_recording_object"),
     )
-
     id: Optional[int] = Field(
         default=None,
         sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
     )
-    take_uuid: str = Field(
-        sa_column=Column(String(36), unique=True, index=True, nullable=False)
-    )
-    user_id: int = Field(
+    media_status: TakeMediaStatus = Field(
+        default=TakeMediaStatus.UPLOADED,
         sa_column=Column(
-            bigint_pk_type,
-            ForeignKey("users.id", ondelete="CASCADE"),
-            index=True,
-            nullable=False,
-        )
-    )
-    source_snapshot_id: int = Field(
-        sa_column=Column(
-            bigint_pk_type,
-            ForeignKey("practice_source_snapshots.id", ondelete="RESTRICT"),
-            index=True,
+            SAEnum(
+                TakeMediaStatus,
+                native_enum=False,
+                create_constraint=True,
+                name="ck_take_media_status",
+            ),
             nullable=False,
         ),
+    )
+    manifest_id: int = Field(sa_column=Column(bigint_pk_type, nullable=False))
+    owner_user_id: int = Field(sa_column=Column(bigint_pk_type, nullable=False))
+    manifest: PerformanceTakeManifest = Relationship(
+        sa_relationship=relationship(PerformanceTakeManifest, lazy="selectin")
     )
     linked_score_id: Optional[int] = Field(
         default=None,
@@ -78,74 +75,24 @@ class PerformanceTake(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=True,
         ),
     )
-    score_title_snapshot: str = Field(
-        sa_column=Column(String(255), nullable=False),
-    )
-    client_request_id: str = Field(
-        sa_column=Column(String(128), index=True, nullable=False)
-    )
-    media_kind: PerformanceTakeMediaKind = Field(
+    recording_object_id: int = Field(
         sa_column=Column(
-            SAEnum(PerformanceTakeMediaKind, name="performancetakemediakind"),
-            nullable=False,
-        ),
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
     )
-    media_mime_type: str = Field(
-        sa_column=Column(String(64), nullable=False)
-    )
-    media_byte_size: int = Field(
-        sa_column=Column(BigInteger, nullable=False)
-    )
-    media_object_key: str = Field(
-        sa_column=Column(String(768), unique=True, index=True, nullable=False)
-    )
-    storage_backend: str = Field(
-        sa_column=Column(String(32), nullable=False)
-    )
-    duration_ms: int = Field(
-        sa_column=Column(Integer, nullable=False)
-    )
-    scope_type: str = Field(
-        sa_column=Column(String(16), nullable=False),
-    )
-    scope_start_beat: float = Field(
-        sa_column=Column(Float, nullable=False)
-    )
-    scope_terminal_beat: float = Field(
-        sa_column=Column(Float, nullable=False)
-    )
-    scope_start_group_id: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(128), nullable=True),
-    )
-    scope_end_group_id: Optional[str] = Field(
-        default=None,
-        sa_column=Column(String(128), nullable=True),
-    )
-    tempo_plan: str = Field(
-        sa_column=Column(Text, nullable=False),
-    )
-    recording_timebase: str = Field(
-        sa_column=Column(Text, nullable=False),
-    )
-    deletion_status: str = Field(
-        default=PerformanceTakeDeletionStatus.ACTIVE.value,
-        sa_column=Column(
-            String(16),
-            nullable=False,
-            default=PerformanceTakeDeletionStatus.ACTIVE.value,
-        ),
+    recording_object: StoredObject = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
     )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )

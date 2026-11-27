@@ -1,0 +1,535 @@
+import type { PracticeExecutionSessionFactory, PracticeExecutionSession, ExecutionSessionRequest, ModeExecutionCommands } from './execution-session';
+import type { ExecutionObservation } from './execution-observation';
+import { beforeEach, expect, it, vi } from "vitest";
+import {
+  PracticeExecutionActor,
+} from "./practice-execution-actor";
+import {
+  continuousPracticePlan,
+  stepPracticePlan,
+} from "../__fixtures__/practice-plan";
+import { rootHealthFixture } from "../__fixtures__/root-health";
+import { borrowedDevices } from "../__fixtures__/device-roots";
+import { canonicalContinuousResultFixture } from "../__fixtures__/continuous-result";
+import artifactJson from "../__fixtures__/canonical-practice-score-artifact.json";
+import type { PracticeScoreArtifact } from "../score/artifact";
+
+const artifact = artifactJson as PracticeScoreArtifact;
+const tick = async () => {
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+};
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+};
+beforeEach(() => {
+  vi.restoreAllMocks();
+});
+function rig(mode: 'STEP_BY_STEP' | 'CONTINUOUS_PLAY' = 'STEP_BY_STEP') {
+  const health=rootHealthFixture();
+  type Item = { options: ExecutionSessionRequest; session: PracticeExecutionSession;
+    completion: import('../continuous/completion').ContinuousPracticeCompletion;
+    emit():void; complete():void; stale():void; staleObservation():void;
+    startGate:ReturnType<typeof deferred>|null;disposeGate:ReturnType<typeof deferred>|null };
+  const created:Item[]=[];
+  const factory=vi.fn<PracticeExecutionSessionFactory>(options=>{
+    options.ports.borrowRoots();
+    const subscribers=new Set<()=>void>(),saved:(()=>void)[]=[];
+    let detachHealth:(()=>void)|undefined,disposed=false,completed=false;
+    const payload={result:canonicalContinuousResultFixture(),recording:{status:'NOT_RECORDED' as const}};
+    const evidence={completionReason:'SCOPE_COMPLETED',localSessionId:`session-${created.length}`} as never;
+    const observation=():ExecutionObservation=> options.plan.mode==='STEP_BY_STEP'
+      ? {mode:'STEP_BY_STEP',error:null,activeStepGroup:options.plan.bundle.artifact.moments[options.plan.scope.startIndex],stepInteractionPhase:'READY',pendingPostVerdict:null,canAcceptAttempt:true,analysisIntervention:null,infrastructureIntervention:null}
+      : {mode:'CONTINUOUS_PLAY',error:null,phase:'ACTIVE',transport:null,evaluation:null,recordingIndicator:null,analysisIntervention:null,resourceIntervention:null,completion:completed?payload:null};
+    const item:Item={options,session:null as never,completion:payload,startGate:null,disposeGate:null,
+      emit:()=>subscribers.forEach(f=>f()),
+      complete:()=>{completed=true;item.emit();options.onNaturalCompletion(evidence);},
+      stale:()=>{saved.forEach(f=>f());options.onNaturalCompletion(evidence);},
+      staleObservation:()=>saved.forEach(f=>f()),
+    };
+    const session:PracticeExecutionSession={mode:options.plan.mode,
+      // Root tests treat mode commands as an opaque capability token.
+      commands:Object.freeze({mode:options.plan.mode}) as ModeExecutionCommands,
+      subscribe:vi.fn(listener=>{subscribers.add(listener);saved.push(listener);return()=>subscribers.delete(listener);}),
+      observe:vi.fn(observation),
+      start:vi.fn(async()=>{item.emit();detachHealth=health.port.subscribe(()=>{});await item.startGate?.promise;if(!disposed)item.emit();}),
+      retire:vi.fn(async()=>{detachHealth?.();}),
+      dispose:vi.fn(async()=>{disposed=true;detachHealth?.();await item.disposeGate?.promise;}),
+      failure:(cause,phase)=>options.plan.mode==='STEP_BY_STEP'
+        ? {mode:'STEP_BY_STEP',code:phase==='RELEASE'?'STEP_RESOURCE_CLEANUP_FAILED':'STEP_ATTEMPT_FAILED',cause}
+        : {mode:'CONTINUOUS_PLAY',code:phase==='RELEASE'?'RESOURCE_CLEANUP_FAILED':'ANALYSIS_FAILED',cause},
+    };
+    item.session=session;created.push(item);return{status:'READY',session};
+  });
+  const borrowRoots=vi.fn(()=>borrowedDevices()),acquireInference=vi.fn();
+  const actor=new PracticeExecutionActor({borrowRoots,rootHealth:health.port,acquireInference},factory);
+  const plan=mode==='STEP_BY_STEP'?stepPracticePlan(artifact):continuousPracticePlan(artifact);
+  actor.setCandidate(plan,true,'score/revision');
+  return {actor,health,created,factory,plan,borrowRoots,acquireInference};
+}
+it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
+  "%s READY has no controller, subscription or resource use",
+  async (mode) => {
+    const r = rig(mode);
+    expect(r.actor.snapshot()).toMatchObject({
+      mode,
+      lifecycle: "READY",
+      executedPlan: null,
+      canStart: true,
+    });
+    expect(r.created).toHaveLength(0);
+    expect(r.health.listenerCount()).toBe(0);
+    expect(r.acquireInference).not.toHaveBeenCalled();
+    expect(r.borrowRoots).not.toHaveBeenCalled();
+    const first = r.actor.start(),
+      second = r.actor.start();
+    expect(second).toBe(first);
+    await first;
+    expect(r.created).toHaveLength(1);
+    expect(r.health.listenerCount()).toBe(1);
+    expect(r.factory).toHaveBeenCalledOnce();
+    expect(r.actor.snapshot().executedPlan).toBe(r.plan);
+    await r.actor.dispose();
+    expect(r.health.listenerCount()).toBe(0);
+  },
+);
+it("candidate edits change only pre-Start intent and active execution keeps its captured plan", async () => {
+  const r = rig(),
+    scope = {
+      kind: "RANGE" as const,
+      startGroupId: artifact.moments[1].groupId,
+      endGroupId: artifact.moments[2].groupId,
+    };
+  const latest = stepPracticePlan(artifact, {
+    scope,
+    tempoSelection: { mode: "CUSTOM_FIXED_BPM", bpm: 100 },
+    metronomeEnabled: true,
+  });
+  r.actor.setCandidate(latest, true, "score/revision");
+  expect(r.created).toHaveLength(0);
+  await r.actor.start();
+  expect(r.created[0].options.plan).toBe(latest);
+  r.actor.setCandidate(r.plan, true, "score/revision");
+
+  expect(r.actor.snapshot().executedPlan).toBe(latest);
+  expect(r.created).toHaveLength(1);
+  await r.actor.dispose();
+});
+it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
+  "%s End returns READY; fresh Start creates a fresh actor",
+  async (mode) => {
+    const r = rig(mode);
+    await r.actor.start();
+    const first = r.created[0];
+    const ending = r.actor.end(),
+      twice = r.actor.end();
+    await Promise.all([ending, twice]);
+    expect(r.actor.snapshot()).toMatchObject({
+      lifecycle: "READY",
+      executedPlan: null,
+    });
+    expect(r.created).toHaveLength(1);
+    expect(first.session.dispose).toHaveBeenCalledOnce();
+    expect(r.health.listenerCount()).toBe(0);
+    await r.actor.start();
+    expect(r.created).toHaveLength(2);
+    expect(r.created[1].session).not.toBe(first.session);
+    await r.actor.dispose();
+  },
+);
+it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
+  "%s natural completion notifies once; double Retry directly starts one fresh attempt",
+  async (mode) => {
+    const r = rig(mode),
+      completed = vi.fn();
+    r.actor.setCompletionListener(completed);
+    await r.actor.start();
+    const first = r.created[0];
+    first.complete();
+    first.complete();
+    expect(r.actor.snapshot().lifecycle).toBe("COMPLETED");
+    expect(completed).toHaveBeenCalledOnce();
+    expect(r.created).toHaveLength(1);
+    expect(r.actor.snapshot().completion).toBe(
+      mode === "CONTINUOUS_PLAY" ? first.completion : null,
+    );
+    first.disposeGate = deferred();
+    const retry = r.actor.retry(),
+      duplicate = r.actor.retry();
+    expect(duplicate).toBe(retry);
+    await tick();
+    expect(r.created).toHaveLength(1);
+    first.disposeGate.resolve();
+    await retry;
+    expect(r.created).toHaveLength(2);
+    expect(r.actor.snapshot().completion).toBeNull();
+    expect(r.health.listenerCount()).toBe(1);
+    await r.actor.dispose();
+  },
+);
+it("release serialization fences Start pending + End + new Start and all stale callbacks", async () => {
+  const r = rig(),
+    completion = vi.fn();
+  r.actor.setCompletionListener(completion);
+  const create = vi.mocked(r.factory).getMockImplementation()! as PracticeExecutionSessionFactory;
+  vi.mocked(r.factory).mockImplementationOnce((...args) => {
+    const controller = create(...args);
+    r.created[0].startGate = deferred();
+    return controller;
+  });
+  const starting = r.actor.start();
+  await tick();
+  const old = r.created[0];
+  old.disposeGate = deferred();
+  const ending = r.actor.end();
+  const fresh = r.actor.start();
+  await tick();
+  expect(r.created).toHaveLength(1);
+  expect(r.health.listenerCount()).toBe(0);
+  old.staleObservation();
+  expect(completion).not.toHaveBeenCalled();
+  old.disposeGate.resolve();
+  await tick();
+  expect(r.created).toHaveLength(1);
+  old.startGate!.resolve();
+  await Promise.all([starting, ending, fresh]);
+  expect(r.created).toHaveLength(2);
+  const snapshot = r.actor.snapshot();
+  old.stale();
+  expect(r.actor.snapshot()).toBe(snapshot);
+  expect(completion).not.toHaveBeenCalled();
+  await r.actor.dispose();
+});
+it("composition replacement retires the old actor; candidate-only rerenders do not", async () => {
+  const r = rig();
+  await r.actor.start();
+  const first = r.created[0];
+  first.disposeGate = deferred();
+  r.actor.setCandidate(
+    continuousPracticePlan(artifact),
+    true,
+    "another/revision",
+  );
+  expect(r.actor.snapshot().lifecycle).toBe("READY");
+  const start = r.actor.start();
+  await tick();
+  expect(r.created).toHaveLength(1);
+  first.disposeGate.resolve();
+  await start;
+  expect(r.created[1].options.plan.mode).toBe("CONTINUOUS_PLAY");
+  await r.actor.dispose();
+});
+it("disposal during pending Start fences completion and waits for late preparation", async () => {
+  const r = rig();
+  const create = vi.mocked(r.factory).getMockImplementation()! as PracticeExecutionSessionFactory;
+  vi.mocked(r.factory).mockImplementationOnce((...args) => {
+    const result = create(...args);
+    r.created[0].startGate = deferred();
+    return result;
+  });
+  const completion = vi.fn();
+  r.actor.setCompletionListener(completion);
+  const start = r.actor.start();
+  await tick();
+  let done = false;
+  const disposed = r.actor.dispose().then(() => {
+    done = true;
+  });
+  await tick();
+  expect(done).toBe(false);
+  r.created[0].stale();
+  expect(completion).not.toHaveBeenCalled();
+  r.created[0].startGate!.resolve();
+  await Promise.all([disposed, start]);
+  await r.actor.start();
+  expect(r.created).toHaveLength(1);
+  expect(r.health.listenerCount()).toBe(0);
+});
+it("an immediate End cancels Start before construction and invalid admission cannot Start or Retry", async () => {
+  const r = rig();
+  const start = r.actor.start();
+  await r.actor.end();
+  await start;
+  expect(r.created).toHaveLength(0);
+  r.actor.setCandidate(r.plan, false, "score/revision");
+  await r.actor.start();
+  await r.actor.retry();
+  expect(r.created).toHaveLength(0);
+  r.actor.setCandidate(null, true, "score/revision");
+  await r.actor.start();
+  expect(r.created).toHaveLength(0);
+  await r.actor.dispose();
+});
+it("accepted Continuous completion survives End and only Retry creates a new execution", async () => {
+  const r = rig("CONTINUOUS_PLAY");
+  expect(r.actor.snapshot().completion).toBeNull();
+  await r.actor.start();
+  const first = r.created[0];
+  first.complete();
+  const payload = r.actor.snapshot().completion;
+  expect(payload).toBe(first.completion);
+  r.actor.setCandidate(r.plan, true, "score/revision");
+  expect(r.actor.snapshot().completion).toBe(payload);
+  await r.actor.end();
+  expect(r.actor.snapshot().completion).toBe(payload);
+  first.stale();
+  expect(r.actor.snapshot().completion).toBe(payload);
+  await r.actor.retry();
+  expect(r.actor.snapshot().completion).toBeNull();
+  first.stale();
+  expect(r.actor.snapshot().completion).toBeNull();
+  await r.actor.dispose();
+});
+it("cleanup failure remains visible and prevents overlapping replacement ownership", async () => {
+  const r = rig();
+  await r.actor.start();
+  vi.mocked(r.created[0].session.dispose).mockRejectedValueOnce(
+    new Error("STEP_RESOURCE_CLEANUP_FAILED"),
+  );
+  await r.actor.end();
+  expect(r.actor.snapshot()).toMatchObject({
+    lifecycle: "ERROR",
+    inputError: "STEP_RESOURCE_CLEANUP_FAILED",
+    canStart: false,
+  });
+  await r.actor.start();
+  expect(r.created).toHaveLength(1);
+  await r.actor.dispose();
+});
+it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
+  "%s unexpected adapter exception stays diagnostic and cannot enter the public view",
+  async (mode) => {
+    const r = rig(mode),
+      cause = new Error("NO_CONNECTED_INPUT https://private/model stack");
+    vi.mocked(
+      r.factory,
+    ).mockImplementationOnce(() => {
+      return {status:"FAILED",failure:{mode,code:mode==="STEP_BY_STEP"?"STEP_ATTEMPT_FAILED":"ANALYSIS_FAILED",cause}};
+    });
+    await r.actor.start();
+    expect(r.actor.snapshot()).toMatchObject({
+      lifecycle: "ERROR",
+      inputError:
+        mode === "STEP_BY_STEP" ? "STEP_ATTEMPT_FAILED" : "ANALYSIS_FAILED",
+    });
+    expect(r.actor.engineeringSnapshot().failureCause).toBe(cause);
+    await r.actor.dispose();
+  },
+);
+it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
+  "%s cleanup rejects with an owned stable code regardless of exception text",
+  async (mode) => {
+    const r = rig(mode);
+    await r.actor.start();
+    const cause = new Error("NotAllowedError: private cleanup URL");
+    vi.mocked(r.created[0].session.dispose).mockRejectedValueOnce(cause);
+    await r.actor.end();
+    expect(r.actor.snapshot()).toMatchObject({
+      inputError:
+        mode === "STEP_BY_STEP"
+          ? "STEP_RESOURCE_CLEANUP_FAILED"
+          : "RESOURCE_CLEANUP_FAILED",
+      canStart: false,
+    });
+    expect(r.actor.engineeringSnapshot().failureCause).toBe(cause);
+    await r.actor.start();
+    expect(r.created).toHaveLength(1);
+    await r.actor.dispose();
+  },
+);
+
+it.each(["STEP_BY_STEP", "CONTINUOUS_PLAY"] as const)(
+  "%s an unexpected controller Start rejection is terminal application state",
+  async (mode) => {
+    const r = rig(mode),
+      cause = new Error("NotAllowedError https://private");
+    if (mode === "STEP_BY_STEP") {
+      const factory = vi.mocked(r.factory),
+        original = factory.getMockImplementation()! as PracticeExecutionSessionFactory;
+      factory.mockImplementationOnce((options) => {
+        const result = original(options);
+        if(result.status !== "READY") return result;
+        const controller=result.session;
+        vi.mocked(controller.start).mockRejectedValueOnce(cause);
+        return result;
+      });
+    } else {
+      const factory = vi.mocked(r.factory),
+        original = factory.getMockImplementation()! as PracticeExecutionSessionFactory;
+      factory.mockImplementationOnce((options) => {
+        const result = original(options);
+        if(result.status !== "READY") return result;
+        const controller=result.session;
+        vi.mocked(controller.start).mockRejectedValueOnce(cause);
+        return result;
+      });
+    }
+    await r.actor.start();
+    expect(r.actor.snapshot()).toMatchObject({
+      lifecycle: "ERROR",
+      inputError:
+        mode === "STEP_BY_STEP" ? "STEP_ATTEMPT_FAILED" : "ANALYSIS_FAILED",
+      canStart: false,
+    });
+    expect(r.actor.engineeringSnapshot().failureCause).toBe(cause);
+    await r.actor.end();
+    expect(r.created[0].session.dispose).toHaveBeenCalledOnce();
+    await r.actor.dispose();
+  },
+);
+
+it("Retry captures the completed executed plan even when candidate preferences change", async () => {
+  const r = rig();
+  await r.actor.start();
+  r.created[0].complete();
+  const candidate = stepPracticePlan(artifact, {
+    metronomeEnabled: true,
+    tempoSelection: { mode: "CUSTOM_FIXED_BPM", bpm: 100 },
+  });
+  r.actor.setCandidate(candidate, true, "score/revision");
+  await r.actor.retry();
+  expect(r.created[1].options.plan).toBe(r.plan);
+  expect(r.actor.snapshot().executedPlan).toBe(r.plan);
+  await r.actor.dispose();
+});
+it.each(["ADMISSION", "COMPOSITION"] as const)(
+  "Retry cannot restart after %s changes during release",
+  async (kind) => {
+    const r = rig();
+    await r.actor.start();
+    const previous = r.created[0];
+    previous.complete();
+    previous.disposeGate = deferred();
+    const retry = r.actor.retry();
+    r.actor.setCandidate(
+      r.plan,
+      kind === "COMPOSITION",
+      kind === "COMPOSITION" ? "replacement" : "score/revision",
+    );
+    previous.disposeGate.resolve();
+    await retry;
+    await tick();
+    expect(r.created).toHaveLength(1);
+    expect(r.actor.snapshot().executedPlan).toBeNull();
+    await r.actor.dispose();
+  },
+);
+it("release failure waits every late preparation and cleanup before reporting ERROR and never constructs the queued attempt", async () => {
+  const r = rig(),
+    create = vi.mocked(r.factory).getMockImplementation()! as PracticeExecutionSessionFactory;
+  vi.mocked(r.factory).mockImplementationOnce((...args) => {
+    const controller = create(...args);
+    r.created[0].startGate = deferred();
+    vi.mocked(r.created[0].session.dispose).mockRejectedValueOnce(
+      new Error("release failed"),
+    );
+    return controller;
+  });
+  const start = r.actor.start();
+  await tick();
+  const previous = r.created[0];
+  let released = false;
+  const ending = r.actor.end().then(() => {
+    released = true;
+  });
+  const fresh = r.actor.start();
+  await tick();
+  expect(released).toBe(false);
+  expect(r.created).toHaveLength(1);
+  previous.startGate!.resolve();
+  await Promise.all([start, ending, fresh]);
+  expect(r.created).toHaveLength(1);
+  expect(r.actor.snapshot()).toMatchObject({
+    lifecycle: "ERROR",
+    canStart: false,
+  });
+  await r.actor.dispose();
+});
+it("completion listener observes COMPLETED before its exactly-once callback and a later End preserves it", async () => {
+  const r = rig(),
+    listener = vi.fn(() =>
+      expect(r.actor.snapshot().lifecycle).toBe("COMPLETED"),
+    );
+  r.actor.setCompletionListener(listener);
+  await r.actor.start();
+  const previous = r.created[0];
+  previous.complete();
+  previous.complete();
+  expect(listener).toHaveBeenCalledOnce();
+  const end = r.actor.end();
+  previous.stale();
+  expect(r.actor.snapshot().executedPlan).toBe(r.plan);
+  await end;
+  expect(listener).toHaveBeenCalledOnce();
+  await r.actor.dispose();
+});
+it("Continuous refuses completion without the accepted atomic result/recording payload", async () => {
+  const r = rig("CONTINUOUS_PLAY"),
+    completion = vi.fn();
+  await r.actor.start();
+  r.actor.setCompletionListener(completion);
+  const previous = r.created[0],
+    snapshot = previous.session.observe();
+  vi.spyOn(previous.session, "observe").mockReturnValue({
+    ...snapshot,
+    completion: null,
+  } as never);
+  previous.complete();
+  expect(r.actor.snapshot()).toMatchObject({
+    lifecycle: "ERROR",
+    completion: null,
+  });
+  expect(completion).not.toHaveBeenCalled();
+  await r.actor.dispose();
+});
+it('mode commands are opaque capabilities available only to the RUNNING owner',async()=>{
+ const r=rig();expect(r.actor.modeCommands()).toBeNull();await r.actor.start();
+ expect(r.actor.modeCommands()).toBe(r.created[0].session.commands);
+ const ending=r.actor.end();expect(r.actor.modeCommands()).toBeNull();await ending;
+ await r.actor.dispose();expect(r.actor.modeCommands()).toBeNull();
+});
+
+it("candidate-only rerenders do not republish an unchanged active execution view", async () => {
+  const r = rig();
+  await r.actor.start();
+  const before = r.actor.snapshot(),
+    changed = vi.fn();
+  const detach = r.actor.subscribe(changed);
+  r.actor.setCandidate(
+    stepPracticePlan(artifact, { metronomeEnabled: true }),
+    true,
+    "score/revision",
+  );
+  expect(r.actor.snapshot()).toBe(before);
+  expect(changed).not.toHaveBeenCalled();
+  detach();
+  await r.actor.dispose();
+});
+
+it("hard disposal requested reentrantly by a subscriber acknowledges complete release, including pending dispose", async () => {
+  const r = rig();
+  await r.actor.start();
+  const previous = r.created[0];
+  previous.disposeGate = deferred();
+  let ending: Promise<void> | undefined,
+    released = false;
+  const detach = r.actor.subscribe(() => {
+    if (r.actor.snapshot().lifecycle === "COMPLETED")
+      ending = r.actor.dispose().then(() => {
+        released = true;
+      });
+  });
+  previous.complete();
+  await tick();
+  expect(ending).toBeDefined();
+  expect(released).toBe(false);
+  expect(r.actor.snapshot().executedPlan).toBeNull();
+  previous.disposeGate.resolve();
+  await ending;
+  expect(released).toBe(true);
+  detach();
+  await r.actor.dispose();
+});

@@ -7,15 +7,24 @@ from collections.abc import Iterator
 from typing import Protocol
 
 
-@dataclass(frozen=True)
-class StoredFile:
-    """Metadata for a file stored by the storage adapter."""
+class ObjectStorageUnavailableError(RuntimeError):
+    """The provider result is unavailable or its side effect is uncertain."""
 
-    storage_key: str
-    filename: str
-    path: str
+
+class ObjectNotFoundError(RuntimeError):
+    """The provider definitively reports a missing object or upload handle."""
+
+
+class ObjectStorageOperationFailedError(RuntimeError):
+    """The provider rejects an operation or returns an invalid response."""
+
+
+@dataclass(frozen=True)
+class ObjectWriteResult:
+    """Observed identity and byte size of an object write."""
+
+    object_key: str
     size_bytes: int
-    public_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -28,18 +37,34 @@ class DirectUploadTarget:
 
 
 @dataclass(frozen=True)
-class StoredObjectMetadata:
+class ObjectMetadata:
     """Metadata read from an existing storage object."""
 
     size_bytes: int
     content_type: str | None = None
-    checksum_sha256: str | None = None
+    etag: str | None = None
+    checksum_algorithm: str | None = None
+    checksum: str | None = None
+    checksum_type: str | None = None
 
 
-class FileStorage(Protocol):
+@dataclass(frozen=True)
+class UploadedPart:
+    part_number: int
+    etag: str
+    size_bytes: int
+
+
+@dataclass(frozen=True)
+class MultipartUploadResult:
+    etag: str | None = None
+    checksum_algorithm: str | None = None
+    checksum: str | None = None
+    checksum_type: str | None = None
+
+
+class ObjectStorage(Protocol):
     """Operations required by feature services and workers."""
-
-    backend_name: str
 
     def put_bytes(
         self,
@@ -47,29 +72,44 @@ class FileStorage(Protocol):
         key: str,
         content: bytes,
         content_type: str | None = None,
-    ) -> StoredFile:
-        ...
+    ) -> ObjectWriteResult: ...
 
-    def exists(self, key: str) -> bool:
-        ...
+    def exists(self, key: str) -> bool: ...
 
-    def read_bytes(self, key: str) -> bytes:
-        ...
+    def read_bytes(self, key: str) -> bytes: ...
 
-    def size_bytes(self, key: str) -> int:
-        ...
+    def object_metadata(self, key: str) -> ObjectMetadata: ...
 
-    def object_metadata(self, key: str) -> StoredObjectMetadata:
-        ...
-
-    def upload_url(
+    def generate_put_upload_url(
         self,
         key: str,
         *,
         content_type: str,
-        checksum_sha256: str,
-    ) -> DirectUploadTarget | None:
-        ...
+        content_length: int,
+        expires_in: int | None = None,
+    ) -> DirectUploadTarget: ...
+
+    def create_multipart_upload(self, key: str, *, content_type: str) -> str: ...
+
+    def generate_part_upload_url(
+        self,
+        key: str,
+        upload_id: str,
+        part_number: int,
+        *,
+        content_length: int,
+        expires_in: int | None = None,
+    ) -> DirectUploadTarget: ...
+
+    def list_multipart_uploads(self, key: str) -> tuple[str, ...]: ...
+
+    def list_uploaded_parts(self, key: str, upload_id: str) -> tuple[UploadedPart, ...]: ...
+
+    def complete_multipart_upload(
+        self, key: str, upload_id: str, parts: tuple[UploadedPart, ...]
+    ) -> MultipartUploadResult: ...
+
+    def abort_multipart_upload(self, key: str, upload_id: str) -> None: ...
 
     def iter_bytes(
         self,
@@ -78,20 +118,11 @@ class FileStorage(Protocol):
         chunk_size: int = 1024 * 1024,
         start: int | None = None,
         end: int | None = None,
-    ) -> Iterator[bytes]:
-        ...
+    ) -> Iterator[bytes]: ...
 
-    def copy(self, source_key: str, target_key: str) -> None:
-        ...
+    def copy(self, source_key: str, target_key: str) -> None: ...
 
-    def delete(self, key: str) -> bool:
-        ...
-
-    def local_path(self, key: str) -> str:
-        ...
-
-    def public_url(self, key: str) -> str:
-        ...
+    def delete(self, key: str) -> None: ...
 
     def download_url(
         self,
@@ -99,32 +130,5 @@ class FileStorage(Protocol):
         *,
         filename: str | None = None,
         content_type: str | None = None,
-    ) -> str | None:
-        ...
-
-    def materialize_to_local(self, key: str, target_path: str) -> str:
-        ...
-
-    def save_blob(
-        self,
-        *,
-        content: bytes,
-        sha256: str,
-        extension: str,
-        content_type: str | None = None,
-    ) -> StoredFile:
-        ...
-
-    def save_avatar(
-        self,
-        *,
-        content: bytes,
-        filename: str,
-    ) -> StoredFile:
-        ...
-
-    def avatar_url(self, filename: str) -> str:
-        ...
-
-    def delete_avatar(self, filename: str) -> bool:
-        ...
+        expires_seconds: int | None = None,
+    ) -> str: ...

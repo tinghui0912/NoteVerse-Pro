@@ -11,9 +11,9 @@ the script explicitly documents another path.
 | `check_runtime.py` | Validates configuration and dependencies for a runtime role. | Read-only diagnostic. |
 | `export_openapi.py` | Exports or verifies versioned HTTP API contracts. | Writes generated contracts unless `--check` is used. |
 | `create_operator.py` | Creates a local platform operator. | Mutates identity data; development only. |
+| `reconcile_storage_usage.py` | Inspects or repairs one user's online usage projection from semantic ownership and active holds. | `inspect` is read-only; `repair` commits corrections; output omits object locators. |
 | `rebuild_score_metadata.py` | Rebuilds score metadata projections. | Mutates durable projections; review arguments first. |
 | `reset_alembic.py` | Resets Alembic state. | Destructive; disposable development databases only. |
-| `repair_unpublished_practice_migration_state.py` | Repairs unpublished migration metadata before the migration entrypoint. | Mutates migration metadata. |
 | `seed_integration_user.py` | Seeds a disposable integration-test identity. | Mutates test identity data. |
 | `verify_practice_acoustic_model_asset.py` | Verifies the exact Practice acoustic asset locally and in a private OSS bucket. | Read-only by default; `--publish` uploads a missing object with overwrite forbidden. |
 | `prepare_model_assets.py` | Prepares model assets. | May download or materialize local assets. |

@@ -26,17 +26,7 @@ type SelectedConnectionTarget = ConnectionTarget & {
     key: string;
 };
 
-// Hook parameter type.
-type UseConnectionOperationsParams = {
-    currentXml: string | null;
-};
-
-/**
- * Connection operation hook for adding, deleting, and updating tie/slur links.
- */
-export function useConnectionOperations({
-    currentXml,
-}: UseConnectionOperationsParams) {
+export function useConnectionOperations() {
     const t = useTranslations('editor');
     const tCommon = useTranslations('common');
     const domainDocument = useEditorDomainDocument();
@@ -57,7 +47,7 @@ export function useConnectionOperations({
 
     // Delete all tie connections for a selected source-id target.
     const handleDeleteTie = (selectedTarget: ConnectionTarget): OperationResult => {
-        if (!currentXml || !domainDocument.document) {
+        if (!domainDocument.document) {
             return { success: false, message: t('noConnectionData') };
         }
 
@@ -85,7 +75,7 @@ export function useConnectionOperations({
 
     // Delete all slur connections for a selected source-id target.
     const handleDeleteSlur = (selectedTarget: ConnectionTarget): OperationResult => {
-        if (!currentXml || !domainDocument.document) {
+        if (!domainDocument.document) {
             return { success: false, message: t('noConnectionData') };
         }
 
@@ -113,7 +103,7 @@ export function useConnectionOperations({
 
     // Add a tie by selecting two note/chord targets.
     const handleAddTieSelection = (selectedTarget: ConnectionTarget): OperationResult => {
-        if (!currentXml || !domainDocument.document) {
+        if (!domainDocument.document) {
             return { success: false, message: t('noNoteData') };
         }
 
@@ -169,7 +159,7 @@ export function useConnectionOperations({
 
     // Add a slur by selecting two note/chord targets.
     const handleAddSlurSelection = (selectedTarget: ConnectionTarget): OperationResult => {
-        if (!currentXml || !domainDocument.document) {
+        if (!domainDocument.document) {
             return { success: false, message: t('noNoteData') };
         }
 

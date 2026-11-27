@@ -1,230 +1,145 @@
-﻿from __future__ import annotations
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col
-
+from __future__ import annotations
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+import sqlite3
 from app.core.exceptions import (
     ResourceAlreadyExistsException,
     ResourceNotFoundException,
     UnauthorizedException,
-    ValidationException,
 )
 from app.db.model_utils import require_persisted_id
-from app.db.models import (
-    LibraryEntrySourceType,
-    LibraryPracticeState,
-    Score,
-    ScoreDeletionStatus,
-    ScoreLibraryEntry,
-    ScoreLibraryFolder,
-    ScoreRevision,
-    ScoreRevisionMetadata,
-)
-from app.modules.library.folder_tree import (
-    LibraryFolderCounts,
-    build_folder_tree_read,
-    descendant_folder_ids,
-    folder_level,
-    subtree_height,
-)
+from app.db.models import ScoreLibraryFolder, ScoreLibraryOrganization
 from app.modules.library.repository import LibraryRepository
+from app.modules.library.read_model import LibraryReadModel
 from app.modules.library.schemas import (
-    FolderDeleteMode,
-    LibraryEntryBatchMoveRequest,
-    LibraryEntryBatchPracticeStateRequest,
-    LibraryEntryBatchUpdateRequest,
-    LibraryEntryRead,
-    LibraryEntryUpdateRequest,
+    LibraryScoreBatchMoveRequest,
+    LibraryScoreBatchFavoriteRequest,
+    LibraryScoreRead,
     LibraryFolderCreateRequest,
-    LibraryFolderDeleteRequest,
-    LibraryFolderRead,
-    LibraryFolderTreeRead,
     LibraryFolderUpdateRequest,
-    LibraryOwnedScoreBatchRequest,
+    LibraryFolderRead,
+    LibraryFolderOverviewRead,
     LibrarySort,
     LibraryView,
 )
-from app.modules.metadata.service import MetadataProjectionService
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
-from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
-from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
-from app.modules.scores.repository import ScoreRepository
-from app.modules.scores.schemas import ScoreTaxonomyTagRead
-from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
+from app.shared.error_codes import CustomerErrorCode
 
 
 class LibraryService:
-    MAX_FOLDER_LEVEL = 2
+    def erase_user_state(self, db: Session, user_id: int, *, limit: int) -> bool:
+        """Remove a bounded organization/folder batch without touching foreign Scores."""
+        organization_ids = list(
+            db.scalars(
+                select(ScoreLibraryOrganization.id)
+                .where(ScoreLibraryOrganization.user_id == user_id)
+                .order_by(ScoreLibraryOrganization.id)
+                .limit(limit)
+            )
+        )
+        if organization_ids:
+            db.execute(
+                delete(ScoreLibraryOrganization).where(
+                    ScoreLibraryOrganization.id.in_(organization_ids)
+                )
+            )
+            return True
+        folder_ids = list(
+            db.scalars(
+                select(ScoreLibraryFolder.id)
+                .where(ScoreLibraryFolder.user_id == user_id)
+                .order_by(ScoreLibraryFolder.id)
+                .limit(limit)
+            )
+        )
+        if folder_ids:
+            db.execute(delete(ScoreLibraryFolder).where(ScoreLibraryFolder.id.in_(folder_ids)))
+            return True
+        return False
 
     def __init__(
         self,
         repository: LibraryRepository | None = None,
-        score_repository: ScoreRepository | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        access_policy: ScoreAccessPolicy | None = None,
     ) -> None:
         self.repository = repository or LibraryRepository()
-        self.score_repository = score_repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.access_policy = access_policy or ScoreAccessPolicy()
 
-    async def ensure_entry(
-        self,
-        db: AsyncSession,
-        *,
-        user_id: int,
-        score_id: int,
-        source_type: LibraryEntrySourceType,
-        favorite: bool = False,
-    ) -> ScoreLibraryEntry:
-        entry = await self.repository.entry_including_deleted(db, user_id, score_id, source_type)
-        if entry:
-            if entry.deleted_at is not None:
-                entry.deleted_at = None
-                entry.folder_id = None
-                entry.practice_state = LibraryPracticeState.TO_PRACTICE
-                entry.last_practiced_at = None
-            if favorite and not entry.is_favorite:
-                entry.is_favorite = True
-            entry.updated_at = utc_now_naive()
-            return entry
-        now = utc_now_naive()
-        entry = ScoreLibraryEntry(
-            user_id=user_id,
-            score_id=score_id,
-            source_type=source_type,
-            is_favorite=favorite,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(entry)
-        return entry
-
-    async def folder_tree(self, db: AsyncSession, user_id: int) -> LibraryFolderTreeRead:
-        folders = await self.repository.folders(db, user_id)
-        (
-            all_count,
-            favorite_count,
-            recent_practice_count,
-            to_practice_count,
-            mastered_count,
-            direct_counts,
-        ) = await self.repository.counts(db, user_id)
-        return build_folder_tree_read(
-            folders,
-            LibraryFolderCounts(
-                all_count=all_count,
-                favorite_count=favorite_count,
-                recent_practice_count=recent_practice_count,
-                to_practice_count=to_practice_count,
-                mastered_count=mastered_count,
-                direct_counts=direct_counts,
-            ),
+    def folder_overview(self, db: Session, user_id: int) -> LibraryFolderOverviewRead:
+        folders = self.repository.folders(db, user_id)
+        total, favorites, owned, shared, counts = self.repository.counts(db, user_id)
+        return LibraryFolderOverviewRead(
+            all_count=total,
+            favorite_count=favorites,
+            created_by_me_count=owned,
+            shared_with_me_count=shared,
+            folders=[
+                LibraryFolderRead(
+                    folder_id=f.folder_uuid,
+                    name=f.name,
+                    position=f.position,
+                    score_count=counts.get(require_persisted_id(f.id, entity="library folder"), 0),
+                    created_at=f.created_at,
+                    updated_at=f.updated_at,
+                )
+                for f in folders
+            ],
         )
 
-    async def create_folder(
-        self, db: AsyncSession, user_id: int, request: LibraryFolderCreateRequest
+    def create_folder(
+        self, db: Session, user_id: int, request: LibraryFolderCreateRequest
     ) -> LibraryFolderRead:
-        parent = await self._optional_folder(db, user_id, request.parent_folder_id)
-        folders = await self.repository.folders(db, user_id)
-        parent_id = (
-            require_persisted_id(parent.id, entity="library folder")
-            if parent
-            else None
-        )
-        if folder_level(folders, parent_id) + 1 > self.MAX_FOLDER_LEVEL:
-            raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
-        now = utc_now_naive()
+        now = utc_now()
         folder = ScoreLibraryFolder(
             user_id=user_id,
-            parent_folder_id=parent_id,
             name=request.name,
             created_at=now,
             updated_at=now,
         )
         db.add(folder)
         try:
-            await db.commit()
-        except Exception as exc:
-            await db.rollback()
-            raise ResourceAlreadyExistsException("library_folder") from exc
-        return await self._folder_read(db, user_id, folder.folder_uuid)
+            db.flush()
+        except IntegrityError as exc:
+            if duplicate_folder_name(exc):
+                raise ResourceAlreadyExistsException("library_folder") from exc
+            raise
+        return self._folder_read(db, user_id, folder.folder_uuid)
 
-    async def update_folder(
+    def update_folder(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         folder_uuid: str,
         request: LibraryFolderUpdateRequest,
     ) -> LibraryFolderRead:
-        folder = await self.repository.folder_by_uuid(db, user_id, folder_uuid, lock=True)
+        folder = self.repository.folder_by_uuid(db, user_id, folder_uuid, lock=True)
         if not folder:
             raise ResourceNotFoundException("library_folder", folder_uuid)
-        folders = await self.repository.folders(db, user_id)
-        folder_id = require_persisted_id(folder.id, entity="library folder")
         if request.name is not None:
             folder.name = request.name
         if request.position is not None:
             folder.position = request.position
-        if "parent_folder_id" in request.model_fields_set:
-            parent = await self._optional_folder(db, user_id, request.parent_folder_id)
-            parent_id = require_persisted_id(parent.id, entity="library folder") if parent else None
-            if parent_id == folder_id or parent_id in descendant_folder_ids(folders, folder_id):
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
-            if (
-                folder_level(folders, parent_id)
-                + subtree_height(folders, folder_id)
-                > self.MAX_FOLDER_LEVEL
-            ):
-                raise ValidationException(ErrorCode.VALIDATION_ERROR, field="parent_folder_id")
-            folder.parent_folder_id = parent_id
-        folder.updated_at = utc_now_naive()
+        folder.updated_at = utc_now()
         try:
-            await db.commit()
-        except Exception as exc:
-            await db.rollback()
-            raise ResourceAlreadyExistsException("library_folder") from exc
-        return await self._folder_read(db, user_id, folder.folder_uuid)
+            db.flush()
+        except IntegrityError as exc:
+            if duplicate_folder_name(exc):
+                raise ResourceAlreadyExistsException("library_folder") from exc
+            raise
+        return self._folder_read(db, user_id, folder.folder_uuid)
 
-    async def delete_folder(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        folder_uuid: str,
-        request: LibraryFolderDeleteRequest,
-    ) -> None:
-        folder = await self.repository.folder_by_uuid(db, user_id, folder_uuid, lock=True)
-        if not folder:
+    def delete_folder(self, db: Session, user_id: int, folder_uuid: str) -> None:
+        folder = self.repository.folder_by_uuid(db, user_id, folder_uuid, lock=True)
+        if folder is None:
             raise ResourceNotFoundException("library_folder", folder_uuid)
-        folder_id = require_persisted_id(folder.id, entity="library folder")
-        folders = await self.repository.folders(db, user_id)
-        descendant_ids = descendant_folder_ids(folders, folder_id)
-        affected_folder_ids = {folder_id, *descendant_ids}
-        target_parent_id = None
-        if request.mode == FolderDeleteMode.MOVE_CONTENTS_TO_PARENT:
-            target_parent_id = folder.parent_folder_id
-        now = utc_now_naive()
-        for child in folders:
-            child_id = require_persisted_id(child.id, entity="library folder")
-            if child_id in descendant_ids or child_id == folder_id:
-                child.deleted_at = now
-                child.updated_at = now
-        for entry in await self.repository.entries_in_folder_ids(
-            db, user_id, affected_folder_ids
-        ):
-            if request.mode == FolderDeleteMode.TRASH_CONTENTS:
-                entry.deleted_at = now
-            else:
-                entry.folder_id = target_parent_id
-            entry.updated_at = now
-        await db.commit()
+        db.delete(folder)
+        db.flush()
 
-    async def list_entries(
+    def list_scores(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         *,
         view: LibraryView,
@@ -233,259 +148,89 @@ class LibraryService:
         sort: LibrarySort,
         page: int,
         page_size: int,
-    ) -> tuple[list[LibraryEntryRead], int]:
-        folder = await self._optional_folder(db, user_id, folder_id)
-        folder_ids = None
-        if folder:
-            folders = await self.repository.folders(db, user_id)
-            selected_folder_id = require_persisted_id(folder.id, entity="library folder")
-            folder_ids = {
-                selected_folder_id,
-                *descendant_folder_ids(folders, selected_folder_id),
-            }
-        rows, total = await self.repository.list_entries(
+    ) -> tuple[list[LibraryScoreRead], int]:
+        folder = self._optional_folder(db, user_id, folder_id)
+        rows, total = self.repository.list_scores(
             db,
             user_id,
             view=view,
-            folder_ids=folder_ids,
+            folder_id=require_persisted_id(folder.id, entity="library folder") if folder else None,
             search=search,
             sort=sort,
             page=page,
             page_size=page_size,
         )
-        result = [
-            await self._entry_read(db, entry, score, projection)
-            for entry, score, projection in rows
-        ]
-        return result, total
+        return LibraryReadModel(self.asset_repository).score_page(db, user_id, rows), total
 
-    async def batch_move(
-        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchMoveRequest
-    ) -> int:
-        target = await self._optional_folder(db, user_id, request.target_folder_id)
-        target_id = require_persisted_id(target.id, entity="library folder") if target else None
-        moved = 0
-        for entry_uuid in request.entry_ids:
-            entry = await self.repository.entry_by_uuid(db, user_id, entry_uuid)
-            if not entry:
-                continue
-            entry.folder_id = target_id
-            entry.updated_at = utc_now_naive()
-            moved += 1
-        await db.commit()
-        return moved
-
-    async def batch_set_favorite(
-        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
-    ) -> int:
-        return await self._batch_update_entries(
-            db, user_id, request.entry_ids, favorite=True
-        )
-
-    async def batch_trash(
-        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchUpdateRequest
-    ) -> int:
-        return await self._batch_update_entries(
-            db, user_id, request.entry_ids, trash=True
-        )
-
-    async def batch_set_practice_state(
-        self, db: AsyncSession, user_id: int, request: LibraryEntryBatchPracticeStateRequest
-    ) -> int:
-        return await self._batch_update_entries(
+    def batch_move(self, db: Session, user_id: int, request: LibraryScoreBatchMoveRequest) -> int:
+        folder = self._optional_folder(db, user_id, request.target_folder_id, lock=True)
+        ids = self._mutation_score_ids(db, user_id, request.score_ids)
+        rows = self.repository.upsert_organizations(
             db,
             user_id,
-            request.entry_ids,
-            practice_state=request.practice_state,
-        )
-
-    async def batch_add_owned_scores(
-        self, db: AsyncSession, user_id: int, request: LibraryOwnedScoreBatchRequest
-    ) -> int:
-        changed = 0
-        for score_uuid in request.score_ids:
-            score = await self.score_repository.get(db, score_uuid)
-            if not score or score.owner_user_id != user_id:
-                continue
-            score_id = require_persisted_id(score.id, entity="score")
-            active_entry = await self.repository.entry(
-                db,
-                user_id,
-                score_id,
-                LibraryEntrySourceType.SELF_ADDED,
-            )
-            await self.ensure_entry(
-                db,
-                user_id=user_id,
-                score_id=score_id,
-                source_type=LibraryEntrySourceType.SELF_ADDED,
-            )
-            if active_entry is None:
-                changed += 1
-        await db.commit()
-        return changed
-
-    async def update_entry(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        entry_uuid: str,
-        request: LibraryEntryUpdateRequest,
-    ) -> LibraryEntryRead:
-        entry = await self.repository.entry_by_uuid(db, user_id, entry_uuid)
-        if not entry:
-            raise ResourceNotFoundException("library_entry", entry_uuid)
-        if request.practice_state is not None:
-            entry.practice_state = request.practice_state
-        if request.is_favorite is not None:
-            entry.is_favorite = request.is_favorite
-        entry.updated_at = utc_now_naive()
-        await db.commit()
-        await db.refresh(entry)
-        score = await db.get(Score, entry.score_id)
-        if not score or score.deletion_status != ScoreDeletionStatus.ACTIVE:
-            raise ResourceNotFoundException("score", str(entry.score_id))
-        projection = None
-        if score.head_revision_id:
-            projection = (
-                await db.execute(
-                    select(ScoreRevisionMetadata).where(
-                        ScoreRevisionMetadata.revision_id == score.head_revision_id
-                    )
-                )
-            ).scalar_one_or_none()
-        return await self._entry_read(db, entry, score, projection)
-
-    async def mark_practiced(self, db: AsyncSession, user_id: int, score_id: int) -> None:
-        rows = await db.execute(
-            select(ScoreLibraryEntry).where(
-                ScoreLibraryEntry.user_id == user_id,
-                ScoreLibraryEntry.score_id == score_id,
-                col(ScoreLibraryEntry.deleted_at).is_(None),
-            )
-        )
-        entries = list(rows.scalars().all())
-        if not entries:
-            return
-        now = utc_now_naive()
-        for entry in entries:
-            entry.last_practiced_at = now
-            if entry.practice_state == LibraryPracticeState.TO_PRACTICE:
-                entry.practice_state = LibraryPracticeState.IN_PROGRESS
-            entry.updated_at = now
-
-    async def _entry_read(
-        self,
-        db: AsyncSession,
-        entry: ScoreLibraryEntry,
-        score: Score,
-        projection,
-    ) -> LibraryEntryRead:
-        available = True
-        try:
-            await self.access_policy.authorize(
-                db, score.score_uuid, ScoreAction.VIEW, user_id=entry.user_id
-            )
-        except UnauthorizedException:
-            available = False
-        head = await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
-        score_id = require_persisted_id(score.id, entity="score")
-        derived_assets = (
-            await score_derived_assets(
-                db, self.asset_repository, score_id=score_id, revision=head
-            )
-            if head
-            else ScoreDerivedAssetsRead(
-                preview=ScoreDerivedAssetRead(
-                    status="pending", asset_id=None, revision_id=None, is_fallback=False
-                ),
-                audio=ScoreDerivedAssetRead(
-                    status="pending", asset_id=None, revision_id=None, is_fallback=False
-                ),
-            )
-        )
-        return LibraryEntryRead(
-            entry_id=entry.entry_uuid,
-            score_id=score.score_uuid,
-            source_type=entry.source_type,
-            folder_id=await self._folder_uuid(db, entry.folder_id),
-            title=score.title,
-            derived_assets=derived_assets,
-            taxonomy_tags=[
-                ScoreTaxonomyTagRead(
-                    category=category,
-                    code=code,
-                    source=source,
-                    confidence=confidence,
-                )
-                for category, code, source, confidence in await self.score_repository.taxonomy_tags(
-                    db, score_id
-                )
-            ],
-            metadata=(
-                MetadataProjectionService.to_read(head, projection)
-                if head and projection
+            ids,
+            now=utc_now(),
+            changes={
+                "folder_id": require_persisted_id(folder.id, entity="library folder")
+                if folder
                 else None
-            ),
-            is_favorite=entry.is_favorite,
-            practice_state=entry.practice_state,
-            available=available,
-            unavailable_reason=None if available else "access_unavailable",
-            last_practiced_at=entry.last_practiced_at,
-            created_at=entry.created_at,
-            updated_at=entry.updated_at,
+            },
         )
+        return len(rows)
 
-    async def _batch_update_entries(
-        self,
-        db: AsyncSession,
-        user_id: int,
-        entry_uuids: list[str],
-        *,
-        favorite: bool = False,
-        trash: bool = False,
-        practice_state: LibraryPracticeState | None = None,
+    def batch_set_favorite(
+        self, db: Session, user_id: int, request: LibraryScoreBatchFavoriteRequest
     ) -> int:
-        changed = 0
-        now = utc_now_naive()
-        for entry_uuid in entry_uuids:
-            entry = await self.repository.entry_by_uuid(db, user_id, entry_uuid)
-            if not entry:
-                continue
-            if favorite:
-                entry.is_favorite = True
-            if trash:
-                entry.deleted_at = now
-            if practice_state is not None:
-                entry.practice_state = practice_state
-            entry.updated_at = now
-            changed += 1
-        await db.commit()
-        return changed
+        ids = self._mutation_score_ids(db, user_id, request.score_ids)
+        rows = self.repository.upsert_organizations(
+            db,
+            user_id,
+            ids,
+            now=utc_now(),
+            changes={"is_favorite": request.is_favorite},
+        )
+        return len(rows)
 
-    async def _optional_folder(
-        self, db: AsyncSession, user_id: int, folder_uuid: str | None
+    def _mutation_score_ids(self, db: Session, user_id: int, score_uuids: list[str]) -> list[int]:
+        requested = sorted(set(score_uuids))
+        # Preferences grant no access. Admission reads current access; later revocation or
+        # deletion remains enforced by the Library read predicate, without Score row locks.
+        rows = self.repository.mutation_scores(db, user_id, requested)
+        found = {uuid for _, uuid, _ in rows}
+        for uuid in requested:
+            if uuid not in found:
+                raise ResourceNotFoundException("score", uuid, CustomerErrorCode.SCORE_NOT_FOUND)
+        for _, uuid, accessible in rows:
+            if not accessible:
+                raise UnauthorizedException(CustomerErrorCode.NO_ACCESS, {"score_id": uuid})
+        return [identity for identity, _, _ in rows]
+
+    def _optional_folder(
+        self, db: Session, user_id: int, folder_uuid: str | None, *, lock: bool = False
     ) -> ScoreLibraryFolder | None:
         if folder_uuid is None:
             return None
-        folder = await self.repository.folder_by_uuid(db, user_id, folder_uuid)
-        if not folder:
+        folder = self.repository.folder_by_uuid(db, user_id, folder_uuid, lock=lock)
+        if folder is None:
             raise ResourceNotFoundException("library_folder", folder_uuid)
         return folder
 
-    async def _folder_read(
-        self, db: AsyncSession, user_id: int, folder_uuid: str
-    ) -> LibraryFolderRead:
-        tree = await self.folder_tree(db, user_id)
-        for folder in tree.folders:
+    def _folder_read(self, db: Session, user_id: int, folder_uuid: str) -> LibraryFolderRead:
+        for folder in (self.folder_overview(db, user_id)).folders:
             if folder.folder_id == folder_uuid:
                 return folder
         raise ResourceNotFoundException("library_folder", folder_uuid)
 
-    async def _folder_uuid(self, db: AsyncSession, folder_id: int | None) -> str | None:
-        if folder_id is None:
-            return None
-        folder = await db.get(ScoreLibraryFolder, folder_id)
-        return folder.folder_uuid if folder else None
 
-
+def duplicate_folder_name(error: IntegrityError) -> bool:
+    original = error.orig
+    if getattr(original, "sqlstate", None) == "23505":
+        return (
+            getattr(getattr(original, "diag", None), "constraint_name", None)
+            == "uq_score_library_folders_user_name"
+        )
+    return (
+        getattr(original, "sqlite_errorcode", None) == sqlite3.SQLITE_CONSTRAINT_UNIQUE
+        and str(original)
+        == "UNIQUE constraint failed: score_library_folders.user_id, score_library_folders.name"
+    )

@@ -12,13 +12,13 @@ from app.core.background_tracing import (
     set_scheduler_trace_outcome,
 )
 from app.core.logger import logger, set_task_id
-from app.db.sync_session import get_worker_db
+from app.db.session import SessionLocal
 from app.modules.scheduler_observability.service import (
     SchedulerRunStats,
     scheduler_observability_service,
 )
 from app.modules.scheduler_lock.service import scheduler_lock_service
-from app.pipeline.context import CeleryTaskLike
+from app.task_queue.protocols import CeleryTaskLike
 
 
 def bind_task_context(task: CeleryTaskLike | None) -> None:
@@ -59,8 +59,9 @@ def run_scheduler_scan(job_key: str, callback: Callable[[], dict[str, int]]) -> 
     started_at = monotonic()
     with scheduler_lock_service.try_acquire(job_key) as acquired:
         if not acquired:
-            with get_worker_db() as db:
+            with SessionLocal() as db:
                 scheduler_observability_service.record_lock_skipped(db, job_key)
+                db.commit()
             operation_logger(
                 "scheduler.scan_skipped",
                 operation_kind="scheduler",
@@ -69,8 +70,9 @@ def run_scheduler_scan(job_key: str, callback: Callable[[], dict[str, int]]) -> 
             ).info("scheduler.scan_skipped")
             return {"due": 0, "dispatched": 0, "lock_skipped": 1}
 
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             scheduler_observability_service.record_lock_acquired(db, job_key)
+            db.commit()
         with background_root_span(
             name="noteverse.scheduler.scan",
             attributes={
@@ -86,19 +88,21 @@ def _run_locked_scheduler_scan(
     callback: Callable[[], dict[str, int]],
     started_at: float,
 ) -> dict[str, int]:
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         scheduler_observability_service.record_started(db, job_key)
+        db.commit()
     try:
         result = callback()
     except Exception as exc:
         duration_seconds = monotonic() - started_at
-        with get_worker_db() as db:
+        with SessionLocal() as db:
             scheduler_observability_service.record_failure(
                 db,
                 job_key,
                 duration_seconds=duration_seconds,
                 error=f"{type(exc).__name__}: {exc}",
             )
+            db.commit()
         operation_logger(
             "scheduler.scan_failed",
             operation_kind="scheduler",
@@ -115,13 +119,14 @@ def _run_locked_scheduler_scan(
         due=stats.due,
         dispatched=stats.dispatched,
     )
-    with get_worker_db() as db:
+    with SessionLocal() as db:
         scheduler_observability_service.record_success(
             db,
             job_key,
             duration_seconds=duration_seconds,
             stats=stats,
         )
+        db.commit()
     operation_logger(
         "scheduler.scan_completed",
         operation_kind="scheduler",

@@ -1,0 +1,642 @@
+{
+  "base": {
+    "schemaVersion": 1,
+    "artifactId": "practice-score-artifact:0123456789abcdef",
+    "ticksPerQuarter": 1,
+    "scoreEndTick": 1,
+    "notes": [
+      {
+        "noteId": "n",
+        "eventId": "e",
+        "pianoKey": 60,
+        "renderNoteId": "r",
+        "measureNumber": "1",
+        "staffId": "1",
+        "voiceId": "1",
+        "tieTypes": []
+      }
+    ],
+    "events": [
+      {
+        "eventId": "e",
+        "onsetTick": 0,
+        "durationTicks": 1
+      }
+    ],
+    "moments": [
+      {
+        "groupId": "g",
+        "onsetTick": 0,
+        "canonicalEndTick": 1,
+        "attacks": [
+          {
+            "attackId": "a",
+            "pianoKey": 60,
+            "noteIds": ["n"]
+          }
+        ],
+        "continuationNoteIds": []
+      }
+    ],
+    "meterSegments": [
+      {
+        "startTick": 0,
+        "numerator": 4,
+        "denominator": 4
+      }
+    ],
+    "scoreTempoSegments": [
+      {
+        "startTick": 0,
+        "bpm": 120
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "valid complete transport",
+      "valid": true,
+      "edits": []
+    },
+    {
+      "name": "missing root schemaVersion",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["schemaVersion"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "missing root artifactId",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["artifactId"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "missing root ticksPerQuarter",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["ticksPerQuarter"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "missing root scoreEndTick",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["scoreEndTick"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "missing root notes",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "missing root events",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "missing root moments",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["moments"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "missing root meterSegments",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["meterSegments"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "missing root scoreTempoSegments",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["scoreTempoSegments"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "unknown root",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["unexpected"],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "missing nested field",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "voiceId"],
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "unknown nested field",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events", 0, "unexpected"],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "empty identity ['notes', 0, 'noteId']",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "noteId"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty identity ['notes', 0, 'eventId']",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "eventId"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty identity ['notes', 0, 'renderNoteId']",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "renderNoteId"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty identity ['events', 0, 'eventId']",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events", 0, "eventId"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty identity ['moments', 0, 'groupId']",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["moments", 0, "groupId"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty identity ['moments', 0, 'attacks', 0, 'attackId']",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["moments", 0, "attacks", 0, "attackId"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty identity ['moments', 0, 'attacks', 0, 'noteIds', 0]",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["moments", 0, "attacks", 0, "noteIds", 0],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty continuation identity",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["moments", 0, "continuationNoteIds"],
+          "value": [""]
+        }
+      ]
+    },
+    {
+      "name": "empty metadata measureNumber",
+      "valid": true,
+      "edits": [
+        {
+          "path": ["notes", 0, "measureNumber"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty metadata staffId",
+      "valid": true,
+      "edits": [
+        {
+          "path": ["notes", 0, "staffId"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "empty metadata voiceId",
+      "valid": true,
+      "edits": [
+        {
+          "path": ["notes", 0, "voiceId"],
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "fractional tick",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events", 0, "onsetTick"],
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "name": "negative tick",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events", 0, "onsetTick"],
+          "value": -1
+        }
+      ]
+    },
+    {
+      "name": "unsafe tick",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events", 0, "onsetTick"],
+          "value": 9007199254740992
+        }
+      ]
+    },
+    {
+      "name": "boolean tick",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events", 0, "onsetTick"],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "string tick",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events", 0, "onsetTick"],
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "maximum tick",
+      "valid": true,
+      "edits": [
+        {
+          "path": ["scoreEndTick"],
+          "value": 9007199254740991
+        }
+      ]
+    },
+    {
+      "name": "zero ticksPerQuarter",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["ticksPerQuarter"],
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "invalid piano key 20",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "pianoKey"],
+          "value": 20
+        }
+      ]
+    },
+    {
+      "name": "invalid piano key 109",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "pianoKey"],
+          "value": 109
+        }
+      ]
+    },
+    {
+      "name": "invalid piano key 60.5",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "pianoKey"],
+          "value": 60.5
+        }
+      ]
+    },
+    {
+      "name": "invalid piano key True",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "pianoKey"],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "invalid piano key 60",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "pianoKey"],
+          "value": "60"
+        }
+      ]
+    },
+    {
+      "name": "bad tie enum",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "tieTypes"],
+          "value": ["continue"]
+        }
+      ]
+    },
+    {
+      "name": "duplicate tie enum",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes", 0, "tieTypes"],
+          "value": ["start", "start"]
+        }
+      ]
+    },
+    {
+      "name": "both ties",
+      "valid": true,
+      "edits": [
+        {
+          "path": ["notes", 0, "tieTypes"],
+          "value": ["start", "stop"]
+        }
+      ]
+    },
+    {
+      "name": "empty notes",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["notes"],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "empty events",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["events"],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "empty moments",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["moments"],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "empty meterSegments",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["meterSegments"],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "empty attacks",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["moments", 0, "attacks"],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "empty attack noteIds",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["moments", 0, "attacks", 0, "noteIds"],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "empty score tempos",
+      "valid": true,
+      "edits": [
+        {
+          "path": ["scoreTempoSegments"],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "invalid BPM 0",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["scoreTempoSegments", 0, "bpm"],
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "invalid BPM -1",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["scoreTempoSegments", 0, "bpm"],
+          "value": -1
+        }
+      ]
+    },
+    {
+      "name": "invalid BPM 120",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["scoreTempoSegments", 0, "bpm"],
+          "value": "120"
+        }
+      ]
+    },
+    {
+      "name": "invalid BPM True",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["scoreTempoSegments", 0, "bpm"],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "malformed artifactId 'artifact'",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["artifactId"],
+          "value": "artifact"
+        }
+      ]
+    },
+    {
+      "name": "malformed artifactId 'practice-score-artifact:ABCDEF0123456789'",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["artifactId"],
+          "value": "practice-score-artifact:ABCDEF0123456789"
+        }
+      ]
+    },
+    {
+      "name": "malformed artifactId 'practice-score-artifact:0123456789abcde'",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["artifactId"],
+          "value": "practice-score-artifact:0123456789abcde"
+        }
+      ]
+    },
+    {
+      "name": "malformed artifactId 'practice-score-artifact:0123456789abcdef\\n'",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["artifactId"],
+          "value": "practice-score-artifact:0123456789abcdef\n"
+        }
+      ]
+    },
+    {
+      "name": "unsupported schema version",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["schemaVersion"],
+          "value": 2
+        }
+      ]
+    },
+    {
+      "name": "boolean schema version",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["schemaVersion"],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "zero numerator",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["meterSegments", 0, "numerator"],
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "zero denominator",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["meterSegments", 0, "denominator"],
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "unsafe denominator",
+      "valid": false,
+      "edits": [
+        {
+          "path": ["meterSegments", 0, "denominator"],
+          "value": 9007199254740992
+        }
+      ]
+    }
+  ]
+}

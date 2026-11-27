@@ -1,9 +1,23 @@
 """Celery task entrypoints for NoteVerse background work."""
 
-from app.modules.import_jobs.schemas import PipelineExecutionSuccessResult
-from app.pipeline.context import CeleryTaskLike
-from app.worker.celery_config import celery_app
-from app.worker.execution.import_job import execute_import_job_task
+from app.worker.execution.account_deletion import (
+    execute_account_deletion_task,
+    execute_account_deletion_maintenance,
+)
+from app.worker.execution.revision_metadata import (
+    execute_revision_metadata_task,
+    execute_revision_metadata_maintenance,
+)
+from app.worker.execution.score_deletion import execute_score_deletion_task
+from app.task_queue.protocols import CeleryTaskLike
+from app.worker.execution.take_processing import (
+    execute_take_processing,
+    execute_take_processing_maintenance,
+)
+from app.task_queue.config import celery_app
+from app.worker.execution.object_write_cleanup import execute_object_write_cleanup_task
+from app.worker.execution.maintenance_dispatch import execute_object_write_cleanup_maintenance
+from app.worker.execution.import_job import execute_import_dispatch_task
 from app.worker.execution.mail_outbox import execute_mail_outbox_task
 from app.worker.execution.maintenance_cleanup import (
     execute_derived_asset_cleanup,
@@ -11,37 +25,48 @@ from app.worker.execution.maintenance_cleanup import (
     execute_mail_outbox_cleanup,
     execute_notification_maintenance,
     execute_realtime_maintenance,
-    execute_score_deletion_cleanup,
+    execute_storage_quota_expiry,
 )
 from app.worker.execution.maintenance_dispatch import (
+    execute_score_deletion_maintenance,
     execute_import_dispatch_maintenance,
     execute_mail_outbox_maintenance,
-    execute_performance_take_deletion_maintenance,
+    execute_stored_object_retirement_maintenance,
     execute_playback_outbox_maintenance,
-    execute_render_outbox_maintenance,
+    execute_score_revision_render_maintenance,
 )
-from app.worker.execution.performance_take_deletion import (
-    execute_performance_take_deletion_task,
-)
-from app.worker.execution.practice_source_snapshot_deletion import (
-    execute_practice_source_snapshot_deletion_task,
-)
+from app.worker.execution.stored_object_retirement import execute_stored_object_retirement_task
 from app.worker.execution.playback_outbox import execute_playback_outbox_task
-from app.worker.execution.render_outbox import execute_render_outbox_task
+from app.worker.execution.score_revision_render_outbox import execute_score_revision_render_task
 
 
 @celery_app.task(
     bind=True,
-    name="app.worker.tasks.process_images_job",
+    name="app.worker.tasks.revision_metadata_task",
     acks_late=True,
     reject_on_worker_lost=True,
 )
-def process_images_job(
+def revision_metadata_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str]:
+    return execute_revision_metadata_task(self, outbox_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_revision_metadata_maintenance")
+def run_revision_metadata_maintenance() -> dict[str, int]:
+    return execute_revision_metadata_maintenance()
+
+
+@celery_app.task(
+    bind=True,
+    name="app.worker.tasks.import_dispatch_task",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def import_dispatch_task(
     self: CeleryTaskLike,
-    job_uuid: str,
-) -> PipelineExecutionSuccessResult:
+    dispatch_uuid: str,
+) -> dict[str, object]:
     """Run the score import pipeline for one or more input images."""
-    return execute_import_job_task(self, job_uuid)
+    return execute_import_dispatch_task(self, dispatch_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.send_mail_outbox_task", bind=True, ignore_result=True)
@@ -50,10 +75,10 @@ def send_mail_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, s
     return execute_mail_outbox_task(self, outbox_uuid)
 
 
-@celery_app.task(name="app.worker.tasks.render_outbox_task", bind=True, ignore_result=True)
-def render_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str | None]:
-    """Render one durable score-revision or review-thumbnail target."""
-    return execute_render_outbox_task(self, outbox_uuid)
+@celery_app.task(name="app.worker.tasks.score_revision_render_task", bind=True, ignore_result=True)
+def score_revision_render_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, str | None]:
+    """Render one durable Score Revision render demand."""
+    return execute_score_revision_render_task(self, outbox_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.playback_outbox_task", bind=True, ignore_result=True)
@@ -63,29 +88,10 @@ def playback_outbox_task(self: CeleryTaskLike, outbox_uuid: str) -> dict[str, st
 
 
 @celery_app.task(
-    name="app.worker.tasks.performance_take_deletion_task",
-    bind=True,
-    ignore_result=True,
+    name="app.worker.tasks.stored_object_retirement_task", bind=True, ignore_result=True
 )
-def performance_take_deletion_task(
-    self: CeleryTaskLike,
-    outbox_uuid: str,
-) -> dict[str, str]:
-    """Delete one saved performance take media object and finalize DB/quota cleanup."""
-    return execute_performance_take_deletion_task(self, outbox_uuid)
-
-
-@celery_app.task(
-    name="app.worker.tasks.practice_source_snapshot_deletion_task",
-    bind=True,
-    ignore_result=True,
-)
-def practice_source_snapshot_deletion_task(
-    self: CeleryTaskLike,
-    outbox_uuid: str,
-) -> dict[str, str]:
-    """Delete one unreferenced immutable practice source snapshot."""
-    return execute_practice_source_snapshot_deletion_task(self, outbox_uuid)
+def stored_object_retirement_task(self: CeleryTaskLike, retirement_uuid: str) -> dict[str, str]:
+    return execute_stored_object_retirement_task(self, retirement_uuid)
 
 
 @celery_app.task(name="app.worker.tasks.run_job_maintenance")
@@ -118,16 +124,25 @@ def run_derived_asset_cleanup() -> dict[str, int]:
     return execute_derived_asset_cleanup()
 
 
-@celery_app.task(name="app.worker.tasks.run_score_deletion_cleanup")
-def run_score_deletion_cleanup() -> dict[str, int]:
-    """Hard-delete scores that were hidden by a user deletion request."""
-    return execute_score_deletion_cleanup()
+@celery_app.task(
+    bind=True,
+    name="app.worker.tasks.score_deletion_task",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def score_deletion_task(self: CeleryTaskLike, operation_uuid: str) -> dict[str, object]:
+    return execute_score_deletion_task(self, operation_uuid)
 
 
-@celery_app.task(name="app.worker.tasks.run_render_outbox_maintenance")
-def run_render_outbox_maintenance() -> dict[str, int]:
+@celery_app.task(name="app.worker.tasks.run_score_deletion_maintenance")
+def run_score_deletion_maintenance() -> dict[str, int]:
+    return execute_score_deletion_maintenance()
+
+
+@celery_app.task(name="app.worker.tasks.run_score_revision_render_maintenance")
+def run_score_revision_render_maintenance() -> dict[str, int]:
     """Recover stale render deliveries and dispatch all due outbox records."""
-    return execute_render_outbox_maintenance()
+    return execute_score_revision_render_maintenance()
 
 
 @celery_app.task(name="app.worker.tasks.run_playback_outbox_maintenance")
@@ -136,10 +151,10 @@ def run_playback_outbox_maintenance() -> dict[str, int]:
     return execute_playback_outbox_maintenance()
 
 
-@celery_app.task(name="app.worker.tasks.run_performance_take_deletion_maintenance")
-def run_performance_take_deletion_maintenance() -> dict[str, int]:
-    """Recover, dispatch, and retry saved performance take deletions and clean expired auths."""
-    return execute_performance_take_deletion_maintenance()
+@celery_app.task(name="app.worker.tasks.run_stored_object_retirement_maintenance")
+def run_stored_object_retirement_maintenance() -> dict[str, int]:
+    """Recover physical retirements and clean expired upload reservations."""
+    return execute_stored_object_retirement_maintenance()
 
 
 @celery_app.task(name="app.worker.tasks.run_mail_outbox_maintenance")
@@ -152,3 +167,45 @@ def run_mail_outbox_maintenance() -> dict[str, int]:
 def run_mail_outbox_cleanup() -> dict[str, int]:
     """Delete terminal mail records after their retention window."""
     return execute_mail_outbox_cleanup()
+
+
+@celery_app.task(name="app.worker.tasks.object_write_cleanup_task", bind=True, ignore_result=True)
+def object_write_cleanup_task(self: CeleryTaskLike, intent_uuid: str) -> dict[str, str]:
+    return execute_object_write_cleanup_task(self, intent_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_object_write_cleanup_maintenance")
+def run_object_write_cleanup_maintenance() -> dict[str, int]:
+    return execute_object_write_cleanup_maintenance()
+
+
+@celery_app.task(name="app.worker.tasks.run_storage_quota_expiry")
+def run_storage_quota_expiry() -> dict[str, int]:
+    return execute_storage_quota_expiry()
+
+
+@celery_app.task(
+    bind=True,
+    name="app.worker.tasks.account_deletion_task",
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def account_deletion_task(self: CeleryTaskLike, operation_uuid: str) -> dict[str, str]:
+    return execute_account_deletion_task(self, operation_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_account_deletion_maintenance")
+def run_account_deletion_maintenance() -> dict[str, int]:
+    return execute_account_deletion_maintenance()
+
+
+@celery_app.task(
+    name="app.worker.tasks.take_media_processing_task", acks_late=True, reject_on_worker_lost=True
+)
+def take_media_processing_task(operation_uuid: str) -> dict[str, str]:
+    return execute_take_processing(operation_uuid)
+
+
+@celery_app.task(name="app.worker.tasks.run_take_processing_maintenance")
+def run_take_processing_maintenance() -> dict[str, int]:
+    return execute_take_processing_maintenance()

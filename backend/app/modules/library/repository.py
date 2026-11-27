@@ -1,281 +1,216 @@
-﻿from __future__ import annotations
+from __future__ import annotations
+from app.modules.score_access.queries import active_score_predicate
 
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import TypeAlias
+from datetime import datetime
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+from sqlalchemy import func, select, and_
+from sqlalchemy.orm import Session
 from sqlmodel import col
-
 from app.db.models import (
-    LibraryEntrySourceType,
-    LibraryPracticeState,
     Score,
-    ScoreDeletionStatus,
-    ScoreLibraryEntry,
+    ScoreLibraryOrganization,
     ScoreLibraryFolder,
     ScoreRevisionMetadata,
+    ScoreRevision,
 )
+from app.modules.score_access.queries import accessible_score_predicate
 from app.modules.library.schemas import LibrarySort, LibraryView
 
-entry_updated_col = ScoreLibraryEntry.__table__.c.updated_at
-score_title_col = Score.__table__.c.title
-active_score_filter = col(Score.deletion_status) == ScoreDeletionStatus.ACTIVE
+
+LibraryPageRow: TypeAlias = tuple[
+    Score,
+    ScoreLibraryOrganization | None,
+    ScoreRevisionMetadata | None,
+    str | None,
+    ScoreRevision | None,
+]
 
 
 class LibraryRepository:
-    async def folder_by_uuid(
-        self, db: AsyncSession, user_id: int, folder_uuid: str, *, lock: bool = False
+    def folder_by_uuid(
+        self, db: Session, user_id: int, folder_uuid: str, *, lock: bool = False
     ) -> ScoreLibraryFolder | None:
         statement = select(ScoreLibraryFolder).where(
-            ScoreLibraryFolder.user_id == user_id,
-            ScoreLibraryFolder.folder_uuid == folder_uuid,
-            col(ScoreLibraryFolder.deleted_at).is_(None),
+            ScoreLibraryFolder.user_id == user_id, ScoreLibraryFolder.folder_uuid == folder_uuid
         )
         if lock:
-            statement = statement.with_for_update()
-        return (await db.execute(statement)).scalar_one_or_none()
+            statement = statement.with_for_update().execution_options(populate_existing=True)
+        return (db.execute(statement)).scalar_one_or_none()
 
-    async def folders(self, db: AsyncSession, user_id: int) -> list[ScoreLibraryFolder]:
-        rows = await db.execute(
-            select(ScoreLibraryFolder)
-            .where(
-                ScoreLibraryFolder.user_id == user_id,
-                col(ScoreLibraryFolder.deleted_at).is_(None),
+    def folders(self, db: Session, user_id: int) -> list[ScoreLibraryFolder]:
+        return list(
+            (
+                db.execute(
+                    select(ScoreLibraryFolder)
+                    .where(ScoreLibraryFolder.user_id == user_id)
+                    .order_by(ScoreLibraryFolder.position, ScoreLibraryFolder.name)
+                )
             )
-            .order_by(ScoreLibraryFolder.position, ScoreLibraryFolder.name)
+            .scalars()
+            .all()
         )
-        return list(rows.scalars().all())
 
-    async def folder_children(
-        self, db: AsyncSession, user_id: int, parent_id: int | None
-    ) -> list[ScoreLibraryFolder]:
-        rows = await db.execute(
-            select(ScoreLibraryFolder).where(
-                ScoreLibraryFolder.user_id == user_id,
-                ScoreLibraryFolder.parent_folder_id == parent_id,
-                col(ScoreLibraryFolder.deleted_at).is_(None),
-            )
-        )
-        return list(rows.scalars().all())
-
-    async def entry_by_uuid(
-        self, db: AsyncSession, user_id: int, entry_uuid: str
-    ) -> ScoreLibraryEntry | None:
+    def organization(
+        self, db: Session, user_id: int, score_id: int
+    ) -> ScoreLibraryOrganization | None:
         return (
-            await db.execute(
-                select(ScoreLibraryEntry).where(
-                    ScoreLibraryEntry.user_id == user_id,
-                    ScoreLibraryEntry.entry_uuid == entry_uuid,
-                    col(ScoreLibraryEntry.deleted_at).is_(None),
+            db.execute(
+                select(ScoreLibraryOrganization).where(
+                    ScoreLibraryOrganization.user_id == user_id,
+                    ScoreLibraryOrganization.score_id == score_id,
                 )
             )
         ).scalar_one_or_none()
 
-    async def entry(
+    def mutation_scores(
+        self, db: Session, user_id: int, score_uuids: list[str]
+    ) -> list[tuple[int, str, bool]]:
+        rows = db.execute(
+            select(
+                Score.id, Score.score_uuid, accessible_score_predicate(user_id).label("accessible")
+            )
+            .where(Score.score_uuid.in_(score_uuids), active_score_predicate())
+            .order_by(Score.id)
+        ).all()
+        return [(row.id, row.score_uuid, row.accessible) for row in rows]
+
+    def upsert_organizations(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
-        score_id: int,
-        source_type: LibraryEntrySourceType,
-    ) -> ScoreLibraryEntry | None:
-        return (
-            await db.execute(
-                select(ScoreLibraryEntry).where(
-                    ScoreLibraryEntry.user_id == user_id,
-                    ScoreLibraryEntry.score_id == score_id,
-                    ScoreLibraryEntry.source_type == source_type,
-                    col(ScoreLibraryEntry.deleted_at).is_(None),
+        score_ids: list[int],
+        *,
+        now: datetime,
+        changes: dict[str, int | bool | None],
+    ) -> list[ScoreLibraryOrganization]:
+        if not score_ids:
+            return []
+        insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
+        statement = (
+            insert(ScoreLibraryOrganization)
+            .values(
+                [
+                    {
+                        "user_id": user_id,
+                        "score_id": score_id,
+                        "created_at": now,
+                        "updated_at": now,
+                        **changes,
+                    }
+                    for score_id in sorted(score_ids)
+                ]
+            )
+            .on_conflict_do_update(
+                index_elements=["user_id", "score_id"],
+                set_={**changes, "updated_at": now},
+            )
+            .returning(ScoreLibraryOrganization)
+        )
+        return list(db.scalars(statement.execution_options(populate_existing=True)))
+
+    @staticmethod
+    def _organization_join(user_id: int):
+        return and_(
+            ScoreLibraryOrganization.score_id == Score.id,
+            ScoreLibraryOrganization.user_id == user_id,
+        )
+
+    def counts(self, db: Session, user_id: int) -> tuple[int, int, int, int, dict[int, int]]:
+        rows = (
+            db.execute(
+                select(
+                    Score.owner_user_id,
+                    ScoreLibraryOrganization.folder_id,
+                    ScoreLibraryOrganization.is_favorite,
+                    func.count(Score.id),
+                )
+                .select_from(Score)
+                .outerjoin(ScoreLibraryOrganization, self._organization_join(user_id))
+                .where(accessible_score_predicate(user_id))
+                .group_by(
+                    Score.owner_user_id,
+                    ScoreLibraryOrganization.folder_id,
+                    ScoreLibraryOrganization.is_favorite,
                 )
             )
-        ).scalar_one_or_none()
+        ).all()
+        total = favorite = owned = shared = 0
+        folders: dict[int, int] = {}
+        for owner_id, folder_id, is_favorite, count in rows:
+            total += count
+            favorite += count if is_favorite else 0
+            owned += count if owner_id == user_id else 0
+            shared += count if owner_id != user_id else 0
+            if folder_id is not None:
+                folders[folder_id] = folders.get(folder_id, 0) + count
+        return total, favorite, owned, shared, folders
 
-    async def entry_including_deleted(
+    def list_scores(
         self,
-        db: AsyncSession,
-        user_id: int,
-        score_id: int,
-        source_type: LibraryEntrySourceType,
-    ) -> ScoreLibraryEntry | None:
-        return (
-            await db.execute(
-                select(ScoreLibraryEntry)
-                .where(
-                    ScoreLibraryEntry.user_id == user_id,
-                    ScoreLibraryEntry.score_id == score_id,
-                    ScoreLibraryEntry.source_type == source_type,
-                )
-                .order_by(
-                    col(ScoreLibraryEntry.deleted_at).is_(None).desc(),
-                    col(ScoreLibraryEntry.updated_at).desc(),
-                    col(ScoreLibraryEntry.id).desc(),
-                )
-            )
-        ).scalar_one_or_none()
-
-    async def counts(
-        self, db: AsyncSession, user_id: int
-    ) -> tuple[int, int, int, int, int, dict[int, int]]:
-        total = int(
-            (
-                await db.execute(
-                    select(func.count(ScoreLibraryEntry.id))
-                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
-                    .where(
-                        ScoreLibraryEntry.user_id == user_id,
-                        col(ScoreLibraryEntry.deleted_at).is_(None),
-                        active_score_filter,
-                    )
-                )
-            ).scalar_one()
-        )
-        favorite = int(
-            (
-                await db.execute(
-                    select(func.count(ScoreLibraryEntry.id))
-                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
-                    .where(
-                        ScoreLibraryEntry.user_id == user_id,
-                        col(ScoreLibraryEntry.deleted_at).is_(None),
-                        col(ScoreLibraryEntry.is_favorite).is_(True),
-                        active_score_filter,
-                    )
-                )
-            ).scalar_one()
-        )
-        recent_practice = int(
-            (
-                await db.execute(
-                    select(func.count(ScoreLibraryEntry.id))
-                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
-                    .where(
-                        ScoreLibraryEntry.user_id == user_id,
-                        col(ScoreLibraryEntry.deleted_at).is_(None),
-                        col(ScoreLibraryEntry.last_practiced_at).is_not(None),
-                        active_score_filter,
-                    )
-                )
-            ).scalar_one()
-        )
-        to_practice = int(
-            (
-                await db.execute(
-                    select(func.count(ScoreLibraryEntry.id))
-                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
-                    .where(
-                        ScoreLibraryEntry.user_id == user_id,
-                        col(ScoreLibraryEntry.deleted_at).is_(None),
-                        ScoreLibraryEntry.practice_state == LibraryPracticeState.TO_PRACTICE,
-                        active_score_filter,
-                    )
-                )
-            ).scalar_one()
-        )
-        mastered = int(
-            (
-                await db.execute(
-                    select(func.count(ScoreLibraryEntry.id))
-                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
-                    .where(
-                        ScoreLibraryEntry.user_id == user_id,
-                        col(ScoreLibraryEntry.deleted_at).is_(None),
-                        ScoreLibraryEntry.practice_state == LibraryPracticeState.MASTERED,
-                        active_score_filter,
-                    )
-                )
-            ).scalar_one()
-        )
-        rows = await db.execute(
-            select(ScoreLibraryEntry.folder_id, func.count(ScoreLibraryEntry.id))
-            .join(Score, Score.id == ScoreLibraryEntry.score_id)
-            .where(
-                ScoreLibraryEntry.user_id == user_id,
-                col(ScoreLibraryEntry.deleted_at).is_(None),
-                col(ScoreLibraryEntry.folder_id).is_not(None),
-                active_score_filter,
-            )
-            .group_by(ScoreLibraryEntry.folder_id)
-        )
-        return (
-            total,
-            favorite,
-            recent_practice,
-            to_practice,
-            mastered,
-            {int(folder_id): int(count) for folder_id, count in rows.all()},
-        )
-
-    async def list_entries(
-        self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         *,
         view: LibraryView,
-        folder_ids: set[int] | None,
+        folder_id: int | None,
         search: str | None,
         sort: LibrarySort,
         page: int,
         page_size: int,
-    ) -> tuple[list[tuple[ScoreLibraryEntry, Score, ScoreRevisionMetadata | None]], int]:
-        filters = [ScoreLibraryEntry.user_id == user_id, active_score_filter]
-        if view == LibraryView.TRASH:
-            filters.append(col(ScoreLibraryEntry.deleted_at).is_not(None))
-        else:
-            filters.append(col(ScoreLibraryEntry.deleted_at).is_(None))
-        if view == LibraryView.FAVORITES:
-            filters.append(col(ScoreLibraryEntry.is_favorite).is_(True))
-        elif view == LibraryView.RECENT_PRACTICE:
-            filters.append(col(ScoreLibraryEntry.last_practiced_at).is_not(None))
-            sort = LibrarySort.PRACTICED_DESC
-        elif view == LibraryView.TO_PRACTICE:
-            filters.append(ScoreLibraryEntry.practice_state == LibraryPracticeState.TO_PRACTICE)
-        elif view == LibraryView.MASTERED:
-            filters.append(ScoreLibraryEntry.practice_state == LibraryPracticeState.MASTERED)
-        elif view == LibraryView.BOOKMARKS:
-            filters.append(ScoreLibraryEntry.source_type == LibraryEntrySourceType.BOOKMARK)
-        if folder_ids is not None:
-            filters.append(col(ScoreLibraryEntry.folder_id).in_(folder_ids))
+    ) -> tuple[list[LibraryPageRow], int]:
+        filters = [accessible_score_predicate(user_id)]
+        if view == LibraryView.CREATED_BY_ME:
+            filters.append(Score.__table__.c.owner_user_id == user_id)
+        elif view == LibraryView.SHARED_WITH_ME:
+            filters.append(Score.__table__.c.owner_user_id != user_id)
+        elif view == LibraryView.FAVORITES:
+            filters.append(col(ScoreLibraryOrganization.is_favorite).is_(True))
+        if folder_id is not None:
+            filters.append(ScoreLibraryOrganization.folder_id == folder_id)
         if search:
-            filters.append(score_title_col.ilike(f"%{search}%"))
-
+            filters.append(Score.__table__.c.display_title.ilike(f"%{search}%"))
         total = int(
             (
-                await db.execute(
-                    select(func.count(ScoreLibraryEntry.id))
-                    .join(Score, Score.id == ScoreLibraryEntry.score_id)
+                db.execute(
+                    select(func.count(Score.id))
+                    .select_from(Score)
+                    .outerjoin(ScoreLibraryOrganization, self._organization_join(user_id))
                     .where(*filters)
                 )
             ).scalar_one()
         )
-        order_by = {
-            LibrarySort.UPDATED_ASC: [entry_updated_col.asc()],
-            LibrarySort.UPDATED_DESC: [entry_updated_col.desc()],
-            LibrarySort.NAME_ASC: [score_title_col.asc()],
-            LibrarySort.NAME_DESC: [score_title_col.desc()],
-            LibrarySort.PRACTICED_DESC: [
-                col(ScoreLibraryEntry.last_practiced_at).desc().nullslast(),
-                entry_updated_col.desc(),
-            ],
+        order = {
+            LibrarySort.UPDATED_ASC: Score.__table__.c.updated_at.asc(),
+            LibrarySort.UPDATED_DESC: Score.__table__.c.updated_at.desc(),
+            LibrarySort.NAME_ASC: Score.__table__.c.display_title.asc(),
+            LibrarySort.NAME_DESC: Score.__table__.c.display_title.desc(),
         }[sort]
-        rows = await db.execute(
-            select(ScoreLibraryEntry, Score, ScoreRevisionMetadata)
-            .join(Score, Score.id == ScoreLibraryEntry.score_id)
-            .outerjoin(ScoreRevisionMetadata, ScoreRevisionMetadata.revision_id == Score.head_revision_id)
+        rows = db.execute(
+            select(
+                Score,
+                ScoreLibraryOrganization,
+                ScoreRevisionMetadata,
+                ScoreLibraryFolder.folder_uuid,
+                ScoreRevision,
+            )
+            .select_from(Score)
+            .outerjoin(ScoreLibraryOrganization, self._organization_join(user_id))
+            .outerjoin(
+                ScoreLibraryFolder,
+                and_(
+                    ScoreLibraryOrganization.folder_id == ScoreLibraryFolder.id,
+                    ScoreLibraryFolder.user_id == user_id,
+                ),
+            )
+            .outerjoin(
+                ScoreRevisionMetadata, ScoreRevisionMetadata.revision_id == Score.head_revision_id
+            )
+            .outerjoin(ScoreRevision, ScoreRevision.id == Score.head_revision_id)
             .where(*filters)
-            .order_by(*order_by)
+            .order_by(order, Score.id)
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
-        return list(rows.all()), total
-
-    async def entries_in_folder_ids(
-        self, db: AsyncSession, user_id: int, folder_ids: set[int]
-    ) -> list[ScoreLibraryEntry]:
-        if not folder_ids:
-            return []
-        rows = await db.execute(
-            select(ScoreLibraryEntry).where(
-                ScoreLibraryEntry.user_id == user_id,
-                col(ScoreLibraryEntry.deleted_at).is_(None),
-                col(ScoreLibraryEntry.folder_id).in_(folder_ids),
-            )
-        )
-        return list(rows.scalars().all())
-
+        return [tuple(row) for row in rows.all()], total

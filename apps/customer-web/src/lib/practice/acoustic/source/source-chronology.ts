@@ -1,5 +1,6 @@
-import { fail, onlyFields, safeIndex } from '../model/model-contract';
-import { ACOUSTIC_RESOURCES as R } from '../runtime/resource-policy';
+import { fail } from '../errors';
+import { onlyFields, safeIndex } from '../validation';
+import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from './capture-transport-contract';
 import type { CaptureChunk } from './capture-types';
 
 /** Validates the Worklet source domain independently of any mode boundaries. */
@@ -15,7 +16,7 @@ export class SourceChronology {
     safeIndex(chunk.audioContextStartFrame); safeIndex(chunk.sourceStartSampleIndex); safeIndex(chunk.sourceEndSampleIndex);
     if (chunk.type !== 'pcm-chunk' || chunk.sequence !== this.nextSequence || chunk.sourceSampleRateHz !== this.rate
       || chunk.sourceStartSampleIndex !== this.nextSource || !(chunk.samples instanceof Float32Array)
-      || chunk.samples.length <= 0 || chunk.samples.length > R.maxSourceBlockSamples
+      || chunk.samples.length <= 0 || chunk.samples.length > CAPTURE_TRANSPORT_BLOCK_SAMPLES
       || chunk.sourceEndSampleIndex - chunk.sourceStartSampleIndex !== chunk.samples.length
       || !Number.isInteger(chunk.inputChannelCount) || chunk.inputChannelCount < 1 || !Number.isFinite(chunk.captureTimeSeconds)
       || Math.abs(chunk.captureTimeSeconds - chunk.audioContextStartFrame / this.rate) > 1e-5) fail('CAPTURE_CHRONOLOGY_VIOLATION');

@@ -1,194 +1,129 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from app.modules.media_storage.delivery import MediaDeliveryService
+from app.modules.media_storage.reads import StoredObjectDelivery
+
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.core.exceptions import (
     ConflictException,
-    FileException,
     ResourceNotFoundException,
-    UnauthorizedException,
 )
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
-    LibraryEntrySourceType,
     Score,
     ScoreInputAsset,
-    ScoreLibraryEntry,
     ScoreRevision,
     ScoreRevisionMetadata,
-    StorageBlob,
+    StoredObject,
     Upload,
 )
 from app.modules.score_assets.derived_assets import score_derived_assets
 from app.modules.score_assets.repository import ScoreAssetRepository
 from app.modules.score_assets.schemas import ScoreDerivedAssetRead, ScoreDerivedAssetsRead
 from app.modules.scores.repository import ScoreRepository
-from app.modules.my_scores.schemas import MyScoresSort, MyScoresView
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.schemas import (
     ScoreInputAssetRead,
     ScoreRead,
-    ScorePublicationSummaryRead,
-    ScoreTaxonomyTagRead,
     ScoreUpdateRequest,
 )
 from app.modules.metadata.service import MetadataProjectionService
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_access.schemas import ScoreCapabilities
-from app.modules.score_assets.render_service import RevisionRenderService
-from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
-from app.utils.timezone import utc_now_naive
-
-
-@dataclass(frozen=True)
-class ScoreInputAssetDelivery:
-    filename: str
-    media_type: str
-    storage_key: str
+from app.shared.error_codes import CustomerErrorCode
+from app.shared.time import utc_now
 
 
 class ScoreService:
     def __init__(
         self,
         repository: ScoreRepository | None = None,
-        storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
-        render_service: RevisionRenderService | None = None,
         asset_repository: ScoreAssetRepository | None = None,
-        lifecycle_service: ScoreLifecycleService | None = None,
+        *,
+        lifecycle_service: ScoreLifecycleService,
+        delivery: MediaDeliveryService,
     ) -> None:
+        self.delivery = delivery
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
-        self.storage = storage or file_storage
+        self.storage = delivery.storage
         self.access_policy = access_policy or ScoreAccessPolicy()
-        self.render_service = render_service or RevisionRenderService(
-            access_policy=self.access_policy,
-            storage=self.storage,
-        )
-        self.lifecycle_service = lifecycle_service or ScoreLifecycleService(
-            repository=self.repository,
-            storage=self.storage,
-            access_policy=self.access_policy,
-        )
+        self.lifecycle_service = lifecycle_service
 
-    async def get(self, db: AsyncSession, score_uuid: str, user_id: int) -> ScoreRead:
-        access = await self.access_policy.authorize(
+    def get(self, db: Session, score_uuid: str, user_id: int) -> ScoreRead:
+        access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.VIEW, user_id=user_id
         )
-        return await self._read(db, access.score, access.capabilities, user_id=user_id)
+        return self._read(db, access.score, access.capabilities)
 
-    async def list_owned(
+    def batch_delete(self, db: Session, score_uuids: list[str], user_id: int) -> int:
+        return self.lifecycle_service.delete_scores(db, score_uuids, user_id)
+
+    def update(
         self,
-        db: AsyncSession,
-        user_id: int,
-        *,
-        page: int,
-        page_size: int,
-        search: str | None = None,
-        view: MyScoresView = MyScoresView.ALL,
-        sort: MyScoresSort = MyScoresSort.UPDATED_DESC,
-    ) -> tuple[list[ScoreRead], int]:
-        rows, total = await self.repository.list_owned(
-            db,
-            user_id,
-            page=page,
-            page_size=page_size,
-            search=search,
-            view=view,
-            sort=sort,
-        )
-        library_score_ids = await self.repository.active_library_score_ids(
-            db,
-            user_id,
-            [
-                require_persisted_id(score.id, entity="score")
-                for score in rows
-            ],
-        )
-        result: list[ScoreRead] = []
-        for score in rows:
-            access = await self.access_policy.authorize(
-                db, score.score_uuid, ScoreAction.VIEW, user_id=user_id
-            )
-            score_id = require_persisted_id(score.id, entity="score")
-            result.append(
-                await self._read(
-                    db,
-                    score,
-                    access.capabilities,
-                    in_library=score_id in library_score_ids,
-                )
-            )
-        return result, total
-
-    async def batch_delete(
-        self, db: AsyncSession, score_uuids: list[str], user_id: int
-    ) -> int:
-        removed = 0
-        for score_uuid in score_uuids:
-            try:
-                await self.delete(db, score_uuid, user_id)
-            except (ResourceNotFoundException, UnauthorizedException):
-                continue
-            removed += 1
-        return removed
-
-    async def update(
-        self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         user_id: int,
         request: ScoreUpdateRequest,
     ) -> ScoreRead:
-        access = await self.access_policy.authorize(
+        access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.EDIT, user_id=user_id
         )
-        score = await self.repository.get(db, access.score.score_uuid, lock=True)
+        score = self.repository.get(db, access.score.score_uuid, lock=True)
         assert score is not None
-        if score.version != request.expected_version:
+        if score.metadata_version != request.expected_metadata_version:
             raise ConflictException(
-                ErrorCode.REVISION_CONFLICT,
-                {"expected_version": request.expected_version, "actual_version": score.version},
+                CustomerErrorCode.SCORE_METADATA_CONFLICT,
+                {
+                    "score_id": score.score_uuid,
+                    "expected_metadata_version": request.expected_metadata_version,
+                    "current_metadata_version": score.metadata_version,
+                },
             )
-        if request.title is not None:
-            score.title = request.title.strip()
-        if request.taxonomy_tags is not None:
-            score_id = require_persisted_id(score.id, entity="score")
-            await self.repository.replace_taxonomy_tags(
-                db,
-                score_id,
-                [(tag.category, tag.code) for tag in request.taxonomy_tags],
-            )
-        score.version += 1
-        score.updated_at = utc_now_naive()
-        await db.commit()
-        await db.refresh(score)
-        return await self._read(db, score, access.capabilities, user_id=user_id)
+        display_title = (
+            request.display_title.strip()
+            if request.display_title is not None
+            else score.display_title
+        )
+        genres = (
+            [genre.value for genre in request.genres]
+            if request.genres is not None
+            else score.genres
+        )
+        if display_title != score.display_title or genres != score.genres:
+            score.display_title = display_title
+            score.genres = genres
+            score.metadata_version += 1
+            score.updated_at = utc_now()
+        db.commit()
+        db.refresh(score)
+        return self._read(db, score, access.capabilities)
 
-    async def delete(self, db: AsyncSession, score_uuid: str, user_id: int) -> None:
-        await self.lifecycle_service.delete_score(db, score_uuid, user_id)
+    def delete(self, db: Session, score_uuid: str, user_id: int) -> None:
+        self.lifecycle_service.delete_score(db, score_uuid, user_id)
 
-    async def input_asset_delivery(
+    def input_asset_delivery(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         asset_uuid: str,
         user_id: int,
-    ) -> ScoreInputAssetDelivery:
-        access = await self.access_policy.authorize(
-            db, score_uuid, ScoreAction.VIEW, user_id=user_id
+    ) -> StoredObjectDelivery:
+        access = self.access_policy.authorize_score(
+            db, score_uuid, ScoreAction.EDIT, user_id=user_id
         )
         score_id = require_persisted_id(access.score.id, entity="score")
         row = (
-            await db.execute(
-                select(ScoreInputAsset, Upload, StorageBlob)
+            db.execute(
+                select(ScoreInputAsset, Upload, StoredObject)
                 .join(Upload, ScoreInputAsset.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
+                .join(StoredObject, Upload.stored_object_id == StoredObject.id)
                 .where(
                     ScoreInputAsset.score_id == score_id,
                     ScoreInputAsset.asset_uuid == asset_uuid,
@@ -196,114 +131,67 @@ class ScoreService:
             )
         ).first()
         if row is None:
-            raise ResourceNotFoundException("score_input_asset", asset_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "score_input_asset", asset_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
         _asset, upload, blob = row
-        if not self.storage.exists(blob.storage_key):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, blob.storage_key)
-        filename = upload.original_filename or blob.filename
-        return ScoreInputAssetDelivery(
-            filename=filename,
-            media_type=blob.mime_type,
-            storage_key=blob.storage_key,
-        )
+        filename = upload.original_filename
+        return StoredObjectDelivery.for_object(blob, filename)
 
-    async def _read(
+    def _read(
         self,
-        db: AsyncSession,
+        db: Session,
         score: Score,
         capabilities: ScoreCapabilities,
-        *,
-        user_id: int | None = None,
-        in_library: bool | None = None,
     ) -> ScoreRead:
-        head = await db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
+        head = db.get(ScoreRevision, score.head_revision_id) if score.head_revision_id else None
         projection = (
-            await db.get(ScoreRevisionMetadata, score.head_revision_id)
+            db.get(ScoreRevisionMetadata, score.head_revision_id)
             if score.head_revision_id
             else None
         )
         score_id = require_persisted_id(score.id, entity="score")
         derived_assets = (
-            await score_derived_assets(
-                db, self.asset_repository, score_id=score_id, revision=head
-            )
+            score_derived_assets(db, self.asset_repository, revision=head)
             if head
             else ScoreDerivedAssetsRead(
-                preview=ScoreDerivedAssetRead(
-                    status="pending", asset_id=None, revision_id=None, is_fallback=False
-                ),
-                audio=ScoreDerivedAssetRead(
-                    status="pending", asset_id=None, revision_id=None, is_fallback=False
-                ),
+                preview=ScoreDerivedAssetRead(status="pending", asset_id=None),
+                audio=ScoreDerivedAssetRead(status="pending", asset_id=None),
             )
         )
-        publication = await self.repository.publication(db, score_id)
-        if in_library is None:
-            in_library = False
-            if user_id is not None:
-                in_library = (
-                    await db.execute(
-                        select(ScoreLibraryEntry.id).where(
-                            ScoreLibraryEntry.user_id == user_id,
-                            ScoreLibraryEntry.score_id == score_id,
-                            ScoreLibraryEntry.source_type == LibraryEntrySourceType.SELF_ADDED,
-                            col(ScoreLibraryEntry.deleted_at).is_(None),
-                        )
-                    )
-                ).first() is not None
         input_asset_rows = (
-            await db.execute(
-                select(ScoreInputAsset, Upload, StorageBlob)
-                .join(Upload, ScoreInputAsset.upload_id == Upload.id)
-                .join(StorageBlob, Upload.blob_id == StorageBlob.id)
-                .where(ScoreInputAsset.score_id == score_id)
-                .order_by(col(ScoreInputAsset.sort_order).asc(), col(ScoreInputAsset.id).asc())
-            )
-        ).all()
-        published_revision = (
-            await db.get(ScoreRevision, publication.published_revision_id)
-            if publication
-            else None
+            (
+                db.execute(
+                    select(ScoreInputAsset, Upload, StoredObject)
+                    .join(Upload, ScoreInputAsset.upload_id == Upload.id)
+                    .join(StoredObject, Upload.stored_object_id == StoredObject.id)
+                    .where(ScoreInputAsset.score_id == score_id)
+                    .order_by(col(ScoreInputAsset.sort_order).asc(), col(ScoreInputAsset.id).asc())
+                )
+            ).all()
+            if capabilities.can_edit
+            else []
         )
         return ScoreRead(
             score_id=score.score_uuid,
-            title=score.title,
-            taxonomy_tags=[
-                ScoreTaxonomyTagRead(
-                    category=category,
-                    code=code,
-                    source=source,
-                    confidence=confidence,
-                )
-                for category, code, source, confidence in await self.repository.taxonomy_tags(db, score_id)
-            ],
-            version=score.version,
+            display_title=score.display_title,
+            genres=score.genres,
+            metadata_version=score.metadata_version,
             head_revision_id=head.revision_uuid if head else None,
+            head_revision_number=head.revision_number if head else None,
             derived_assets=derived_assets,
             input_assets=[
                 ScoreInputAssetRead(
                     asset_id=asset.asset_uuid,
-                    filename=upload.original_filename or blob.filename,
-                    mime_type=blob.mime_type,
-                    size=blob.size_bytes,
+                    filename=upload.original_filename,
+                    mime_type=blob.content_type,
+                    size=blob.byte_size,
                     page_number=asset.page_number,
                 )
                 for asset, upload, blob in input_asset_rows
             ],
-            publication=(
-                ScorePublicationSummaryRead(
-                    public_slug=publication.public_slug,
-                    revision_id=published_revision.revision_uuid,
-                    status=publication.status,
-                )
-                if publication and published_revision
-                else None
-            ),
-            in_library=in_library,
             metadata=(
-                MetadataProjectionService.to_read(head, projection)
-                if head and projection
-                else None
+                MetadataProjectionService.to_read(head, projection) if head and projection else None
             ),
             capabilities=capabilities,
             created_at=score.created_at,

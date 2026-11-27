@@ -1,9 +1,20 @@
 'use client';
+import { scoreLocation } from '@/features/scores/routes';
+import { microsecondsToMilliseconds } from '@/lib/practice/recording/recording-timebase';
+
+import { recordingMediaExtension } from '@/lib/practice/recording/media-admission';
 
 import React, { useState } from 'react';
-import { Calendar, Clock, Download, Music, Play, Radio, Trash2 } from 'lucide-react';
+import {
+  Calendar,
+  Clock,
+  Download,
+  Music,
+  Play,
+  Radio,
+  Trash2,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/routing';
 
 import { PageHeader } from '@/components/page';
@@ -21,25 +32,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { PaginationControls } from '@/components/ui/pagination-controls';
 import {
   useDeletePerformanceTake,
   usePerformanceTakePlayback,
   usePerformanceTakes,
 } from '@/hooks/queries/use-performance-take-queries';
-import { PerformanceReplayPlayer } from '@/components/practice/performance-replay-player';
-import { performanceTakesApi, type PerformanceTakeRead } from '@/lib/api/performance-takes';
-import type { PlayablePerformanceReplay } from '@/lib/practice/performance-replay';
-import { hasSavedTakeShareVideoMetadata } from '@/lib/practice/share-video-session';
+import { RecordingPlaybackPlayer } from '@/components/practice/recording-playback-player';
+import {
+  performanceTakesApi,
+  type PerformanceTakeRead,
+} from '@/lib/api/performance-takes';
+import type { RecordingPlaybackSource } from '@/lib/practice/recording/recording-playback';
+import { isPerformanceTakeCompositeVideoCandidate } from '@/lib/practice/performance-take/admission';
 import { useToast } from '@/hooks/use-toast';
-
-const DELETE_POLL_INTERVAL_MS = 2500;
-const DELETE_SLOW_NOTICE_MS = 30000;
-
-function normalizePage(value?: string | number): number {
-  const page = Math.floor(Number(value ?? 1));
-  return Number.isFinite(page) ? Math.max(1, page) : 1;
-}
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -68,9 +73,9 @@ function formatDate(isoDate: string): string {
 
 function getTempoLabel(
   take: PerformanceTakeRead,
-  t: (key: string, values?: Record<string, string | number>) => string
+  t: (key: string, values?: Record<string, string | number>) => string,
 ): string | null {
-  const plan = take.tempo_plan;
+  const plan = take.manifest.tempo_plan;
   const selection = plan?.selection;
   const mode = selection?.mode?.toUpperCase();
 
@@ -83,7 +88,11 @@ function getTempoLabel(
 
   if (plan?.segments && plan.segments.length > 0) {
     const uniqueBpms = Array.from(
-      new Set(plan.segments.map((s) => s.bpm).filter((b): b is number => typeof b === 'number'))
+      new Set(
+        plan.segments
+          .map((s) => s.bpm)
+          .filter((b): b is number => typeof b === 'number'),
+      ),
     );
     if (uniqueBpms.length === 1) {
       return t('tempoScoreModeWithBpm', { bpm: uniqueBpms[0] });
@@ -120,35 +129,37 @@ function PerformanceTakeCard({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const scoreTitle = take.score_title_snapshot;
-  const scoreTitleNode = take.can_open_score && take.linked_score_id ? (
-    <Link
-      href={`/score/${take.linked_score_id}`}
-      className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
-    >
-      {scoreTitle}
-    </Link>
-  ) : (
-    <span className="truncate font-semibold text-gray-900">{scoreTitle}</span>
-  );
-
-  const isDeleting = take.deletion_status === 'DELETING' || isDeletePending;
+  const scoreDisplayTitle = take.manifest.score_display_title_snapshot;
+  const scoreDisplayTitleNode =
+    take.can_open_score && take.linked_score_id ? (
+      <Link
+        href={scoreLocation(take.linked_score_id)}
+        className="truncate font-semibold text-gray-900 transition-colors hover:text-primary hover:underline"
+      >
+        {scoreDisplayTitle}
+      </Link>
+    ) : (
+      <span className="truncate font-semibold text-gray-900">{scoreDisplayTitle}</span>
+    );
 
   // Playback URL query - only active when playing this card and not being deleted.
-  const playbackQuery = usePerformanceTakePlayback(take.take_id, isPlaying && !isDeleting);
+  const playbackQuery = usePerformanceTakePlayback(
+    take.take_id,
+    isPlaying && !isDeletePending && take.media_status === 'READY',
+  );
 
   const handleDownload = async () => {
     try {
       setDownloading(true);
       setDownloadError(null);
       const res = await performanceTakesApi.getPlaybackUrl(take.take_id);
-      const downloadUrl = res.data?.download_url;
+      const downloadUrl = res?.download_url;
       if (!downloadUrl) {
         throw new Error('Missing download_url');
       }
       const a = document.createElement('a');
       a.href = downloadUrl;
-      const ext = take.media_mime_type.includes('mp4') ? 'mp4' : 'webm';
+      const ext = recordingMediaExtension(take.recording_media.mime_type);
       a.download = `performance-${take.take_id}.${ext}`;
       document.body.appendChild(a);
       a.click();
@@ -160,51 +171,38 @@ function PerformanceTakeCard({
     }
   };
 
-  const replay: PlayablePerformanceReplay | null = playbackQuery.data?.data
-    ? take.media_kind === 'VIDEO'
+  const playbackSource: RecordingPlaybackSource | null = playbackQuery.data
+    ? take.manifest.capture.kind === 'VIDEO'
       ? {
-          kind: 'VIDEO_RECORDING',
-          url: playbackQuery.data.data.playback_url,
-          durationMs: take.duration_ms,
-          contentType: take.media_mime_type,
-          byteSize: take.media_byte_size,
+          kind: 'VIDEO',
+          url: playbackQuery.data.playback_url,
         }
       : {
-          kind: 'AUDIO_RECORDING',
-          url: playbackQuery.data.data.playback_url,
-          durationMs: take.duration_ms,
-          contentType: take.media_mime_type,
+          kind: 'AUDIO',
+          url: playbackQuery.data.playback_url,
         }
     : null;
 
-  const scopeLabel = take.scope_type === 'FULL'
-    ? t('scopeFull')
-    : take.scope_type === 'RANGE'
-      ? `${t('scopeSection')} (${t('takeScopeBeats', {
-        start: take.scope_start_beat,
-        end: take.scope_terminal_beat,
-      })})`
-      : t('scopeUnavailable');
+  const scopeLabel =
+    take.manifest.scope.kind === 'FULL'
+      ? t('scopeFull')
+      : take.manifest.scope.kind === 'RANGE'
+        ? t('scopeSection')
+        : t('scopeUnavailable');
 
   const tempoLabel = getTempoLabel(take, t);
 
   return (
     <Card className="overflow-hidden border border-gray-200 transition-all hover:border-gray-300">
       <CardContent className="p-5 sm:p-6">
+        {take.media_status !== 'READY' ? <p role="status">{t(take.media_status === 'FAILED' ? 'mediaVerificationFailed' : 'mediaProcessing')}</p> : null}
+        {isPlaying && take.media_status === 'READY' ? <Button variant="outline" onClick={() => void playbackQuery.refetch()}>{t('refreshPlaybackLink')}</Button> : null}
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <Music className="h-5 w-5 flex-shrink-0 text-primary" />
-                {scoreTitleNode}
-                {isDeleting ? (
-                  <span
-                    className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20"
-                    data-testid={`deleting-badge-${take.take_id}`}
-                  >
-                    {t('takeDeletingStatus')}
-                  </span>
-                ) : null}
+                {scoreDisplayTitleNode}
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
@@ -214,10 +212,16 @@ function PerformanceTakeCard({
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
-                  {formatDuration(take.duration_ms)}
+                  {formatDuration(
+                    microsecondsToMilliseconds(
+                      take.manifest.recording_timebase.nominalMediaDurationUs,
+                    ),
+                  )}
                 </span>
                 <span className="rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">
-                  {take.media_mime_type.split('/')[1]?.toUpperCase() || 'AUDIO'}
+                  {take.recording_media.mime_type
+                    .split('/')[1]
+                    ?.toUpperCase() || 'AUDIO'}
                 </span>
                 <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">
                   {scopeLabel}
@@ -236,7 +240,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="gap-1.5"
                 onClick={onPlay}
-                disabled={isDeleting}
+                disabled={isDeletePending || take.media_status !== 'READY'}
                 data-testid={`play-take-${take.take_id}`}
               >
                 <Play className="h-4 w-4" />
@@ -248,24 +252,24 @@ function PerformanceTakeCard({
                 size="sm"
                 className="gap-1.5"
                 onClick={handleDownload}
-                disabled={downloading || isDeleting}
+                disabled={downloading || isDeletePending || take.media_status !== 'READY'}
                 data-testid={`download-take-${take.take_id}`}
               >
                 <Download className="h-4 w-4" />
                 {downloading
                   ? common('downloading')
-                  : take.media_kind === 'VIDEO'
+                  : take.manifest.capture.kind === 'VIDEO'
                     ? t('downloadVideo')
                     : t('downloadRecording')}
               </Button>
 
-              {hasSavedTakeShareVideoMetadata(take) ? (
+              {take.media_status === 'READY' && isPerformanceTakeCompositeVideoCandidate(take) ? (
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <Link
-                    href={`/my-performances/${take.take_id}/share`}
-                    data-testid={`share-take-${take.take_id}`}
+                    href={`/my-performances/${take.take_id}/score-video`}
+                    data-testid={`composite-video-take-${take.take_id}`}
                   >
-                    {t('makeShareVideoAction')}
+                    {t('compositeVideoOpenAction')}
                   </Link>
                 </Button>
               ) : null}
@@ -275,7 +279,7 @@ function PerformanceTakeCard({
                 size="sm"
                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
                 onClick={onDelete}
-                disabled={isDeleting}
+                disabled={isDeletePending}
                 data-testid={`delete-take-${take.take_id}`}
               >
                 <Trash2 className="h-4 w-4" />
@@ -305,7 +309,9 @@ function PerformanceTakeCard({
           {isPlaying ? (
             <div className="mt-2 border-t border-gray-100 pt-3">
               {playbackQuery.isLoading ? (
-                <div className="py-2 text-xs text-gray-500">{common('loading')}</div>
+                <div className="py-2 text-xs text-gray-500">
+                  {common('loading')}
+                </div>
               ) : playbackQuery.isError ? (
                 <div className="flex items-center gap-2 py-2 text-xs text-red-600">
                   <span>{t('audioPlaybackFailed')}</span>
@@ -319,9 +325,9 @@ function PerformanceTakeCard({
                     {common('tryAgain')}
                   </Button>
                 </div>
-              ) : replay ? (
-                <PerformanceReplayPlayer
-                  replay={replay}
+              ) : playbackSource ? (
+                <RecordingPlaybackPlayer
+                  source={playbackSource}
                   autoStart={true}
                 />
               ) : null}
@@ -333,169 +339,23 @@ function PerformanceTakeCard({
   );
 }
 
-export default function MyPerformancesPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ page?: string }>;
-}) {
-  const synchronousPageParam = readSynchronousPageParam(searchParams);
-  const resolvedParams = synchronousPageParam !== undefined
-    ? { page: synchronousPageParam }
-    : searchParams
-      ? React.use(searchParams)
-      : undefined;
-  return <MyPerformancesPageContent searchParams={resolvedParams} />;
-}
-
-function MyPerformancesPageContent({
-  searchParams,
-}: {
-  searchParams?: { page?: string };
-}) {
-  const routerSearchParams = useSearchParams();
-  const pageParam = searchParams?.page ?? routerSearchParams?.get('page') ?? undefined;
-  const rawPage = normalizePage(pageParam);
-
+export default function MyPerformancesPage() {
   const t = useTranslations('practice');
   const common = useTranslations('common');
-  const router = useRouter();
   const { toast } = useToast();
 
   const pageSize = 20;
 
   const takesQuery = usePerformanceTakes({
     limit: pageSize,
-    offset: (rawPage - 1) * pageSize,
   });
-  const refetchTakes = takesQuery.refetch;
   const deleteTake = useDeletePerformanceTake();
 
   const [activeTakeId, setActiveTakeId] = useState<string | null>(null);
-  const [takePendingDelete, setTakePendingDelete] = useState<PerformanceTakeRead | null>(null);
+  const [takePendingDelete, setTakePendingDelete] =
+    useState<PerformanceTakeRead | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteAcceptedAtByTakeId, setDeleteAcceptedAtByTakeId] = useState<Record<string, number>>(
-    {}
-  );
-  const [deleteObservedAtByTakeId, setDeleteObservedAtByTakeId] = useState<Record<string, number>>(
-    {}
-  );
-  const [isPageVisible, setIsPageVisible] = useState(() =>
-    typeof document === 'undefined' ? true : document.visibilityState !== 'hidden'
-  );
-  const [pollTick, setPollTick] = useState(() => Date.now());
-
-  const total = takesQuery.data?.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const currentPage = Math.min(rawPage, totalPages);
-  const queryItems = takesQuery.data?.data?.items;
-  const takes = React.useMemo(() => queryItems ?? [], [queryItems]);
-  const deletingTakeIds = React.useMemo(
-    () =>
-      new Set(
-        takes
-          .filter((take) => take.deletion_status === 'DELETING')
-          .map((take) => take.take_id)
-      ),
-    [takes]
-  );
-  const acceptedDeleteIds = React.useMemo(
-    () => new Set(Object.keys(deleteAcceptedAtByTakeId)),
-    [deleteAcceptedAtByTakeId]
-  );
-  const hasPendingDeletion = deletingTakeIds.size > 0 || acceptedDeleteIds.size > 0;
-  const oldestAcceptedDeleteAt =
-    Object.values({ ...deleteObservedAtByTakeId, ...deleteAcceptedAtByTakeId }).length > 0
-      ? Math.min(...Object.values({ ...deleteObservedAtByTakeId, ...deleteAcceptedAtByTakeId }))
-      : null;
-  const showDeletionSlowNotice =
-    oldestAcceptedDeleteAt !== null && pollTick - oldestAcceptedDeleteAt >= DELETE_SLOW_NOTICE_MS;
-
-  const goToPage = React.useCallback(
-    (nextPage: number) => {
-      setActiveTakeId(null);
-      const targetPage = Math.max(1, nextPage);
-      const search = targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
-      router.push(search);
-    },
-    [router]
-  );
-
-  // If query succeeded and rawPage is beyond totalPages, normalize URL to totalPages
-  React.useEffect(() => {
-    if (takesQuery.isSuccess && total > 0 && rawPage > totalPages) {
-      const targetPage = Math.max(1, totalPages);
-      const search = targetPage > 1 ? `?page=${targetPage}` : '/my-performances';
-      router.push(search);
-    }
-  }, [takesQuery.isSuccess, total, totalPages, rawPage, router]);
-
-  React.useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    const onVisibilityChange = () => {
-      setIsPageVisible(document.visibilityState !== 'hidden');
-    };
-
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    onVisibilityChange();
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, []);
-
-  React.useEffect(() => {
-    if (!takesQuery.isSuccess) return;
-
-    const listedTakeIds = new Set(takes.map((take) => take.take_id));
-    const now = Date.now();
-    const timeoutId = window.setTimeout(() => {
-      setDeleteAcceptedAtByTakeId((prev) => {
-        const next = Object.fromEntries(
-          Object.entries(prev).filter(([takeId]) => listedTakeIds.has(takeId))
-        );
-        return Object.keys(next).length === Object.keys(prev).length ? prev : next;
-      });
-      setDeleteObservedAtByTakeId((prev) => {
-        const next = { ...prev };
-        let changed = false;
-
-        for (const takeId of Object.keys(next)) {
-          if (!listedTakeIds.has(takeId) || !deletingTakeIds.has(takeId)) {
-            delete next[takeId];
-            changed = true;
-          }
-        }
-
-        for (const takeId of deletingTakeIds) {
-          if (!next[takeId]) {
-            next[takeId] = now;
-            changed = true;
-          }
-        }
-
-        return changed ? next : prev;
-      });
-
-      setActiveTakeId((current) => (current && deletingTakeIds.has(current) ? null : current));
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [deletingTakeIds, takes, takesQuery.isSuccess]);
-
-  const effectiveActiveTakeId =
-    activeTakeId && deletingTakeIds.has(activeTakeId) ? null : activeTakeId;
-
-  React.useEffect(() => {
-    if (!hasPendingDeletion || !isPageVisible) return;
-
-    const intervalId = window.setInterval(() => {
-      setPollTick(Date.now());
-      void refetchTakes();
-    }, DELETE_POLL_INTERVAL_MS);
-
-    return () => window.clearInterval(intervalId);
-  }, [hasPendingDeletion, isPageVisible, refetchTakes]);
-
-  const canGoPrevious = currentPage > 1;
-  const canGoNext = currentPage < totalPages;
+  const takes = takesQuery.data?.pages.flatMap(page => page.items) ?? [];
 
   const handleDeleteConfirm = async () => {
     if (!takePendingDelete) return;
@@ -506,16 +366,12 @@ function MyPerformancesPageContent({
     }
     try {
       await deleteTake.mutateAsync(takeId);
-      setDeleteAcceptedAtByTakeId((prev) => ({
-        ...prev,
-        [takeId]: Date.now(),
-      }));
+      setActiveTakeId((current) => (current === takeId ? null : current));
       setTakePendingDelete(null);
       toast({
-        title: t('deletePerformanceTakeAcceptedTitle'),
-        description: t('deletePerformanceTakeAcceptedDesc'),
+        title: t('deletePerformanceTakeSuccessTitle'),
+        description: t('deletePerformanceTakeSuccessDesc'),
       });
-      void refetchTakes();
     } catch {
       setDeleteError(t('deleteFailedRetry'));
     }
@@ -530,7 +386,7 @@ function MyPerformancesPageContent({
 
       {takesQuery.isLoading ? (
         <SectionLoading label={common('loading')} />
-      ) : takesQuery.isError ? (
+      ) : takesQuery.isError && !takes.length ? (
         <SectionErrorState
           description={common('loadFailedDescription')}
           retryLabel={common('tryAgain')}
@@ -545,41 +401,19 @@ function MyPerformancesPageContent({
         />
       ) : (
         <div className="flex flex-col gap-4">
-          {showDeletionSlowNotice ? (
-            <div
-              className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between"
-              data-testid="delete-still-processing-notice"
-            >
-              <div>
-                <p className="font-medium">{t('deleteStillProcessingTitle')}</p>
-                <p className="mt-0.5">{t('deleteStillProcessingDesc')}</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetchTakes()}
-                data-testid="refresh-deleting-takes"
-              >
-                {common('refresh')}
-              </Button>
-            </div>
-          ) : null}
-
           {takes.map((take) => (
             <PerformanceTakeCard
               key={take.take_id}
               take={take}
-              isPlaying={
-                effectiveActiveTakeId === take.take_id &&
-                take.deletion_status !== 'DELETING' &&
-                !acceptedDeleteIds.has(take.take_id)
+              isPlaying={activeTakeId === take.take_id}
+              isDeletePending={
+                deleteTake.isPending &&
+                takePendingDelete?.take_id === take.take_id
               }
-              isDeletePending={acceptedDeleteIds.has(take.take_id)}
               onPlay={() => {
-                if (take.deletion_status === 'DELETING' || acceptedDeleteIds.has(take.take_id)) {
-                  return;
-                }
-                setActiveTakeId((current) => (current === take.take_id ? null : take.take_id));
+                setActiveTakeId((current) =>
+                  current === take.take_id ? null : take.take_id,
+                );
               }}
               onDelete={() => {
                 setDeleteError(null);
@@ -588,15 +422,12 @@ function MyPerformancesPageContent({
             />
           ))}
 
-          {totalPages > 1 ? (
-            <PaginationControls
-              page={currentPage}
-              totalPages={totalPages}
-              canGoPrevious={canGoPrevious}
-              canGoNext={canGoNext}
-              onPageChange={goToPage}
-              t={t}
-            />
+          {takesQuery.isFetchNextPageError ? <p role="alert">{common('loadFailedDescription')}</p> : null}
+          {takesQuery.hasNextPage ? (
+            <Button variant="outline" disabled={takesQuery.isFetchingNextPage}
+              onClick={() => void takesQuery.fetchNextPage()}>
+              {takesQuery.isFetchingNextPage ? common('loading') : takesQuery.isFetchNextPageError ? common('tryAgain') : common('loadMore')}
+            </Button>
           ) : null}
         </div>
       )}
@@ -612,11 +443,18 @@ function MyPerformancesPageContent({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('deletePerformanceTakeConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('deletePerformanceTakeConfirmDesc')}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {t('deletePerformanceTakeConfirmTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deletePerformanceTakeConfirmDesc')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteError ? (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600" data-testid="delete-take-error">
+            <div
+              className="rounded-md bg-red-50 p-3 text-sm text-red-600"
+              data-testid="delete-take-error"
+            >
               {deleteError}
             </div>
           ) : null}
@@ -640,12 +478,4 @@ function MyPerformancesPageContent({
       </AlertDialog>
     </div>
   );
-}
-
-function readSynchronousPageParam(searchParams: Promise<{ page?: string }> | undefined): string | undefined {
-  if (!searchParams || typeof searchParams !== 'object' || !('page' in searchParams)) {
-    return undefined;
-  }
-  const page = searchParams.page;
-  return typeof page === 'string' ? page : undefined;
 }

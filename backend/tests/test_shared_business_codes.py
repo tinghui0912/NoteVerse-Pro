@@ -1,24 +1,11 @@
-from app.shared.constants import ErrorCode, SuccessCode
+from enum import StrEnum
+
+from app.shared.error_codes import CustomerErrorCode
+from app.core.control_plane_errors import ControlPlaneErrorCode
 
 
-def _public_code_values(code_class: type[object]) -> list[str]:
-    values: list[str] = []
-    for base in reversed(code_class.__mro__):
-        values.extend(
-            value
-            for name, value in vars(base).items()
-            if name.isupper() and isinstance(value, str)
-        )
-    return values
-
-
-def test_error_code_values_are_unique() -> None:
-    values = _public_code_values(ErrorCode)
-
-    assert len(values) == len(set(values))
-
-
-def test_success_code_values_are_unique() -> None:
-    values = _public_code_values(SuccessCode)
-
-    assert len(values) == len(set(values))
+def test_http_error_vocabularies_have_unique_string_enum_members() -> None:
+    for vocabulary in (CustomerErrorCode, ControlPlaneErrorCode):
+        assert issubclass(vocabulary, StrEnum)
+        assert len(vocabulary.__members__) == len(vocabulary)
+        assert all(isinstance(code.value, str) and code.value for code in vocabulary)

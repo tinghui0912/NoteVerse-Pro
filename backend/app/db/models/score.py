@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-import enum
+import app.modules.revisions.domain as revision_types
+import app.modules.score_assets.domain as asset_types
+import app.modules.scores.domain as score_types
+import app.modules.metadata.domain as metadata_states
+
 from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
-    Boolean,
     CheckConstraint,
     Column,
     DateTime,
     Enum as SAEnum,
-    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -22,39 +24,11 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy.orm import relationship
+from .stored_object import StoredObject
 
-from app.utils.timezone import utc_now_naive
-
-
-class RevisionOrigin(str, enum.Enum):
-    OMR = "OMR"
-    EDIT = "EDIT"
-    IMPORT = "IMPORT"
-
-
-class RevisionSourceFormat(str, enum.Enum):
-    MUSICXML = "MUSICXML"
-
-
-class RenderAssetKind(str, enum.Enum):
-    RENDERED_PAGE = "RENDERED_PAGE"
-
-
-class ScoreInputAssetPurpose(str, enum.Enum):
-    ORIGINAL_UPLOAD = "ORIGINAL_UPLOAD"
-
-
-class ScoreDeletionStatus(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-    DELETING = "DELETING"
-    DELETED = "DELETED"
-
-
-class MetadataStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    READY = "READY"
-    FAILED = "FAILED"
+from app.shared.time import utc_now
 
 
 metadata_json_type = JSON().with_variant(JSONB, "postgresql")
@@ -64,7 +38,7 @@ bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
 class Score(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "scores"
     __table_args__ = (
-        CheckConstraint("version >= 1", name="ck_scores_version_positive"),
+        CheckConstraint("metadata_version >= 1", name="ck_scores_metadata_version_positive"),
         ForeignKeyConstraint(
             ["id", "head_revision_id"],
             ["score_revisions.score_id", "score_revisions.id"],
@@ -72,16 +46,7 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
             use_alter=True,
         ),
         Index("idx_scores_owner_updated", "owner_user_id", "updated_at"),
-        Index(
-            "idx_scores_owner_deletion_updated", "owner_user_id", "deletion_status", "updated_at"
-        ),
-        Index(
-            "idx_scores_deletion_cleanup_due",
-            "deletion_status",
-            "next_cleanup_at",
-            "deletion_requested_at",
-        ),
-        Index("idx_scores_deletion_request_id", "deletion_request_id"),
+        Index("idx_scores_owner_active_updated", "owner_user_id", "deleted_at", "updated_at"),
     )
 
     id: Optional[int] = Field(
@@ -90,139 +55,34 @@ class Score(SQLModel, table=True):  # type: ignore[call-arg]
     )
     score_uuid: str = Field(sa_column=Column(String(36), unique=True, nullable=False))
     owner_user_id: int = Field(sa_column=Column(BigInteger, ForeignKey("users.id"), nullable=False))
-    title: str = Field(sa_column=Column(String(255), nullable=False))
-    head_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    originating_job_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("import_jobs.id", ondelete="SET NULL"),
-            unique=True,
-        ),
-    )
-    version: int = Field(default=1, sa_column=Column(Integer, default=1, nullable=False))
-    deletion_status: ScoreDeletionStatus = Field(
-        default=ScoreDeletionStatus.ACTIVE,
-        sa_column=Column(
-            SAEnum(ScoreDeletionStatus, name="scoredeletionstatus"),
-            default=ScoreDeletionStatus.ACTIVE,
-            nullable=False,
-        ),
-    )
-    deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    deletion_requested_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    deletion_request_id: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    cleanup_completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    cleanup_attempt_count: int = Field(
-        default=0,
-        sa_column=Column(Integer, default=0, nullable=False),
-    )
-    next_cleanup_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    deletion_error: Optional[str] = Field(default=None, sa_column=Column(Text))
-    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
-    created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-    updated_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
-            nullable=False,
-        ),
-    )
-
-
-class TaxonomyCategory(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "taxonomy_categories"
-    __table_args__ = (
-        UniqueConstraint("code", name="uq_taxonomy_categories_code"),
-        Index("idx_taxonomy_categories_active_sort", "is_active", "sort_order"),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    code: str = Field(sa_column=Column(String(64), nullable=False))
-    name_key: str = Field(sa_column=Column(String(128), nullable=False))
-    sort_order: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
-    is_active: bool = Field(
-        default=True,
-        sa_column=Column(Boolean, default=True, nullable=False),
-    )
-    created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-
-
-class TaxonomyTag(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "taxonomy_tags"
-    __table_args__ = (
-        UniqueConstraint("category_id", "code", name="uq_taxonomy_tags_category_code"),
-        Index("idx_taxonomy_tags_category_active_sort", "category_id", "is_active", "sort_order"),
-    )
-
-    id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(bigint_pk_type, primary_key=True, autoincrement=True),
-    )
-    category_id: int = Field(
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("taxonomy_categories.id", ondelete="CASCADE"),
-            nullable=False,
-        )
-    )
-    code: str = Field(sa_column=Column(String(64), nullable=False))
-    name_key: str = Field(sa_column=Column(String(128), nullable=False))
-    aliases: list[str] = Field(
+    display_title: str = Field(sa_column=Column(String(255), nullable=False))
+    genres: list[str] = Field(
         default_factory=list,
         sa_column=Column(metadata_json_type, default=list, nullable=False),
     )
-    sort_order: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
-    is_active: bool = Field(
-        default=True,
-        sa_column=Column(Boolean, default=True, nullable=False),
-    )
-    created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-
-
-class ScoreTaxonomyTag(SQLModel, table=True):  # type: ignore[call-arg]
-    __tablename__ = "score_taxonomy_tags"
-    __table_args__ = (Index("idx_score_taxonomy_tags_tag_score", "tag_id", "score_id"),)
-
-    score_id: int = Field(
+    head_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
+    created_from_import_job_id: Optional[int] = Field(
+        default=None,
         sa_column=Column(
             BigInteger,
-            ForeignKey("scores.id", ondelete="CASCADE"),
-            primary_key=True,
-        )
+            ForeignKey("import_jobs.id", ondelete="RESTRICT"),
+            unique=True,
+        ),
     )
-    tag_id: int = Field(
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("taxonomy_tags.id", ondelete="RESTRICT"),
-            primary_key=True,
-        )
-    )
-    source: str = Field(
-        default="USER",
-        sa_column=Column(String(32), default="USER", nullable=False),
-    )
-    confidence: Optional[float] = Field(default=None, sa_column=Column(Float))
+    metadata_version: int = Field(default=1, sa_column=Column(Integer, default=1, nullable=False))
+    deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
+            nullable=False,
+        ),
     )
 
 
@@ -253,17 +113,19 @@ class ScoreInputAsset(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    purpose: ScoreInputAssetPurpose = Field(
-        default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
+    purpose: score_types.ScoreInputAssetPurpose = Field(
+        default=score_types.ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
         sa_column=Column(
-            String(32), default=ScoreInputAssetPurpose.ORIGINAL_UPLOAD, nullable=False
+            String(32),
+            default=score_types.ScoreInputAssetPurpose.ORIGINAL_UPLOAD,
+            nullable=False,
         ),
     )
     page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
     sort_order: int = Field(default=0, sa_column=Column(Integer, default=0, nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -282,16 +144,6 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
             "idempotency_key",
             name="uq_score_revisions_score_idempotency_key",
         ),
-        ForeignKeyConstraint(
-            ["score_id", "parent_revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_score_revisions_parent",
-        ),
-        ForeignKeyConstraint(
-            ["score_id", "base_revision_id"],
-            ["score_revisions.score_id", "score_revisions.id"],
-            name="fk_score_revisions_base",
-        ),
         Index("idx_score_revisions_score_created", "score_id", "created_at"),
     )
 
@@ -308,27 +160,20 @@ class ScoreRevision(SQLModel, table=True):  # type: ignore[call-arg]
         )
     )
     revision_number: int = Field(sa_column=Column(Integer, nullable=False))
-    parent_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    base_revision_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     content_hash: str = Field(sa_column=Column(String(64), nullable=False))
     idempotency_key: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    origin: RevisionOrigin = Field(
-        sa_column=Column(SAEnum(RevisionOrigin, name="revisionorigin"), nullable=False)
+    origin: revision_types.RevisionOrigin = Field(
+        sa_column=Column(
+            SAEnum(revision_types.RevisionOrigin, name="revisionorigin"), nullable=False
+        )
     )
     created_by_user_id: Optional[int] = Field(
         default=None,
         sa_column=Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL")),
     )
-    created_by_job_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(
-            BigInteger,
-            ForeignKey("import_jobs.id", ondelete="SET NULL"),
-        ),
-    )
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -336,7 +181,7 @@ class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_revision_sources"
     __table_args__ = (
         UniqueConstraint("revision_id", "format", name="uq_score_revision_sources_revision_format"),
-        UniqueConstraint("storage_key", name="uq_score_revision_sources_storage_key"),
+        UniqueConstraint("stored_object_id", name="uq_score_revision_sources_stored_object"),
         Index("idx_score_revision_sources_revision_format", "revision_id", "format"),
     )
 
@@ -352,31 +197,34 @@ class ScoreRevisionSource(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    format: RevisionSourceFormat = Field(
-        sa_column=Column(SAEnum(RevisionSourceFormat, name="revisionsourceformat"), nullable=False)
+    format: revision_types.RevisionSourceFormat = Field(
+        sa_column=Column(
+            SAEnum(revision_types.RevisionSourceFormat, name="revisionsourceformat"),
+            nullable=False,
+        )
     )
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
-    storage_key: str = Field(sa_column=Column(String(768), nullable=False))
+
+    stored_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    stored_object: StoredObject = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
     filename: str = Field(sa_column=Column(String(255), nullable=False))
-    mime_type: str = Field(sa_column=Column(String(128), nullable=False))
-    size_bytes: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    sha256: str = Field(sa_column=Column(String(64), nullable=False))
     generator: str = Field(sa_column=Column(String(64), nullable=False))
     generator_version: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
 class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_render_assets"
     __table_args__ = (
-        CheckConstraint(
-            "kind != 'RENDERED_PAGE' OR (render_profile IS NOT NULL AND page_number IS NOT NULL)",
-            name="ck_score_render_assets_rendered_page_fields",
-        ),
-        UniqueConstraint("storage_key", name="uq_score_render_assets_storage_key"),
+        UniqueConstraint("stored_object_id", name="uq_score_render_assets_stored_object"),
         UniqueConstraint(
             "revision_id",
             "kind",
@@ -399,15 +247,21 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    kind: RenderAssetKind = Field(
-        sa_column=Column(SAEnum(RenderAssetKind, name="renderassetkind"), nullable=False)
+    kind: asset_types.RenderAssetKind = Field(
+        sa_column=Column(
+            SAEnum(asset_types.RenderAssetKind, name="renderassetkind"), nullable=False
+        )
     )
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
-    storage_key: str = Field(sa_column=Column(String(768), nullable=False))
+
+    stored_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    stored_object: StoredObject = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
     filename: str = Field(sa_column=Column(String(255), nullable=False))
-    mime_type: str = Field(sa_column=Column(String(128), nullable=False))
-    size_bytes: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
-    sha256: str = Field(sa_column=Column(String(64), nullable=False))
     execution_manifest_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
@@ -417,13 +271,13 @@ class ScoreRenderAsset(SQLModel, table=True):  # type: ignore[call-arg]
             index=True,
         ),
     )
-    page_number: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    render_profile: Optional[str] = Field(default=None, sa_column=Column(String(128)))
+    page_number: int = Field(sa_column=Column(Integer, nullable=False))
+    render_profile: str = Field(sa_column=Column(String(128), nullable=False))
     generator: str = Field(sa_column=Column(String(64), nullable=False))
     generator_version: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
@@ -449,16 +303,16 @@ class ScoreRevisionMetadata(SQLModel, table=True):  # type: ignore[call-arg]
             primary_key=True,
         )
     )
-    status: MetadataStatus = Field(
-        default=MetadataStatus.PENDING,
+    status: metadata_states.MetadataStatus = Field(
+        default=metadata_states.MetadataStatus.PENDING,
         sa_column=Column(
-            SAEnum(MetadataStatus, name="metadatastatus"),
-            default=MetadataStatus.PENDING,
+            SAEnum(metadata_states.MetadataStatus, name="metadatastatus"),
+            default=metadata_states.MetadataStatus.PENDING,
             nullable=False,
         ),
     )
+    notation_title: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     measure_count: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    playback_duration_ms: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
     part_count: Optional[int] = Field(default=None, sa_column=Column(Integer))
     primary_key_fifths: Optional[int] = Field(default=None, sa_column=Column(Integer))
     primary_mode: Optional[str] = Field(default=None, sa_column=Column(String(32)))
@@ -476,4 +330,4 @@ class ScoreRevisionMetadata(SQLModel, table=True):  # type: ignore[call-arg]
     )
     extractor_version: str = Field(sa_column=Column(String(64), nullable=False))
     error_code: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    computed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
+    computed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:noteverse:practice:recording-timebase",
+  "title": "RecordingTimebase",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["nominalMediaDurationUs", "activeSegments"],
+  "properties": {
+    "nominalMediaDurationUs": {
+      "$ref": "#/$defs/RecordingCoordinate",
+      "minimum": 1
+    },
+    "activeSegments": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/RecordingActiveSegment" }
+    }
+  },
+  "$defs": {
+    "RecordingCoordinate": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "RecordingActiveSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "performanceStartUs",
+        "performanceEndUs",
+        "mediaStartUs",
+        "mediaEndUs"
+      ],
+      "properties": {
+        "performanceStartUs": { "$ref": "#/$defs/RecordingCoordinate" },
+        "performanceEndUs": {
+          "$ref": "#/$defs/RecordingCoordinate",
+          "minimum": 1
+        },
+        "mediaStartUs": { "$ref": "#/$defs/RecordingCoordinate" },
+        "mediaEndUs": { "$ref": "#/$defs/RecordingCoordinate", "minimum": 1 }
+      }
+    }
+  }
+}

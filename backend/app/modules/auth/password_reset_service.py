@@ -8,7 +8,7 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.config import settings
@@ -18,13 +18,15 @@ from app.db.models.auth import AuthToken
 from app.db.models.user import User
 from app.modules.auth.schemas import ForgotPasswordRequest, ResetPasswordRequest
 from app.modules.auth.sessions_service import SessionService
-from app.modules.mail.outbox_service import queue_mail
+from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
+from app.db.models.mail_outbox import MailSourceKind
+from app.modules.auth.credential_lifecycle import lock_credential_user
 from app.modules.mail.templates.auth import (
     build_password_changed_email,
     build_password_reset_email,
 )
-from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.error_codes import CustomerErrorCode
+from app.shared.time import utc_now
 
 AUTH_TOKEN_PASSWORD_RESET = "password_reset"
 
@@ -45,25 +47,32 @@ class PasswordResetService:
         base_url = settings.FRONTEND_BASE_URL.rstrip("/")
         return f"{base_url}{path}?{urlencode({'token': token})}"
 
-    async def _create_token(
+    def _create_token(
         self,
-        db: AsyncSession,
+        db: Session,
         user_id: int,
         *,
         ttl_seconds: int,
         user_agent: str | None = None,
         ip_address: str | None = None,
     ) -> str:
-        now = utc_now_naive()
+        now = utc_now()
+        cancel_source_mail(
+            db,
+            MailSourceKind.AUTH_TOKEN,
+            select(AuthToken.id).where(
+                AuthToken.user_id == user_id, AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET
+            ),
+        )
         used_at_column = AuthToken.__table__.c.used_at
-        result = await db.exec(
+        result = db.execute(
             select(AuthToken).where(
                 AuthToken.user_id == user_id,
                 AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET,
                 used_at_column.is_(None),
             )
         )
-        for existing in result.all():
+        for existing in result.scalars().all():
             existing.used_at = now
 
         token = self._new_token()
@@ -77,48 +86,68 @@ class PasswordResetService:
                 expires_at=now + timedelta(seconds=ttl_seconds),
             )
         )
-        await db.flush()
+        db.flush()
         return token
 
-    async def _consume_token(self, db: AsyncSession, token: str) -> AuthToken:
-        result = await db.exec(
-            select(AuthToken).where(
-                AuthToken.token_hash == self._hash_token(token),
-                AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET,
-            )
+    def _consume_token(self, db: Session, token: str) -> tuple[AuthToken, User]:
+        query = select(AuthToken).where(
+            AuthToken.token_hash == self._hash_token(token),
+            AuthToken.purpose == AUTH_TOKEN_PASSWORD_RESET,
         )
-        record = result.one_or_none()
-        now = utc_now_naive()
-
-        if not record or record.used_at is not None or record.expires_at <= now:
-            raise ValidationException(code=ErrorCode.RESET_TOKEN_INVALID, field="token")
-
+        record = db.execute(query).scalars().one_or_none()
+        if record is None:
+            raise ValidationException(code=CustomerErrorCode.RESET_TOKEN_INVALID, field="token")
+        # Discovery is unlocked; every mutation then takes User before credential.
+        user = lock_credential_user(
+            db, record.user_id, invalid_code=CustomerErrorCode.RESET_TOKEN_INVALID
+        )
+        record = (
+            db.execute(query.with_for_update().execution_options(populate_existing=True))
+            .scalars()
+            .one_or_none()
+        )
+        now = utc_now()
+        if record is None or record.used_at is not None or record.expires_at <= now:
+            raise ValidationException(code=CustomerErrorCode.RESET_TOKEN_INVALID, field="token")
         record.used_at = now
-        await db.flush()
-        return record
+        cancel_source_mail(
+            db, MailSourceKind.AUTH_TOKEN, select(AuthToken.id).where(AuthToken.id == record.id)
+        )
+        db.flush()
+        return record, user
 
-    async def request_password_reset(
+    def request_password_reset(
         self,
-        db: AsyncSession,
+        db: Session,
         request: ForgotPasswordRequest,
         *,
         user_agent: str | None = None,
         ip_address: str | None = None,
     ) -> None:
         email = str(request.email).strip().lower()
-        result = await db.exec(select(User).where(User.email == email))
-        user = result.one_or_none()
-        if not user or not user.is_active:
+        result = db.execute(
+            select(User)
+            .where(User.email == email)
+            .with_for_update(key_share=True)
+            .execution_options(populate_existing=True)
+        )
+        user = result.scalars().one_or_none()
+        if not user or not user.is_active or user.deleted_at is not None:
             return
 
         user_id = require_persisted_id(user.id, entity="user")
         ttl_seconds = settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS
-        token = await self._create_token(
+        token = self._create_token(
             db,
             user_id,
             ttl_seconds=ttl_seconds,
             user_agent=user_agent,
             ip_address=ip_address,
+        )
+        token_record = (
+            db.execute(select(AuthToken).where(AuthToken.token_hash == self._hash_token(token)))
+            .scalars()
+            .one()
         )
         email_content = build_password_reset_email(
             locale=request.locale,
@@ -126,34 +155,32 @@ class PasswordResetService:
             reset_url=self._frontend_url("/auth/reset-password", token),
             ttl_seconds=ttl_seconds,
         )
-        await queue_mail(
+        queue_mail(
             db,
             category="password.reset.requested",
+            source_kind=MailSourceKind.AUTH_TOKEN,
+            source_id=require_persisted_id(token_record.id, entity="auth token"),
             dedupe_key=f"password.reset:{user_id}:{self._hash_token(token)}",
             recipient=email,
             subject=email_content.subject,
             text_body=email_content.text_body,
             html_body=email_content.html_body,
-            expires_at=utc_now_naive() + timedelta(seconds=ttl_seconds),
+            expires_at=utc_now() + timedelta(seconds=ttl_seconds),
         )
-        await db.commit()
+        db.commit()
 
-    async def reset_password(
+    def reset_password(
         self,
-        db: AsyncSession,
+        db: Session,
         request: ResetPasswordRequest,
     ) -> None:
-        token_record = await self._consume_token(db, request.token)
-        result = await db.exec(select(User).where(User.id == token_record.user_id))
-        user = result.one_or_none()
-        if not user:
-            raise ValidationException(code=ErrorCode.RESET_TOKEN_INVALID, field="token")
+        _, user = self._consume_token(db, request.token)
 
         user.password_hash = security.get_password_hash(request.new_password)
-        changed_at = utc_now_naive()
+        changed_at = utc_now()
         user.password_changed_at = changed_at
         user_id = require_persisted_id(user.id, entity="user")
-        await self.session_service.revoke_user_refresh_tokens(
+        self.session_service.revoke_user_refresh_tokens(
             db,
             user_id,
             revoked_at=changed_at,
@@ -164,13 +191,15 @@ class PasswordResetService:
             locale=request.locale,
             project_name=settings.PROJECT_NAME,
         )
-        await queue_mail(
+        queue_mail(
             db,
             category="password.reset.completed",
+            source_kind=MailSourceKind.ACCOUNT,
+            source_id=user_id,
             dedupe_key=f"password.reset.completed:{user_id}:{changed_at.isoformat()}",
             recipient=user.email,
             subject=email_content.subject,
             text_body=email_content.text_body,
             html_body=email_content.html_body,
         )
-        await db.commit()
+        db.commit()

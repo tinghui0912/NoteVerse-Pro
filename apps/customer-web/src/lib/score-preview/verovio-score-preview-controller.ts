@@ -9,17 +9,16 @@ import type {
 } from './contracts';
 import { VerovioScoreAdapter } from '@/lib/score/verovio';
 import {
-  SoundfontAudioEngine,
-  VerovioPlaybackController,
-  type VerovioAudioEngine,
-  type VerovioPlaybackCursorSnapshot,
-} from '@/lib/score/verovio/playback';
+  ScorePreviewPlaybackController,
+  type ScorePreviewAudioEngine,
+  type ScorePreviewPlaybackCursorSnapshot,
+} from './playback-controller';
+import { LocalSoundfontAudioEngine } from './local-soundfont-audio-engine';
 
 type VerovioScorePreviewControllerOptions = {
   container: HTMLElement;
-  bpm?: number;
   adapter?: VerovioScoreAdapter;
-  audioEngine?: VerovioAudioEngine;
+  audioEngine?: ScorePreviewAudioEngine;
   toolkitOptions?: Record<string, unknown>;
   fitToContainerOptions?: (pageWidth: number) => Record<string, unknown>;
 };
@@ -53,56 +52,80 @@ function findScrollableAncestor(element: HTMLElement) {
 export class VerovioScorePreviewController implements ScorePreviewController {
   private readonly container: HTMLElement;
   private readonly adapter: VerovioScoreAdapter;
-  private readonly playback: VerovioPlaybackController;
+  private readonly playback: ScorePreviewPlaybackController;
   private activeCursor: HTMLElement | null = null;
   private activeSystem: Element | null = null;
   private activeEventIndex: number | null = null;
   private activeCursorMode: 'measure-start' | 'note' | null = null;
   private disposed = false;
-  private readonly initialBpm: number | null;
-  private readonly fitToContainerOptions: (pageWidth: number) => Record<string, unknown>;
+  private loadGeneration = 0;
+  private hasScore = false;
+  private readonly fitToContainerOptions: (
+    pageWidth: number
+  ) => Record<string, unknown>;
 
   constructor(options: VerovioScorePreviewControllerOptions) {
     if (!options.container || !(options.container instanceof HTMLElement)) {
       throw new Error('Please pass a valid score preview container.');
     }
     this.container = options.container;
-    this.adapter = options.adapter ?? new VerovioScoreAdapter(undefined, options.toolkitOptions);
-    this.initialBpm = options.bpm && options.bpm > 0 ? options.bpm : null;
-    this.fitToContainerOptions = options.fitToContainerOptions ?? ((pageWidth) => ({ pageWidth }));
-    this.playback = new VerovioPlaybackController(
+    this.adapter =
+      options.adapter ??
+      new VerovioScoreAdapter(undefined, options.toolkitOptions);
+    this.fitToContainerOptions =
+      options.fitToContainerOptions ?? ((pageWidth) => ({ pageWidth }));
+    this.playback = new ScorePreviewPlaybackController(
       this.adapter,
-      options.audioEngine ?? new SoundfontAudioEngine()
+      options.audioEngine ?? new LocalSoundfontAudioEngine()
     );
   }
 
   async loadScore(xmlString: string) {
     this.assertActive();
-    if (!xmlString.trim()) {
-      throw new Error('No playable score (MusicXML is empty)');
+    const generation = ++this.loadGeneration;
+    this.hasScore = false;
+    this.clearCursor();
+    this.container.replaceChildren();
+    try {
+      if (!xmlString.trim())
+        throw new Error('No playable score (MusicXML is empty)');
+      await this.playback.loadScore(xmlString);
+      if (this.disposed || generation !== this.loadGeneration)
+        throw new DOMException('Score Preview load cancelled.', 'AbortError');
+      this.renderPages(this.adapter.renderAllPages());
+      this.hasScore = true;
+    } catch (error) {
+      if (!this.disposed && generation === this.loadGeneration) {
+        this.playback.clearScore();
+        this.clearCursor();
+        this.container.replaceChildren();
+      }
+      throw error;
     }
-    await this.playback.loadScore(xmlString);
-    if (this.initialBpm) {
-      this.playback.setTempo(this.initialBpm);
-    }
-    this.renderPages(this.adapter.renderAllPages());
   }
 
   async fitToContainer() {
     this.assertActive();
+    if (!this.hasScore) return;
     const width = this.container.clientWidth;
     if (width <= 0) {
       return;
     }
     const snapshot = this.playback.getPlaybackSnapshot();
     const pageWidth = Math.max(900, Math.round(width * 2.25));
-    this.renderPages(this.adapter.relayout(this.fitToContainerOptions(pageWidth)));
+    this.renderPages(
+      this.adapter.relayout(this.fitToContainerOptions(pageWidth))
+    );
     if (
-      snapshot.totalSteps > 0
-      && snapshot.state !== 'IDLE'
-      && (snapshot.state !== 'STOPPED' || snapshot.currentTime > 0 || snapshot.currentStep > 0)
+      snapshot.totalSteps > 0 &&
+      snapshot.state !== 'IDLE' &&
+      (snapshot.state !== 'STOPPED' ||
+        snapshot.currentTime > 0 ||
+        snapshot.currentStep > 0)
     ) {
-      this.applyCursor(this.playback.getCursorSnapshotForStep(snapshot.currentStep));
+      this.applyCursor(
+        this.playback.getCursorSnapshotForStep(snapshot.currentStep)
+      );
     }
   }
 
@@ -144,6 +167,7 @@ export class VerovioScorePreviewController implements ScorePreviewController {
 
   resetCursor(options?: CursorSyncOptions) {
     this.clearCursor();
+    if (!this.hasScore) return;
     const firstVisibleEvent = this.findFirstVisibleEventElement();
     if (firstVisibleEvent) {
       this.applyCursorToElement(firstVisibleEvent, {
@@ -162,10 +186,12 @@ export class VerovioScorePreviewController implements ScorePreviewController {
   }
 
   syncCursorToStep(step: number, options?: CursorSyncOptions) {
+    if (!this.hasScore) return;
     this.applyCursor(this.playback.getCursorSnapshotForStep(step), options);
   }
 
   syncCursorDuringPlayback(step: number, options?: CursorSyncOptions) {
+    if (!this.hasScore) return;
     this.applyCursor(this.playback.getCursorSnapshotForStep(step), {
       ...options,
       keepCurrentBeforeFirstEvent: true,
@@ -182,8 +208,14 @@ export class VerovioScorePreviewController implements ScorePreviewController {
 
     if (options.scrollTarget === 'window') {
       const safeTop = Math.min(180, Math.max(96, window.innerHeight * 0.2));
-      const safeBottom = window.innerHeight - Math.min(220, Math.max(140, window.innerHeight * 0.24));
-      if (!options.force && targetRect.top >= safeTop && targetRect.bottom <= safeBottom) {
+      const safeBottom =
+        window.innerHeight -
+        Math.min(220, Math.max(140, window.innerHeight * 0.24));
+      if (
+        !options.force &&
+        targetRect.top >= safeTop &&
+        targetRect.bottom <= safeBottom
+      ) {
         return;
       }
 
@@ -200,11 +232,14 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     }
 
     const containerRect = scrollContainer.getBoundingClientRect();
-    const margin = Math.min(120, Math.max(32, scrollContainer.clientHeight * 0.18));
+    const margin = Math.min(
+      120,
+      Math.max(32, scrollContainer.clientHeight * 0.18)
+    );
     if (
-      !options.force
-      && targetRect.top >= containerRect.top + margin
-      && targetRect.bottom <= containerRect.bottom - margin
+      !options.force &&
+      targetRect.top >= containerRect.top + margin &&
+      targetRect.bottom <= containerRect.bottom - margin
     ) {
       return;
     }
@@ -222,12 +257,16 @@ export class VerovioScorePreviewController implements ScorePreviewController {
       return;
     }
     this.disposed = true;
+    this.loadGeneration++;
+    this.hasScore = false;
     this.clearCursor();
     this.container.replaceChildren();
     void this.playback.dispose();
   }
 
-  private renderPages(pages: ReturnType<VerovioScoreAdapter['renderAllPages']>) {
+  private renderPages(
+    pages: ReturnType<VerovioScoreAdapter['renderAllPages']>
+  ) {
     const fragment = document.createDocumentFragment();
     for (const page of pages) {
       const pageElement = document.createElement('div');
@@ -244,20 +283,30 @@ export class VerovioScorePreviewController implements ScorePreviewController {
   }
 
   private applyCursor(
-    snapshot: VerovioPlaybackCursorSnapshot,
+    snapshot: ScorePreviewPlaybackCursorSnapshot,
     options?: CursorPlacementOptions
   ) {
     const playbackSnapshot = this.playback.getPlaybackSnapshot();
-    const isBeforeFirstEvent = snapshot.eventIndex === 0
-      && snapshot.time > 0
-      && playbackSnapshot.currentTime < snapshot.time;
-    if (options?.keepCurrentBeforeFirstEvent && isBeforeFirstEvent && this.activeCursor && this.container.contains(this.activeCursor)) {
+    const isBeforeFirstEvent =
+      snapshot.eventIndex === 0 &&
+      snapshot.time > 0 &&
+      playbackSnapshot.currentTime < snapshot.time;
+    if (
+      options?.keepCurrentBeforeFirstEvent &&
+      isBeforeFirstEvent &&
+      this.activeCursor &&
+      this.container.contains(this.activeCursor)
+    ) {
       return;
     }
-    const shouldAlignBeforeFirstEvent = options?.alignBeforeFirstEventToMeasureStart !== false;
-    const cursorMode = (options?.alignToMeasureStart || (shouldAlignBeforeFirstEvent && isBeforeFirstEvent)) && snapshot.time > 0
-      ? 'measure-start'
-      : 'note';
+    const shouldAlignBeforeFirstEvent =
+      options?.alignBeforeFirstEventToMeasureStart !== false;
+    const cursorMode =
+      (options?.alignToMeasureStart ||
+        (shouldAlignBeforeFirstEvent && isBeforeFirstEvent)) &&
+      snapshot.time > 0
+        ? 'measure-start'
+        : 'note';
     if (
       cursorMode === this.activeCursorMode &&
       snapshot.eventIndex === this.activeEventIndex &&
@@ -299,9 +348,10 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     const pageRect = page.getBoundingClientRect();
     const elementRect = element.getBoundingClientRect();
     const systemRect = system.getBoundingClientRect();
-    const targetLeft = options.mode === 'measure-start'
-      ? this.getInitialMeasureLeft(pageRect, element, system)
-      : elementRect.left - pageRect.left + elementRect.width / 2;
+    const targetLeft =
+      options.mode === 'measure-start'
+        ? this.getInitialMeasureLeft(pageRect, element, system)
+        : elementRect.left - pageRect.left + elementRect.width / 2;
     const cursorWidth = Math.max(10, Math.min(20, elementRect.width + 4));
     const cursor = this.activeCursor ?? document.createElement('div');
     if (!this.activeCursor) {
@@ -330,7 +380,11 @@ export class VerovioScorePreviewController implements ScorePreviewController {
     this.activeCursorMode = null;
   }
 
-  private getInitialMeasureLeft(pageRect: DOMRect, noteElement: HTMLElement, system: Element) {
+  private getInitialMeasureLeft(
+    pageRect: DOMRect,
+    noteElement: HTMLElement,
+    system: Element
+  ) {
     const measure = noteElement.closest('.measure');
     const notationScope = measure ?? system;
     const clef = notationScope.querySelector('.clef');
@@ -349,20 +403,22 @@ export class VerovioScorePreviewController implements ScorePreviewController {
   }
 
   private findFirstVisibleEventElement() {
-    return this.container.querySelector<HTMLElement>([
-      '[data-score-page="1"] [data-class="rest"]',
-      '[data-score-page="1"] .rest',
-      '[data-score-page="1"] [data-class="mRest"]',
-      '[data-score-page="1"] .mRest',
-      '[data-score-page="1"] [data-class="note"]',
-      '[data-score-page="1"] .note',
-      '[data-score-page] [data-class="rest"]',
-      '[data-score-page] .rest',
-      '[data-score-page] [data-class="mRest"]',
-      '[data-score-page] .mRest',
-      '[data-score-page] [data-class="note"]',
-      '[data-score-page] .note',
-    ].join(', '));
+    return this.container.querySelector<HTMLElement>(
+      [
+        '[data-score-page="1"] [data-class="rest"]',
+        '[data-score-page="1"] .rest',
+        '[data-score-page="1"] [data-class="mRest"]',
+        '[data-score-page="1"] .mRest',
+        '[data-score-page="1"] [data-class="note"]',
+        '[data-score-page="1"] .note',
+        '[data-score-page] [data-class="rest"]',
+        '[data-score-page] .rest',
+        '[data-score-page] [data-class="mRest"]',
+        '[data-score-page] .mRest',
+        '[data-score-page] [data-class="note"]',
+        '[data-score-page] .note',
+      ].join(', ')
+    );
   }
 
   private findElement(noteId: string) {

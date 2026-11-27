@@ -20,7 +20,6 @@ def test_settings_do_not_implicitly_load_an_env_file() -> None:
 
     assert loaded_settings.SECRET_KEY
     assert loaded_settings.DATABASE_URL
-    assert loaded_settings.SYNC_DATABASE_URL
     assert loaded_settings.model_config.get("env_file") is None
 
 
@@ -121,8 +120,7 @@ def test_settings_compose_import_dispatch_policy() -> None:
 def test_settings_compose_render_asset_delivery_policy() -> None:
     settings = Settings()
 
-    assert settings.RENDER_OUTBOX_MAX_ATTEMPTS > 0
-    assert settings.DERIVED_ASSET_RETAIN_RECENT_REVISIONS >= 0
+    assert settings.REVISION_RENDER_MAX_ATTEMPTS > 0
 
 
 def test_settings_compose_playback_delivery_policy() -> None:
@@ -145,10 +143,10 @@ def test_settings_compose_notification_and_realtime_policies() -> None:
     assert settings.REALTIME_EVENT_RETENTION_DAYS > 0
 
 
-def test_settings_compose_score_deletion_lifecycle_policy() -> None:
+def test_settings_compose_score_deletion_delivery_policy() -> None:
     settings = Settings()
 
-    assert settings.SCORE_DELETION_CLEANUP_MAX_ATTEMPTS > 0
+    assert settings.SCORE_DELETION_MAX_ATTEMPTS > 0
 
 
 def test_settings_compose_fingering_execution_policy() -> None:
@@ -178,16 +176,9 @@ def test_settings_compose_transactional_mail_provider_policy() -> None:
     assert settings.RESEND_API_URL.startswith(("http://", "https://"))
 
 
-def test_settings_compose_upload_admission_policy() -> None:
-    settings = Settings()
-
-    assert "png" in settings.ALLOWED_EXTENSIONS
-
-
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
         Settings(
-            FILE_STORAGE_BACKEND="s3",
             S3_ENDPOINT_URL=None,
             S3_BUCKET=None,
             S3_ACCESS_KEY_ID=None,
@@ -195,14 +186,12 @@ def test_s3_storage_settings_are_validated() -> None:
         )
 
     settings = Settings(
-        FILE_STORAGE_BACKEND="s3",
         S3_ENDPOINT_URL="oss-cn-shenzhen.aliyuncs.com",
         S3_BUCKET="bucket",
         S3_ACCESS_KEY_ID="access-key",
         S3_SECRET_ACCESS_KEY="secret-key",
     )
 
-    assert settings.FILE_STORAGE_BACKEND == "s3"
     assert settings.S3_ENDPOINT_URL == "https://oss-cn-shenzhen.aliyuncs.com"
 
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from app.core.config import Settings
 from app.core.settings.worker_runtime import WorkerRuntimeSettings
 from app.core.settings.playback import PlaybackSettings
+from app.core.settings.database import DatabaseSettings
 from app.core.settings.worker_model_engine import WorkerModelEngineSettings
 
 
@@ -20,7 +21,9 @@ ENV_TEMPLATES = {
     },
 }
 ENVIRONMENT_ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)=")
-WORKER_ROLE_SPECIFIC_KEYS = set(PlaybackSettings.model_fields) | set(WorkerModelEngineSettings.model_fields)
+WORKER_ROLE_SPECIFIC_KEYS = set(PlaybackSettings.model_fields) | set(
+    WorkerModelEngineSettings.model_fields
+)
 
 
 def _template_keys(path: Path) -> set[str]:
@@ -38,6 +41,16 @@ def test_docker_environment_templates_declare_only_supported_keys() -> None:
         violations.extend(f"{path.name}: {key}" for key in sorted(unsupported))
 
     assert not violations, "Unsupported Docker environment keys: " + ", ".join(violations)
+
+
+def test_shared_docker_template_supplies_the_application_database_identity():
+    assignments = dict(
+        line.split("=", 1)
+        for line in (BACKEND_ROOT / ".env.docker.example").read_text().splitlines()
+        if ENVIRONMENT_ASSIGNMENT.match(line)
+    )
+    database = DatabaseSettings(DATABASE_URL=assignments["DATABASE_URL"])
+    assert database.DATABASE_URL.startswith("postgresql+psycopg://")
 
 
 def test_worker_process_template_declares_only_the_worker_entrypoint_contract() -> None:

@@ -10,12 +10,23 @@ to place within clear ownership boundaries.
 
 ## API Contract Ownership
 
-The generated Customer API DTOs in `src/generated/api/` come from
+The generated Customer API types, SDK operations and Fetch runtime in
+`src/generated/api/` come from
 `../../backend/docs/contracts/openapi/customer-api.json` and must not be edited
-manually. Run `npm run generate:api-types` after an approved backend contract
-change; CI runs `npm run check:api-types` to reject stale output.
+manually. Run `npm run generate:api` after an approved backend contract
+change; CI runs `npm run check:api` to reject stale output.
 
-Keep `src/lib/api/*` as the application request boundary.
+`src/features/imports/api/*` owns Import submission, job/artifact and Review adapters.
+`src/features/library/api.ts` owns Library folders, collection reads and organization commands.
+`src/features/scores/core/api.ts` owns Score/revision/assets operations;
+`collaboration/api.ts` owns Invite/Membership operations and `guest-preview/api.ts`
+owns credential management and public bearer operations, under the same Score feature.
+`src/features/notifications/api.ts` owns durable Notification history and read-state adapters.
+`src/features/account/profile`, `security` and `sessions` own current-user Account adapters.
+`src/features/authentication/api.ts` owns login, logout, registration and recovery adapters.
+Domains without an explicit feature boundary keep their named adapters under `src/lib/api/*`.
+HTTP operation definitions belong to generated code, and browser transport
+policy belongs to `src/lib/http/`.
 Frontend view models, form state, browser-only protocol messages, and display
 helpers remain frontend-owned. HTTP DTO consumers must import the generated
 types directly. View models and form state stay frontend-owned.
@@ -26,11 +37,12 @@ Routes are grouped by user intent, not simply by login state:
 
 ```text
 src/app/[locale]/
-  (public)/      marketing, pricing, and help pages
+  (public)/      marketing, plans, and help pages
   (auth)/        login, register, password recovery, email verification
   (app)/         authenticated product pages
   (workspace)/   focused editor, practice, and review-edit surfaces
-  (external)/    share, public score, and invite entry points
+  (guest-preview)/ anonymous Guest Preview presentation
+  (invite)/      Collaboration Invite access entry
 ```
 
 Rules:
@@ -40,12 +52,12 @@ Rules:
 - Public/help pages keep public navigation; logged-in state changes the right-side user area
   but does not turn them into AppShell pages.
 - Auth pages use a low-distraction Auth shell.
-- External pages are not AppShell pages. They expose only the actions allowed by the share,
-  publication, or invite contract.
+- Guest Preview and Invite entries use their dedicated presentation shells and expose
+  only their respective bearer or Collaboration actions.
 
 ## Score Detail Model
 
-Score detail, share detail, and public score pages are lightweight detail pages, not full
+Score detail and Guest Preview pages are lightweight detail pages, not full
 browser score-player pages.
 
 They use:
@@ -92,24 +104,27 @@ ScoreRevisionAssets
 ```
 
 Playback audio is delivered through playback endpoints rather than by exposing MusicXML to
-external visitors. External share/public payloads only include revision sources when the
-server-side policy allows download. Import-job review artifacts are a separate pipeline
+external visitors. Guest Preview payloads expose presentation only and never include
+revision sources. Import-job review artifacts are a separate pipeline
 concept and should not be modeled as score revision assets.
 
 ## API and Server State
 
-All product API calls belong under `src/lib/api/*`. Pages and components should not create
-ad hoc `fetch` calls for backend product data.
+Product requests go through their domain-owned generated SDK adapters. Import, Library, Notifications, Account and Score lifecycle slices
+own these adapters inside their feature boundaries. Shared browser transport lives under
+`src/lib/http/`. Pages and components do not create ad hoc backend product requests.
 
 Rules:
 
-- Required environment variables are read through `src/lib/env.ts`; do not add silent
-  fallbacks for required backend or public runtime configuration.
-- React Query keys are created through `src/lib/query-client.ts`.
-- Mutations own cache invalidation; pages own page-specific success copy.
+- Next server validates its required backend origin in `next.config.ts`; browser
+  protocol identities come from generated constants.
+- Import, Library, Notifications, Account and each Score lifecycle slice own their query keys, hooks and cache consequences.
+  `src/lib/query-client.ts` configures QueryClient and holds keys for domains with other
+  current ownership locations.
+- Mutation hooks invoke domain-owned cache consequences; pages own page-specific success copy.
 - Realtime score events invalidate score detail, revision assets, versions, and list queries
   through the shared provider.
-- Downloads go through `useDownload` and typed asset collections, not page-local URL
+- Score downloads go through `useScoreDownload` and typed asset collections, not page-local URL
   construction.
 
 ## Loading and Error States
@@ -124,9 +139,11 @@ components/loading/
   SectionLoading
   InlineLoading
 
-components/error/
+components/states/
   ErrorState
-  ResourceErrorState
+  ResourceLoadError
+  SectionErrorState
+  EmptyState
   NotFoundState
 ```
 
@@ -135,24 +152,119 @@ exception messages to users. User-facing error copy should be classified and loc
 
 ## Component Ownership
 
-Keep UI ownership explicit:
+An explicit `src/features/<domain>/` boundary owns domain UI, application adapters,
+API adapters, query keys, query hooks, cache consequences and route state/locations.
+`src/app/` owns route entry points and page composition. `src/lib/` owns shared browser
+infrastructure and shared pure capabilities; `src/components/` owns shared UI, shells,
+primitives and cross-domain presentation. Domains without a feature boundary retain
+their named current owners; these locations do not define a universal domain layout.
+
+Current ownership includes:
 
 ```text
 components/brand        logo and brand marks
 components/shell        route shell implementations
 components/navigation   public nav, app sidebar, settings nav
-components/score        score capability context, score thumbnail, shared score surface
 components/score-preview interactive Verovio preview viewport, controls, and playback shell
-components/score-detail score detail tabs, actions, metadata, versions
-components/review       import review UI
+features/imports        submission, activity, Review UI/editor adapter, API/query/cache/routes
+features/library        personal folders/favorites/organization, browsing, API/query/cache/route state
+features/scores/core    Score detail/capabilities, revisions/assets, editor adapter and downloads
+features/scores/collaboration Invite/Membership, pending invitations and external Invite page
+features/scores/guest-preview credential owner UI and public bearer presentation
+features/scores         product composition, shared Score routes and lifecycle consequences
+features/notifications  durable history/read-state API/query/cache, presentation/targets and Center/Bell
+features/account/profile current profile/Avatar adapters, forms and crop application
+features/account/security security overview, password/email-change workflow and confirmation
+features/account/sessions authenticated refresh-session inventory/revocation and presentation
+features/account        Account query identities and cross-lifecycle cache consequences
+features/authentication browser session/principal, auth entry flows and safe return navigation
+features/storage-usage storage API/query identity/query/cache and quota presentation
+components/settings    cross-domain Account/Storage settings navigation
 components/editor       editor-specific dialogs and controls
 components/practice     practice-specific viewer and controls
-components/external     share/public/invite surfaces
 components/loading      loading primitives
-components/error        error primitives
+components/states       error, empty and access-denied presentation
 ```
 
+Import Review is part of Import. Its browser workspaces are
+`/imports/:jobId/review` and `/imports/:jobId/review/edit`; `/upload` composes
+Import submission and activity. Generic editor capabilities remain shared.
+`features/imports/query-keys.ts` owns the `imports` cache prefix, and
+`features/imports/cache.ts` owns its cache consequences.
+
+Library owns personal organization and browsing, including batch Move/Favorite.
+Its thin `/library` route resolves search parameters and renders the feature page.
+Library invokes Score deletion and membership Leave through their existing command owners;
+its API and query hooks do not own either lifecycle command. Library query identities
+and the distinct score-row/organization cache consequences belong to `features/library`.
+
+Score core keys use `scores`; Collaboration keys use `score-collaboration`;
+Guest Preview settings and bearer keys use `guest-preview`. The parent product consequence
+owner composes Score deletion, membership Leave and Invite acceptance across local cache
+owners. Leave preserves Guest Preview authority and Import provenance; deletion refreshes
+those authorities as well as Library and StorageUsage. Public token projections are
+invalidated by their domain prefix without a Score-to-token reverse map.
+
+Score editor saves return to `scoreLocation(scoreId)`. The `/score/:id`, `/score/:id/edit`,
+`/invite/:token` and `/preview/:token` entries compose feature owners. Practice navigation
+continues to use `practiceLocation`; interactive score preview and generic editor machinery
+remain shared. Workspace access-denied presentation is a shared state primitive.
+
 Only truly cross-domain primitives should live at component root.
+
+Notifications owns the `notifications` query prefix and optimistic history/read-count
+convergence. Notification Center composes Collaboration-owned pending Invite actions
+with durable Updates; accepting or declining an Invite stays a Collaboration command.
+The Bell combines pending actions with the server unread count. Collaboration requests
+100 pending Invites per page: 0..99 is exact and continuation saturates the badge at
+99+. Bell and Center share the same query state. `notifications.changed` refreshes
+Notification list/count only; realtime transport remains shared infrastructure.
+
+Account Profile hydrates Authentication's current principal; there is no parallel profile
+query cache. Account Security owns authenticated password/email-change workflows,
+including the application behind `/auth/confirm-email-change`. Password change refreshes
+security and session projections. Email confirmation refreshes security and the current
+principal; optional profile refresh failure does not reverse confirmation success.
+Account Sessions owns session inventory and revocation, requesting at most 100 rows.
+`account/query-keys.ts` owns `account/security` and `account/sessions` identities.
+SettingsShell composes Account and Storage tabs. `features/storage-usage` owns the
+`storage-usage` query prefix, authenticated usage read adapter, query, quota presentation
+and semantic cache consequence. `/settings/storage` is a thin feature entry. Local
+storage-affecting commands refresh usage through this owner; manual Refresh reads server
+state. Ordinary cross-session storage changes do not have a realtime event.
+
+There is no Billing/Subscription frontend bounded context. Public `/plans` and the homepage
+present free access and state that paid plans/upgrades are unavailable, without prices,
+feature matrices or a duplicated quota default. StoragePlanPolicy is storage quota policy,
+not commercial feature entitlement.
+Authentication owns browser session/principal lifecycle and login, registration, verification
+and password recovery under `features/authentication`. Its five auth routes are thin entries;
+Account email-change confirmation remains Account Security. Shared `AuthCard` is presentation
+used by both lifecycles.
+
+`AuthenticationProvider` consumes the Account Profile read adapter for bootstrap; there is
+no duplicate principal query cache. Status distinguishes `bootstrapping`, `authenticated`,
+`anonymous` (Profile 401) and `unavailable` (unexpected bootstrap failure). A transient refresh
+failure preserves a known principal and rejects with observability. Login establishes cookies
+and returns canonical `ProfileUserRead` in the same 200 response, so the browser establishes
+its principal without a second Profile GET. QueryClient wraps Authentication, which wraps
+Realtime; only authenticated state enables the stream.
+
+Principal transitions cancel and remove principal-sensitive queries and clear mutation
+cache state before publishing the next principal. Unmarked queries are principal-sensitive.
+`src/lib/query-auth-scope.ts` owns the typed `authScope` metadata; only an explicit
+`principal-independent` marker preserves a query across transitions. Guest Preview bearer
+reads use this marker because their representation depends on the credential, not the
+principal. Guest Preview owner settings and optional-user Invite inspection remain
+principal-sensitive, regardless of transport. Independent resources retain their own
+invalidation and credential lifecycle.
+
+Logout success and password-reset completion clear the principal. Identity switches clear
+prior principal-sensitive server-state using the same scope rules. Reset revokes existing
+sessions and clears this browser's session/refresh/CSRF cookies before returning 204.
+Authentication owns parser-validated same-origin app-relative `returnUrl` intent, including
+backslash/open-redirect rejection. Next proxy's cookie-existence check is only a soft routing
+gate; backend authentication and the canonical principal read remain authoritative.
 
 ## MusicXML and Rendering
 
@@ -177,7 +289,66 @@ downloads, realtime invalidation, score editing, shell layout, or user-visible s
 
 - Keep route and API ownership explicit through their domain interfaces.
 - Do not add fallback URLs or default backend origins for required runtime config.
-- Do not expose MusicXML in external share/public flows unless the backend explicitly grants
+- Do not expose MusicXML in external share flows unless the backend explicitly grants
   download permission.
 - Do not put import-job review artifacts into score revision asset APIs.
 - Do not split domains only by page names; split by ownership and lifecycle.
+
+## Customer HTTP operations
+
+Customer OpenAPI owns request and response contracts. Customer Web generates
+TypeScript types, flat SDK operations and the bundled Fetch runtime. SDK calls
+receive an explicit browser policy client. Generated operations own method,
+path, path parameters, query serialization and request body encoding.
+
+`src/lib/http/customer-browser-transport.ts` owns credentials, CSRF injection,
+single-flight refresh, one replay, login redirects, cancellation and network
+observability. Feature adapters return direct generated representations or apply
+frontend transformations. `responseBody` extracts the HTTP body from SDK result
+metadata; the SDK result `.data` is not a wire envelope. Commands without a
+representation return 204 and adapters resolve to `void`. Page-number resources
+use `items`, `page`, `page_size`, `total` and `total_pages`. Customer success has no
+generic envelope; localized success presentation belongs to frontend i18n.
+Application errors retain `{ code, request_id }`. Public/auth bootstrap and silent session probes choose
+policy explicitly; transport does not classify authentication URLs.
+
+Browser-native EventSource, image and avatar URLs are separate transports.
+`src/lib/api/native-resource-urls.ts` adapts generated OpenAPI route metadata and
+operation input types through the generated Fetch URL serializer. Render thumbnails and EventSource consume those native URLs. Score, Guest Preview
+and Take playback request signed JSON capabilities through generated SDK operations.
+Profile presentation uses server-provided API-rooted avatar URLs directly.
+Signed storage upload uses
+`src/lib/upload/upload-session-client.ts`, omits credentials and uses the exact
+server-provided plan. SINGLE_PUT sends a Blob; Multipart uses bounded concurrency,
+per-part URL renewal/retry and server part discovery for resume. Cancellation
+passes through the domain command. The browser owns Content-Length. Static FIR assets and local Blob snapshots
+are resource reads outside Customer HTTP operations.
+
+`contracts/http/customer-browser-protocol.json` owns the fixed Customer API prefix
+and session/CSRF cookie and header identities. Generated TypeScript constants are
+shared by browser transport, Next proxy and Next rewrites; Backend consumes the
+Python projection. `NEXT_BACKEND_ORIGIN`, public origins, cookie Secure/SameSite
+policy and session lifetimes remain deployment policy. Generated SDK paths already
+include the API prefix, so browser transport base URLs express only the origin.
+`generate:browser-protocol` and `check:browser-protocol` cover both protocol
+projections and native route metadata from committed OpenAPI.
+
+
+Account Security owns permanent account-deletion confirmation. Accepted deletion clears
+the authenticated principal and its private server state; backend domain cleanup remains
+durable background work. Storage Usage presents finite server-projected limits and
+availability. Import upload commands retain a stable request identity across retries.
+
+Account deletion HTTP 202 ends this browser principal immediately and clears
+principal-sensitive queries/mutation state before navigation. The session cookies are
+cleared by the accepted backend response; browser storage contains no auth token copy.
+The UI does not query erasure progress or wait for workers. Rejected deletion preserves
+the authenticated session. Copy distinguishes immediate closure, asynchronous resource
+erasure and policy-governed retention of backups/provider versions.
+
+
+Take media readiness is server-owned: UPLOADED/PROCESSING queries poll while work
+is pending; READY enables signed playback and score-video materialization. FAILED
+presents a verification message. Playback capabilities refresh before expiry and
+provide an explicit renewal action after a media error. Signed download bytes stream
+to bounded OPFS realization for export, with a single renewal after HTTP 403.

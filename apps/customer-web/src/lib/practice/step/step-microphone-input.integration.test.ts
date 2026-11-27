@@ -1,13 +1,15 @@
+import { stepPracticePlan } from '@/lib/practice/__fixtures__/practice-plan';
+import { artifactWithKeys } from '../__fixtures__/piano-key-artifact';
+import { pianoMidiPitchToName } from '../acoustic/model/robust-piano-decoder';
 import { readFile, writeFile } from 'node:fs/promises';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { SourceAnalysisRuntime, type SourceAnalysisOptions } from '../acoustic/runtime/source-analysis-runtime';
 import type { SourceAcousticPublication } from '../acoustic/runtime/source-publication';
 import type { CaptureChunk, CaptureConsumer } from '../acoustic/source/capture-types';
+import { CAPTURE_TRANSPORT_BLOCK_SAMPLES } from '../acoustic/source/capture-transport-contract';
 import type { AcousticInferenceInput, AcousticInferenceResult } from '../acoustic/runtime/inference-types';
-import type { PracticeScoreArtifact } from '../local-core/artifact';
-import type { StepAttemptIdentity } from '../local-core/step-attempt';
-import { StepPracticeRuntime } from '../local-core/step-runtime';
-import fixture from '../local-core/__fixtures__/canonical-practice-score-artifact.json';
+import type { StepAttemptIdentity } from '@/lib/practice/step/domain/attempt';
+import { StepPracticeSession } from '@/lib/practice/step/domain/practice-session';
 import { StepMicrophoneInput } from './step-microphone-input';
 import type { StepMicrophonePlatform } from './step-microphone-platform';
 
@@ -21,14 +23,11 @@ afterAll(async () => {
 });
 
 /** Synthetic PCM and deterministic inference port. Never imports a model or decoder. */
-async function rig(rate: 44100 | 48000, pitches = ['C4']) {
+async function rig(rate: 44100 | 48000, pianoKeys = [60], sourceDomainId = 'v25:capture') {
   const origin = rate * 7, context = Object.assign(new EventTarget(), { sampleRate: rate, currentTime: 7, state: 'running' });
   const rootStop = vi.fn(), cloneStop = vi.fn(), root = { getTracks: () => [{ stop: rootStop }], clone: vi.fn(() => ({ getTracks: () => [{ stop: cloneStop }] })) };
-  const base = fixture as PracticeScoreArtifact;
-  const artifact: PracticeScoreArtifact = { ...base,
-    expectedPracticeGroups: base.expectedPracticeGroups.slice(0, 2).map(g => ({ ...g, pitches: ['C4'], strikeTargets: [{ ...g.strikeTargets[0], pitch: 'C4' }] })),
-    practiceAttackSteps: base.practiceAttackSteps.slice(0, 2).map(s => ({ ...s, attackTargets: [{ ...s.attackTargets[0], pitch: 'C4' }] })) };
-  const records: ReturnType<StepPracticeRuntime['completeAttempt']>[] = [], failures: Error[] = [];
+  const artifact = artifactWithKeys([[60], [60]]);
+  const records: ReturnType<StepPracticeSession['completeAttempt']>[] = [], failures: Error[] = [];
   let source!: SourceAnalysisRuntime, publish!: SourceAnalysisOptions['onPublication'];
   let bridge!: CaptureConsumer, next = 0, sequence = 0, paused = false, failureListener: ((e: Error) => void) | undefined;
   let extraComplete: (() => void) | undefined;
@@ -40,10 +39,9 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
     return source;
   });
   const worker = {
-    load: vi.fn(async () => ({ testDouble: 'V25_DETERMINISTIC_INFERENCE_PORT_NO_MODEL' })),
     run: vi.fn(async (input: AcousticInferenceInput): Promise<AcousticInferenceResult> => {
       if (paused) await new Promise<void>(resolve => releases.push(resolve));
-      return { events: paused ? [] : pitches.map(pitch => ({ pitch, midiPitch: pitch === 'C5' ? 72 : pitch === 'D4' ? 62 : 60,
+      return { events: paused ? [] : pianoKeys.map(pianoKey => ({ pitch: pianoMidiPitchToName(pianoKey), midiPitch: pianoKey === 72 ? 72 : pianoKey === 62 ? 62 : 60,
         targetSample: Math.ceil(input.window.ownedStartTarget) + 8000, confidence: .8, onsetScore: .8, frameScore: .8 })),
         inferenceMs: 0, decodeMs: 0, actualSessionRunCount: input.window.jobIndex + 1 };
     }),
@@ -64,7 +62,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   const stop = vi.fn(() => { if (captureStopped) return; captureStopped = true; detach(); cloneStop(); });
   let detach = () => {};
   const platform: StepMicrophonePlatform = {
-    modelUrl: vi.fn(async () => 'fake://v25-not-onnx'), createWorker: vi.fn(() => worker), workletUrl: 'fake://shared-worklet',
+    acquireInference: vi.fn(async () => worker), workletUrl: 'fake://shared-worklet',
     coefficients: async r => readFile(`public/model-assets/practice-acoustic/${r === 44100 ? 'fir-160-441' : 'fir-1-3'}.f32`),
     connectCapture: vi.fn(async options => {
       expect(options.ownership).toBe('BORROWED_SESSION_STREAM'); options.stream.clone(); bridge = options.bridge;
@@ -75,20 +73,19 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   };
   const input: StepMicrophoneInput<StepAttemptIdentity> = new StepMicrophoneInput<StepAttemptIdentity>(platform, {
     open: time => runtime.openAttempt(time), complete: (id, evidence) => {
-      expect(evidence.kind).toBe('EVIDENCE'); expect(runtime.analyzeAttempt(id)).toBe(true);
+      expect(Object.keys(evidence).sort()).toEqual(['captureEndSessionTime','confidence','observedAttackKeys']); expect(runtime.analyzeAttempt(id)).toBe(true);
       records.push(runtime.completeAttempt(id, evidence)); extraComplete?.();
     }, failure: error => failures.push(error),
   });
   const signal = new AbortController();
   const starting = input.start({ context: context as unknown as AudioContext, stream: root as unknown as MediaStream,
-    localSessionId: 'v25', sourceDomainId: 'v25:capture' }, signal.signal);
-  const runtime: StepPracticeRuntime = new StepPracticeRuntime({ artifact, scope: { kind: 'FULL' }, inputSource: 'MICROPHONE', clock: input.clock,
-    localSessionId: 'v25', metadataClock: { nowEpochMs: () => 0 } });
+    localSessionId: 'v25', sourceDomainId }, signal.signal);
+  const runtime: StepPracticeSession = new StepPracticeSession({ plan: stepPracticePlan(artifact, { scope: { kind: 'FULL' }, inputSource: 'MICROPHONE' }), clock: input.clock, localSessionId: 'v25', metadataClock: { nowEpochMs: () => 0 } });
   runtime.setInputUnavailable();
   const initial = await starting;
   traces.push(() => ({ rate, initialBoundary: initial, finalInput: input.snapshot(), finalDomain: runtime.snapshot(), records,
-    failureMessages: failures.map(e => e.message), fakeWorkerConstructions: vi.mocked(platform.createWorker).mock.calls.length,
-    fakeModelLoads: worker.load.mock.calls.length, fakeInferenceRuns: worker.run.mock.calls.length,
+    failureMessages: failures.map(e => e.message), fakeWorkerConstructions: vi.mocked(platform.acquireInference).mock.calls.length,
+    fakeInferenceRuns: worker.run.mock.calls.length,
     fakeWorkerDisposals: worker.dispose.mock.calls.length, captureConnections: vi.mocked(platform.connectCapture).mock.calls.length,
     borrowedRootStops: rootStop.mock.calls.length, analysisCloneStops: cloneStop.mock.calls.length,
     publications: publications.map(p => ({ window: p.window, ownedThroughSourceSample: p.ownedThroughSourceSample, observations: p.observations })) }));
@@ -100,6 +97,7 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   return { input, runtime, initial, origin, context, worker, platform, root, rootStop, cloneStop, records, failures, activate,
     feed, untilPublications, publications, signal, source, bridge, publish: (p: SourceAcousticPublication) => publish(p),
     pause: () => { paused = true; }, workerFailure: () => failureListener?.(new Error('FAKE_WORKER_FAILURE')),
+    resume: async () => { paused = false; for (const release of releases.splice(0)) release(); await source.drain(); },
     onComplete: (fn: () => void) => { extraComplete = fn; },
     chunk: (overrides: Partial<CaptureChunk> = {}): CaptureChunk => ({ type: 'pcm-chunk', sequence, sourceSampleRateHz: rate,
       sourceStartSampleIndex: next, sourceEndSampleIndex: next + 2048, audioContextStartFrame: origin + next,
@@ -107,7 +105,47 @@ async function rig(rate: 44100 | 48000, pitches = ['C4']) {
   };
 }
 
+it.each(['a', 'a'.repeat(192), '🎵'.repeat(96), '音'.repeat(192), ' :\n\0'])
+  ('STEP microphone accepts opaque source identity %j through real runtime/assembler setup', async sourceDomainId => {
+    const r = await rig(48000, [60], sourceDomainId);
+    try {
+      expect(r.initial.sourceDomainId).toBe(sourceDomainId);
+      expect(r.failures).toEqual([]); expect(r.input.snapshot().resourceState).toBe('AVAILABLE');
+      expect(r.platform.acquireInference).toHaveBeenCalledOnce();
+    } finally { await r.input.dispose(); }
+  });
+
+it.each(['', 'a'.repeat(193), '🎵'.repeat(97)])
+  ('STEP microphone rejects invalid source identity %j before inference/FIR/capture', async sourceDomainId => {
+    const platform: StepMicrophonePlatform = { workletUrl: 'unused', acquireInference: vi.fn(), coefficients: vi.fn(), connectCapture: vi.fn() };
+    const failure = vi.fn(), input = new StepMicrophoneInput(platform, { open: vi.fn(), complete: vi.fn(), failure });
+    const context = Object.assign(new EventTarget(), { state: 'running', sampleRate: 48000, currentTime: 0 });
+    try {
+      await expect(input.start({ context: context as unknown as AudioContext, stream: {} as MediaStream,
+        localSessionId: 'session', sourceDomainId }, new AbortController().signal)).rejects.toThrow('STEP_MICROPHONE_CONNECTION_INVALID');
+      expect(failure).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: 'STEP_MICROPHONE_CONNECTION_INVALID' }));
+      expect(platform.acquireInference).not.toHaveBeenCalled(); expect(platform.coefficients).not.toHaveBeenCalled();
+      expect(platform.connectCapture).not.toHaveBeenCalled();
+    } finally { await input.dispose(); }
+  });
+
 describe.each([44100, 48000] as const)('%i persistent microphone resource owner / TEST DOUBLES ONLY', rate => {
+  it('STEP capture passes the accepted transport block to the real source runtime without expanding or copying it', async () => {
+    const r = await rig(rate);
+    try {
+      const append = vi.spyOn(r.source, 'append'), chunk = r.chunk();
+      expect(chunk.samples).toHaveLength(CAPTURE_TRANSPORT_BLOCK_SAMPLES);
+      r.context.currentTime = (r.origin + chunk.sourceEndSampleIndex) / rate;
+      r.bridge.receive(chunk);
+      expect(append).toHaveBeenCalledOnce();
+      expect(append.mock.calls[0][0]).toEqual({ sourceSampleRateHz: rate, sourceStartSampleIndex: chunk.sourceStartSampleIndex,
+        sourceEndSampleIndex: chunk.sourceEndSampleIndex, samples: chunk.samples });
+      expect(append.mock.calls[0][0].samples).toBe(chunk.samples);
+      expect(r.source.snapshot().nextSourceSampleIndex).toBe(chunk.sourceEndSampleIndex);
+      expect(r.failures).toEqual([]);
+    } finally { await r.input.dispose(); }
+  });
+
   it('establishes capture-origin mapping, real-capture boundary, preroll and exactly one long-lived owner graph', async () => {
     const r = await rig(rate);
     try {
@@ -120,7 +158,7 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       expect(r.initial.sessionTime).toEqual({ domainId: 'v25', sampleIndex: r.initial.capturedThroughSourceSample,
         ms: r.origin / rate * 1000 + r.initial.capturedThroughSourceSample / rate * 1000 });
       expect(r.input.clock.nowMs()).toBe(r.context.currentTime * 1000); expect(Object.isFrozen(r.initial)).toBe(true);
-      expect(r.worker.load).toHaveBeenCalledTimes(1); expect(r.platform.createWorker).toHaveBeenCalledTimes(1);
+       expect(r.platform.acquireInference).toHaveBeenCalledTimes(1);
       expect(SourceAnalysisRuntime.create).toHaveBeenCalledTimes(1); expect(r.platform.connectCapture).toHaveBeenCalledTimes(1);
       r.activate(); await r.untilPublications(1);
       expect(r.records).toHaveLength(1);
@@ -129,21 +167,23 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
       expect(b.capturedThroughSourceSample).toBe(r.input.snapshot().capture!.capturedThroughSourceSample);
       r.runtime.rearm(b.sessionTime); r.input.arm(b); await r.untilPublications(2);
       expect(r.records).toHaveLength(2); expect(r.input.snapshot().analysis?.counts.regionsStarted).toBe(1);
-      expect(r.input.snapshot().assembler?.retainedObservationIdentityCount).toBe(2);
+      expect(r.input.snapshot().assembler?.activeObservationCount).toBe(0);
+      expect(r.input.snapshot().assembler).not.toHaveProperty('retainedObservationIdentityCount');
+      expect(SourceAnalysisRuntime.create).toHaveBeenCalledTimes(1);
+      expect(r.platform.acquireInference).toHaveBeenCalledTimes(1); expect(r.platform.connectCapture).toHaveBeenCalledTimes(1);
     } finally { await r.input.dispose(); }
     expect(r.worker.dispose).toHaveBeenCalledTimes(1); expect(r.cloneStop).toHaveBeenCalledTimes(1); expect(r.rootStop).not.toHaveBeenCalled();
     await r.input.dispose(); expect(r.worker.dispose).toHaveBeenCalledTimes(1);
   });
 
-  it.each([{ pitches: ['C4'] }, { pitches: ['C4', 'C5'] }, { pitches: ['D4'] }])('runtime v6 alone interprets ordinary acoustic evidence $pitches', async ({ pitches }) => {
-    const r = await rig(rate, pitches);
+  it.each([{ pianoKeys: [60] }, { pianoKeys: [60, 72] }, { pianoKeys: [62] }])('runtime alone interprets acoustic pianoKey evidence $pianoKeys', async ({ pianoKeys }) => {
+    const r = await rig(rate, pianoKeys);
     try {
       r.activate(); await r.untilPublications(1);
-      const record = r.runtime.snapshot().step.attempts[0];
-      expect(record.verdict).toBe(pitches.length > 1 ? 'RETRY' : pitches[0] === 'C4' ? 'MATCH' : 'MISMATCH');
-      expect(record.observedAttackPitches).toEqual([...pitches].sort()); expect(record.confidence).toBe(.8);
+      const record = r.runtime.snapshot().step.pendingPostVerdict!;
+      expect(record.verdict).toBe(pianoKeys.length === 1 && pianoKeys[0] === 60 ? 'MATCH' : 'MISMATCH');
+      expect(record.observedAttackKeys).toEqual([...pianoKeys].sort()); expect(record.confidence).toBe(.8);
       expect(record.captureEndSessionTime.sampleIndex! - record.attemptStartSessionTime.sampleIndex!).toBe(rate * .05);
-      expect(r.runtime.snapshot().version).toMatchObject({ schemaVersion: 6, runtimeVersion: 'step-source-sensitive-verdict-v6' });
       expect(r.runtime.snapshot().step).toMatchObject({ currentIndex: 0, attemptState: 'POST_VERDICT' });
       const b = r.input.retirementBoundary(); r.runtime.rearm(b.sessionTime); r.input.arm(b);
       expect(r.runtime.snapshot().step.currentIndex).toBe(record.verdict === 'MATCH' ? 1 : 0);
@@ -151,28 +191,28 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
     } finally { await r.input.dispose(); }
   });
 
-  it('POST_VERDICT observations remain remembered/discarded; delayed IDs, old timestamps and equality never satisfy identical target 2', async () => {
+  it('POST_VERDICT and physically retired delayed analysis never satisfy identical target 2', async () => {
     const r = await rig(rate);
     try {
       r.activate(); await r.untilPublications(1); await r.untilPublications(2);
       expect(r.records).toHaveLength(1); expect(r.runtime.snapshot().step.currentIndex).toBe(0);
+      r.pause(); await r.feed(30); // physical capture advances while inference is outstanding
       const boundary = r.input.retirementBoundary(); r.runtime.rearm(boundary.sessionTime); r.input.arm(boundary);
-      const old = r.publications[0], blocked = r.publications[1];
-      for (const p of [old, blocked, { ...old, observations: old.observations.map(o => ({ ...o, observationId: 'new-id-old-time' })) }]) r.publish(p);
+      const previousCount = r.publications.length;
+      await r.resume();
+      expect(r.publications.length).toBeGreaterThan(previousCount);
+      expect(r.publications.slice(previousCount).flatMap(p => p.observations).every(o => o.sourceEventSample < boundary.capturedThroughSourceSample)).toBe(true);
       expect(r.records).toHaveLength(1); expect(r.runtime.snapshot().step.attemptState).toBe('READY');
-      r.pause(); await r.feed(3);
-      const end = r.input.snapshot().capture!.capturedThroughSourceSample;
-      const sample = boundary.capturedThroughSourceSample;
-      const observation = (s: number, id: string) => ({ ...old.observations[0], observationId: id, sourceEventSample: s, targetSample: Math.round(s * 16000 / rate) });
-      r.publish({ ...blocked, ownedThroughSourceSample: end, window: { ...blocked.window, windowIndex: blocked.window.windowIndex + 1 },
-        observations: [observation(sample, 'watermark-equality'), observation(sample + 1, 'one-source-unit-later')] });
+      for (let i = 0; i < 100 && r.records.length < 2; i++) await r.feed();
       expect(r.records).toHaveLength(2);
-      const second = r.runtime.snapshot().step.attempts[1];
-      expect(second.attemptStartSessionTime.sampleIndex).toBe(sample + 1);
-      expect(second.captureEndSessionTime.sampleIndex).toBe(sample + 1 + rate * .05);
-      expect(second.verdict).toBe('MATCH'); expect(second.observedAttackPitches).toEqual(['C4']);
+      const second = r.runtime.snapshot().step.pendingPostVerdict!;
+      expect(second.attemptStartSessionTime.sampleIndex).toBeGreaterThan(boundary.capturedThroughSourceSample);
+      expect(second.captureEndSessionTime.sampleIndex).toBe(second.attemptStartSessionTime.sampleIndex! + rate * .05);
+      expect(second.verdict).toBe('MATCH'); expect(second.observedAttackKeys).toEqual([60]);
       expect(r.runtime.isCompleted).toBe(false); const final = r.input.retirementBoundary(); r.runtime.rearm(final.sessionTime);
       expect(r.runtime.isCompleted).toBe(true); expect(r.failures).toEqual([]);
+      expect(SourceAnalysisRuntime.create).toHaveBeenCalledTimes(1); expect(r.platform.acquireInference).toHaveBeenCalledTimes(1);
+      expect(r.platform.connectCapture).toHaveBeenCalledTimes(1);
     } finally { await r.input.dispose(); }
   });
 
@@ -215,28 +255,28 @@ describe.each([44100, 48000] as const)('%i persistent microphone resource owner 
 });
 
 it('dispose during asynchronous preparation cleans a late worker once and cannot reconnect', async () => {
-  let resolveUrl!: (url: string) => void;
+  const lateLease = { run: vi.fn(), dispose: vi.fn(async () => {}) };
+  let resolveLease!: (lease: typeof lateLease) => void;
   const context = Object.assign(new EventTarget(), { sampleRate: 48000, currentTime: 0, state: 'running' });
-  const platform: StepMicrophonePlatform = { modelUrl: () => new Promise(resolve => { resolveUrl = resolve; }),
-    createWorker: vi.fn(), coefficients: vi.fn(), connectCapture: vi.fn(), workletUrl: 'fake://never-used' };
+  const platform: StepMicrophonePlatform = { acquireInference: () => new Promise(resolve => { resolveLease = resolve; }), coefficients: vi.fn(), connectCapture: vi.fn(), workletUrl: 'fake://never-used' };
   const failure = vi.fn(), input = new StepMicrophoneInput(platform, { open: () => null, complete: vi.fn(), failure });
   const starting = input.start({ context: context as unknown as AudioContext, stream: {} as MediaStream,
     localSessionId: 'cancel', sourceDomainId: 'cancel:capture' }, new AbortController().signal);
   const rejected = expect(starting).rejects.toThrow('DISPOSED');
-  const disposal = input.dispose(); resolveUrl('fake://never-loaded'); await rejected; await disposal;
-  expect(platform.createWorker).not.toHaveBeenCalled(); expect(platform.connectCapture).not.toHaveBeenCalled();
+  const disposal = input.dispose(); resolveLease(lateLease); await rejected; await disposal;
+  expect(lateLease.dispose).toHaveBeenCalledOnce(); expect(platform.connectCapture).not.toHaveBeenCalled();
   expect(failure).not.toHaveBeenCalled(); expect(input.snapshot().resourceState).toBe('DISPOSED');
   expect(input.dispose()).toBe(disposal);
 });
 
 it('model preparation failure is terminal without capture or fallback', async () => {
   const context = Object.assign(new EventTarget(), { sampleRate: 48000, currentTime: 0, state: 'running' });
-  const worker = { load: vi.fn(async () => { throw new Error('FAKE_LOAD_FAILURE'); }), run: vi.fn(), dispose: vi.fn(async () => {}) };
-  const platform: StepMicrophonePlatform = { modelUrl: async () => 'fake://not-model', createWorker: vi.fn(() => worker),
+  const acquireInference = vi.fn(async () => { throw new Error('FAKE_LEASE_FAILURE'); });
+  const platform: StepMicrophonePlatform = { acquireInference,
     coefficients: vi.fn(), connectCapture: vi.fn(), workletUrl: 'fake://never-used' };
   const failure = vi.fn(), input = new StepMicrophoneInput(platform, { open: () => null, complete: vi.fn(), failure });
   await expect(input.start({ context: context as unknown as AudioContext, stream: {} as MediaStream,
-    localSessionId: 'load-failure', sourceDomainId: 'load-failure:capture' }, new AbortController().signal)).rejects.toThrow('FAKE_LOAD_FAILURE');
-  await input.dispose(); expect(worker.load).toHaveBeenCalledTimes(1); expect(worker.dispose).toHaveBeenCalledTimes(1);
+    localSessionId: 'load-failure', sourceDomainId: 'load-failure:capture' }, new AbortController().signal)).rejects.toThrow('FAKE_LEASE_FAILURE');
+  await input.dispose(); expect(acquireInference).toHaveBeenCalledOnce();
   expect(failure).toHaveBeenCalledTimes(1); expect(platform.coefficients).not.toHaveBeenCalled(); expect(platform.connectCapture).not.toHaveBeenCalled();
 });

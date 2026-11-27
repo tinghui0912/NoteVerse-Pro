@@ -1,0 +1,25 @@
+"""Domain-owned resource states."""
+
+from enum import StrEnum
+
+
+class StoredObjectRetirementStatus(StrEnum):
+    PENDING = "PENDING"
+    DISPATCHED = "DISPATCHED"
+    PROCESSING = "PROCESSING"
+    FAILED = "FAILED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class ObjectWriteIntentStatus(StrEnum):
+    PREPARED = "PREPARED"
+    WRITING = "WRITING"
+    WRITE_UNKNOWN = "WRITE_UNKNOWN"
+    WRITTEN = "WRITTEN"
+    ADOPTED = "ADOPTED"
+    CLEANUP_PENDING = "CLEANUP_PENDING"
+    CLEANUP_DISPATCHED = "CLEANUP_DISPATCHED"
+    CLEANUP_PROCESSING = "CLEANUP_PROCESSING"
+    CLEANUP_FAILED = "CLEANUP_FAILED"
+    CLEANED = "CLEANED"

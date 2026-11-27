@@ -1,0 +1,203 @@
+import { recordingSinkFixture } from '@/lib/practice/__fixtures__/recording-sink';
+import { localMediaAssetFixture } from '@/lib/practice/__fixtures__/local-media-asset';
+import { expect, it, vi } from 'vitest';
+import { recordedPerformance } from '@/lib/practice/recording/recorded-performance';
+import type { PracticeScoreArtifact } from '@/lib/practice/score/artifact';
+import fixture from '@/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
+import { canonicalContinuousResultFixture } from '@/lib/practice/__fixtures__/continuous-result';
+import { createPerformanceRecording } from '@/lib/practice/recording/recording-artifact';
+import {
+  releaseTransientReviewSession,
+  createTransientReviewSession,
+} from './transient-review-session';
+const artifact = fixture as PracticeScoreArtifact;
+const source = {
+  ...canonicalContinuousResultFixture().executed.bundle,
+  musicXml: '<score />',
+};
+it('hands off canonical references without copying artifact, result or Blob bytes', () => {
+  const result = canonicalContinuousResultFixture(),
+    blob = new Blob(['video'], { type: 'video/webm' });
+  const recording = createPerformanceRecording({
+    status: 'READY',
+    kind: 'VIDEO',
+    media: localMediaAssetFixture(blob),
+    mimeType: 'video/webm',
+
+    timebase: {
+      nominalMediaDurationUs: 10000000,
+      activeSegments: [
+        {
+          performanceStartUs: 0,
+          performanceEndUs: 10000000,
+          mediaStartUs: 0,
+          mediaEndUs: 10000000,
+        },
+      ],
+    },
+  });
+  const session = createTransientReviewSession({ result, recording }, source);
+  expect(session.result).toBe(result);
+  expect(session.recording).not.toBe(recording);
+  expect(session.result.executed.bundle.artifact).toBe(artifact);
+  expect(
+    session.recording.status === 'READY' && session.recording.media.blob,
+  ).toBe(blob);
+  expect(Object.isFrozen(session)).toBe(true);
+  expect(Object.keys(session).sort()).toEqual([
+    'musicXml',
+    'recording',
+    'result',
+  ]);
+});
+it.each(['bundleId', 'scoreId', 'revisionId', 'artifactId'] as const)(
+  'rejects %s mismatch before Review ownership begins',
+  (field) => {
+    const result = canonicalContinuousResultFixture();
+    const mismatched =
+      field === 'bundleId'
+        ? { ...source, binding: { ...source.binding, bundleId: 'wrong' } }
+        : { ...source, artifact: { ...source.artifact, [field]: 'wrong' } };
+    expect(() =>
+      createTransientReviewSession(
+        { result, recording: { status: 'NOT_RECORDED' } },
+        mismatched,
+      ),
+    ).toThrow();
+  },
+);
+it.each(['', '   '])('requires admitted notation: %j', (musicXml) => {
+  expect(() =>
+    createTransientReviewSession(
+      {
+        result: canonicalContinuousResultFixture(),
+        recording: { status: 'NOT_RECORDED' },
+      },
+      { ...source, musicXml },
+    ),
+  ).toThrow();
+});
+it('validates recording before accepting the typed completion', () => {
+  const completion = {
+    result: canonicalContinuousResultFixture(),
+    recording: { status: 'NOT_RECORDED' as const },
+  };
+  expect(() =>
+    createTransientReviewSession(
+      { ...completion, recording: { status: 'READY' } as never },
+      source,
+    ),
+  ).toThrow();
+});
+
+it('retains before controller retirement, and final Review release removes media exactly once', async () => {
+  const f = recordingSinkFixture();
+  await f.sink.append(new Blob(['raw']));
+  const backing = await f.sink.seal('video/webm');
+  const media = { ...backing, retain: () => ({ ...backing.retain() }) };
+  const recording = createPerformanceRecording({
+    status: 'READY',
+    kind: 'VIDEO',
+    media,
+    mimeType: 'video/webm',
+
+    timebase: {
+      nominalMediaDurationUs: 10000000,
+      activeSegments: [
+        {
+          performanceStartUs: 0,
+          performanceEndUs: 10000000,
+          mediaStartUs: 0,
+          mediaEndUs: 10000000,
+        },
+      ],
+    },
+  });
+  const result = canonicalContinuousResultFixture();
+  const retain = vi.spyOn(media, 'retain');
+  expect(() =>
+    createTransientReviewSession(
+      { result, recording },
+      { ...source, binding: { ...source.binding, bundleId: 'wrong' } },
+    ),
+  ).toThrow();
+  const session = createTransientReviewSession({ result, recording }, source);
+  if (recording.status !== 'READY') throw new Error('Expected capture');
+  if (session.recording.status !== 'READY')
+    throw new Error('Expected Review capture');
+  const reviewRetain = vi.spyOn(session.recording.media, 'retain');
+  const reviewRelease = vi.spyOn(session.recording.media, 'release');
+  const paired = recordedPerformance(
+    session.result.executed,
+    session.recording,
+  );
+  expect(paired.executed).toBe(result.executed);
+  expect(paired.recording).toBe(session.recording);
+  expect(retain).toHaveBeenCalledExactlyOnceWith();
+  expect(reviewRetain).not.toHaveBeenCalled();
+  await recording.media.release();
+  expect(f.exists()).toBe(true);
+  expect(
+    session.recording.status === 'READY' &&
+      (await session.recording.media.blob.text()),
+  ).toBe('raw');
+  await releaseTransientReviewSession(session);
+  expect(reviewRelease).toHaveBeenCalledExactlyOnceWith();
+  await releaseTransientReviewSession(session);
+  expect(f.exists()).toBe(false);
+  expect(f.remove).toHaveBeenCalledOnce();
+});
+
+it.each([
+  { status: 'NOT_RECORDED' as const },
+  { status: 'UNAVAILABLE' as const, reason: 'RECORDING_STORAGE_UNAVAILABLE' },
+])('hands off $status without acquiring media', async (recording) => {
+  const result = canonicalContinuousResultFixture();
+  const session = createTransientReviewSession({ result, recording }, source);
+  expect(session).toEqual({ result, recording, musicXml: source.musicXml });
+  expect(session.recording).toBe(recording);
+  await expect(releaseTransientReviewSession(session)).resolves.toBeUndefined();
+});
+
+it('invalid handoff takes no reference and controller retirement deletes the media', async () => {
+  const f = recordingSinkFixture();
+  await f.sink.append(new Blob(['raw']));
+  const media = await f.sink.seal('video/webm');
+  const recording = createPerformanceRecording({
+    status: 'READY',
+    kind: 'VIDEO',
+    media,
+    mimeType: 'video/webm',
+
+    timebase: {
+      nominalMediaDurationUs: 10000000,
+      activeSegments: [
+        {
+          performanceStartUs: 0,
+          performanceEndUs: 10000000,
+          mediaStartUs: 0,
+          mediaEndUs: 10000000,
+        },
+      ],
+    },
+  });
+  expect(() =>
+    createTransientReviewSession(
+      { result: canonicalContinuousResultFixture(), recording },
+      { ...source, musicXml: '' },
+    ),
+  ).toThrow();
+  await media.release();
+  expect(f.remove).toHaveBeenCalledOnce();
+  expect(f.exists()).toBe(false);
+});
+
+it('requires the exact admitted artifact even when stable identity fields agree', () => {
+  const result = canonicalContinuousResultFixture();
+  expect(() =>
+    createTransientReviewSession(
+      { result, recording: { status: 'NOT_RECORDED' } },
+      { ...source, artifact: { ...source.artifact } },
+    ),
+  ).toThrow('bundle identity');
+});

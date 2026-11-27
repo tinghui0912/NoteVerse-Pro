@@ -1,81 +1,42 @@
 'use client';
-
-/**
- * Undo/redo control hook for editor history.
- */
-
-import { useCallback } from 'react';
-import { useScoreData } from '@/contexts/score-data-context';
-import { useHistory } from '@/contexts/editor-history-context';
+import { useEditorSession } from '@/contexts/editor-session-context';
 import { useEditorState } from '@/contexts/editor-state-context';
-import {
-    importMusicXmlToEditorDomain,
-    type DomainAnchor,
-    type ScoreDocument,
-} from '@/lib/editor-domain';
-
+import type { ScoreDocument, DomainAnchor } from '@/lib/editor-domain';
 export function useHistoryEditor() {
-    const history = useHistory();
-    const { setCurrentXml, currentXmlRef, reparseXml } = useScoreData();
-    const {
-        editingSelection,
-        openEditingSelection,
-        clearEditingSelection,
-        setInspectorOpen,
-    } = useEditorState();
-
-    const applyHistoryXml = useCallback((xml: string) => {
-        currentXmlRef.current = xml;
-        setCurrentXml(xml);
-        reparseXml(xml);
-        const imported = importMusicXmlToEditorDomain(xml);
-        const domainAnchor = findExistingDomainAnchor(imported.document, editingSelection?.domainAnchor ?? null);
-        if (domainAnchor) {
-            openEditingSelection({
-                domainAnchor,
-                domainCompanion: null,
-            });
-        } else {
-            clearEditingSelection();
-            setInspectorOpen(false);
-        }
-    }, [
-        currentXmlRef,
-        editingSelection?.domainAnchor,
-        reparseXml,
-        setCurrentXml,
-        openEditingSelection,
-        clearEditingSelection,
-        setInspectorOpen,
-    ]);
-
-    const handleUndo = useCallback(() => {
-        const xml = history.undo();
-        if (xml) applyHistoryXml(xml);
-    }, [applyHistoryXml, history]);
-
-    const handleRedo = useCallback(() => {
-        const xml = history.redo();
-        if (xml) applyHistoryXml(xml);
-    }, [applyHistoryXml, history]);
-
-    return {
-        canUndo: history.canUndo,
-        canRedo: history.canRedo,
-        handleUndo,
-        handleRedo,
-    };
+  const session = useEditorSession();
+  const ui = useEditorState();
+  const restore = (operation: () => ScoreDocument | null) => {
+    const document = operation();
+    if (!document) return;
+    const domainAnchor = findExistingDomainAnchor(
+      document,
+      ui.editingSelection?.domainAnchor ?? null,
+    );
+    if (domainAnchor) ui.openEditingSelection({ domainAnchor, domainCompanion: null });
+    else {
+      ui.clearEditingSelection();
+      ui.setInspectorOpen(false);
+    }
+  };
+  return {
+    canUndo: session.canUndo,
+    canRedo: session.canRedo,
+    handleUndo: () => restore(session.undo),
+    handleRedo: () => restore(session.redo),
+  };
 }
-
-function findExistingDomainAnchor(document: ScoreDocument, anchor: DomainAnchor | null): DomainAnchor | null {
-    if (!anchor) return null;
-    if (anchor.kind === 'event') {
-        return document.events.some((event) => event.id === anchor.eventId) ? anchor : null;
-    }
-    if (anchor.kind === 'noteAtom') {
-        const event = document.events.find((candidate) => candidate.id === anchor.eventId);
-        if (event?.kind !== 'pitched') return null;
-        return event.notes.some((note) => note.id === anchor.noteAtomId) ? anchor : null;
-    }
-    return anchor;
+function findExistingDomainAnchor(
+  document: ScoreDocument,
+  anchor: DomainAnchor | null,
+): DomainAnchor | null {
+  if (!anchor) return null;
+  if (anchor.kind === 'event') {
+    return document.events.some((event) => event.id === anchor.eventId) ? anchor : null;
+  }
+  if (anchor.kind === 'noteAtom') {
+    const event = document.events.find((candidate) => candidate.id === anchor.eventId);
+    if (event?.kind !== 'pitched') return null;
+    return event.notes.some((note) => note.id === anchor.noteAtomId) ? anchor : null;
+  }
+  return anchor;
 }

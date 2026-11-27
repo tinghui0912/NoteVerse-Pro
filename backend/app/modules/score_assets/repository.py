@@ -2,48 +2,109 @@ from __future__ import annotations
 
 from typing import TypeAlias
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import (
-    PlaybackAssetKind,
     PlaybackOutbox,
-    RenderOutbox,
+    ScoreRevisionRenderOutbox,
+    Score,
     ScorePlaybackAsset,
     ScoreRenderAsset,
     ScoreRevision,
     ScoreRevisionSource,
 )
-from app.db.models.score import RenderAssetKind, RevisionSourceFormat
+from app.modules.playback.domain import PlaybackAssetKind
+from app.modules.playback.domain import PlaybackOutboxStatus
+from app.modules.revisions.render_states import ScoreRevisionRenderStatus
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.revisions.domain import RevisionSourceFormat
 
 ScoreAssetRecord: TypeAlias = ScoreRevisionSource | ScoreRenderAsset
 
 
 class ScoreAssetRepository:
-    async def get_source(
-        self, db: AsyncSession, source_uuid: str
-    ) -> ScoreRevisionSource | None:
-        return (
-            await db.execute(
-                select(ScoreRevisionSource).where(
-                    ScoreRevisionSource.source_uuid == source_uuid
+    def page_presentation_facts(
+        self, db: Session, revision_ids: list[int], *, render_profile: str
+    ) -> tuple[
+        dict[int, str],
+        dict[int, ScoreRevisionRenderStatus],
+        dict[int, str],
+        dict[int, PlaybackOutboxStatus],
+    ]:
+        if not revision_ids:
+            return {}, {}, {}, {}
+        pages = (
+            select(
+                ScoreRenderAsset.revision_id,
+                ScoreRenderAsset.asset_uuid,
+                func.row_number()
+                .over(
+                    partition_by=ScoreRenderAsset.revision_id,
+                    order_by=(
+                        ScoreRenderAsset.page_number,
+                        ScoreRenderAsset.created_at,
+                        ScoreRenderAsset.id,
+                    ),
                 )
+                .label("ordinal"),
             )
-        ).scalar_one_or_none()
+            .where(
+                ScoreRenderAsset.revision_id.in_(revision_ids),
+                ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
+                ScoreRenderAsset.render_profile == render_profile,
+            )
+            .subquery()
+        )
+        thumbnails = dict(
+            db.execute(
+                select(pages.c.revision_id, pages.c.asset_uuid).where(pages.c.ordinal == 1)
+            ).all()
+        )
+        renders = dict(
+            db.execute(
+                select(
+                    ScoreRevisionRenderOutbox.revision_id, ScoreRevisionRenderOutbox.status
+                ).where(
+                    ScoreRevisionRenderOutbox.revision_id.in_(revision_ids),
+                    ScoreRevisionRenderOutbox.render_profile == render_profile,
+                )
+            ).all()
+        )
+        audio = dict(
+            db.execute(
+                select(ScorePlaybackAsset.revision_id, ScorePlaybackAsset.asset_uuid).where(
+                    ScorePlaybackAsset.revision_id.in_(revision_ids),
+                    ScorePlaybackAsset.kind == PlaybackAssetKind.AUDIO,
+                )
+            ).all()
+        )
+        playback = dict(
+            db.execute(
+                select(PlaybackOutbox.revision_id, PlaybackOutbox.status).where(
+                    PlaybackOutbox.revision_id.in_(revision_ids),
+                    PlaybackOutbox.asset_kind == PlaybackAssetKind.AUDIO,
+                )
+            ).all()
+        )
+        return thumbnails, renders, audio, playback
 
-    async def get_render_asset(
-        self, db: AsyncSession, asset_uuid: str
-    ) -> ScoreRenderAsset | None:
+    def get_source(self, db: Session, source_uuid: str) -> ScoreRevisionSource | None:
         return (
-            await db.execute(
-                select(ScoreRenderAsset).where(ScoreRenderAsset.asset_uuid == asset_uuid)
+            db.execute(
+                select(ScoreRevisionSource).where(ScoreRevisionSource.source_uuid == source_uuid)
             )
         ).scalar_one_or_none()
 
-    async def list_sources(
+    def get_render_asset(self, db: Session, asset_uuid: str) -> ScoreRenderAsset | None:
+        return (
+            db.execute(select(ScoreRenderAsset).where(ScoreRenderAsset.asset_uuid == asset_uuid))
+        ).scalar_one_or_none()
+
+    def list_sources(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
         source_format: RevisionSourceFormat | None = None,
     ) -> list[ScoreRevisionSource]:
@@ -52,13 +113,11 @@ class ScoreAssetRepository:
         )
         if source_format is not None:
             statement = statement.where(ScoreRevisionSource.format == source_format)
-        return list((await db.execute(statement)).scalars().all())
+        return list((db.execute(statement)).scalars().all())
 
-    async def canonical_source(
-        self, db: AsyncSession, revision_id: int
-    ) -> ScoreRevisionSource | None:
+    def canonical_source(self, db: Session, revision_id: int) -> ScoreRevisionSource | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreRevisionSource).where(
                     ScoreRevisionSource.revision_id == revision_id,
                     ScoreRevisionSource.format == RevisionSourceFormat.MUSICXML,
@@ -66,63 +125,54 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    async def list_render_assets(
+    def list_render_assets(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
         kind: RenderAssetKind | None = None,
+        *,
+        render_profile: str | None = None,
     ) -> list[ScoreRenderAsset]:
         statement = (
             select(ScoreRenderAsset)
             .where(ScoreRenderAsset.revision_id == revision_id)
             .order_by(ScoreRenderAsset.kind, ScoreRenderAsset.page_number)
         )
+        if render_profile is not None:
+            statement = statement.where(ScoreRenderAsset.render_profile == render_profile)
         if kind is not None:
             statement = statement.where(ScoreRenderAsset.kind == kind)
-        return list((await db.execute(statement)).scalars().all())
+        return list((db.execute(statement)).scalars().all())
 
-    async def first_rendered_page_asset(
-        self, db: AsyncSession, revision_id: int
+    def first_rendered_page_asset(
+        self, db: Session, revision_id: int, *, render_profile: str
     ) -> ScoreRenderAsset | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScoreRenderAsset)
                 .where(
                     ScoreRenderAsset.revision_id == revision_id,
                     ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
+                    ScoreRenderAsset.render_profile == render_profile,
                 )
                 .order_by(
                     col(ScoreRenderAsset.page_number).asc(),
                     col(ScoreRenderAsset.created_at).asc(),
+                    ScoreRenderAsset.id.asc(),
                 )
                 .limit(1)
             )
         ).scalar_one_or_none()
 
-    async def latest_render_outbox(
-        self, db: AsyncSession, revision_id: int, *, render_profile: str = "default"
-    ) -> RenderOutbox | None:
-        return (
-            await db.execute(
-                select(RenderOutbox)
-                .where(
-                    RenderOutbox.revision_id == revision_id,
-                    RenderOutbox.render_profile == render_profile,
-                )
-                .order_by(col(RenderOutbox.created_at).desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-
-    async def playback_asset(
+    def playback_asset(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
         *,
         kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
     ) -> ScorePlaybackAsset | None:
         return (
-            await db.execute(
+            db.execute(
                 select(ScorePlaybackAsset)
                 .where(
                     ScorePlaybackAsset.revision_id == revision_id,
@@ -132,15 +182,15 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    async def latest_playback_outbox(
+    def latest_playback_outbox(
         self,
-        db: AsyncSession,
+        db: Session,
         revision_id: int,
         *,
         kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
     ) -> PlaybackOutbox | None:
         return (
-            await db.execute(
+            db.execute(
                 select(PlaybackOutbox)
                 .where(
                     PlaybackOutbox.revision_id == revision_id,
@@ -151,55 +201,12 @@ class ScoreAssetRepository:
             )
         ).scalar_one_or_none()
 
-    async def fallback_rendered_page_asset(
-        self, db: AsyncSession, score_id: int, head_revision_id: int
-    ) -> tuple[ScoreRenderAsset, ScoreRevision] | None:
-        row = (
-            await db.execute(
-                select(ScoreRenderAsset, ScoreRevision)
-                .join(ScoreRevision, ScoreRenderAsset.revision_id == ScoreRevision.id)
-                .where(
-                    ScoreRevision.score_id == score_id,
-                    ScoreRevision.id != head_revision_id,
-                    ScoreRenderAsset.kind == RenderAssetKind.RENDERED_PAGE,
-                )
-                .order_by(
-                    col(ScoreRevision.revision_number).desc(),
-                    col(ScoreRenderAsset.page_number).asc(),
-                    col(ScoreRenderAsset.created_at).asc(),
-                )
-                .limit(1)
-            )
-        ).first()
-        return (row[0], row[1]) if row else None
-
-    async def fallback_playback_asset(
-        self,
-        db: AsyncSession,
-        score_id: int,
-        head_revision_id: int,
-        *,
-        kind: PlaybackAssetKind = PlaybackAssetKind.AUDIO,
-    ) -> tuple[ScorePlaybackAsset, ScoreRevision] | None:
-        row = (
-            await db.execute(
-                select(ScorePlaybackAsset, ScoreRevision)
-                .join(ScoreRevision, ScorePlaybackAsset.revision_id == ScoreRevision.id)
-                .where(
-                    ScoreRevision.score_id == score_id,
-                    ScoreRevision.id != head_revision_id,
-                    ScorePlaybackAsset.kind == kind,
-                )
-                .order_by(
-                    col(ScoreRevision.revision_number).desc(),
-                    col(ScorePlaybackAsset.created_at).asc(),
-                )
-                .limit(1)
-            )
-        ).first()
-        return (row[0], row[1]) if row else None
-
-    async def revision_for_asset(
-        self, db: AsyncSession, asset: ScoreAssetRecord
-    ) -> ScoreRevision | None:
-        return await db.get(ScoreRevision, asset.revision_id)
+    def revision_identity_for_asset(
+        self, db: Session, asset: ScoreAssetRecord
+    ) -> tuple[str, str] | None:
+        row = db.execute(
+            select(Score.score_uuid, ScoreRevision.revision_uuid)
+            .join(ScoreRevision, ScoreRevision.score_id == Score.id)
+            .where(ScoreRevision.id == asset.revision_id)
+        ).one_or_none()
+        return (row[0], row[1]) if row is not None else None

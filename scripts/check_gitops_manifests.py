@@ -39,7 +39,9 @@ FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
     (
         "local-dev-endpoint",
-        re.compile(r"\b(localhost|127\.0\.0\.1|192\.168\.|host\.docker\.internal)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(localhost|127\.0\.0\.1|192\.168\.|host\.docker\.internal)\b", re.IGNORECASE
+        ),
     ),
     (
         "obvious-secret-value",
@@ -47,7 +49,6 @@ FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"(your-secret|LTAI[0-9A-Za-z]|re_[0-9A-Za-z]{10,}|"
             r"S3_SECRET_ACCESS_KEY\s*=\s*\S+|"
             r"DATABASE_URL\s*=\s*(postgres|mysql|sqlite)|"
-            r"SYNC_DATABASE_URL\s*=\s*(postgres|mysql|sqlite)|"
             r"REDIS_URL\s*=\s*redis|"
             r"CELERY_BROKER_URL\s*=\s*redis|"
             r"CELERY_RESULT_BACKEND\s*=\s*redis|"
@@ -127,7 +128,9 @@ def validate_files(target: Path) -> list[Finding]:
         text = kustomization_path.read_text(encoding="utf-8")
         image_blocks = list(IMAGE_BLOCK_PATTERN.finditer(text))
         if not image_blocks:
-            findings.append(Finding(str(kustomization_path), 1, "digest-pinned-image", "no image blocks found"))
+            findings.append(
+                Finding(str(kustomization_path), 1, "digest-pinned-image", "no image blocks found")
+            )
         for match in image_blocks:
             if match.group("field") != "digest" or not match.group("value").startswith("sha256:"):
                 findings.append(
@@ -144,12 +147,16 @@ def validate_files(target: Path) -> list[Finding]:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         images = metadata.get("images")
         if not isinstance(images, dict) or not images:
-            findings.append(Finding(str(metadata_path), 1, "release-metadata-images", "missing images"))
+            findings.append(
+                Finding(str(metadata_path), 1, "release-metadata-images", "missing images")
+            )
         else:
             for name, value in images.items():
                 if not isinstance(value, str) or "@sha256:" not in value:
                     findings.append(
-                        Finding(str(metadata_path), 1, "release-metadata-digest", f"{name}={value!r}")
+                        Finding(
+                            str(metadata_path), 1, "release-metadata-digest", f"{name}={value!r}"
+                        )
                     )
     return findings
 
@@ -182,7 +189,9 @@ def main() -> int:
         for snippet in REQUIRED_RENDERED_SNIPPETS:
             if snippet not in rendered:
                 findings.append(
-                    Finding(f"{target} (rendered)", 1, "required-rendered-snippet", f"missing {snippet}")
+                    Finding(
+                        f"{target} (rendered)", 1, "required-rendered-snippet", f"missing {snippet}"
+                    )
                 )
     if findings:
         print_findings(findings)

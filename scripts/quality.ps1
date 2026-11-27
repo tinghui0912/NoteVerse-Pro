@@ -13,7 +13,7 @@ param(
         "customer-web-lint",
         "customer-web-typecheck",
         "customer-web-i18n",
-        "customer-web-api-types",
+        "customer-web-api",
         "customer-web-test",
         "customer-web-coverage",
         "platform-admin-lint",
@@ -79,12 +79,14 @@ function Invoke-CustomerWebNpm {
 function Invoke-PlatformAdminNpm {
     param([string] $Script)
 
+    if ($Script -eq "test") {
+        Invoke-PlatformAdminNpm "check:api"
+        Invoke-PlatformAdminNpm "check:browser-protocol"
+    }
     Invoke-Step "platform-admin:$Script" {
         Push-Location $PlatformAdminRoot
         try {
             $env:NEXT_CONTROL_PLANE_ORIGIN = "http://127.0.0.1:8002"
-            $env:NEXT_PUBLIC_CONTROL_PLANE_CSRF_COOKIE_NAME = "noteverse_operator_csrf"
-            $env:NEXT_PUBLIC_CONTROL_PLANE_CSRF_HEADER_NAME = "x-operator-csrf-token"
             npm run $Script
         }
         finally {
@@ -111,7 +113,10 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
 
     Invoke-Step "k8s:release-overlay-renderer" {
         if (Test-Path $OutputRoot) {
-            Remove-Item -Recurse -Force $OutputRoot
+            $resolvedOutput = (Resolve-Path -LiteralPath $OutputRoot).ProviderPath
+            $expectedOutput = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "build/k8s-release-check"))
+            if ($resolvedOutput -ne $expectedOutput) { throw "Unexpected release-check output directory." }
+            Remove-Item -LiteralPath $resolvedOutput -Recurse -Force
         }
 
         python $K8sReleaseOverlayRenderer `
@@ -134,7 +139,6 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --s3-endpoint-url "https://object-storage.noteverse.test" `
             --s3-region "auto" `
             --s3-bucket "noteverse-staging" `
-            --s3-public-base-url "https://objects.staging.noteverse.test" `
             --s3-force-path-style true `
             --s3-presign-expire-seconds 900
 
@@ -206,8 +210,8 @@ switch ($Check) {
     "customer-web-i18n" {
         Invoke-CustomerWebNpm "check:i18n-errors"
     }
-    "customer-web-api-types" {
-        Invoke-CustomerWebNpm "check:api-types"
+    "customer-web-api" {
+        Invoke-CustomerWebNpm "check:api"
     }
     "customer-web-test" {
         Invoke-CustomerWebNpm "test"
@@ -247,7 +251,7 @@ switch ($Check) {
         Invoke-BackendQuality "mypy-model-layer"
         Invoke-BackendQuality "pytest"
         Invoke-CustomerWebNpm "lint"
-        Invoke-CustomerWebNpm "check:api-types"
+        Invoke-CustomerWebNpm "check:api"
         Invoke-CustomerWebNpm "typecheck"
         Invoke-CustomerWebNpm "check:i18n-errors"
         Invoke-PlatformAdminNpm "lint"

@@ -1,53 +1,58 @@
 """Routes for authenticated session management."""
 
 from fastapi import APIRouter, Cookie, Depends, Query, Response
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
+from app.core.generated.customer_browser_protocol import REFRESH_COOKIE_NAME
 from app.api import deps
-from app.core.config import settings
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
 from app.modules.auth.dependencies import get_session_service
 from app.modules.auth.session_cookies import clear_session_cookies
 from app.modules.auth.schemas import SessionsRead
 from app.modules.auth.sessions_service import SessionService
-from app.shared.constants import SuccessCode
-from app.shared.responses import APIResponse, EmptyResponse
+
 
 router = APIRouter()
 SESSION_LIST_DEFAULT_LIMIT = 100
 SESSION_LIST_MAX_LIMIT = 100
 
 
-@router.get("/sessions", response_model=APIResponse[SessionsRead])
-async def list_my_sessions(
+@router.get("/sessions", operation_id="accountSessionsList", response_model=SessionsRead)
+def list_my_sessions(
     limit: int = Query(default=SESSION_LIST_DEFAULT_LIMIT, ge=1, le=SESSION_LIST_MAX_LIMIT),
     current_user: User = Depends(deps.get_current_user),
-    db: AsyncSession = Depends(deps.get_db),
-    refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    db: Session = Depends(deps.get_db),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
-) -> APIResponse[SessionsRead]:
+) -> SessionsRead:
     user_id = require_persisted_id(current_user.id, entity="user")
-    sessions = await session_service.list_user_sessions(
+    sessions = session_service.list_user_sessions(
         db,
         user_id,
         current_refresh_token=refresh_cookie,
         limit=limit,
     )
-    return APIResponse(success=True, data=SessionsRead(sessions=sessions))
+    return SessionsRead(sessions=sessions)
 
 
-@router.delete("/sessions/{session_id}", response_model=EmptyResponse)
-async def revoke_my_session(
+@router.delete(
+    "/sessions/{session_id}",
+    operation_id="accountSessionRevoke",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
+)
+def revoke_my_session(
     session_id: int,
     response: Response,
     current_user: User = Depends(deps.get_current_user),
-    db: AsyncSession = Depends(deps.get_db),
-    refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    db: Session = Depends(deps.get_db),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
-) -> EmptyResponse:
+) -> Response:
     user_id = require_persisted_id(current_user.id, entity="user")
-    revoked_current = await session_service.revoke_user_session(
+    revoked_current = session_service.revoke_user_session(
         db,
         user_id,
         session_id,
@@ -55,20 +60,27 @@ async def revoke_my_session(
     )
     if revoked_current:
         clear_session_cookies(response)
-    return EmptyResponse(success=True, message=SuccessCode.SESSION_REVOKED)
+    response.status_code = 204
+    return response
 
 
-@router.delete("/sessions", response_model=EmptyResponse)
-async def revoke_my_other_sessions(
+@router.delete(
+    "/sessions",
+    operation_id="accountOtherSessionsRevoke",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
+)
+def revoke_my_other_sessions(
     current_user: User = Depends(deps.get_current_user),
-    db: AsyncSession = Depends(deps.get_db),
-    refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_COOKIE_NAME),
+    db: Session = Depends(deps.get_db),
+    refresh_cookie: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
     session_service: SessionService = Depends(get_session_service),
-) -> EmptyResponse:
+) -> Response:
     user_id = require_persisted_id(current_user.id, entity="user")
-    await session_service.revoke_other_user_sessions(
+    session_service.revoke_other_user_sessions(
         db,
         user_id,
         current_refresh_token=refresh_cookie,
     )
-    return EmptyResponse(success=True, message=SuccessCode.SESSIONS_REVOKED)
+    return Response(status_code=204)

@@ -6,7 +6,6 @@ export type VerovioToolkitLike = {
   renderToTimemap(options?: Record<string, unknown>): Array<Record<string, unknown>>;
   getPageCount(): number;
   getPageWithElement(xmlId: string): number;
-  getElementsAtTime?(milliseconds: number): Record<string, unknown>;
   redoLayout(options?: Record<string, unknown>): void;
 };
 

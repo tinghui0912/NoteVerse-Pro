@@ -4,51 +4,74 @@ Status: Accepted
 
 ## Context
 
-Musical identity, notation intent and renderer geometry are different concerns.
-The Customer Web editor must edit musical objects while preserving MusicXML
-interchange and Verovio rendering fidelity.
+Musical identity, notation intent, source preservation and renderer geometry are
+separate concerns. The Customer Web Editor edits a semantic document and derives
+MusicXML for interchange and rendering.
 
 ## Decision
 
-`apps/customer-web/src/lib/editor-domain` owns branded document/part/staff/voice,
-event and note-atom identities, rational musical positions and rhythmic values.
+`apps/customer-web/src/lib/editor-domain` owns the single editing semantic model,
+`ScoreDocument`: document metadata, parts, staves, explicitly numbered voices,
+measure attribute changes, rational musical positions, events, note atoms and
+notation intent. Effective meter, key and staff clef inherit within each part.
+Unknown context remains unknown; context-dependent input is disabled or rejected
+when the required facts are unavailable. Domain modules depend only on domain-local
+modules.
+
 A pitched event contains one or more note atoms; a chord is one rhythmic event.
-An explicit rest is persisted. Gaps and derived rests are computed from voice
-events and meter rather than stored as ordinary voice events.
+Explicit rests are musical events. Gaps are derived from events and effective
+meter. Tie, slur and beam relationships are distinct from stem and relationship
+placement overrides. Meter commands recompute automatic beam intent within the
+changed meter's inheritance scope. Renderer geometry is never persisted as music.
 
-Tie, slur and beam relationships are distinct from explicit notation overrides.
-Stem direction and relationship placement are notation intent. Renderer-computed
-beam slopes, notehead offsets and curves are engraving output and are not written
-back as canonical musical facts.
+`EditorSession`, exposed through `EditorSessionProvider`, atomically owns the
+current document, opaque `MusicXmlSourceSnapshot`, derived timeline gaps and
+serialized MusicXML projection. It accepts explicit load, domain command, external
+replacement, undo/redo and clear operations. Commands run against the current
+semantic snapshot. Failed commands and serialization leave the accepted session
+and history unchanged. Published documents are immutable.
 
-MusicXML importer/exporter owns document-order cursor movement, divisions,
-forward/backup instructions and chord serialization. Voice identity is not the
-XML serialization cursor. Verovio IDs map through render/source anchors to
-domain anchors; rendered spaces are excluded from ordinary editable event hits.
+`apps/customer-web/src/lib/editor-musicxml` owns import, source preservation and
+serialization. The opaque snapshot holds source XML and source addresses. It does
+not contain a second note, voice or score model and does not answer domain queries.
+The serializer applies document intent to a fresh source clone, preserving unrelated
+metadata, lyrics, directions, attributes and layout. Metadata credits and MusicXML
+child ordering are adapter responsibilities. Unsupported or unsafe interpretation
+and serialization fail explicitly, without guessed musical defaults.
 
-## Current write and read boundaries
+## Current boundaries
 
-Domain commands and Inspector drafts operate on the domain document. Editor
-hooks export MusicXML, update history and refresh projections. A behavior has
-one authoritative write path; adapters must not perform competing writes and
-merge them afterward.
+Import occurs at document load, draft restore and trusted full-document replacement.
+Ordinary reads, edits, undo and redo do not re-import MusicXML. History stores
+semantic document/source snapshots and action labels. Restoring history regenerates
+the XML projection from the restored snapshot.
 
-`ParsedScoreEvent` and `ScoreData` are adapter/read models used by parser output,
-preview geometry and source-ID lookup/reselection. They coexist with the domain
-document for those current responsibilities; they do not define command identity.
-Connection navigation resolves domain note-atom anchors through source IDs.
+Serialized XML is used for Verovio rendering, validation, revision save, draft
+persistence, download and external full-document services such as fingering. A
+returned full document is validated/imported and enters history atomically with
+its own source snapshot. IndexedDB drafts persist MusicXML and baseline revision
+identity; draft recovery imports that interchange data into the session.
 
-Selection, active voice, caret, rhythmic grid, input duration and insertion
-preview are distinct concepts. Empty time is addressed by caret/gap anchors,
-not by MusicXML cursor instructions. Removing the last pitch does not create
-an explicit rest; deleting an event and creating a rest are separate commands.
+Tracks, metadata placeholders, connection details, selection and rhythmic placement
+read the domain document. Render/source anchors join semantic identity to SVG hits.
+SVG geometry and visibility are UI projections, not score models. Verovio spaces
+are excluded from ordinary editable event hits.
 
-## Invariants and consequences
+An empty Voice Layer entry is a session input target. It becomes a musical voice
+when the first event is inserted. It does not create an empty-voice declaration or
+require a parser restoration mechanism. Deleting a musical voice removes its
+events and touching relationships through a domain command.
 
-Domain types do not import UI or MusicXML adapter models. Invariant, command,
-selection, source-anchor, notation and MusicXML round-trip tests define these
-boundaries. Unsupported notation must be preserved or rejected explicitly rather
-than silently reinterpreted. UI projections do not authorize a second write model.
+Selection, active voice, caret, grid, input duration and insertion preview remain
+separate UI concepts. Removing the last pitch does not silently create an explicit
+rest. Event deletion and explicit-rest creation are separate commands.
+
+## Invariants
+
+There is one semantic document authority, one opaque source-preservation authority,
+one MusicXML adapter and one session owner. Domain, adapter, session and component
+behavior tests enforce those boundaries. UI read projections cannot authorize
+independent MusicXML writes.
 
 See [Editor Workbench](../architecture/editor/editor-workbench.md) and
 [Automatic Beaming](../architecture/editor/automatic-beaming.md).

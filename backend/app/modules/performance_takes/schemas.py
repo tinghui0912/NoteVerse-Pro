@@ -1,13 +1,25 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal, Optional
+from app.shared.pagination import CursorPage
+
+
+from app.shared.time import Instant
+from typing import Literal, Optional, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from .generated.recording_timebase import RecordingTimebase
+from app.shared.api_model import ApiModel
+from app.modules.media_storage.upload_sessions.schemas import UploadSessionRead
 
 
 class StrictPerformanceTakeModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class PerformanceTakeScoreTimebase(StrictPerformanceTakeModel):
+    """Source-local Practice written score coordinate system, resolved by the server."""
+
+    ticks_per_quarter: int = Field(strict=True, gt=0, le=2**53 - 1)
 
 
 class ScoreTempoPlanSelection(StrictPerformanceTakeModel):
@@ -16,190 +28,132 @@ class ScoreTempoPlanSelection(StrictPerformanceTakeModel):
 
 class CustomFixedBpmTempoPlanSelection(StrictPerformanceTakeModel):
     mode: Literal["CUSTOM_FIXED_BPM"]
-    bpm: float = Field(gt=0)
+    bpm: float = Field(strict=True, gt=0, allow_inf_nan=False)
 
 
 TempoPlanSelection = ScoreTempoPlanSelection | CustomFixedBpmTempoPlanSelection
 
 
 class PerformanceTakeTempoPlanSegment(StrictPerformanceTakeModel):
-    startBeat: float = Field(ge=0)
-    bpm: float = Field(gt=0)
+    startTick: int = Field(strict=True, ge=0, le=2**53 - 1)
+    bpm: float = Field(gt=0, allow_inf_nan=False)
     source: str = Field(pattern="^(MUSICXML|PRODUCT_DEFAULT|CUSTOM)$")
 
 
 class PerformanceTakeTempoPlan(StrictPerformanceTakeModel):
     selection: TempoPlanSelection = Field(discriminator="mode")
-    segments: list[PerformanceTakeTempoPlanSegment] = Field(min_length=1)
+    segments: tuple[PerformanceTakeTempoPlanSegment, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_segments(self) -> "PerformanceTakeTempoPlan":
-        if self.segments[0].startBeat != 0:
-            raise ValueError("tempo plan must start at beat zero")
+        if self.segments[0].startTick != 0:
+            raise ValueError("tempo plan must start at tick zero")
         for previous, current in zip(self.segments, self.segments[1:]):
-            if current.startBeat <= previous.startBeat:
+            if current.startTick <= previous.startTick:
                 raise ValueError("tempo plan segments must be strictly ordered")
         return self
 
 
-class RecordingTimebaseSegment(StrictPerformanceTakeModel):
-    perfStartMs: float = Field(ge=0)
-    perfEndMs: float = Field(gt=0)
-    mediaStartMs: float = Field(ge=0)
-    mediaEndMs: float = Field(gt=0)
+class PerformanceTakePracticeBinding(StrictPerformanceTakeModel):
+    score_id: str = Field(min_length=1, max_length=128)
+    revision_id: str = Field(min_length=1, max_length=128)
+    bundle_id: str = Field(min_length=1, max_length=128)
+
+
+class PerformanceTakeMediaMetadata(StrictPerformanceTakeModel):
+    kind: Literal["AUDIO", "VIDEO"]
+    byte_size: int = Field(strict=True, gt=0)
+    mime_type: str = Field(min_length=1, max_length=64)
+
+
+class PerformanceTakeFullScopeSelection(StrictPerformanceTakeModel):
+    kind: Literal["FULL"]
+
+
+class PerformanceTakeRangeScopeSelection(StrictPerformanceTakeModel):
+    kind: Literal["RANGE"]
+    start_group_id: str = Field(min_length=1, max_length=128)
+    end_group_id: str = Field(min_length=1, max_length=128)
+
+
+class _PerformanceTakeScoreScope(StrictPerformanceTakeModel):
+    start_tick: int = Field(strict=True, ge=0, le=2**53 - 1)
+    terminal_tick: int = Field(strict=True, gt=0, le=2**53 - 1)
 
     @model_validator(mode="after")
-    def validate_segment_order(self) -> "RecordingTimebaseSegment":
-        if self.perfEndMs <= self.perfStartMs:
-            raise ValueError("perfEndMs must be greater than perfStartMs")
-        if self.mediaEndMs <= self.mediaStartMs:
-            raise ValueError("mediaEndMs must be greater than mediaStartMs")
+    def validate_scope_order(self) -> Self:
+        if self.terminal_tick < self.start_tick:
+            raise ValueError("score scope terminal must not precede its start")
         return self
 
 
-class RecordingTimebase(StrictPerformanceTakeModel):
-    nominalMediaDurationMs: float = Field(gt=0)
-    activeSegments: list[RecordingTimebaseSegment] = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def validate_timebase(self) -> "RecordingTimebase":
-        first = self.activeSegments[0]
-        last = self.activeSegments[-1]
-        if first.mediaStartMs != 0:
-            raise ValueError("first media segment must start at zero")
-        if abs(last.mediaEndMs - self.nominalMediaDurationMs) > 1:
-            raise ValueError("nominal media duration must match final media segment")
-        for previous, current in zip(self.activeSegments, self.activeSegments[1:]):
-            if current.perfStartMs < previous.perfEndMs:
-                raise ValueError("performance segments must be ordered")
-            if abs(current.mediaStartMs - previous.mediaEndMs) > 1:
-                raise ValueError("media segments must be continuous")
-        return self
+class PerformanceTakeResolvedFullScope(_PerformanceTakeScoreScope):
+    kind: Literal["FULL"]
 
 
-def _validate_scope_identity(
-    scope_type: str,
-    start_group_id: Optional[str],
-    end_group_id: Optional[str],
-) -> None:
-    if scope_type == "RANGE":
-        if not start_group_id or not end_group_id:
-            raise ValueError("RANGE scope requires start and end group ids")
-        return
-    if start_group_id is not None or end_group_id is not None:
-        raise ValueError("FULL scope must not include group ids")
+class PerformanceTakeResolvedRangeScope(_PerformanceTakeScoreScope):
+    kind: Literal["RANGE"]
+    start_group_id: str = Field(min_length=1, max_length=128)
+    end_group_id: str = Field(min_length=1, max_length=128)
 
 
-class PerformanceTakeUploadAuthorizationRequest(StrictPerformanceTakeModel):
-    score_id: str = Field(min_length=1, max_length=64)
+class PerformanceTakeUploadMetadata(StrictPerformanceTakeModel):
+    practice_binding: PerformanceTakePracticeBinding
+    media: PerformanceTakeMediaMetadata
+    scope: PerformanceTakeFullScopeSelection | PerformanceTakeRangeScopeSelection = Field(
+        discriminator="kind"
+    )
+    tempo_selection: TempoPlanSelection = Field(discriminator="mode")
+    recording_timebase: RecordingTimebase
+
+
+class PerformanceTakeUploadReservationRequest(PerformanceTakeUploadMetadata):
     client_request_id: str = Field(min_length=1, max_length=128)
-    media_kind: str = Field(default="AUDIO", pattern="^(AUDIO|VIDEO)$")
-    media_byte_size: int = Field(gt=0)
-    media_mime_type: str = Field(min_length=1, max_length=64)
-    duration_ms: int = Field(ge=0)
-    scope_type: str = Field(pattern="^(FULL|RANGE)$")
-    scope_start_beat: float = Field(ge=0.0)
-    scope_terminal_beat: float = Field(gt=0.0)
-    scope_start_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
-    scope_end_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
-    revision_id: str = Field(min_length=1, max_length=64)
-    artifact_id: str = Field(min_length=1, max_length=128)
+
+
+class PerformanceTakeManifestRead(StrictPerformanceTakeModel):
+    practice_binding: PerformanceTakePracticeBinding
+    artifact_id: str = Field(min_length=1)
+    score_display_title_snapshot: str = Field(min_length=1)
+    capture: PerformanceTakeMediaMetadata
+    score_timebase: PerformanceTakeScoreTimebase
+    scope: PerformanceTakeResolvedFullScope | PerformanceTakeResolvedRangeScope = Field(
+        discriminator="kind"
+    )
     tempo_plan: PerformanceTakeTempoPlan
     recording_timebase: RecordingTimebase
 
-    @model_validator(mode="after")
-    def validate_scope_identity(self) -> "PerformanceTakeUploadAuthorizationRequest":
-        _validate_scope_identity(
-            self.scope_type,
-            self.scope_start_group_id,
-            self.scope_end_group_id,
-        )
-        return self
 
-
-class PerformanceTakeUploadAuthorizationRead(StrictPerformanceTakeModel):
+class PerformanceTakeUploadReservationRead(ApiModel, StrictPerformanceTakeModel):
+    reservation_id: str
     take_id: str
-    status: str = "AUTHORIZED"
-    upload_url: Optional[str] = None
-    upload_method: Optional[str] = None
-    upload_headers: dict[str, str] = Field(default_factory=dict)
-    object_key: Optional[str] = None
-    reservation_id: Optional[str] = None
-    expires_in: int = 0
+    status: Literal["RESERVED", "FINALIZING", "COMPLETED"]
+    manifest: PerformanceTakeManifestRead
+    upload_session: UploadSessionRead | None = None
     take: Optional["PerformanceTakeRead"] = None
 
 
-class PerformanceTakeCreateRequest(StrictPerformanceTakeModel):
-    take_id: str = Field(min_length=1, max_length=36)
-    client_request_id: str = Field(min_length=1, max_length=128)
-    reservation_id: str = Field(min_length=1, max_length=128)
-    score_id: str = Field(min_length=1, max_length=64)
-    media_kind: str = Field(default="AUDIO", pattern="^(AUDIO|VIDEO)$")
-    media_byte_size: int = Field(gt=0)
-    media_mime_type: str = Field(min_length=1, max_length=64)
-    duration_ms: int = Field(ge=0)
-    scope_type: str = Field(pattern="^(FULL|RANGE)$")
-    scope_start_beat: float = Field(ge=0.0)
-    scope_terminal_beat: float = Field(gt=0.0)
-    scope_start_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
-    scope_end_group_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
-    revision_id: str = Field(min_length=1, max_length=64)
-    artifact_id: str = Field(min_length=1, max_length=128)
-    tempo_plan: PerformanceTakeTempoPlan
-    recording_timebase: RecordingTimebase
-
-    @model_validator(mode="after")
-    def validate_scope_identity(self) -> "PerformanceTakeCreateRequest":
-        _validate_scope_identity(
-            self.scope_type,
-            self.scope_start_group_id,
-            self.scope_end_group_id,
-        )
-        return self
+class PerformanceTakeRecordingMediaRead(StrictPerformanceTakeModel):
+    mime_type: str
+    byte_size: int = Field(strict=True, gt=0)
 
 
-class PerformanceTakeRead(StrictPerformanceTakeModel):
+class PerformanceTakeRead(ApiModel, StrictPerformanceTakeModel):
     take_id: str
-    source_score_id: str
-    source_revision_id: str
-    source_artifact_id: str
-    score_title_snapshot: str = Field(min_length=1)
+    manifest: PerformanceTakeManifestRead
+    media_status: Literal["UPLOADED", "PROCESSING", "READY", "FAILED"]
+    recording_media: PerformanceTakeRecordingMediaRead
     linked_score_id: Optional[str] = None
     can_open_score: bool = False
-    media_kind: str
-    media_mime_type: str
-    media_byte_size: int
-    duration_ms: int
-    scope_type: str
-    scope_start_beat: float
-    scope_terminal_beat: float
-    scope_start_group_id: Optional[str] = None
-    scope_end_group_id: Optional[str] = None
-    deletion_status: str = "ACTIVE"
-    tempo_plan: PerformanceTakeTempoPlan
-    recording_timebase: RecordingTimebase
-    created_at: datetime
+    created_at: Instant
 
 
-class PerformanceTakePlaybackRead(StrictPerformanceTakeModel):
+class PerformanceTakePlaybackRead(ApiModel, StrictPerformanceTakeModel):
     take_id: str
     playback_url: str
     download_url: str
-    media_kind: str
-    media_mime_type: str
-    media_byte_size: int
-    duration_ms: int
     expires_in: int
 
 
-class PerformanceTakeDeleteResponse(StrictPerformanceTakeModel):
-    status: str
-    take_id: str
-
-
-class PerformanceTakeListResponse(StrictPerformanceTakeModel):
-    items: list[PerformanceTakeRead]
-    total: int
-    limit: int = 50
-    offset: int = 0
-    has_more: bool = False
+class PerformanceTakeListRead(CursorPage[PerformanceTakeRead]):
+    next_cursor: str | None

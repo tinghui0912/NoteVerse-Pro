@@ -4,10 +4,10 @@ from typing import Optional, TypedDict
 
 
 class ImportJobStoredArtifactItem(TypedDict):
-    storage_backend: str
-    storage_key: str
+    write_intent_uuid: str
+    write_token: str
     filename: str
     page_number: Optional[int]
-    size: Optional[int]
-    mime_type: Optional[str]
-    sha256: Optional[str]
+
+
+REVIEW_MUSICXML_MIME_TYPE = "application/vnd.recordare.musicxml+xml"

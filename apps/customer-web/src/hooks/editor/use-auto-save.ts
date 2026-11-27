@@ -6,7 +6,7 @@ import {
 } from '@/lib/editor/draft-storage';
 
 interface UseAutoSaveOptions {
-  baseRevisionId: string;
+  baselineRevisionId: string;
   debounceMs?: number;
   enabled?: boolean;
 }
@@ -19,7 +19,7 @@ export function useAutoSave(
   clearDraft: () => Promise<void>;
   isSaving: boolean;
 } {
-  const { baseRevisionId, debounceMs = 3000, enabled = true } = options;
+  const { baselineRevisionId, debounceMs = 3000, enabled = true } = options;
   const [isSaving, setIsSaving] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedXmlRef = useRef<string | null>(null);
@@ -28,16 +28,16 @@ export function useAutoSave(
 
   const flushPendingDraft = useCallback(() => {
     const pendingXml = pendingXmlRef.current;
-    if (!pendingXml || !scoreId || !baseRevisionId || pendingXml === lastSavedXmlRef.current) return;
+    if (!pendingXml || !scoreId || !baselineRevisionId || pendingXml === lastSavedXmlRef.current) return;
     pendingXmlRef.current = null;
-    void saveDraft(scoreId, baseRevisionId, pendingXml).then(() => {
+    void saveDraft(scoreId, baselineRevisionId, pendingXml).then(() => {
       lastSavedXmlRef.current = pendingXml;
     });
-  }, [baseRevisionId, scoreId]);
+  }, [baselineRevisionId, scoreId]);
 
   useEffect(() => {
-    if (!enabled || !xml || !scoreId || !baseRevisionId || xml === lastSavedXmlRef.current) return;
-    const baselineKey = `${scoreId}:${baseRevisionId}`;
+    if (!enabled || !xml || !scoreId || !baselineRevisionId || xml === lastSavedXmlRef.current) return;
+    const baselineKey = `${scoreId}:${baselineRevisionId}`;
     if (baselineKeyRef.current !== baselineKey) {
       baselineKeyRef.current = baselineKey;
       lastSavedXmlRef.current = xml;
@@ -49,7 +49,7 @@ export function useAutoSave(
     timeoutRef.current = setTimeout(async () => {
       setIsSaving(true);
       try {
-        await saveDraft(scoreId, baseRevisionId, xml);
+        await saveDraft(scoreId, baselineRevisionId, xml);
         lastSavedXmlRef.current = xml;
         if (pendingXmlRef.current === xml) pendingXmlRef.current = null;
       } finally {
@@ -59,7 +59,7 @@ export function useAutoSave(
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [baseRevisionId, debounceMs, enabled, flushPendingDraft, scoreId, xml]);
+  }, [baselineRevisionId, debounceMs, enabled, flushPendingDraft, scoreId, xml]);
 
   useEffect(() => {
     const handlePageHide = () => flushPendingDraft();
@@ -80,9 +80,9 @@ export function useAutoSave(
       timeoutRef.current = null;
     }
     pendingXmlRef.current = null;
-    await deleteDraft(scoreId, baseRevisionId);
+    await deleteDraft(scoreId, baselineRevisionId);
     lastSavedXmlRef.current = xml;
-  }, [baseRevisionId, scoreId, xml]);
+  }, [baselineRevisionId, scoreId, xml]);
 
   return { clearDraft, isSaving };
 }

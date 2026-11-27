@@ -19,7 +19,7 @@ The backend now uses a hybrid architecture:
 - business features live under `app/modules/*`;
 - database sessions and ORM models live under `app/db/*`;
 - durable storage lives under `app/storage/*`;
-- processing orchestration lives under `app/pipeline/*`;
+- processing orchestration lives under `app/modules/import_jobs/pipeline/*`;
 - OCR, MusicXML, rendering, realtime, and audio engines live under `app/processing/*`;
 - Celery runtime wiring and durable outbox dispatch adapters live under `app/worker/*`;
 - application runtime concerns live under `app/core/*`;
@@ -32,28 +32,32 @@ Current feature modules:
 app/modules/
 |-- account
 |-- auth
-|-- async_operations
-|-- billing
-|-- files
+|-- collaboration
+|-- durable_work
+|-- fingering
+|-- guest_previews
 |-- import_jobs
 |-- library
 |-- mail
 |-- metadata
-|-- my_scores
+|-- model_assets
 |-- notifications
 |-- ops
+|-- performance_takes
+|-- platform_operators
 |-- playback
 |-- practice
-|-- publications
 |-- realtime
+|-- rendering
 |-- revisions
-|-- review
+|-- scheduler_lock
+|-- scheduler_observability
 |-- score_access
 |-- score_assets
-|-- score_invites
-|-- score_sharing
 |-- scores
-`-- storage_usage
+|-- media_storage
+|-- storage_governance
+`-- uploads
 ```
 
 ## 3. Canonical Score Domain
@@ -70,9 +74,7 @@ ImportJob ---- ImportJobStep
   | review confirms
   v
 Score ---- ScoreMembership
-  |  \----- ScoreLibraryEntry
-  |  \----- ScoreShareGrant ---- ShareGrantRedemption
-  |  `----- ScorePublication
+  |  \----- ScoreLibraryOrganization
   |
   v
 ScoreRevision ---- ScoreRevisionMetadata
@@ -95,19 +97,18 @@ Core rules:
 - `ImportArtifact` stores job internals such as OMR output, enhanced XML, diagnostics,
   and other non-product pipeline artifacts.
 - `ScoreRevisionMetadata` is a rebuildable typed projection from canonical MusicXML.
-- `ScoreShareGrant`, `ScoreMembership`, `ScoreLibraryEntry`, `ShareGrantRedemption`, and
-  `ScorePublication` have distinct authorization and product semantics.
+- Score-owned Guest Preview settings, `ScoreMembership`, and `ScoreLibraryOrganization` have distinct authorization and product semantics.
 - `modules/practice` serves revision-bound PracticeScoreArtifact, practice-ready
   score content, and target/source delivery for Customer Web.
 - Active Practice state, STEP/Continuous execution, the local clock, MIDI input,
-  and finalization live in Customer Web local-core, not in a backend
+  and finalization live in Customer Web Practice domains, not in a backend
   PracticeSession.
 
 Job identity and score identity are deliberately separate:
 
 - upload and review polling use job IDs;
 - review correction uses job IDs and updates temporary review artifacts;
-- score detail, editor, history, share, public, and practice score surfaces use score IDs and
+- score detail, editor, history, Guest Preview management and practice score surfaces use score IDs and
   revision IDs;
 - a failed job must remain diagnosable without creating a fake score;
 - once review confirmation creates a score, score-facing navigation should use the returned
@@ -128,11 +129,11 @@ Owns import lifecycle:
 - import artifact registration;
 - upload linkage and orphan-upload protection.
 
-Do not put durable score editing, publication, or sharing rules here.
+Do not put durable score editing or Guest Preview rules here.
 
-### `app.pipeline` and `app.processing`
+### `app.modules.import_jobs.pipeline` and `app.processing`
 
-`app.pipeline` owns the import workflow composition:
+`app.modules.import_jobs.pipeline` owns the import workflow composition:
 
 - step ordering;
 - per-step progress updates;
@@ -149,31 +150,33 @@ Do not put durable score editing, publication, or sharing rules here.
   helpers.
 
 `app.processing` should remain product-agnostic. It must not import `ImportJob`,
-`ImportArtifact`, Score memberships, sharing, notifications, or API schemas. Product
-lifecycle belongs in `modules/import_jobs`, `modules/review`, `modules/scores`, and
-`app.pipeline` orchestration.
+`ImportArtifact`, Score memberships, Guest Preview, notifications, or API schemas. Product
+lifecycle belongs in `modules/import_jobs`, `modules/import_jobs/review`, `modules/scores`, and
+`app.modules.import_jobs.pipeline` orchestration.
 
-### `modules/review`
+### `modules/import_jobs/review`
 
 Owns the pre-Score human review boundary:
 
-- reading `PENDING_REVIEW` job artifacts;
+- reading `READY_FOR_REVIEW` job artifacts;
 - returning original images, preview images, and review MusicXML by `job_id`;
-- updating the temporary review MusicXML artifact through `PATCH /review/{job_id}`;
+- updating the temporary review MusicXML artifact through `PATCH /import-jobs/{job_id}/review`;
 - confirming review and creating the first active Score;
-- attaching the created `score_id` back to the import job and import notification.
+- atomically linking the Score to ImportJob and enriching its retained completed notification;
+- releasing temporary Import ownership within confirmation;
+- updating retained import notification navigation fields inside confirmation.
 
 Do not expose review as a Score route. Do not create Score revisions when editing review
-artifacts. Do not allow sharing, invites, publication, or practice to target unconfirmed
+artifacts. Do not allow Guest Preview, invites or practice to target unconfirmed
 review output.
 
 ### `modules/scores` and `modules/revisions`
 
 Own stable score resources and immutable revision creation:
 
-- score list/detail/update/delete/archive;
-- score title, taxonomy tags, state, and version;
-- head and approved revision pointers;
+- score list/detail/update and durable deletion;
+- Score display title, genres and metadata version;
+- the current head revision pointer;
 - first score creation after review confirmation yields canonical MusicXML;
 - revision append, same-base no-op detection, base-revision conflict checks, and
   idempotent save retries.
@@ -197,7 +200,7 @@ Revision source IDs and render asset IDs replace task ID plus file kind addressi
 Owns typed, rebuildable metadata projections:
 
 - measure count;
-- duration;
+- notation title and primary key;
 - part count;
 - key, meter, and tempo events;
 - extractor status, version, and failure state.
@@ -214,8 +217,6 @@ Access decisions must account for:
 
 - owner;
 - membership;
-- share grant;
-- publication;
 - requested score;
 - requested revision;
 - requested action.
@@ -223,28 +224,15 @@ Access decisions must account for:
 Do not reconstruct permissions ad hoc inside routers, repositories, or page-specific
 services.
 
-### `modules/score_sharing`
+### `modules/guest_previews`
 
-Owns view-only share grants, bookmark creation, and grant redemption:
+Owns hash-only `GuestPreviewCredential` rows and presentation-only bearer delivery.
+Score stores no raw token. Owner issue/rotate commands reveal plaintext once; settings
+contain enabled state and issue time. Revoke deletes the credential, and re-enable issues
+a fresh credential. Credential mutations serialize on the active Score parent.
 
-- store only hashed share tokens;
-- return raw tokens once at creation;
-- share grants authorize anonymous reads while valid;
-- share grants never authorize editing.
-
-Bookmarks organize the user's library and do not grant access by themselves.
-
-### `modules/publications`
-
-Owns public score publication:
-
-- owner-only publish, republish, and unpublish;
-- pinned published revision;
-- public slug;
-- public capabilities;
-- download/practice policy.
-
-Editing a score head must not change public content until explicit republish.
+See the canonical [Guest Preview credential and presentation contract](../../docs/adr/0004-score-access-collaboration-and-guest-preview.md)
+for secret handling, current-head delivery and owner command semantics.
 
 ### `modules/practice`
 
@@ -255,13 +243,19 @@ Owns Practice score/source/artifact delivery:
 - target catalog/source delivery for browser-local Practice;
 - authorization through the score-domain access boundary.
 
-It does not own active Practice execution. Customer Web local-core owns
+It does not own active Practice execution. Customer Web Practice domains own
 `PerformanceClockRuntime`, STEP/Continuous session state, browser-local MIDI,
 the Continuous evaluator, and finalization. Do not recreate backend
 PracticeSession lifecycle, Practice WebSocket, backend score-following,
 server-owned audio buffers, or realtime Practice message codecs.
 
 ## 5. Storage And Artifact Rules
+
+[Storage resource governance](../../docs/architecture/storage-resource-governance.md)
+defines physical objects, logical usage and capacity quota as independent authorities.
+Storage Quota consumes the Usage reader/locking contract; Usage consumes domain-owned
+Inventory and does not import Quota or business ORM. Business commands compose hold
+consumption and logical allocation in the same caller-owned transaction.
 
 Durable file and object storage must go through `app/storage/*`.
 
@@ -301,7 +295,7 @@ Keep these boundaries:
 - OMR uses engine abstractions, not hard-coded tool details in business modules;
 - rendering uses `ScoreRenderEngine` abstractions;
 - MusicXML normalization and metadata extraction live under processing;
-- live Practice execution stays in Customer Web local-core and out of Celery;
+- live Practice execution stays in Customer Web Practice domains and out of Celery;
 - long-running offline work belongs in workers;
 - generic application realtime/SSE remains notification infrastructure, not a
   Practice execution runtime.
@@ -357,6 +351,40 @@ procedure and must fail closed when durable mappings are incomplete.
 
 ## 9. Coding Standards
 
+Request-scoped reads use `get_db` and do not commit. Pure database customer commands
+explicitly use `Depends(get_command_db, scope="function")`, sharing the request Session
+with authentication. This boundary commits once after successful endpoint execution
+and response validation, before sending the response; exceptions and commit failures
+roll back the outer transaction.
+
+Participating services may read, mutate, flush, and use justified nested SAVEPOINTs
+for concurrency recovery. They do not commit or roll back the outer transaction.
+Constraint errors are classified in the service at flush; the request boundary owns
+rollback. Repositories, read models, and policies do not own commits.
+
+Periodic maintenance transaction ownership lives in worker execution. Single bounded
+cleanup operations use one worker-owned transaction. Lock-scoped cleanup uses one
+transaction per semantic lock unit: a Realtime recipient stream or a Score's derived
+assets. Candidate discovery uses a short read Session without mutation locks. Maintenance
+services mutate and flush but do not commit or roll back their outer transaction.
+Import orphan cleanup isolates each item with a SAVEPOINT inside its worker-owned batch.
+A later lock-unit failure rolls back that unit and fails the scan; earlier committed
+units remain committed. Scheduler observations are persisted independently.
+
+External-I/O and durable protocol coordinators use explicit phase transactions;
+a database transaction does not span an external system. Upload, revision writes,
+Import confirmation, and Score deletion retain their domain protocol boundaries.
+Durable-delivery recovery commits lease/state changes and releases database locks before
+broker dispatch; terminal retention cleanup has its own worker-owned transaction.
+
+Account closure admission tombstones User and persists its durable erasure operation in the
+HTTP command transaction. Worker execution commits one semantic cleanup unit at a
+time, preserves Take staging/candidate cleanup lineage until acknowledged, and verifies
+empty inventory/zero usage before final identity removal. Active resource admission
+uses a User lifecycle fence; final erasure waits for admitted writers. The
+[business resource lifecycle contract](../../docs/architecture/business-resource-lifecycle.md)
+defines the complete ownership matrix and cross-domain lock order.
+
 Routers should only:
 
 - bind request parameters;
@@ -403,11 +431,12 @@ Use the project response and exception conventions:
 - `UnauthorizedException`
 - `ResourceNotFoundException`
 - `AppException`
-- `success_response(...)`
 - `ErrorCode`
-- `SuccessCode`
 
-Avoid local one-off JSON error shapes.
+Customer successes use direct typed representations, explicit pagination resources
+and bodyless 204 commands. Frontend owns localized success presentation. Customer
+application errors use `ApiErrorResponse`; Control Plane owns its independent
+response contract. Avoid local one-off JSON error shapes.
 
 Score-facing responses should include backend-computed capabilities where the UI needs
 conditional actions, but the backend endpoint remains the enforcement point.
@@ -448,9 +477,8 @@ For score-domain changes, add focused coverage for the relevant behavior:
 
 - revision ordering, conflict, approval, immutable sources, and restore semantics;
 - metadata extraction, rebuild, and failure states;
-- authorization matrix for owner, member, share, public, and anonymous paths;
-- share token hashing, expiry, revocation, redemption, and bookmark separation;
-- publication pin, republish, and unpublish;
+- authorization matrix for owner/member access and anonymous Guest Preview paths;
+- Guest Preview hash-only credential lifecycle, one-time reveal, current-head and canonical-profile presentation boundaries;
 - revision-bound `PracticeScoreArtifact`, practice-ready content, and target/source
   delivery;
 - browser-local active Practice state remains outside backend session authority;
@@ -474,9 +502,8 @@ Before finalizing backend work, check:
 
 - no job ID used as a score route identity after a score exists;
 - no canonical MusicXML mutation that overwrites an existing revision source;
-- no endpoint reconstructs score permissions outside `modules/score_access`;
-- no raw share token persistence beyond one-time token return;
-- no public access follows mutable head revision without explicit republish;
+- owner/member operations delegate to `modules/score_access`; Guest Preview owns exact presentation authorization;
+- Guest Preview plaintext is revealed once by owner issue/rotate commands; persistence stores only its hash;
 - revision-bound PracticeScoreArtifact/source delivery preserves immutable revision
   identity while active Practice execution remains browser-local;
 - no direct durable file path construction outside `app/storage`;
@@ -502,3 +529,12 @@ Backend code is usually healthy when:
 - workers can retry and materialize inputs across processes or machines;
 - complex runtime failures have diagnostics;
 - docs explain the current architecture and its owning contracts.
+
+Account closure ends authentication immediately. Account erasure completion describes
+business ownership/accounting and identity removal; StoredObject retirement runs
+independently. The [account ownership contract](../../docs/architecture/business-resource-lifecycle.md#account-erasure-ownership-contract)
+reviews every User FK and references the canonical Objects reference registry.
+Ops projects both domain tables without copying state. Structured failure facts control
+automatic retry; domain-owned operator rearm preserves erasure phases and deletion fences.
+The rearm and successful Ops audit share one commit. Backup/version/legal retention
+policies require deployment ownership and are not invented by application cleanup.

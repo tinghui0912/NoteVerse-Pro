@@ -15,8 +15,8 @@ from app.worker import task_runtime
 def test_scheduler_lock_key_is_stable_and_job_scoped() -> None:
     service = SchedulerLockService()
 
-    first = service.lock_key("render_outbox")
-    second = service.lock_key("render_outbox")
+    first = service.lock_key("score_revision_render_outbox")
+    second = service.lock_key("score_revision_render_outbox")
     other = service.lock_key("playback_outbox")
 
     assert first == second
@@ -26,7 +26,7 @@ def test_scheduler_lock_key_is_stable_and_job_scoped() -> None:
 
 def test_beat_leader_lock_key_is_stable_and_distinct_from_scan_locks() -> None:
     assert scheduler_lock_key("beat_leader") == scheduler_lock_key("beat_leader")
-    assert scheduler_lock_key("beat_leader") != scheduler_lock_key("render_outbox")
+    assert scheduler_lock_key("beat_leader") != scheduler_lock_key("score_revision_render_outbox")
 
 
 def test_beat_leader_parses_the_child_command() -> None:
@@ -36,6 +36,8 @@ def test_beat_leader_parses_the_child_command() -> None:
         "celery",
         "beat",
     ]
+
+
 def test_beat_leader_uses_a_dedicated_postgresql_session() -> None:
     """The lifetime lock must not be held through the worker SQLAlchemy pool."""
 
@@ -88,23 +90,23 @@ def test_scheduler_scan_skips_callback_when_lock_is_not_acquired(
 
     @contextmanager
     def fake_db() -> Iterator[object]:
-        yield object()
+        yield __import__("unittest.mock", fromlist=["Mock"]).Mock()
 
     def callback() -> dict[str, int]:
         raise AssertionError("callback should not run when scheduler lock is not acquired")
 
     monkeypatch.setattr(task_runtime.scheduler_lock_service, "try_acquire", fake_lock)
-    monkeypatch.setattr(task_runtime, "get_worker_db", fake_db)
+    monkeypatch.setattr(task_runtime, "SessionLocal", fake_db)
     monkeypatch.setattr(
         task_runtime,
         "scheduler_observability_service",
         FakeObservabilityService(),
     )
 
-    result = task_runtime.run_scheduler_scan("render_outbox", callback)
+    result = task_runtime.run_scheduler_scan("score_revision_render_outbox", callback)
 
     assert result == {"due": 0, "dispatched": 0, "lock_skipped": 1}
-    assert events == [("skipped", "render_outbox")]
+    assert events == [("skipped", "score_revision_render_outbox")]
 
 
 def test_scheduler_scan_runs_callback_when_lock_is_acquired(
@@ -136,7 +138,7 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
 
     @contextmanager
     def fake_db() -> Iterator[object]:
-        yield object()
+        yield __import__("unittest.mock", fromlist=["Mock"]).Mock()
 
     @contextmanager
     def fake_root_span(**kwargs: object) -> Iterator[None]:
@@ -144,7 +146,7 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
         yield
 
     monkeypatch.setattr(task_runtime.scheduler_lock_service, "try_acquire", fake_lock)
-    monkeypatch.setattr(task_runtime, "get_worker_db", fake_db)
+    monkeypatch.setattr(task_runtime, "SessionLocal", fake_db)
     monkeypatch.setattr(
         task_runtime,
         "scheduler_observability_service",
@@ -153,22 +155,22 @@ def test_scheduler_scan_runs_callback_when_lock_is_acquired(
     monkeypatch.setattr(task_runtime, "background_root_span", fake_root_span)
 
     result = task_runtime.run_scheduler_scan(
-        "render_outbox",
+        "score_revision_render_outbox",
         lambda: {"due": 2, "dispatched": 1},
     )
 
     assert result == {"due": 2, "dispatched": 1}
     assert events == [
-        ("acquired", "render_outbox"),
-        ("started", "render_outbox"),
-        ("success", "render_outbox"),
+        ("acquired", "score_revision_render_outbox"),
+        ("started", "score_revision_render_outbox"),
+        ("success", "score_revision_render_outbox"),
     ]
     assert trace_roots == [
         {
             "name": "noteverse.scheduler.scan",
             "attributes": {
                 "noteverse.operation.kind": "scheduler",
-                "noteverse.scheduler.job": "render_outbox",
+                "noteverse.scheduler.job": "score_revision_render_outbox",
             },
         }
     ]

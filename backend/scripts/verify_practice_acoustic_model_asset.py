@@ -1,22 +1,22 @@
 """Verify or publish the exact Practice acoustic asset without conversion or overwrite.
 
-Run in the backend Docker image with its existing OSS environment. Reports omit
+Run in the backend Docker image with its deployment object-store configuration. Reports omit
 credentials, signed URLs and SDK exception bodies.
 """
+
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-import alibabacloud_oss_v2 as oss
+from app.storage.s3_compatible import S3CompatibleObjectStorage
 
-SHA = "4242faf321f276404985e5d00a9ab41dc6bc7063df2b635c6bbc4dede50715d3"
-SIZE = 98_689_283
-KEY = f"models/continuous/robust-browser-v1/{SHA}/model.onnx"
+from app.modules.model_assets.generated.practice_acoustic_model_asset import (
+    MODEL_ASSET,
+)
 
 
 def digest_file(path: Path) -> tuple[int, str]:
@@ -29,86 +29,81 @@ def digest_file(path: Path) -> tuple[int, str]:
     return count, digest.hexdigest()
 
 
-def underlying(error: Exception) -> Exception:
-    seen: set[int] = set()
-    while isinstance(error, oss.exceptions.OperationError) and id(error) not in seen:
-        seen.add(id(error))
-        error = error.unwrap()
-    return error
-
-
 def verify_asset(publish: bool, report: Path, model: Path) -> dict:
     if report.exists():
         raise RuntimeError("APPEND_ONLY_REPORT_ALREADY_EXISTS")
     result = {
-        "assetIdentity": "practice-acoustic-robust-browser@v1",
+        "assetIdentity": f"{MODEL_ASSET.asset_id}@{MODEL_ASSET.asset_version}",
         "startedAt": datetime.now(timezone.utc).isoformat(),
         "status": "ASSET_GATE_PENDING",
-        "expectedBytes": SIZE, "expectedSha256": SHA, "objectKey": KEY,
+        "expectedBytes": MODEL_ASSET.byte_size,
+        "expectedSha256": MODEL_ASSET.sha256,
+        "objectKey": MODEL_ASSET.storage_key,
         "newNeuralInferenceCount": 0,
         "uploaded": False,
     }
     try:
         size, sha = digest_file(model)
         result["localBytes"], result["localSha256"] = size, sha
-        if (size, sha) != (SIZE, SHA):
+        if (size, sha) != (MODEL_ASSET.byte_size, MODEL_ASSET.sha256):
             raise RuntimeError("EXACT_VALIDATED_ARTIFACT_UNAVAILABLE")
-        ak = os.environ.get("OSS_ACCESS_KEY_ID") or os.environ.get("S3_ACCESS_KEY_ID")
-        sk = os.environ.get("OSS_ACCESS_KEY_SECRET") or os.environ.get("S3_SECRET_ACCESS_KEY")
-        if not ak or not sk:
-            raise RuntimeError("ASSET_DELIVERY_CREDENTIALS_UNAVAILABLE")
-        bucket = os.environ.get("ALIYUN_OSS_MODEL_BUCKET", "noteverse-model-assets")
-        region = os.environ.get("ALIYUN_OSS_MODEL_REGION", "cn-shenzhen")
-        result.update(bucket=bucket, region=region)
-        cfg = oss.config.load_default()
-        cfg.credentials_provider = oss.credentials.StaticCredentialsProvider(ak, sk)
-        cfg.region = region
-        cfg.connect_timeout = 10
-        cfg.readwrite_timeout = 30
-        cfg.retry_max_attempts = 1
-        client = oss.Client(cfg)
-        acl = client.get_bucket_acl(oss.models.GetBucketAclRequest(bucket=bucket))
-        result["bucketAcl"] = str(acl.acl).lower()
-        if result["bucketAcl"] != "private":
+        storage = S3CompatibleObjectStorage()
+        client, bucket = storage.client, storage.bucket
+        result.update(bucket=bucket, region=storage.region)
+        acl = client.get_bucket_acl(Bucket=bucket)
+        owner = acl.get("Owner", {}).get("ID")
+        grants = acl.get("Grants", [])
+        private = bool(owner and grants) and all(
+            grant.get("Grantee", {}).get("Type") == "CanonicalUser"
+            and grant.get("Grantee", {}).get("ID") == owner
+            for grant in grants
+        )
+        result["bucketAcl"] = "private" if private else "not-private"
+        if not private:
             raise RuntimeError("ASSET_BUCKET_NOT_PRIVATE")
-        exists = True
-        try:
-            head = client.head_object(oss.models.HeadObjectRequest(bucket=bucket, key=KEY))
-            if int(head.content_length) != SIZE:
-                raise RuntimeError("EXISTING_CONTENT_ADDRESSED_OBJECT_SIZE_MISMATCH")
-        except Exception as wrapped:
-            error = underlying(wrapped)
-            if not isinstance(error, oss.exceptions.ServiceError) or error.status_code != 404 or error.code not in ("NoSuchKey", "NotFound"):
-                raise
-            exists = False
+        exists = storage.exists(MODEL_ASSET.storage_key)
+        if (
+            exists
+            and storage.object_metadata(MODEL_ASSET.storage_key).size_bytes != MODEL_ASSET.byte_size
+        ):
+            raise RuntimeError("EXISTING_CONTENT_ADDRESSED_OBJECT_SIZE_MISMATCH")
         if not exists:
             if not publish:
                 raise RuntimeError("EXACT_DELIVERY_OBJECT_NOT_PUBLISHED")
             with model.open("rb") as handle:
-                client.put_object(oss.models.PutObjectRequest(bucket=bucket, key=KEY,
-                    body=handle, content_type="application/octet-stream", forbid_overwrite=True))
+                client.put_object(
+                    Bucket=bucket,
+                    Key=MODEL_ASSET.storage_key,
+                    Body=handle,
+                    ContentType=MODEL_ASSET.media_type,
+                    IfNoneMatch="*",
+                )
             result["uploaded"] = True
-        remote = client.get_object(oss.models.GetObjectRequest(bucket=bucket, key=KEY))
+        remote = client.get_object(Bucket=bucket, Key=MODEL_ASSET.storage_key)
         digest = hashlib.sha256()
         count = 0
         try:
-            for chunk in remote.body.iter_bytes():
+            for chunk in remote["Body"].iter_chunks(chunk_size=1024 * 1024):
                 count += len(chunk)
-                if count > SIZE:
+                if count > MODEL_ASSET.byte_size:
                     raise RuntimeError("REMOTE_MODEL_BYTE_LIMIT_EXCEEDED")
                 digest.update(chunk)
         finally:
-            remote.body.close()
+            remote["Body"].close()
         result["remoteBytes"], result["remoteSha256"] = count, digest.hexdigest()
-        if (count, digest.hexdigest()) != (SIZE, SHA):
+        if (count, digest.hexdigest()) != (MODEL_ASSET.byte_size, MODEL_ASSET.sha256):
             raise RuntimeError("REMOTE_MODEL_IDENTITY_MISMATCH")
         result["status"] = "EXACT_VALIDATED_ASSET_DELIVERY_VERIFIED"
     except Exception as error:
-        error = underlying(error)
         result["status"] = "EXACT_ASSET_DELIVERY_GATE_BLOCKED"
-        result["failure"] = {"type": type(error).__name__,
-            "code": getattr(error, "code", str(error) if isinstance(error, RuntimeError) else None),
-            "httpStatus": getattr(error, "status_code", None)}
+        response = getattr(error, "response", {})
+        result["failure"] = {
+            "type": type(error).__name__,
+            "code": response.get("Error", {}).get(
+                "Code", str(error) if isinstance(error, RuntimeError) else None
+            ),
+            "httpStatus": response.get("ResponseMetadata", {}).get("HTTPStatusCode"),
+        }
     result["completedAt"] = datetime.now(timezone.utc).isoformat()
     with report.open("x", encoding="utf-8") as handle:
         json.dump(result, handle, indent=2)

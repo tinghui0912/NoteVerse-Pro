@@ -2,189 +2,164 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
+from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
-from app.api.storage_streaming import stream_storage_object
+from app.api.deps import get_current_user, get_db, get_command_db
 from app.db.model_utils import require_persisted_id
 from app.db.models import User
-from app.modules.performance_takes.dependencies import get_performance_take_service
+from app.api.resource_dependencies import (
+    get_performance_take_service,
+    get_performance_take_reservation_service,
+    get_performance_take_finalization_service,
+)
+from app.modules.performance_takes.upload_reservation.reservation_service import (
+    PerformanceTakeReservationService,
+)
+from app.modules.performance_takes.finalization import PerformanceTakeFinalizationService
 from app.modules.performance_takes.schemas import (
-    PerformanceTakeCreateRequest,
-    PerformanceTakeDeleteResponse,
-    PerformanceTakeListResponse,
+    PerformanceTakeListRead,
     PerformanceTakePlaybackRead,
     PerformanceTakeRead,
-    PerformanceTakeUploadAuthorizationRead,
-    PerformanceTakeUploadAuthorizationRequest,
-)
-from app.modules.practice.source_schemas import (
-    PracticeReadyScoreContentRead,
-    PracticeScoreArtifactRead,
+    PerformanceTakeUploadReservationRead,
+    PerformanceTakeUploadReservationRequest,
 )
 from app.modules.performance_takes.service import PerformanceTakeService
-from app.shared.responses import APIResponse, success_response
+
+from app.core.exceptions import ValidationException
+from app.shared.error_codes import CustomerErrorCode
 
 router = APIRouter()
 
 
 @router.post(
-    "/upload-authorizations",
-    response_model=APIResponse[PerformanceTakeUploadAuthorizationRead],
+    "/upload-reservations",
+    operation_id="performanceTakeUploadsReserve",
+    response_model=PerformanceTakeUploadReservationRead,
 )
-async def authorize_take_upload(
-    request: PerformanceTakeUploadAuthorizationRequest,
+def reserve_take_upload(
+    request: PerformanceTakeUploadReservationRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
+    db: Session = Depends(get_db, scope="function"),
+    service: PerformanceTakeReservationService = Depends(get_performance_take_reservation_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.authorize_upload(db, user_id, request)
-    return success_response(data=data)
+    data = service.reserve_upload(db, user_id, request)
+    return data
 
 
 @router.delete(
-    "/upload-authorizations/{reservation_id}",
-    response_model=APIResponse[dict[str, bool]],
+    "/upload-reservations/{reservation_id}",
+    operation_id="performanceTakeUploadCancel",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
 )
-async def cancel_take_upload_authorization(
+def cancel_take_upload_reservation(
     reservation_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
+    db: Session = Depends(get_db, scope="function"),
+    service: PerformanceTakeReservationService = Depends(get_performance_take_reservation_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    await service.cancel_upload_authorization(db, user_id, reservation_id)
-    return success_response(data={"cancelled": True})
+    service.cancel_upload_reservation(db, user_id, reservation_id)
+    return Response(status_code=204)
+
+
+async def require_empty_finalize_body(http_request: Request) -> None:
+    if await http_request.body():
+        raise ValidationException(CustomerErrorCode.VALIDATION_ERROR, field="body")
 
 
 @router.post(
-    "",
-    response_model=APIResponse[PerformanceTakeRead],
+    "/upload-reservations/{reservation_id}/finalize",
+    operation_id="performanceTakeUploadFinalize",
+    dependencies=[Depends(require_empty_finalize_body)],
+    response_model=PerformanceTakeRead,
 )
-async def finalize_take(
-    request: PerformanceTakeCreateRequest,
+def finalize_take(
+    reservation_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
+    db: Session = Depends(get_db, scope="function"),
+    service: PerformanceTakeFinalizationService = Depends(
+        get_performance_take_finalization_service
+    ),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.finalize_take(db, user_id, request)
-    return success_response(data=data)
+    data = service.finalize_take(db, user_id, reservation_id)
+    return data
 
 
 @router.get(
     "",
-    response_model=APIResponse[PerformanceTakeListResponse],
+    operation_id="performanceTakesList",
+    response_model=PerformanceTakeListRead,
 )
-async def list_takes(
+def list_takes(
     score_id: Optional[str] = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.list_takes(
-        db, user_id, score_id=score_id, limit=limit, offset=offset
-    )
-    return success_response(data=data)
+    data = service.list_takes(db, user_id, score_id=score_id, limit=limit, cursor=cursor)
+    return data
 
 
 @router.get(
     "/{take_id}",
-    response_model=APIResponse[PerformanceTakeRead],
+    operation_id="performanceTakeGet",
+    response_model=PerformanceTakeRead,
 )
-async def get_take(
+def get_take(
     take_id: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.get_take(db, user_id, take_id)
-    return success_response(data=data)
+    data = service.get_take(db, user_id, take_id)
+    return data
 
 
 @router.get(
     "/{take_id}/playback-url",
-    response_model=APIResponse[PerformanceTakePlaybackRead],
+    operation_id="performanceTakePlaybackUrlGet",
+    response_model=PerformanceTakePlaybackRead,
 )
-async def get_playback_url(
+def get_playback_url(
     take_id: str,
+    response: Response,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db, scope="function"),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.get_playback_url(db, user_id, take_id)
-    return success_response(data=data)
-
-
-@router.get("/{take_id}/media")
-async def stream_take_media(
-    take_id: str,
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    storage_key, filename, media_type = await service.get_media_delivery(db, user_id, take_id)
-    return stream_storage_object(
-        storage=service.storage,
-        storage_key=storage_key,
-        filename=filename,
-        media_type=media_type,
-        attachment=False,
-        request=request,
-        enable_range=True,
-    )
-
-
-@router.get(
-    "/{take_id}/practice-source/content",
-    response_model=APIResponse[PracticeReadyScoreContentRead],
-)
-async def get_take_practice_source_content(
-    take_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.get_practice_source_content(db, user_id, take_id)
-    return success_response(data=data)
-
-
-@router.get(
-    "/{take_id}/practice-source/artifact",
-    response_model=APIResponse[PracticeScoreArtifactRead],
-)
-async def get_take_practice_source_artifact(
-    take_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    service: PerformanceTakeService = Depends(get_performance_take_service),
-):
-    user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.get_practice_source_artifact(db, user_id, take_id)
-    return success_response(data=data)
+    data = service.get_playback_url(db, user_id, take_id)
+    response.headers["Cache-Control"] = "private, no-store"
+    return data
 
 
 @router.delete(
     "/{take_id}",
-    status_code=status.HTTP_202_ACCEPTED,
-    response_model=APIResponse[PerformanceTakeDeleteResponse],
+    operation_id="performanceTakeDelete",
+    status_code=204,
+    response_model=None,
+    response_class=Response,
 )
-async def delete_take(
+def delete_take(
     take_id: str,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_command_db, scope="function"),
     service: PerformanceTakeService = Depends(get_performance_take_service),
 ):
     user_id = require_persisted_id(current_user.id, entity="user")
-    data = await service.delete_take(db, user_id, take_id)
-    return success_response(data=data, message="Performance take deletion accepted")
+    operations = service.delete_take(db, user_id, take_id)
+    from app.worker.dispatch.stored_object_retirement import dispatch_retirements_best_effort
+
+    background_tasks.add_task(dispatch_retirements_best_effort, operations)
+    return Response(status_code=204)

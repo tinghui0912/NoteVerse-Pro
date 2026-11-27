@@ -2,6 +2,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 
 import {
   Accordion,
@@ -33,6 +34,10 @@ const faqs = [
 
 export default function HelpPage() {
   const t = useTranslations('help');
+  const tPlans = useTranslations('plans');
+  const { isAuthenticated } = useAuthentication();
+  const ctaHref = isAuthenticated ? '/library' : '/auth/register';
+  const ctaLabel = tPlans(isAuthenticated ? 'openApp' : 'getStarted');
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -61,7 +66,7 @@ export default function HelpPage() {
           </Card>
         </div>
       </main>
-      <MarketingFooter />
+      <MarketingFooter ctaHref={ctaHref} ctaLabel={ctaLabel} />
     </div>
   );
 }

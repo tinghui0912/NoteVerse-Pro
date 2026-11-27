@@ -34,12 +34,6 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
           <p>© {new Date().getFullYear()} NoteVerse Pro. {tCommon('allRightsReserved')}</p>
           <div className="flex items-center gap-5">
-            <a href="#" className="transition hover:text-gray-950">
-              {tCommon('privacyPolicy')}
-            </a>
-            <a href="#" className="transition hover:text-gray-950">
-              {tCommon('termsOfService')}
-            </a>
             <Link href="/help" className="transition hover:text-gray-950">
               {tCommon('nav.help')}
             </Link>

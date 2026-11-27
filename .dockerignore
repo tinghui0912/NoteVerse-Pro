@@ -22,3 +22,5 @@ logs
 models
 matchmaker
 matchmaker-demo-main
+
+backend/.env*

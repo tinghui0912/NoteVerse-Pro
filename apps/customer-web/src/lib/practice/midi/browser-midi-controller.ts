@@ -1,21 +1,18 @@
-import type {
-  PracticeTimebase,
-  SessionTime,
-} from '../local-core/timebase';
-import type { CapturedAttack } from '../local-core/evidence';
+import { MidiFailure } from '@/lib/practice/failure/causal-failure';
+import type { PracticeTimebase, SessionTime } from '@/lib/practice/session/timebase';
+export type MidiAttackFact = Readonly<{
+  sessionTime: SessionTime;
+  noteNumber: number;
+  confidence: 1;
+}>;
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
-
-export function midiNoteToPitch(midiNote: number): string {
-  const octave = Math.floor(midiNote / 12) - 1;
-  const noteIndex = ((midiNote % 12) + 12) % 12;
-  return `${NOTE_NAMES[noteIndex]}${octave}`;
+export function isMidiNoteNumber(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value <= 127;
 }
 
 export type ParsedMidiMessage = {
   type: 'NOTE_ON' | 'NOTE_OFF';
   noteNumber: number;
-  pitch: string;
   velocity: number;
 };
 
@@ -26,13 +23,12 @@ export function parseMidiMessage(data: Uint8Array): ParsedMidiMessage | null {
   const status = data[0] & 0xf0;
   const noteNumber = data[1];
   const velocity = data[2];
-  if (noteNumber > 127 || velocity > 127) return null;
+  if (!isMidiNoteNumber(noteNumber) || velocity > 127) return null;
 
   if (status === 0x90 && velocity > 0) {
     return {
       type: 'NOTE_ON',
       noteNumber,
-      pitch: midiNoteToPitch(noteNumber),
       velocity,
     };
   }
@@ -40,7 +36,6 @@ export function parseMidiMessage(data: Uint8Array): ParsedMidiMessage | null {
     return {
       type: 'NOTE_OFF',
       noteNumber,
-      pitch: midiNoteToPitch(noteNumber),
       velocity: 0,
     };
   }
@@ -48,132 +43,57 @@ export function parseMidiMessage(data: Uint8Array): ParsedMidiMessage | null {
 }
 
 export type BrowserMidiControllerOptions = {
+  access: MIDIAccess;
   timebase: PracticeTimebase;
-  onCapturedAttack?: (attack: CapturedAttack) => void;
+  onAttack?: (attack: MidiAttackFact) => void;
   onMidiNote?: (note: {
     type: 'NOTE_ON' | 'NOTE_OFF';
     noteNumber: number;
-    pitch: string;
     velocity: number;
     sessionTime: SessionTime;
   }) => void;
-  onStateChange?: (state: BrowserMidiState) => void;
 };
 export type MidiNoteFact = ParsedMidiMessage & { sessionTime: SessionTime };
 
-export type BrowserMidiState = {
-  isSupported: boolean;
-  hasPermission: boolean | null;
-  connectedInputCount: number;
-  isRunning: boolean;
-};
-
-type NavigatorWithMidi = Navigator & {
-  requestMIDIAccess?: (options?: { sysex?: boolean }) => Promise<MIDIAccess>;
-};
-
-export class MidiNoConnectedInputError extends Error {
-  readonly code = 'NO_CONNECTED_INPUT' as const;
-  constructor(message = 'NO_CONNECTED_INPUT') {
-    super(message);
-    this.name = 'MidiNoConnectedInputError';
-  }
-}
-
 export class BrowserMidiController {
   private readonly timebase: PracticeTimebase;
-  private readonly onCapturedAttack?: (attack: CapturedAttack) => void;
+  private readonly onAttack?: (attack: MidiAttackFact) => void;
   private readonly onMidiNote?: (note: {
     type: 'NOTE_ON' | 'NOTE_OFF';
     noteNumber: number;
-    pitch: string;
     velocity: number;
     sessionTime: SessionTime;
   }) => void;
-  private readonly onStateChange?: (state: BrowserMidiState) => void;
-
-  private midiAccess: MIDIAccess | null = null;
   private isRunning = false;
-  private isSupported: boolean;
-  private hasPermission: boolean | null = null;
-  private connectedInputCount = 0;
-
-  private startGeneration = 0;
+  private readonly access: MIDIAccess;
+  private readonly boundInputs = new Set<MIDIInput>();
+  private readonly message = (event: MIDIMessageEvent) => { if (event.data) this.dispatchMidiData(event.data, event.timeStamp); };
 
   constructor(options: BrowserMidiControllerOptions) {
     this.timebase = options.timebase;
-    this.onCapturedAttack = options.onCapturedAttack;
+    this.onAttack = options.onAttack;
     this.onMidiNote = options.onMidiNote;
-    this.onStateChange = options.onStateChange;
-    this.isSupported =
-      typeof navigator !== 'undefined' &&
-      typeof (navigator as NavigatorWithMidi).requestMIDIAccess === 'function';
-  }
-
-  getState(): BrowserMidiState {
-    return {
-      isSupported: this.isSupported,
-      hasPermission: this.hasPermission,
-      connectedInputCount: this.connectedInputCount,
-      isRunning: this.isRunning,
-    };
+    this.access = options.access;
   }
 
   async start(): Promise<void> {
-    if (this.isRunning) {
-      return;
-    }
-
-    const generation = ++this.startGeneration;
-    const requestMIDIAccess = (typeof navigator !== 'undefined'
-      ? (navigator as NavigatorWithMidi).requestMIDIAccess
-      : undefined);
-
-    if (typeof requestMIDIAccess !== 'function') {
-      this.isSupported = false;
-      this.notifyState();
-      throw new Error('Web MIDI is not supported in this browser environment.');
-    }
-
-    let access: MIDIAccess;
-    try {
-      access = await requestMIDIAccess.call(navigator, { sysex: false });
-      if (generation !== this.startGeneration) throw new Error('MIDI_START_CANCELLED');
-      this.midiAccess = access;
-      this.hasPermission = true;
-    } catch (err) {
-      this.hasPermission = false;
-      this.isRunning = false;
-      this.notifyState();
-      throw err;
-    }
-
-    this.bindAccess(access);
-    this.syncInputs(access);
-
-    if (this.connectedInputCount === 0) {
-      this.isRunning = false;
-      this.notifyState();
-      throw new MidiNoConnectedInputError('NO_CONNECTED_INPUT');
-    }
-
+    if (this.isRunning) return;
     this.isRunning = true;
-    this.notifyState();
+    try { this.refreshInputs(); } catch (cause) { throw new MidiFailure('ACCESS_UNAVAILABLE', { cause }); }
   }
-
-  stop(): void {
-    this.startGeneration++;
-    if (!this.isRunning && !this.midiAccess) {
-      return;
-    }
-    this.unbindAccess();
-    this.isRunning = false;
-    this.notifyState();
+  refreshInputs(): void {
+    if (!this.isRunning) return;
+    for (const input of this.boundInputs) input.removeEventListener('midimessage', this.message);
+    this.boundInputs.clear();
+    this.access.inputs.forEach(input => {
+      if (input.state !== 'connected') return;
+      input.addEventListener('midimessage', this.message); this.boundInputs.add(input);
+    });
   }
-
   dispose(): void {
-    this.stop();
-    this.midiAccess = null;
+    this.isRunning = false;
+    for (const input of this.boundInputs) input.removeEventListener('midimessage', this.message);
+    this.boundInputs.clear();
   }
 
   /**
@@ -197,55 +117,16 @@ export class BrowserMidiController {
     });
 
     if (parsed.type === 'NOTE_ON') {
-      this.handleNoteOn(parsed.pitch, sessionTime);
+      this.handleNoteOn(parsed.noteNumber, sessionTime);
     }
   }
 
-  private handleNoteOn(pitch: string, sessionTime: SessionTime): void {
+  private handleNoteOn(noteNumber: number, sessionTime: SessionTime): void {
     // A physical NOTE_ON fact; mode-specific consumers own grouping/evaluation.
-    this.onCapturedAttack?.({
-      captureTime: sessionTime,
-      pitch,
+    this.onAttack?.({
+      sessionTime,
+      noteNumber,
       confidence: 1,
-      source: 'MIDI',
     });
-
-  }
-
-  private bindAccess(access: MIDIAccess): void {
-    access.onstatechange = () => {
-      this.syncInputs(access);
-      this.notifyState();
-    };
-  }
-
-  private unbindAccess(): void {
-    if (this.midiAccess) {
-      this.midiAccess.onstatechange = null;
-      this.midiAccess.inputs.forEach((input) => {
-        input.onmidimessage = null;
-      });
-    }
-  }
-
-  private syncInputs(access: MIDIAccess): void {
-    const connectedInputs: MIDIInput[] = [];
-    access.inputs.forEach((input) => {
-      if (input.state === 'connected') {
-        connectedInputs.push(input);
-        input.onmidimessage = (event: MIDIMessageEvent) => {
-          if (event.data) {
-            this.dispatchMidiData(event.data, event.timeStamp);
-          }
-        };
-      } else {
-        input.onmidimessage = null;
-      }
-    });
-    this.connectedInputCount = connectedInputs.length;
-  }
-
-  private notifyState(): void {
-    this.onStateChange?.(this.getState());
   }
 }

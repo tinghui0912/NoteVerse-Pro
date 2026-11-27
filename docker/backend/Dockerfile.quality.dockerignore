@@ -27,3 +27,5 @@ matchmaker-demo-main
 backend/research
 
 backend/.venv
+
+backend/.env*

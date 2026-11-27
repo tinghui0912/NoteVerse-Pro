@@ -8,41 +8,25 @@ sensitive-data filter for common secret fields.
 import json
 import re
 import sys
-import uuid
 from contextvars import ContextVar
 from typing import Optional
 
 from loguru import logger as _logger
 
 from app.core.config import settings
+from app.core.request_correlation import get_request_id
+from app.shared.time import require_utc
 
 _logger.remove()
 
 log_format = settings.LOG_FORMAT
 
 
-request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
 task_id_var: ContextVar[Optional[str]] = ContextVar("task_id", default=None)
 otel_trace_context_var: ContextVar[dict[str, str]] = ContextVar(
     "otel_trace_context",
     default={},
 )
-REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-
-
-def get_request_id() -> Optional[str]:
-    """Return the current request correlation identifier."""
-
-    return request_id_var.get()
-
-
-def set_request_id(request_id: Optional[str] = None) -> str:
-    """Set the current request correlation identifier and return it."""
-
-    if request_id is None or not REQUEST_ID_PATTERN.fullmatch(request_id):
-        request_id = uuid.uuid4().hex
-    request_id_var.set(request_id)
-    return request_id
 
 
 def set_otel_trace_context(context: dict[str, str] | None = None) -> None:
@@ -88,6 +72,7 @@ class SensitiveDataFilter:
     }
 
     PATTERNS = [
+        (re.compile(r"(/guest-previews/)[^/\s?\"\']+"), "guest_preview_path"),
         (re.compile(r'password["\']?\s*[:=]\s*["\']?([^"\'\s,}]+)', re.I), "password"),
         (re.compile(r'token["\']?\s*[:=]\s*["\']?([^"\'\s,}]+)', re.I), "token"),
         (re.compile(r'key["\']?\s*[:=]\s*["\']?([^"\'\s,}]+)', re.I), "key"),
@@ -108,9 +93,10 @@ class SensitiveDataFilter:
                 filtered[key] = cls.filter_dict(value)
             elif isinstance(value, list):
                 filtered[key] = [
-                    cls.filter_dict(item) if isinstance(item, dict) else item
-                    for item in value
+                    cls.filter_dict(item) if isinstance(item, dict) else item for item in value
                 ]
+            elif isinstance(value, str):
+                filtered[key] = cls.filter_string(value)
             else:
                 filtered[key] = value
         return filtered
@@ -120,7 +106,11 @@ class SensitiveDataFilter:
         """Redact secret-like fragments inside a plain string."""
 
         for pattern, field_type in cls.PATTERNS:
-            text = pattern.sub(f"{field_type}=***FILTERED***", text)
+            text = (
+                pattern.sub(r"\1***FILTERED***", text)
+                if field_type == "guest_preview_path"
+                else pattern.sub(f"{field_type}=***FILTERED***", text)
+            )
         return text
 
 
@@ -134,48 +124,181 @@ class StructuredLogFieldPolicy:
 
     ALLOWED_EXTRA_FIELDS = frozenset(
         {
-            "accepted", "active_streak", "alignment_confidence", "alignment_state",
-            "api_docs_path", "app_version", "armed", "attempt", "attempts",
-            "audio_confidence", "beat", "beat_delta", "beat_velocity", "blob_id",
-            "category", "channels", "client_address", "completed", "confidence",
-            "continuity_confidence", "continuity_state", "corrected_length", "count",
-            "current_step", "decision", "device", "due", "duration_ms",
-            "duration_seconds", "effective_start_peak_gate", "effective_start_rms_gate",
-            "engine", "end_expected_group_id", "enhanced", "environment", "error_code",
-            "evaluation_profile", "event", "event_type", "exception_type", "exit_code",
-            "expected_group_id", "feature_confidence",
-            "first_measure_number", "fixes_made", "flux_gate", "follow_action",
-            "follow_reason", "frame", "frame_class", "frame_format", "frame_samples",
-            "frames", "gate_reason",
-            "hand_size", "head_revision_id", "http_path", "input_policy_confidence",
-            "input_source", "input_weight", "job_id", "margin", "match_state", "max_attempts",
-            "measure_count", "method", "no_input_streak", "noise_samples",
-            "notification_type", "onset", "operation_kind", "originating_request_id",
+            "accepted",
+            # Journal/projection metadata: stable identities, counts and classes only.
+            "aggregate_type",
+            "aggregate_id",
+            "commit_pending",
+            "event_id",
+            "last_event_id",
+            "projection_name",
+            "processed_count",
+            "scanned_count",
+            "error_class",
+            "active_streak",
+            "alignment_confidence",
+            "alignment_state",
+            "api_docs_path",
+            "app_version",
+            "armed",
+            "attempt",
+            "attempts",
+            "audio_confidence",
+            "beat",
+            "beat_delta",
+            "beat_velocity",
+            "stored_object_id",
+            "object_locator_hash",
+            "read_operation",
+            "read_failure_classification",
+            "category",
+            "channels",
+            "client_address",
+            "completed",
+            "confidence",
+            "continuity_confidence",
+            "continuity_state",
+            "corrected_length",
+            "count",
+            "current_step",
+            "decision",
+            "device",
+            "due",
+            "duration_ms",
+            "duration_seconds",
+            "effective_start_peak_gate",
+            "effective_start_rms_gate",
+            "engine",
+            "end_expected_group_id",
+            "enhanced",
+            "environment",
+            "error_code",
+            "failure_code",
+            "failure_classification",
+            "evaluation_profile",
+            "event",
+            "event_type",
+            "exception_type",
+            "exit_code",
+            "expected_group_id",
+            "feature_confidence",
+            "first_measure_number",
+            "fixes_made",
+            "flux_gate",
+            "follow_action",
+            "follow_reason",
+            "frame",
+            "frame_class",
+            "frame_format",
+            "frame_samples",
+            "frames",
+            "gate_reason",
+            "hand_size",
+            "head_revision_id",
+            "http_path",
+            "input_policy_confidence",
+            "input_source",
+            "input_weight",
+            "job_id",
+            "margin",
+            "match_state",
+            "max_attempts",
+            "measure_count",
+            "method",
+            "no_input_streak",
+            "noise_samples",
+            "notification_type",
+            "onset",
+            "operation_id",
+            "operation_kind",
+            "originating_request_id",
             "original_length",
-            "outbox_id", "page_count", "page_height", "page_index", "page_width",
-            "payload_shape", "payload_type", "peak", "peak_gate", "peak_prominence", "phase",
-            "peer_address", "performance_active", "pipeline", "prepare_ms",
-            "profile_schema_version", "progress", "project_name",
-            "progression_mode", "public_code", "queue_decision", "raw_beat",
-            "realtime_guidance", "reason", "recipient_user_id",
-            "region_count", "rejected", "request_id", "resource_id", "resource_type",
-            "retain_recent_revisions", "revision_id", "rms", "rms_gate", "row_count",
-            "row_index", "runtime_reason", "runtime_role", "scheduler_job", "score_id",
-            "session_id", "sample_rate", "spectral_flatness", "spectral_flux",
-            "start_expected_group_id", "start_feature_confidence",
-            "start_peak_gate", "start_reason", "start_rms_gate", "start_streak", "started",
-            "state", "status", "status_code", "status_label", "step", "task_id",
-            "text_count", "text_index", "text_length", "timeout_seconds", "tonal",
-            "upload_count", "upload_id", "user_id", "validation_confidence",
-            "validation_error_count", "validation_first_location", "validation_first_type",
+            "outbox_id",
+            "page_count",
+            "page_height",
+            "page_index",
+            "page_width",
+            "payload_shape",
+            "payload_type",
+            "peak",
+            "peak_gate",
+            "peak_prominence",
+            "phase",
+            "peer_address",
+            "performance_active",
+            "pipeline",
+            "prepare_ms",
+            "profile_schema_version",
+            "progress",
+            "project_name",
+            "progression_mode",
+            "public_code",
+            "queue_decision",
+            "raw_beat",
+            "realtime_guidance",
+            "reason",
+            "recipient_user_id",
+            "region_count",
+            "rejected",
+            "request_id",
+            "resource_id",
+            "resource_type",
+            "revision_id",
+            "rms",
+            "rms_gate",
+            "row_count",
+            "row_index",
+            "runtime_reason",
+            "runtime_role",
+            "scheduler_job",
+            "score_id",
+            "session_id",
+            "sample_rate",
+            "spectral_flatness",
+            "spectral_flux",
+            "start_expected_group_id",
+            "start_feature_confidence",
+            "start_peak_gate",
+            "start_reason",
+            "start_rms_gate",
+            "start_streak",
+            "started",
+            "state",
+            "status",
+            "status_code",
+            "status_label",
+            "step",
+            "task_id",
+            "text_count",
+            "text_index",
+            "text_length",
+            "timeout_seconds",
+            "tonal",
+            "upload_count",
+            "upload_id",
+            "user_id",
+            "validation_confidence",
+            "validation_error_count",
+            "validation_first_location",
+            "validation_first_type",
             "worker_module",
         }
     )
     FORBIDDEN_EXTRA_FIELDS = frozenset(
         {
-            "destination_path", "filename", "image_path", "internal_reason", "musicxml_path",
-            "output_path", "path", "source_path", "stderr_tail", "stdout_tail",
-            "storage_key", "stem", "text_summary",
+            "destination_path",
+            "filename",
+            "image_path",
+            "internal_reason",
+            "musicxml_path",
+            "output_path",
+            "path",
+            "source_path",
+            "stderr_tail",
+            "stdout_tail",
+            "storage_key",
+            "stem",
+            "text_summary",
         }
     )
 
@@ -222,7 +345,7 @@ def json_format(record) -> str:
     task_id = get_task_id()
 
     log_record = {
-        "timestamp": record["time"].strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+        "timestamp": require_utc(record["time"]).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
         "level": record["level"].name,
         "logger": record["name"],
         "message": SensitiveDataFilter.filter_string(str(record["message"])),
@@ -291,13 +414,10 @@ __all__ = [
     "logger",
     "SensitiveDataFilter",
     "StructuredLogFieldPolicy",
-    "get_request_id",
-    "set_request_id",
     "get_otel_trace_context",
     "set_otel_trace_context",
     "get_task_id",
     "set_task_id",
-    "request_id_var",
     "task_id_var",
     "otel_trace_context_var",
 ]

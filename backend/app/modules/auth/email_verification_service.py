@@ -6,22 +6,29 @@ from datetime import timedelta
 from urllib.parse import urlencode
 
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.config import settings
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.models.auth import PendingRegistration
 from app.db.models.user import User
+from app.db.model_utils import require_persisted_id
+from collections.abc import Callable
 from app.modules.auth.schemas import RegisterRequest, VerifyEmailRequest
-from app.modules.mail.outbox_service import queue_mail
+from app.modules.mail.outbox_service import queue_mail, cancel_source_mail
+from app.modules.account.email_identity import lock_email_identity
+from app.db.models.mail_outbox import MailSourceKind
 from app.modules.mail.templates.auth import build_email_verification_email
-from app.shared.constants import ErrorCode
-from app.utils.timezone import utc_now_naive
+from app.shared.error_codes import CustomerErrorCode
+from app.shared.time import utc_now
 
 
 class EmailVerificationService:
     """Owns pending registrations and email verification tokens."""
+
+    def __init__(self, provision_storage: Callable[[Session, int], None]) -> None:
+        self.provision_storage = provision_storage
 
     def _hash_token(self, token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -33,17 +40,18 @@ class EmailVerificationService:
         base_url = settings.FRONTEND_BASE_URL.rstrip("/")
         return f"{base_url}{path}?{urlencode({'token': token})}"
 
-    async def register(
+    def register(
         self,
-        db: AsyncSession,
+        db: Session,
         request: RegisterRequest,
         *,
         user_agent: str | None = None,
         ip_address: str | None = None,
     ) -> None:
         email = str(request.email).strip().lower()
-        result = await db.exec(select(User).where(User.email == email))
-        if result.one_or_none():
+        lock_email_identity(db, email)
+        result = db.execute(select(User).where(User.email == email))
+        if result.scalars().one_or_none():
             raise ResourceAlreadyExistsException(
                 resource_type="user",
                 details={"email": email},
@@ -51,13 +59,21 @@ class EmailVerificationService:
 
         ttl_seconds = settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
         token = self._new_token()
-        now = utc_now_naive()
+        now = utc_now()
         password_hash = security.get_password_hash(request.password)
-        pending_result = await db.exec(
-            select(PendingRegistration).where(PendingRegistration.email == email)
+        pending_result = db.execute(
+            select(PendingRegistration)
+            .where(PendingRegistration.email == email)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
-        pending = pending_result.one_or_none()
+        pending = pending_result.scalars().one_or_none()
         if pending:
+            cancel_source_mail(
+                db,
+                MailSourceKind.REGISTRATION,
+                select(PendingRegistration.id).where(PendingRegistration.id == pending.id),
+            )
             pending.display_name = request.display_name
             pending.password_hash = password_hash
             pending.token_hash = self._hash_token(token)
@@ -78,7 +94,7 @@ class EmailVerificationService:
                 ip_address=ip_address,
             )
             db.add(pending)
-        await db.flush()
+        db.flush()
 
         email_content = build_email_verification_email(
             locale=request.locale,
@@ -86,31 +102,47 @@ class EmailVerificationService:
             verification_url=self._frontend_url("/auth/verify-email", token),
             ttl_seconds=ttl_seconds,
         )
-        await queue_mail(
+        queue_mail(
             db,
             category="verification.email",
-            dedupe_key=f"verification.email:{email}:{self._hash_token(token)}",
+            source_kind=MailSourceKind.REGISTRATION,
+            source_id=require_persisted_id(pending.id, entity="pending registration"),
+            dedupe_key=f"verification.email:{pending.id}:{self._hash_token(token)}",
             recipient=email,
             subject=email_content.subject,
             text_body=email_content.text_body,
             html_body=email_content.html_body,
             expires_at=now + timedelta(seconds=ttl_seconds),
         )
-        await db.commit()
+        db.commit()
 
-    async def verify_email(self, db: AsyncSession, request: VerifyEmailRequest) -> User:
-        now = utc_now_naive()
-        result = await db.exec(
+    def verify_email(self, db: Session, request: VerifyEmailRequest) -> User:
+        now = utc_now()
+        result = db.execute(
             select(PendingRegistration).where(
                 PendingRegistration.token_hash == self._hash_token(request.token)
             )
         )
-        pending = result.one_or_none()
+        pending = result.scalars().one_or_none()
         if not pending or pending.consumed_at is not None or pending.expires_at <= now:
-            raise ValidationException(code=ErrorCode.TOKEN_INVALID_EXPIRED, field="token")
+            raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
 
-        existing_result = await db.exec(select(User).where(User.email == pending.email))
-        if existing_result.one_or_none():
+        lock_email_identity(db, pending.email)
+        pending = (
+            db.execute(
+                select(PendingRegistration)
+                .where(PendingRegistration.token_hash == self._hash_token(request.token))
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+            .scalars()
+            .one_or_none()
+        )
+        now = utc_now()
+        if pending is None or pending.consumed_at is not None or pending.expires_at <= now:
+            raise ValidationException(code=CustomerErrorCode.TOKEN_INVALID_EXPIRED, field="token")
+        existing_result = db.execute(select(User).where(User.email == pending.email))
+        if existing_result.scalars().one_or_none():
             raise ResourceAlreadyExistsException(
                 resource_type="user",
                 details={"email": pending.email},
@@ -125,7 +157,14 @@ class EmailVerificationService:
             email_verified_at=now,
         )
         db.add(user)
-        await db.delete(pending)
-        await db.commit()
-        await db.refresh(user)
+        db.flush()
+        self.provision_storage(db, require_persisted_id(user.id, entity="user"))
+        cancel_source_mail(
+            db,
+            MailSourceKind.REGISTRATION,
+            select(PendingRegistration.id).where(PendingRegistration.id == pending.id),
+        )
+        db.delete(pending)
+        db.commit()
+        db.refresh(user)
         return user

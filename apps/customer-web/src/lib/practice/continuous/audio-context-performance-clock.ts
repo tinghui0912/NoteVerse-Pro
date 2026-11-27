@@ -1,4 +1,4 @@
-import type { LocalClock } from '../local-core/timebase';
+import type { LocalClock } from '@/lib/practice/session/timebase';
 
 /** The session render timeline is also the capture and metronome time domain. */
 export class AudioContextPerformanceClock implements LocalClock {

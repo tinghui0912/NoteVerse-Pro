@@ -1,4 +1,5 @@
-from sqlmodel import SQLModel, Session, create_engine, select
+from sqlalchemy.orm import Session
+from sqlmodel import SQLModel, select
 
 from app.db.execution_manifests import get_or_create_execution_manifest, manifest_sha256
 from app.db.models import ExecutionManifest
@@ -25,9 +26,11 @@ def test_playback_profile_rejects_invalid_output_limits() -> None:
         raise AssertionError("PlaybackProfile must reject a non-positive sample rate")
 
 
-def test_playback_execution_manifest_is_stable_and_content_addressed() -> None:
+def test_playback_execution_manifest_is_stable_and_content_addressed(
+    postgres_engine,
+) -> None:
     manifest = build_playback_execution_manifest(soundfont_sha256="a" * 64)
-    engine = create_engine("sqlite:///:memory:")
+    engine = postgres_engine
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
@@ -37,4 +40,4 @@ def test_playback_execution_manifest_is_stable_and_content_addressed() -> None:
 
         assert manifest_sha256(manifest) == manifest_sha256(dict(reversed(list(manifest.items()))))
         assert first.id == second.id
-        assert len(list(session.exec(select(ExecutionManifest)))) == 1
+        assert len(list(session.scalars(select(ExecutionManifest)))) == 1

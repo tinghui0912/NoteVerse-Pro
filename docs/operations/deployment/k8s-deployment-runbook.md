@@ -89,7 +89,6 @@ python scripts/render_k8s_release_overlay.py \
   --s3-endpoint-url https://object-storage.example.com \
   --s3-region auto \
   --s3-bucket noteverse-production \
-  --s3-public-base-url https://objects.noteverse.example.com \
   --s3-force-path-style true \
   --s3-presign-expire-seconds 900
 ```
@@ -191,7 +190,6 @@ Required backend Secret keys:
 ```text
 SECRET_KEY
 DATABASE_URL
-SYNC_DATABASE_URL
 SCHEDULER_LOCK_DATABASE_URL
 REDIS_URL
 CELERY_BROKER_URL
@@ -321,9 +319,9 @@ Run a small production smoke path:
 5. Confirm score.
 6. Open score detail page.
 7. Confirm thumbnail/audio derived assets eventually appear.
-8. Create a share link.
-9. Open the share link in a new session.
-10. Verify external page does not expose MusicXML when downloads are disabled.
+8. Enable Guest Preview for a Score and copy the link shown once. Verify that rotation invalidates it and reveals a fresh link.
+9. Open the Guest Preview link in a new session.
+10. Verify the external page exposes neither MusicXML nor download actions.
 11. Delete a test score.
 12. Verify cleanup async operation is visible in ops metrics/logs.
 

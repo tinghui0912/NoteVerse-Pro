@@ -1,10 +1,9 @@
 'use client';
 
+import { useEditorSession } from '@/contexts/editor-session-context';
+import type { EditorCommand } from '@/lib/editor/session';
 import { useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { useHistory } from '@/contexts/editor-history-context';
-import { useScoreData } from '@/contexts/score-data-context';
-import { findEntityBySourceIds, type FindEntityResult } from '@/lib/editor/score-lookup';
 import {
   addSlurRelationship,
   addTieRelationship,
@@ -12,8 +11,6 @@ import {
   applyInspectorEdit,
   deleteSlurRelationship,
   deleteTieRelationship,
-  exportEditorDomainToMusicXml,
-  importMusicXmlToEditorDomain,
   findNoteAtomByMusicXmlElementId,
   findVoiceEventByMusicXmlElementIds,
   setEventStemDirectionOverride,
@@ -30,643 +27,480 @@ import {
 } from '@/lib/editor-domain';
 
 export type EditorDomainEditResult =
-  | {
-      success: true;
-      xml: string;
-      refreshedSelection: FindEntityResult;
-    }
-  | {
-      success: false;
-      error: string;
-    };
-
-export function applyEditorDomainEditToXml(params: {
-  xml: string;
-  draft: InspectorDraft;
-  notationOverrides?: InspectorNotationOverrides;
-  retargetNoteAtomSourceId?: string;
-}): EditorDomainEditResult {
-  try {
-    const imported = importMusicXmlToEditorDomain(params.xml);
-    const draft = params.retargetNoteAtomSourceId
-      ? retargetNoteAtomDraft(imported.document, params.draft, params.retargetNoteAtomSourceId)
-      : params.draft;
-
-    const edited = applyInspectorEdit(
-      imported.document,
-      draft,
-      params.notationOverrides,
-    );
-
-    if (!edited.success) {
-      return { success: false, error: edited.error };
-    }
-
-    return {
-      success: true,
-      xml: exportEditorDomainToMusicXml(edited.document),
-      refreshedSelection: null,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
+  | { success: true; refreshedSelection: ScoreDocument['events'][number] | null }
+  | { success: false; error: string };
 export function useEditorDomainEdit() {
   const t = useTranslations('editor.actions');
-  const {
-    currentXml,
-    currentXmlRef,
-    reparseXml,
-    setCurrentXml,
-  } = useScoreData();
-  const history = useHistory();
+  const { applyCommand } = useEditorSession();
+  const commit = useCallback(
+    (command: EditorCommand, sourceIds: string[], action?: string): EditorDomainEditResult => {
+      const result = applyCommand(command, action ?? t('editNote'));
+      return result.success
+        ? {
+            success: true,
+            refreshedSelection: findVoiceEventByMusicXmlElementIds(result.document, sourceIds),
+          }
+        : result;
+    },
+    [applyCommand, t],
+  );
+  const applyDomainInspectorEdit = useCallback(
+    (params: {
+      draft: InspectorDraft;
+      notationOverrides?: InspectorNotationOverrides;
+      retargetNoteAtomSourceId?: string;
+      reselectSourceIds?: string[];
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (document) =>
+          applyInspectorEdit(
+            document,
+            params.retargetNoteAtomSourceId
+              ? retargetNoteAtomDraft(document, params.draft, params.retargetNoteAtomSourceId)
+              : params.draft,
+            params.notationOverrides,
+          ),
+        params.reselectSourceIds ?? [],
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-  const applyDomainInspectorEdit = useCallback((params: {
-    draft: InspectorDraft;
-    notationOverrides?: InspectorNotationOverrides;
-    retargetNoteAtomSourceId?: string;
-    reselectSourceIds?: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
+  const applyDomainStemDirectionToSourceIds = useCallback(
+    (params: {
+      sourceIds: string[];
+      stemDirection?: Extract<StemDirectionOverride, 'up' | 'down'>;
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          let document = currentDocument;
+          const eventIds = new Set(
+            params.sourceIds
+              .map((sourceId) => findVoiceEventByMusicXmlElementIds(document, [sourceId])?.id)
+              .filter((eventId): eventId is NonNullable<typeof eventId> => Boolean(eventId)),
+          );
 
-    const result = applyEditorDomainEditToXml({
-      xml: oldXml,
-      draft: params.draft,
-      notationOverrides: params.notationOverrides,
-      retargetNoteAtomSourceId: params.retargetNoteAtomSourceId,
-    });
-    if (!result.success) {
-      return result;
-    }
+          if (eventIds.size === 0) {
+            return {
+              success: false,
+              error: 'No domain events match the requested MusicXML source ids.',
+            };
+          }
 
-    if (oldXml !== result.xml) {
-      history.push(result.xml, params.actionName ?? t('editNote'));
-    }
-    currentXmlRef.current = result.xml;
-    setCurrentXml(result.xml);
-    const nextScoreData = reparseXml(result.xml);
+          for (const eventId of eventIds) {
+            const result = setEventStemDirectionOverride({
+              document,
+              eventId,
+              stemDirection: params.stemDirection,
+            });
+            if (!result.success) {
+              return { success: false, error: result.error };
+            }
+            document = result.document;
+          }
 
-    return {
-      ...result,
-      refreshedSelection: findEntityBySourceIds(nextScoreData, params.reselectSourceIds ?? []),
-    };
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
+          return { success: true, document: document };
+        },
+        params.sourceIds,
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-  const applyDomainStemDirectionToSourceIds = useCallback((params: {
-    sourceIds: string[];
-    stemDirection?: Extract<StemDirectionOverride, 'up' | 'down'>;
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
+  const applyDomainBeamRelationshipEditBySourceId = useCallback(
+    (params: {
+      sourceId: string;
+      action: BeamRelationshipAction;
+      reselectSourceIds?: string[];
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          const event = findVoiceEventByMusicXmlElementIds(currentDocument, [params.sourceId]);
+          if (!event) {
+            return {
+              success: false,
+              error: 'No domain event matches the requested MusicXML source id.',
+            };
+          }
 
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      let document = imported.document;
-      const eventIds = new Set(params.sourceIds
-        .map((sourceId) => findVoiceEventByMusicXmlElementIds(document, [sourceId])?.id)
-        .filter((eventId): eventId is NonNullable<typeof eventId> => Boolean(eventId)));
+          const result = updateBeamRelationshipAtEvent({
+            document: currentDocument,
+            eventId: event.id,
+            action: params.action,
+          });
+          if (!result.success) {
+            return { success: false, error: result.error };
+          }
 
-      if (eventIds.size === 0) {
-        return { success: false, error: 'No domain events match the requested MusicXML source ids.' };
-      }
+          return { success: true, document: result.document };
+        },
+        params.reselectSourceIds ?? [params.sourceId],
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-      for (const eventId of eventIds) {
-        const result = setEventStemDirectionOverride({
-          document,
-          eventId,
-          stemDirection: params.stemDirection,
-        });
-        if (!result.success) {
-          return { success: false, error: result.error };
-        }
-        document = result.document;
-      }
+  const addDomainTieRelationshipsBySourceIds = useCallback(
+    (params: {
+      startSourceIds: string[];
+      endSourceIds: string[];
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          let document = currentDocument;
+          const pairs = resolveNoteAtomPairsBySourceIds(
+            document,
+            params.startSourceIds,
+            params.endSourceIds,
+          );
+          if (!pairs.success) {
+            return { success: false, error: pairs.error };
+          }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
+          for (const pair of pairs.pairs) {
+            const [start, stop] = orderNoteAtomEndpoints(document, pair.left, pair.right);
+            const result = addTieRelationship({
+              document,
+              startNoteAtomId: start.note.id,
+              stopNoteAtomId: stop.note.id,
+            });
+            if (!result.success) {
+              return { success: false, error: result.error };
+            }
+            document = result.document;
+          }
 
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.sourceIds),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
+          return { success: true, document: document };
+        },
+        params.startSourceIds,
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-  const applyDomainBeamRelationshipEditBySourceId = useCallback((params: {
-    sourceId: string;
-    action: BeamRelationshipAction;
-    reselectSourceIds?: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
+  const addDomainSlurRelationshipsBySourceIds = useCallback(
+    (params: {
+      startSourceIds: string[];
+      endSourceIds: string[];
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          let document = currentDocument;
+          const pairs = resolveNoteAtomPairsBySourceIds(
+            document,
+            params.startSourceIds,
+            params.endSourceIds,
+          );
+          if (!pairs.success) {
+            return { success: false, error: pairs.error };
+          }
 
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      const event = findVoiceEventByMusicXmlElementIds(imported.document, [params.sourceId]);
-      if (!event) {
-        return { success: false, error: 'No domain event matches the requested MusicXML source id.' };
-      }
+          for (const pair of pairs.pairs) {
+            const [start, stop] = orderNoteAtomEndpoints(document, pair.left, pair.right);
+            const result = addSlurRelationship({
+              document,
+              startNoteAtomId: start.note.id,
+              stopNoteAtomId: stop.note.id,
+            });
+            if (!result.success) {
+              return { success: false, error: result.error };
+            }
+            document = result.document;
+          }
 
-      const result = updateBeamRelationshipAtEvent({
-        document: imported.document,
-        eventId: event.id,
-        action: params.action,
-      });
-      if (!result.success) {
-        return { success: false, error: result.error };
-      }
+          return { success: true, document: document };
+        },
+        params.startSourceIds,
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-      const nextXml = exportEditorDomainToMusicXml(result.document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
+  const deleteDomainTieRelationshipBySourceIds = useCallback(
+    (params: {
+      sourceId: string;
+      partnerSourceId: string;
+      reselectSourceIds?: string[];
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          const first = findNoteAtomByMusicXmlElementId(currentDocument, params.sourceId);
+          const second = findNoteAtomByMusicXmlElementId(currentDocument, params.partnerSourceId);
+          if (!first || !second) {
+            return {
+              success: false,
+              error: 'No domain note atoms match the requested MusicXML source ids.',
+            };
+          }
 
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.reselectSourceIds ?? [params.sourceId]),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
+          const relationship = currentDocument.tieRelationships.find(
+            (candidate) =>
+              (candidate.startNoteAtomId === first.note.id &&
+                candidate.stopNoteAtomId === second.note.id) ||
+              (candidate.startNoteAtomId === second.note.id &&
+                candidate.stopNoteAtomId === first.note.id),
+          );
+          if (!relationship) {
+            return { success: false, error: 'Tie relationship does not exist.' };
+          }
 
-  const addDomainTieRelationshipsBySourceIds = useCallback((params: {
-    startSourceIds: string[];
-    endSourceIds: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
+          const result = deleteTieRelationship({
+            document: currentDocument,
+            tieId: relationship.id,
+          });
+          if (!result.success) {
+            return { success: false, error: result.error };
+          }
 
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      let document = imported.document;
-      const pairs = resolveNoteAtomPairsBySourceIds(document, params.startSourceIds, params.endSourceIds);
-      if (!pairs.success) {
-        return { success: false, error: pairs.error };
-      }
+          return { success: true, document: result.document };
+        },
+        params.reselectSourceIds ?? [params.sourceId],
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-      for (const pair of pairs.pairs) {
-        const [start, stop] = orderNoteAtomEndpoints(document, pair.left, pair.right);
-        const result = addTieRelationship({
-          document,
-          startNoteAtomId: start.note.id,
-          stopNoteAtomId: stop.note.id,
-        });
-        if (!result.success) {
-          return { success: false, error: result.error };
-        }
-        document = result.document;
-      }
+  const deleteDomainTieRelationshipsForSourceIds = useCallback(
+    (params: { sourceIds: string[]; actionName?: string }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          let document = currentDocument;
+          const selectedAtomIds = new Set(
+            resolveNoteAtomsBySourceIds(document, params.sourceIds).map((match) => match.note.id),
+          );
+          if (selectedAtomIds.size === 0) {
+            return {
+              success: false,
+              error: 'No domain note atoms match the requested MusicXML source ids.',
+            };
+          }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
+          const relationships = document.tieRelationships.filter(
+            (relationship) =>
+              selectedAtomIds.has(relationship.startNoteAtomId) ||
+              selectedAtomIds.has(relationship.stopNoteAtomId),
+          );
+          if (relationships.length === 0) {
+            return { success: false, error: 'Tie relationship does not exist.' };
+          }
 
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.startSourceIds),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
+          for (const relationship of relationships) {
+            const result = deleteTieRelationship({
+              document,
+              tieId: relationship.id,
+            });
+            if (!result.success) {
+              return { success: false, error: result.error };
+            }
+            document = result.document;
+          }
 
-  const addDomainSlurRelationshipsBySourceIds = useCallback((params: {
-    startSourceIds: string[];
-    endSourceIds: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
+          return { success: true, document: document };
+        },
+        params.sourceIds,
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      let document = imported.document;
-      const pairs = resolveNoteAtomPairsBySourceIds(document, params.startSourceIds, params.endSourceIds);
-      if (!pairs.success) {
-        return { success: false, error: pairs.error };
-      }
+  const setDomainTiePlacementBySourceIds = useCallback(
+    (params: {
+      sourceId: string;
+      partnerSourceId: string;
+      placement?: NotationPlacementOverride;
+      reselectSourceIds?: string[];
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          const first = findNoteAtomByMusicXmlElementId(currentDocument, params.sourceId);
+          const second = findNoteAtomByMusicXmlElementId(currentDocument, params.partnerSourceId);
+          if (!first || !second) {
+            return {
+              success: false,
+              error: 'No domain note atoms match the requested MusicXML source ids.',
+            };
+          }
 
-      for (const pair of pairs.pairs) {
-        const [start, stop] = orderNoteAtomEndpoints(document, pair.left, pair.right);
-        const result = addSlurRelationship({
-          document,
-          startNoteAtomId: start.note.id,
-          stopNoteAtomId: stop.note.id,
-        });
-        if (!result.success) {
-          return { success: false, error: result.error };
-        }
-        document = result.document;
-      }
+          const relationship = currentDocument.tieRelationships.find(
+            (candidate) =>
+              (candidate.startNoteAtomId === first.note.id &&
+                candidate.stopNoteAtomId === second.note.id) ||
+              (candidate.startNoteAtomId === second.note.id &&
+                candidate.stopNoteAtomId === first.note.id),
+          );
+          if (!relationship) {
+            return { success: false, error: 'Tie relationship does not exist.' };
+          }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
+          const result = setTieRelationshipPlacement({
+            document: currentDocument,
+            tieId: relationship.id,
+            placement: params.placement,
+          });
+          if (!result.success) {
+            return { success: false, error: result.error };
+          }
 
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.startSourceIds),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
+          return { success: true, document: result.document };
+        },
+        params.reselectSourceIds ?? [params.sourceId],
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-  const deleteDomainTieRelationshipBySourceIds = useCallback((params: {
-    sourceId: string;
-    partnerSourceId: string;
-    reselectSourceIds?: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
+  const deleteDomainSlurRelationshipBySourceIds = useCallback(
+    (params: {
+      sourceId: string;
+      partnerSourceId: string;
+      reselectSourceIds?: string[];
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          const first = findNoteAtomByMusicXmlElementId(currentDocument, params.sourceId);
+          const second = findNoteAtomByMusicXmlElementId(currentDocument, params.partnerSourceId);
+          if (!first || !second) {
+            return {
+              success: false,
+              error: 'No domain note atoms match the requested MusicXML source ids.',
+            };
+          }
 
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      const first = findNoteAtomByMusicXmlElementId(imported.document, params.sourceId);
-      const second = findNoteAtomByMusicXmlElementId(imported.document, params.partnerSourceId);
-      if (!first || !second) {
-        return { success: false, error: 'No domain note atoms match the requested MusicXML source ids.' };
-      }
+          const relationship = currentDocument.slurRelationships.find(
+            (candidate) =>
+              (candidate.startNoteAtomId === first.note.id &&
+                candidate.stopNoteAtomId === second.note.id) ||
+              (candidate.startNoteAtomId === second.note.id &&
+                candidate.stopNoteAtomId === first.note.id),
+          );
+          if (!relationship) {
+            return { success: false, error: 'Slur relationship does not exist.' };
+          }
 
-      const relationship = imported.document.tieRelationships.find((candidate) => (
-        (candidate.startNoteAtomId === first.note.id && candidate.stopNoteAtomId === second.note.id)
-        || (candidate.startNoteAtomId === second.note.id && candidate.stopNoteAtomId === first.note.id)
-      ));
-      if (!relationship) {
-        return { success: false, error: 'Tie relationship does not exist.' };
-      }
+          const result = deleteSlurRelationship({
+            document: currentDocument,
+            notationId: relationship.id,
+          });
+          if (!result.success) {
+            return { success: false, error: result.error };
+          }
 
-      const result = deleteTieRelationship({
-        document: imported.document,
-        tieId: relationship.id,
-      });
-      if (!result.success) {
-        return { success: false, error: result.error };
-      }
+          return { success: true, document: result.document };
+        },
+        params.reselectSourceIds ?? [params.sourceId],
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-      const nextXml = exportEditorDomainToMusicXml(result.document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
+  const deleteDomainSlurRelationshipsForSourceIds = useCallback(
+    (params: { sourceIds: string[]; actionName?: string }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          let document = currentDocument;
+          const selectedAtomIds = new Set(
+            resolveNoteAtomsBySourceIds(document, params.sourceIds).map((match) => match.note.id),
+          );
+          if (selectedAtomIds.size === 0) {
+            return {
+              success: false,
+              error: 'No domain note atoms match the requested MusicXML source ids.',
+            };
+          }
 
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.reselectSourceIds ?? [params.sourceId]),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
+          const relationships = document.slurRelationships.filter(
+            (relationship) =>
+              selectedAtomIds.has(relationship.startNoteAtomId) ||
+              selectedAtomIds.has(relationship.stopNoteAtomId),
+          );
+          if (relationships.length === 0) {
+            return { success: false, error: 'Slur relationship does not exist.' };
+          }
 
-  const deleteDomainTieRelationshipsForSourceIds = useCallback((params: {
-    sourceIds: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
+          for (const relationship of relationships) {
+            const result = deleteSlurRelationship({
+              document,
+              notationId: relationship.id,
+            });
+            if (!result.success) {
+              return { success: false, error: result.error };
+            }
+            document = result.document;
+          }
 
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      let document = imported.document;
-      const selectedAtomIds = new Set(resolveNoteAtomsBySourceIds(document, params.sourceIds)
-        .map((match) => match.note.id));
-      if (selectedAtomIds.size === 0) {
-        return { success: false, error: 'No domain note atoms match the requested MusicXML source ids.' };
-      }
+          return { success: true, document: document };
+        },
+        params.sourceIds,
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
-      const relationships = document.tieRelationships.filter((relationship) => (
-        selectedAtomIds.has(relationship.startNoteAtomId) || selectedAtomIds.has(relationship.stopNoteAtomId)
-      ));
-      if (relationships.length === 0) {
-        return { success: false, error: 'Tie relationship does not exist.' };
-      }
+  const setDomainSlurPlacementBySourceIds = useCallback(
+    (params: {
+      sourceId: string;
+      partnerSourceId: string;
+      placement?: NotationPlacementOverride;
+      reselectSourceIds?: string[];
+      actionName?: string;
+    }): EditorDomainEditResult => {
+      return commit(
+        (currentDocument) => {
+          const first = findNoteAtomByMusicXmlElementId(currentDocument, params.sourceId);
+          const second = findNoteAtomByMusicXmlElementId(currentDocument, params.partnerSourceId);
+          if (!first || !second) {
+            return {
+              success: false,
+              error: 'No domain note atoms match the requested MusicXML source ids.',
+            };
+          }
 
-      for (const relationship of relationships) {
-        const result = deleteTieRelationship({
-          document,
-          tieId: relationship.id,
-        });
-        if (!result.success) {
-          return { success: false, error: result.error };
-        }
-        document = result.document;
-      }
+          const relationship = currentDocument.slurRelationships.find(
+            (candidate) =>
+              (candidate.startNoteAtomId === first.note.id &&
+                candidate.stopNoteAtomId === second.note.id) ||
+              (candidate.startNoteAtomId === second.note.id &&
+                candidate.stopNoteAtomId === first.note.id),
+          );
+          if (!relationship) {
+            return { success: false, error: 'Slur relationship does not exist.' };
+          }
 
-      const nextXml = exportEditorDomainToMusicXml(document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
+          const result = setSlurRelationshipPlacement({
+            document: currentDocument,
+            notationId: relationship.id,
+            placement: params.placement,
+          });
+          if (!result.success) {
+            return { success: false, error: result.error };
+          }
 
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.sourceIds),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
-
-  const setDomainTiePlacementBySourceIds = useCallback((params: {
-    sourceId: string;
-    partnerSourceId: string;
-    placement?: NotationPlacementOverride;
-    reselectSourceIds?: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
-
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      const first = findNoteAtomByMusicXmlElementId(imported.document, params.sourceId);
-      const second = findNoteAtomByMusicXmlElementId(imported.document, params.partnerSourceId);
-      if (!first || !second) {
-        return { success: false, error: 'No domain note atoms match the requested MusicXML source ids.' };
-      }
-
-      const relationship = imported.document.tieRelationships.find((candidate) => (
-        (candidate.startNoteAtomId === first.note.id && candidate.stopNoteAtomId === second.note.id)
-        || (candidate.startNoteAtomId === second.note.id && candidate.stopNoteAtomId === first.note.id)
-      ));
-      if (!relationship) {
-        return { success: false, error: 'Tie relationship does not exist.' };
-      }
-
-      const result = setTieRelationshipPlacement({
-        document: imported.document,
-        tieId: relationship.id,
-        placement: params.placement,
-      });
-      if (!result.success) {
-        return { success: false, error: result.error };
-      }
-
-      const nextXml = exportEditorDomainToMusicXml(result.document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
-
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.reselectSourceIds ?? [params.sourceId]),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
-
-  const deleteDomainSlurRelationshipBySourceIds = useCallback((params: {
-    sourceId: string;
-    partnerSourceId: string;
-    reselectSourceIds?: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
-
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      const first = findNoteAtomByMusicXmlElementId(imported.document, params.sourceId);
-      const second = findNoteAtomByMusicXmlElementId(imported.document, params.partnerSourceId);
-      if (!first || !second) {
-        return { success: false, error: 'No domain note atoms match the requested MusicXML source ids.' };
-      }
-
-      const relationship = imported.document.slurRelationships.find((candidate) => (
-        (candidate.startNoteAtomId === first.note.id && candidate.stopNoteAtomId === second.note.id)
-        || (candidate.startNoteAtomId === second.note.id && candidate.stopNoteAtomId === first.note.id)
-      ));
-      if (!relationship) {
-        return { success: false, error: 'Slur relationship does not exist.' };
-      }
-
-      const result = deleteSlurRelationship({
-        document: imported.document,
-        notationId: relationship.id,
-      });
-      if (!result.success) {
-        return { success: false, error: result.error };
-      }
-
-      const nextXml = exportEditorDomainToMusicXml(result.document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
-
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.reselectSourceIds ?? [params.sourceId]),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
-
-  const deleteDomainSlurRelationshipsForSourceIds = useCallback((params: {
-    sourceIds: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
-
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      let document = imported.document;
-      const selectedAtomIds = new Set(resolveNoteAtomsBySourceIds(document, params.sourceIds)
-        .map((match) => match.note.id));
-      if (selectedAtomIds.size === 0) {
-        return { success: false, error: 'No domain note atoms match the requested MusicXML source ids.' };
-      }
-
-      const relationships = document.slurRelationships.filter((relationship) => (
-        selectedAtomIds.has(relationship.startNoteAtomId) || selectedAtomIds.has(relationship.stopNoteAtomId)
-      ));
-      if (relationships.length === 0) {
-        return { success: false, error: 'Slur relationship does not exist.' };
-      }
-
-      for (const relationship of relationships) {
-        const result = deleteSlurRelationship({
-          document,
-          notationId: relationship.id,
-        });
-        if (!result.success) {
-          return { success: false, error: result.error };
-        }
-        document = result.document;
-      }
-
-      const nextXml = exportEditorDomainToMusicXml(document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
-
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.sourceIds),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
-
-  const setDomainSlurPlacementBySourceIds = useCallback((params: {
-    sourceId: string;
-    partnerSourceId: string;
-    placement?: NotationPlacementOverride;
-    reselectSourceIds?: string[];
-    actionName?: string;
-  }): EditorDomainEditResult => {
-    const oldXml = currentXmlRef.current ?? currentXml;
-    if (!oldXml) {
-      return { success: false, error: 'No current MusicXML document is loaded.' };
-    }
-
-    try {
-      const imported = importMusicXmlToEditorDomain(oldXml);
-      const first = findNoteAtomByMusicXmlElementId(imported.document, params.sourceId);
-      const second = findNoteAtomByMusicXmlElementId(imported.document, params.partnerSourceId);
-      if (!first || !second) {
-        return { success: false, error: 'No domain note atoms match the requested MusicXML source ids.' };
-      }
-
-      const relationship = imported.document.slurRelationships.find((candidate) => (
-        (candidate.startNoteAtomId === first.note.id && candidate.stopNoteAtomId === second.note.id)
-        || (candidate.startNoteAtomId === second.note.id && candidate.stopNoteAtomId === first.note.id)
-      ));
-      if (!relationship) {
-        return { success: false, error: 'Slur relationship does not exist.' };
-      }
-
-      const result = setSlurRelationshipPlacement({
-        document: imported.document,
-        notationId: relationship.id,
-        placement: params.placement,
-      });
-      if (!result.success) {
-        return { success: false, error: result.error };
-      }
-
-      const nextXml = exportEditorDomainToMusicXml(result.document);
-      if (oldXml !== nextXml) {
-        history.push(nextXml, params.actionName ?? t('editNote'));
-      }
-      currentXmlRef.current = nextXml;
-      setCurrentXml(nextXml);
-      const nextScoreData = reparseXml(nextXml);
-
-      return {
-        success: true,
-        xml: nextXml,
-        refreshedSelection: findEntityBySourceIds(nextScoreData, params.reselectSourceIds ?? [params.sourceId]),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }, [currentXml, currentXmlRef, history, reparseXml, setCurrentXml, t]);
+          return { success: true, document: result.document };
+        },
+        params.reselectSourceIds ?? [params.sourceId],
+        params.actionName,
+      );
+    },
+    [commit],
+  );
 
   return {
     addDomainSlurRelationshipsBySourceIds,
@@ -684,7 +518,7 @@ export function useEditorDomainEdit() {
 }
 
 function retargetNoteAtomDraft(
-  document: ReturnType<typeof importMusicXmlToEditorDomain>['document'],
+  document: ScoreDocument,
   draft: InspectorDraft,
   sourceId: string,
 ): InspectorDraft {
@@ -704,20 +538,25 @@ function resolveNoteAtomPairsBySourceIds(
   document: ScoreDocument,
   startSourceIds: string[],
   endSourceIds: string[],
-): {
-  success: true;
-  pairs: Array<{
-    left: FindNoteAtomByMusicXmlElementIdResult;
-    right: FindNoteAtomByMusicXmlElementIdResult;
-  }>;
-} | {
-  success: false;
-  error: string;
-} {
+):
+  | {
+      success: true;
+      pairs: Array<{
+        left: FindNoteAtomByMusicXmlElementIdResult;
+        right: FindNoteAtomByMusicXmlElementIdResult;
+      }>;
+    }
+  | {
+      success: false;
+      error: string;
+    } {
   const startAtoms = resolveNoteAtomsBySourceIds(document, startSourceIds);
   const endAtoms = resolveNoteAtomsBySourceIds(document, endSourceIds);
   if (startAtoms.length === 0 || endAtoms.length === 0) {
-    return { success: false, error: 'No domain note atoms match the requested MusicXML source ids.' };
+    return {
+      success: false,
+      error: 'No domain note atoms match the requested MusicXML source ids.',
+    };
   }
 
   const count = Math.min(startAtoms.length, endAtoms.length);
@@ -754,8 +593,12 @@ function compareVoiceEventOrder(
   left: ScoreDocument['events'][number],
   right: ScoreDocument['events'][number],
 ): number {
-  const leftMeasureIndex = document.measures.findIndex((measure) => measure.id === left.position.measureId);
-  const rightMeasureIndex = document.measures.findIndex((measure) => measure.id === right.position.measureId);
+  const leftMeasureIndex = document.measures.findIndex(
+    (measure) => measure.id === left.position.measureId,
+  );
+  const rightMeasureIndex = document.measures.findIndex(
+    (measure) => measure.id === right.position.measureId,
+  );
   if (leftMeasureIndex !== rightMeasureIndex) return leftMeasureIndex - rightMeasureIndex;
 
   const offsetOrder = compareRational(left.position.offset, right.position.offset);

@@ -1,47 +1,51 @@
 from __future__ import annotations
 
-import enum
+import app.modules.playback.domain as playback_states
+
 from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
     BigInteger,
-    Boolean,
-    CheckConstraint,
     Column,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
     String,
-    Text,
     UniqueConstraint,
 )
-from sqlmodel import Field, SQLModel
+from sqlalchemy import (
+    Enum as SAEnum,
+)
+from sqlalchemy.orm import relationship
+from sqlmodel import Field, Relationship, SQLModel
 
-from app.utils.timezone import utc_now_naive
+from app.db.durable_delivery import (
+    delivery_attempt_count_constraint,
+    delivery_attempt_count_field,
+    delivery_attempt_token_constraint,
+    delivery_attempt_token_field,
+    delivery_next_attempt_at_field,
+    delivery_optional_timestamp_field,
+    durable_failure_facts_constraint,
+    failure_classification_field,
+    failure_code_field,
+    failure_detail_field,
+    failure_retryable_field,
+    failure_stage_field,
+)
+from app.shared.time import utc_now
 
+from .stored_object import StoredObject
 
 bigint_pk_type = BigInteger().with_variant(Integer, "sqlite")
-
-
-class PlaybackAssetKind(str, enum.Enum):
-    AUDIO = "AUDIO"
-
-
-class PlaybackOutboxStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    DISPATCHED = "DISPATCHED"
-    PROCESSING = "PROCESSING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
 
 
 class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "score_playback_assets"
     __table_args__ = (
-        UniqueConstraint("storage_key", name="uq_score_playback_assets_storage_key"),
+        UniqueConstraint("stored_object_id", name="uq_score_playback_assets_stored_object"),
         UniqueConstraint(
             "revision_id",
             "kind",
@@ -62,15 +66,22 @@ class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
             nullable=False,
         )
     )
-    kind: PlaybackAssetKind = Field(
-        sa_column=Column(SAEnum(PlaybackAssetKind, name="playbackassetkind"), nullable=False)
+    kind: playback_states.PlaybackAssetKind = Field(
+        sa_column=Column(
+            SAEnum(playback_states.PlaybackAssetKind, name="playbackassetkind"),
+            nullable=False,
+        )
     )
-    storage_backend: str = Field(sa_column=Column(String(32), nullable=False))
-    storage_key: str = Field(sa_column=Column(String(768), nullable=False))
+
+    stored_object_id: int = Field(
+        sa_column=Column(
+            bigint_pk_type, ForeignKey("stored_objects.id", ondelete="RESTRICT"), nullable=False
+        )
+    )
+    stored_object: StoredObject = Relationship(
+        sa_relationship=relationship(StoredObject, lazy="selectin")
+    )
     filename: str = Field(sa_column=Column(String(255), nullable=False))
-    mime_type: str = Field(sa_column=Column(String(128), nullable=False))
-    size_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
-    sha256: str = Field(sa_column=Column(String(64), nullable=False))
     execution_manifest_id: Optional[int] = Field(
         default=None,
         sa_column=Column(
@@ -85,15 +96,20 @@ class ScorePlaybackAsset(SQLModel, table=True):  # type: ignore[call-arg]
     generator: str = Field(sa_column=Column(String(64), nullable=False))
     generator_version: str = Field(sa_column=Column(String(64), nullable=False))
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
 
 
 class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "playback_outbox"
     __table_args__ = (
-        CheckConstraint("attempt_count >= 0", name="ck_playback_outbox_attempt_count"),
+        durable_failure_facts_constraint(name="ck_playback_outbox_failure_facts"),
+        delivery_attempt_token_constraint(
+            name="ck_playback_outbox_attempt_token",
+            processing_status=playback_states.PlaybackOutboxStatus.PROCESSING,
+        ),
+        delivery_attempt_count_constraint(name="ck_playback_outbox_attempt_count"),
         UniqueConstraint(
             "revision_id",
             "asset_kind",
@@ -133,48 +149,43 @@ class PlaybackOutbox(SQLModel, table=True):  # type: ignore[call-arg]
     traceparent: Optional[str] = Field(default=None, sa_column=Column(String(55)))
     tracestate: Optional[str] = Field(default=None, sa_column=Column(String(512)))
     source_fingerprint: str = Field(sa_column=Column(String(64), nullable=False))
-    asset_kind: PlaybackAssetKind = Field(
-        default=PlaybackAssetKind.AUDIO,
+    asset_kind: playback_states.PlaybackAssetKind = Field(
+        default=playback_states.PlaybackAssetKind.AUDIO,
         sa_column=Column(
-            SAEnum(PlaybackAssetKind, name="playbackassetkind"),
-            default=PlaybackAssetKind.AUDIO,
+            SAEnum(playback_states.PlaybackAssetKind, name="playbackassetkind"),
+            default=playback_states.PlaybackAssetKind.AUDIO,
             nullable=False,
         ),
     )
-    status: PlaybackOutboxStatus = Field(
-        default=PlaybackOutboxStatus.PENDING,
+    status: playback_states.PlaybackOutboxStatus = Field(
+        default=playback_states.PlaybackOutboxStatus.PENDING,
         sa_column=Column(
-            SAEnum(PlaybackOutboxStatus, name="playbackoutboxstatus"),
-            default=PlaybackOutboxStatus.PENDING,
+            SAEnum(playback_states.PlaybackOutboxStatus, name="playbackoutboxstatus"),
+            default=playback_states.PlaybackOutboxStatus.PENDING,
             nullable=False,
         ),
     )
-    attempt_count: int = Field(
-        default=0,
-        sa_column=Column(Integer, default=0, nullable=False),
-    )
-    next_attempt_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
-    )
-    dispatched_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime))
-    last_error: Optional[str] = Field(default=None, sa_column=Column(Text))
-    internal_error_code: Optional[str] = Field(default=None, sa_column=Column(String(128)))
-    internal_error_stage: Optional[str] = Field(default=None, sa_column=Column(String(64)))
-    internal_error_class: Optional[str] = Field(default=None, sa_column=Column(String(32)))
-    internal_error_retryable: Optional[bool] = Field(default=None, sa_column=Column(Boolean))
+    attempt_token: str | None = delivery_attempt_token_field()
+    attempt_count: int = delivery_attempt_count_field()
+    next_attempt_at: datetime = delivery_next_attempt_at_field()
+    dispatched_at: Optional[datetime] = delivery_optional_timestamp_field()
+    started_at: Optional[datetime] = delivery_optional_timestamp_field()
+    completed_at: Optional[datetime] = delivery_optional_timestamp_field()
+    failure_detail: Optional[str] = failure_detail_field()
+    failure_code: Optional[str] = failure_code_field()
+    failure_stage: Optional[str] = failure_stage_field()
+    failure_classification: Optional[str] = failure_classification_field()
+    failure_retryable: Optional[bool] = failure_retryable_field()
     created_at: datetime = Field(
-        default_factory=utc_now_naive,
-        sa_column=Column(DateTime, default=utc_now_naive, nullable=False),
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), default=utc_now, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=utc_now_naive,
+        default_factory=utc_now,
         sa_column=Column(
-            DateTime,
-            default=utc_now_naive,
-            onupdate=utc_now_naive,
+            DateTime(timezone=True),
+            default=utc_now,
+            onupdate=utc_now,
             nullable=False,
         ),
     )

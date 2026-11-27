@@ -5,14 +5,13 @@ import { describe, expect, it } from 'vitest';
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 describe('import job upload contract', () => {
-  it('submits and polls import jobs without the retired task lifecycle endpoints', () => {
-    const importJobsApi = readSource('src/lib/api/import-jobs.ts');
-    const workflow = readSource('src/hooks/upload/use-upload-workflow.ts');
+  it('submits and polls ImportJobs through generated operations', () => {
+    const importJobsApi = readSource('src/features/imports/api/jobs.ts');
+    const workflow = readSource('src/features/imports/submission/use-import-upload-workflow.ts');
 
-    expect(importJobsApi).toContain("'/import-jobs'");
-    expect(importJobsApi).toContain('`/import-jobs/${jobId}`');
-    expect(workflow).toContain('response.data?.job_id');
+    expect(importJobsApi).toContain('importJobsSubmit');
+    expect(importJobsApi).toContain('importJobGet');
+    expect(workflow).toContain('response?.job_id');
     expect(workflow).toContain('useImportJobDetail');
-    expect(importJobsApi).not.toContain('/tasks/');
   });
 });

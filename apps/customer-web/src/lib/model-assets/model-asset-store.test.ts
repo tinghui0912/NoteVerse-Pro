@@ -14,7 +14,7 @@ import {
   ModelAssetStorageError,
   ModelAssetStorageUnavailableError,
 } from './types';
-import { practiceAcousticModelManifest } from '../practice/acoustic/model/acoustic-model-manifest';
+import { acousticModelAsset } from '../practice/acoustic/model/model-asset';
 import { createVerifiedModelAssetLoader } from './verified-model-asset-loader';
 
 class MemoryWritableStream implements FileSystemWritableFileStream {
@@ -887,7 +887,7 @@ describe('ModelAssetStore OPFS operations', () => {
 
 describe('Shared Practice acoustic model delivery', () => {
   it('derives the sole exact Robust descriptor', () => {
-    const descriptor = practiceAcousticModelManifest('https://cdn.example.com/model.onnx').asset;
+    const descriptor = acousticModelAsset('https://cdn.example.com/model.onnx');
     expect(descriptor.schemaVersion).toBe(1);
     expect(descriptor.assetId).toBe('practice-acoustic-robust-browser');
     expect(descriptor.assetVersion).toBe('v1');

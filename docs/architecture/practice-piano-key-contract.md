@@ -1,0 +1,78 @@
+# Practice Piano-Key Contract
+
+## Product domain
+
+PracticePianoKey is an integer MIDI key21..108:88 physical piano keys A0..C8.
+The language-neutral [Practice score schema](../../contracts/practice/score/artifact.schema.json)
+owns serialized numerical bounds. Pure generated Python constants and generated TypeScript
+constants supply backend score/piano_key.py and browser score/piano-key.ts. These adapters
+own domain behavior without independently declaring the numerical boundary.
+Enharmonic spelling belongs to notation; physical evaluation compares numeric keys.
+The domain is independent of input source and acoustic model vocabulary.
+
+Practice admission validates the entire pinned score revision before mode, source,
+FULL/RANGE selection, browser permission, Resource Binding or Environment preparation.
+Every retained playable note, including continuations and unused sections, must have
+a valid key. Booleans, fractional values, strings and out-of-domain keys fail without
+coercion, clamping, transposition or filtering. Empty/no-target revisions fail.
+
+## Artifact and Bundle boundary
+
+[Artifact schemaVersion 1](practice-moment-artifact.md) owns canonical notes, events and
+chronological moments with physical attacks and continuation references. A key/onset
+has one attack containing all unison notation identities across voices/staves.
+Backend Practice score semantics validate this graph. Browser admission checks only generated structure.
+Scope selects indexes/ticks from an admitted revision.
+
+PracticeBundleService exposes one `/bundle` resource containing the artifact, optional
+prepared-MusicXML notation and bundle_id. See [Practice Bundle](practice-bundle.md).
+Deterministic PracticeScoreInvalidError maps to422 practice_score_invalid; unexpected
+parser/storage/serialization/invariant failures map to503 practice_bundle_failed.
+Generated transport models describe structure; the backend score semantic validator owns
+revision-wide musical admission. Planning and mode execution consume that admitted runtime artifact.
+
+`usePracticeRouteScore` pins revision identity from route/score metadata. Setup's explicit
+command invokes `admitPracticeBundle` for fresh complete Bundle admission before
+resource acquisition. Its successful PreparedPractice handoff carries exact bundleId
+and retained roots. Practice and Review reuse that admitted representation without
+Bundle reads.
+Without handoff it shows Setup required. Invalid Bundle fails Setup admission before acquisition.
+Score correctness and retained physical health have distinct owners.
+
+## Source adapters
+
+Browser MIDI supplies integer noteNumber0..127 with NOTE_ON/OFF wire semantics.
+Practice adapters ignore wire-valid keys outside21..108 before opening/retaining
+gestures or publishing observations. The filter is score-blind. Malformed wire
+facts fail closed. H35 owns the fixed first-NOTE_ON half-open aggregation interval.
+
+Acoustic sources independently validate the decoder-owned canonical pitch/midiPitch
+pair for MIDI21..108, immutable all-pitch observations, chronology and publication
+identity. Practice adapters consume validated midiPitch numerically. H50 owns
+physical gesture coverage and retirement. Neither source repairs targets or uses
+score/verdict knowledge.
+
+## Evaluation and versions
+
+StepPracticeSession uses StepPianoKeyEvidence with
+observedAttackKeys, exact attackKeys and continuationKeys. normalizePianoKeySet is
+Set plus numeric ascending sort; pianoKeySetsEqual compares normalized cardinality
+and every member. Missing/extra keys mismatch; continuation is excluded. MATCH
+advances once on rearm, MISMATCH stays, and Skip is separate.
+
+Raw evidence length1..128 is a separate unqualified work-admission budget. Length129
+rejects before indexed reads. Accepted arrays are dense own-indexed valid-key arrays.
+Malformed evidence remains ANALYZING and retryable.88 distinct product keys does not
+derive128 raw entries. See [STEP evidence](practice-step-pitch-evidence-bounds.md).
+
+Continuous uses same-key inclusive±250ms matching: maximum cardinality, minimum
+absolute error, then earliest chronological noncrossing ownership. All accepted
+observations are retained. Assignment identity is
+CONTINUOUS_EXACT_PIANO_KEY_ORDERED_ASSIGNMENT_FINALITY_V5; MIDI evidence identity is
+MIDI_PIANO_KEY_SESSION_TIME_WITH_250MS_COVERAGE_GRACE_V3. These identities belong to
+the algorithm owners. Acoustic implementation identities have their separate
+[selected-source boundary](practice-acoustic-identity-boundary.md).
+
+H35/H50/W250, MIDI grace250 and resource budgets describe current behavior. Their
+optimality, generalization and supported-workload headroom require separate evidence
+as recorded in the [parameter inventory](practice-acoustic-parameter-provenance.md).

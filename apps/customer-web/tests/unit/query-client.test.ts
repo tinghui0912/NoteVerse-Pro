@@ -1,105 +1,78 @@
+import { notificationQueryKeys } from '@/features/notifications/query-keys';
+import { guestPreviewQueryKeys } from '@/features/scores/guest-preview/query-keys';
+import { scoreQueryKeys } from '@/features/scores/core/query-keys';
+import { collaborationQueryKeys } from '@/features/scores/collaboration/query-keys';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 
-import { queryKeys } from '@/lib/query-client';
 
 describe('queryKeys', () => {
   it('builds hierarchical score detail keys', () => {
-    expect(queryKeys.scores.all).toEqual(['scores']);
-    expect(queryKeys.scores.details()).toEqual(['scores', 'detail']);
-    expect(queryKeys.scores.detail('score-1')).toEqual([
+    expect(scoreQueryKeys.all).toEqual(['scores']);
+    expect(scoreQueryKeys.details()).toEqual(['scores', 'detail']);
+    expect(scoreQueryKeys.detail('score-1')).toEqual([
       'scores',
       'detail',
       { scoreId: 'score-1' },
     ]);
   });
 
-  it('builds My Scores list keys with complete filters', () => {
-    expect(queryKeys.myScores.all).toEqual(['my-scores']);
-    expect(queryKeys.myScores.lists()).toEqual(['my-scores', 'list']);
-    expect(queryKeys.myScores.list({
-      view: 'private',
-      search: 'bach',
-      sort: 'updated_desc',
-      page: 2,
-      pageSize: 20,
-    })).toEqual([
-      'my-scores',
-      'list',
-      {
-        view: 'private',
-        search: 'bach',
-        sort: 'updated_desc',
-        page: 2,
-        pageSize: 20,
-      },
-    ]);
-  });
-
-  it('keeps revision, artifact, grant, and publication identities in score keys', () => {
-    expect(queryKeys.scores.revisions('score-1')).toEqual([
+  it('keeps core, Collaboration and Guest Preview query identities distinct', () => {
+    expect(scoreQueryKeys.revisions('score-1')).toEqual([
       'scores',
       'revision',
       { scoreId: 'score-1' },
     ]);
-    expect(queryKeys.scores.revision('score-1', 'revision-1')).toEqual([
+    expect(scoreQueryKeys.revision('score-1', 'revision-1')).toEqual([
       'scores',
       'revision',
       { scoreId: 'score-1', revisionId: 'revision-1' },
     ]);
-    expect(queryKeys.scores.revisionAssets('score-1', 'revision-1')).toEqual([
+    expect(scoreQueryKeys.revisionAssets('score-1', 'revision-1')).toEqual([
       'scores',
       'revision-assets',
       { scoreId: 'score-1', revisionId: 'revision-1' },
     ]);
-    expect(queryKeys.scores.grants('score-1')).toEqual([
-      'scores',
-      'grant',
+    expect(guestPreviewQueryKeys.settings('score-1')).toEqual([
+      'guest-preview',
+      'settings',
       { scoreId: 'score-1' },
     ]);
-    expect(queryKeys.scores.grantAccess('token-1')).toEqual([
-      'scores',
-      'grant-access',
+    expect(guestPreviewQueryKeys.public('token-1')).toEqual([
+      'guest-preview',
+      'public',
       { token: 'token-1' },
     ]);
-    expect(queryKeys.scores.invites('score-1')).toEqual([
-      'scores',
+    expect(collaborationQueryKeys.invites('score-1')).toEqual([
+      'score-collaboration',
       'invite',
       { scoreId: 'score-1' },
     ]);
-    expect(queryKeys.scores.inviteAccess('invite-token-1')).toEqual([
-      'scores',
-      'invite-access',
+    expect(collaborationQueryKeys.inviteAccess('invite-token-1')).toEqual([
+      'score-collaboration',
+      'inspection',
       { token: 'invite-token-1' },
     ]);
-    expect(queryKeys.scores.members('score-1')).toEqual([
-      'scores',
+    expect(collaborationQueryKeys.members('score-1')).toEqual([
+      'score-collaboration',
       'member',
       { scoreId: 'score-1' },
     ]);
-    expect(queryKeys.scores.publication('slug-1')).toEqual([
-      'scores',
-      'publication',
-      { slug: 'slug-1' },
-    ]);
-    expect(queryKeys.notifications.list()).toEqual(['notifications', 'list']);
-    expect(queryKeys.notifications.unreadCount()).toEqual([
-      'notifications',
-      'unread-count',
-    ]);
+    expect(notificationQueryKeys.list()).toEqual(['notifications', 'list']);
+    expect(notificationQueryKeys.unreadCount()).toEqual(['notifications', 'unread-count']);
   });
 
   it('invalidates every revision variant for one score through the revision prefix', async () => {
     const client = new QueryClient();
-    const firstKey = queryKeys.scores.revision('score-1', 'revision-1');
-    const secondKey = queryKeys.scores.revision('score-1', 'revision-2');
-    const otherScoreKey = queryKeys.scores.revision('score-2', 'revision-1');
+    const firstKey = scoreQueryKeys.revision('score-1', 'revision-1');
+    const secondKey = scoreQueryKeys.revision('score-1', 'revision-2');
+    const otherScoreKey = scoreQueryKeys.revision('score-2', 'revision-1');
 
     client.setQueryData(firstKey, '<score />');
     client.setQueryData(secondKey, '<score />');
     client.setQueryData(otherScoreKey, '<score />');
 
-    await client.invalidateQueries({ queryKey: queryKeys.scores.revisions('score-1') });
+    await client.invalidateQueries({ queryKey: scoreQueryKeys.revisions('score-1') });
 
     expect(client.getQueryState(firstKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(secondKey)?.isInvalidated).toBe(true);
@@ -108,13 +81,13 @@ describe('queryKeys', () => {
 
   it('keeps score details distinct under one score detail prefix', async () => {
     const client = new QueryClient();
-    const firstScoreKey = queryKeys.scores.detail('score-1');
-    const secondScoreKey = queryKeys.scores.detail('score-2');
+    const firstScoreKey = scoreQueryKeys.detail('score-1');
+    const secondScoreKey = scoreQueryKeys.detail('score-2');
 
     client.setQueryData(firstScoreKey, { title: 'A' });
     client.setQueryData(secondScoreKey, { title: 'B' });
 
-    await client.invalidateQueries({ queryKey: queryKeys.scores.detail('score-1') });
+    await client.invalidateQueries({ queryKey: scoreQueryKeys.detail('score-1') });
 
     expect(client.getQueryState(firstScoreKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(secondScoreKey)?.isInvalidated).toBe(false);

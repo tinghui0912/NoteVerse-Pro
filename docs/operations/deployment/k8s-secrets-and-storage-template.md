@@ -39,7 +39,6 @@ Required keys:
 | --- | --- | --- |
 | `SECRET_KEY` | platform/security | planned security rotation or suspected compromise |
 | `DATABASE_URL` | platform/database | database credential rotation |
-| `SYNC_DATABASE_URL` | platform/database | database credential rotation |
 | `SCHEDULER_LOCK_DATABASE_URL` | platform/database | database credential rotation; must target direct PostgreSQL or PgBouncer session pooling, never transaction pooling |
 | `REDIS_URL` | platform/cache | Redis credential or endpoint rotation |
 | `CELERY_BROKER_URL` | platform/cache | Redis credential or endpoint rotation |
@@ -153,13 +152,12 @@ noteverse-app-assets-staging
 
 Required backend config keys:
 
-- `FILE_STORAGE_BACKEND=s3`
+- One configured ObjectStorage namespace
 - `S3_ENDPOINT_URL`
 - `S3_REGION`
 - `S3_BUCKET`
-- `S3_PUBLIC_BASE_URL`
 - `S3_FORCE_PATH_STYLE`
-- `S3_PRESIGN_EXPIRE_SECONDS`
+- `OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS`
 
 Credential keys live in `Secret/noteverse-backend-secret`:
 

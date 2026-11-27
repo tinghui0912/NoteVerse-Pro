@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import SchedulerHeartbeat
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -20,18 +20,18 @@ class SchedulerObservabilityService:
     def record_lock_acquired(self, db: Session, job_key: str) -> None:
         heartbeat = self._get_or_create(db, job_key)
         heartbeat.lock_acquired_count += 1
-        heartbeat.updated_at = utc_now_naive()
+        heartbeat.updated_at = utc_now()
 
     def record_lock_skipped(self, db: Session, job_key: str) -> None:
         heartbeat = self._get_or_create(db, job_key)
-        now = utc_now_naive()
+        now = utc_now()
         heartbeat.lock_skipped_count += 1
         heartbeat.last_lock_skipped_at = now
         heartbeat.updated_at = now
 
     def record_started(self, db: Session, job_key: str) -> None:
         heartbeat = self._get_or_create(db, job_key)
-        now = utc_now_naive()
+        now = utc_now()
         heartbeat.last_started_at = now
         heartbeat.updated_at = now
 
@@ -44,7 +44,7 @@ class SchedulerObservabilityService:
         stats: SchedulerRunStats,
     ) -> None:
         heartbeat = self._get_or_create(db, job_key)
-        now = utc_now_naive()
+        now = utc_now()
         duration_ms = max(0, int(duration_seconds * 1000))
         heartbeat.last_success_at = now
         heartbeat.last_duration_ms = duration_ms
@@ -66,7 +66,7 @@ class SchedulerObservabilityService:
         error: str,
     ) -> None:
         heartbeat = self._get_or_create(db, job_key)
-        now = utc_now_naive()
+        now = utc_now()
         duration_ms = max(0, int(duration_seconds * 1000))
         heartbeat.last_failure_at = now
         heartbeat.last_duration_ms = duration_ms

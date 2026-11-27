@@ -4,8 +4,9 @@ const CAPTURE_TRANSPORT_MAX_UNACKED = 32;
 
 /* Only unpublished startup PCM is provisional. ACTIVE never resets its origin. */
 class PracticePcmCapture extends AudioWorkletProcessor {
-  constructor() {
+  constructor({ processorOptions }) {
     super();
+    this.qualifiedSourceRates = Object.freeze([...processorOptions.qualifiedSourceRates]);
     this.originFrame = null;
     this.sequence = 0;
     this.nextAck = 0;
@@ -35,7 +36,7 @@ class PracticePcmCapture extends AudioWorkletProcessor {
   process(inputs, outputs) {
     for (const output of outputs) for (const channel of output) channel.fill(0);
     if (this.state === 'FAILED' || this.state === 'STOPPED') return false;
-    if (sampleRate !== 44100 && sampleRate !== 48000) { this.fail('ACOUSTIC_SOURCE_SAMPLE_RATE_NOT_QUALIFIED'); return false; }
+    if(!this.qualifiedSourceRates.includes(sampleRate)) { this.fail('ACOUSTIC_SOURCE_SAMPLE_RATE_NOT_QUALIFIED'); return false; }
     if (!Number.isSafeInteger(currentFrame) || currentFrame < 0) { this.fail('ACOUSTIC_CAPTURE_FRAME_VIOLATION'); return false; }
     const input = inputs[0];
     if (!input?.length || !input[0]?.length) {

@@ -1,49 +1,68 @@
 # Editor Workbench
 
-The Customer Web editor combines the workbench toolbar, Voice Layer, score
-preview, Event Inspector and player. `components/editor/editor-workbench.tsx`
-composes the surface; responsive tool sheets expose the same editor state on
-small screens.
+The Customer Web workbench composes the toolbar, Voice Layer, score preview,
+Event Inspector, score metadata inspector and player. Responsive tool sheets
+expose the same session and input state.
 
-## Selection and input
+## Session and editing
 
-Editor selection uses domain anchors for events, note atoms, notation and
-musical positions. Render/source IDs are adapter lookup keys. They do not own
-musical identity. Inspector drafts are derived from the current domain document.
+`EditorSessionProvider` owns an atomic document/source pair and a derived
+`serializedXml` projection. `ScoreDocument` is the only editing semantic authority.
+`editor-domain` owns commands, metadata, measure context, rhythm, relationships and
+notation intent. `editor-musicxml` owns source import, opaque preservation and
+serialization. Unmodeled source content is preserved data, not another score model.
 
-Voice Layer owns active-voice selection, visibility and color, with guarded
-voice add/delete operations. Active voice, caret position, grid resolution,
-input duration and insertion preview are separate state. Preview hover does not
-replace Inspector selection. Add mode resolves a domain insertion anchor from
-measure/staff geometry, not from a rendered space element.
+Metadata inputs commit typed commands for notation title, subtitle, composer,
+lyricist, copyright, key, meter and tempo notation. The adapter writes structural
+metadata and typed credits with their layout. A notation title is independent of
+the Score resource's display title. Tempo suggestions in the UI do not establish
+a tempo fact until the user commits a command.
 
-Pitched and explicit-rest entry share rational rhythmic placement. Pitched
-preview uses staff/clef mapping, open or filled ghost noteheads and ledger lines.
-The preview is cleared when the tool changes, the pointer leaves, escape is
-pressed or insertion commits. Advanced spelling and preview capabilities must
-follow their supported source/test contracts; a ghost is not a complete engraving.
+Effective meter, key and staff clef derive from each part's measure attribute
+changes. Rhythmic insertion requires a known measure duration. Pointer pitch input
+requires a supported effective clef. Missing context disables that operation; it
+does not establish a default meter, key or clef. Meter changes recompute beam intent
+from domain events, positions and voices in the affected inheritance scope.
 
-## Editing and persistence
+Pitched events and explicit rests are distinct. A chord is one event with multiple
+note atoms. Removing the last pitch does not create a rest; deleting an event makes
+empty musical time. Tie, slur, beam and stem edits use domain commands. Serialization
+preserves unrelated MusicXML and fails explicitly when an edit cannot be expressed
+safely in its source context.
 
-Event Inspector edits pitched events and explicit rests through domain drafts
-and commands, including note atoms and supported stem, beam, tie and slur
-notation controls. A pitched event has one or more note atoms; removing its
-last pitch does not silently create an explicit rest. Deleting an event creates
-empty musical time. Explicit-rest creation is a separate operation.
+## Voice Layer and preview
 
-Commands export MusicXML and refresh read/render projections through the editor
-hooks. Save uses the score's base revision for conflict detection. History owns
-undo/redo snapshots, and original-document navigation is separate from unsaved
-editing state. The player consumes the workbench playback state rather than
-owning score writes.
+Tracks derive from domain voices and events. Voice identity and its numeric
+property are separate facts. Adding an empty track creates a session input target;
+first insertion materializes its musical voice. Deleting a musical voice also
+removes its events and touching relationships.
 
-## Adapter boundary
+Selection uses domain event/note/notation anchors. SVG/source IDs connect render
+hits to those identities. Track visibility, hidden staff state, connection details,
+metadata placeholders and rhythmic placement all derive from the document. Verovio
+SVG interaction provides geometry and presentation only. Rendered spaces are not
+ordinary editable events.
 
-`ParsedScoreEvent` and `ScoreData` provide parser/render lookup projections used
-by preview geometry and source-ID reselection. The domain importer/exporter
-owns MusicXML cursor and notation serialization. Verovio `space` elements are
-excluded from ordinary editable hits. See [Editor Domain Model](../../adr/0007-editor-domain-model.md)
-and [Automatic Beaming](automatic-beaming.md).
+Active voice, caret, rhythmic grid, input duration and hover preview are separate
+input state. Supported clef context determines pitched preview and ledger lines.
+Preview clears on tool change, pointer exit, escape or successful insertion.
 
-UI, domain-command, rhythmic-placement and MusicXML round-trip tests jointly
-define the current behavior; component names alone are not a contract.
+## History and interchange
+
+History stores immutable semantic document/source snapshots and action labels.
+Undo/redo restores a semantic snapshot and regenerates the MusicXML projection;
+it does not parse XML to recover editing state.
+
+Initial load and draft recovery import MusicXML into a coherent session. Trusted
+full-document services use an explicit replacement operation that imports the
+returned XML and atomically appends its document/source pair to history. Invalid
+replacements do not change the accepted session.
+
+Serialized MusicXML serves Verovio, validation, save requests, downloads, IndexedDB
+drafts and full-document services. It does not supply metadata, voice, selection or
+timing state. Drafts retain `baselineRevisionId`; save submits the loaded
+`expected_head_revision_id`. A refreshed Score query does not change that baseline.
+The player consumes the XML rendering/playback projection and does not own edits.
+
+See [Editor Domain Model](../../adr/0007-editor-domain-model.md) and
+[Automatic Beaming](automatic-beaming.md).

@@ -1,8 +1,9 @@
 """Account request and response schemas."""
 
-from datetime import datetime
+from app.shared.time import Instant
 
 from pydantic import BaseModel, EmailStr, Field
+from app.shared.api_model import ApiModel
 
 
 class UpdateProfileRequest(BaseModel):
@@ -18,19 +19,23 @@ class ProfileUserRead(BaseModel):
     id: int
     email: EmailStr
     display_name: str
-    created_at: datetime | None = None
+    created_at: Instant | None = None
     is_active: bool
     avatar_url: str | None = None
 
 
-class ProfileRead(BaseModel):
+class ProfileRead(ApiModel):
     user: ProfileUserRead
 
 
-class ProfileUpdateRead(BaseModel):
-    updated_fields: list[str]
-
-
-class AvatarRead(BaseModel):
+class AvatarRead(ApiModel):
     avatar_url: str
     filename: str
+
+
+class DeleteAccountRequest(ApiModel):
+    current_password: str
+
+
+class AccountDeletionRead(ApiModel):
+    operation_id: str

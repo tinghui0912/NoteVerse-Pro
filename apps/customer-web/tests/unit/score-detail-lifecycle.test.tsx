@@ -1,0 +1,201 @@
+import { scoreQueryKeys } from '@/features/scores/core/query-keys';
+import { libraryQueryKeys } from '@/features/library/query-keys';
+// @vitest-environment jsdom
+import React from 'react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { beforeEach, expect, it, vi } from 'vitest';
+import ScorePage from '@/features/scores/score-detail-page';
+import common from '../../messages/en/common.json';
+import scoreText from '../../messages/en/score.json';
+import type { ScoreRead } from '@/generated/api';
+const mocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  remove: vi.fn(),
+  leave: vi.fn(),
+  score: null as ScoreRead | null,
+  error: null as Error | null,
+}));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mocks.push, replace: vi.fn() }),
+  usePathname: () => '/score/score',
+  useSearchParams: () => new URLSearchParams(),
+}));
+vi.mock('@/i18n/routing', () => ({
+  Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
+vi.mock('@/features/scores/core/api', () => ({
+scoresApi: { batchDelete: (ids: string[]) => mocks.remove(ids) }
+}));
+vi.mock('@/features/scores/collaboration/api', () => ({
+collaborationApi: { leaveScore: (id: string) => mocks.leave(id) }
+}));
+vi.mock('@/features/scores/core/detail/use-score-detail-summary', () => ({
+  useScoreDetailSummary: () => ({
+    score: mocks.score,
+    scoreError: mocks.error,
+    scoreLoading: false,
+    imageCount: 0,
+    revisionAssets: { render_assets: [], revision_sources: [] },
+  }),
+}));
+vi.mock('@/features/scores/core/detail/score-info-panel', () => ({
+  ScoreInfoPanel: () => null,
+}));
+vi.mock('@/features/scores/core/detail/score-versions-panel', () => ({
+  ScoreVersionsPanel: () => null,
+}));
+vi.mock('@/features/scores/guest-preview/owner-panel', () => ({
+  ScoreGuestPreviewPanel: () => null,
+}));
+vi.mock('@/features/scores/collaboration/owner-panel', () => ({
+  ScoreCollaborationPanel: () => null,
+}));
+vi.mock('@/features/scores/core/detail/score-hero-actions', () => ({
+  ScoreHeroActions: () => null,
+}));
+vi.mock('@/features/scores/core/detail/score-detail-hero', () => ({
+  ScoreDetailHero: ({
+    title,
+    actions,
+    meta,
+  }: {
+    title: string;
+    actions: React.ReactNode;
+    meta: React.ReactNode;
+  }) => (
+    <div>
+      <h1>{title}</h1>
+      {meta}
+      {actions}
+    </div>
+  ),
+}));
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.error = null;
+  mocks.remove.mockResolvedValue({ data: { removed: 1 } });
+  mocks.leave.mockResolvedValue({ data: null });
+  mocks.score = {
+    score_id: 'score',
+    display_title: 'Owned score',
+    genres: [],
+    metadata_version: 1, head_revision_number: 1,
+    head_revision_id: 'revision',
+    metadata: null,
+    input_assets: [],
+    created_at: '2026-01-01',
+    updated_at: '2026-01-01',
+    derived_assets: {
+      preview: { status: 'pending', asset_id: null },
+      audio: { status: 'pending', asset_id: null },
+    },
+    capabilities: {
+      can_view: true,
+      can_edit: false,
+      can_delete: true,
+      can_leave: false,
+      can_manage_guest_previews: false,
+      can_manage_members: false,
+      can_download: false,
+      can_practice: false,
+    },
+  };
+});
+async function page() {
+  const client = new QueryClient({
+    defaultOptions: { mutations: { retry: false } },
+  });
+  await act(async () => {
+    render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider
+          locale="en"
+          messages={{ common, score: scoreText, errors: {} }}
+        >
+          <ScorePage scoreId="score" />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+  });
+  return client;
+}
+it('uses the Score deletion command and returns an owner to Created by me', async () => {
+  const client = await page();
+  expect(screen.queryByRole('button', { name: 'Leave score' })).not.toBeInTheDocument();
+  const invalidate = vi.spyOn(client, 'invalidateQueries');
+  expect(
+    screen
+      .getByRole('navigation', { name: scoreText.breadcrumbLabel })
+      .querySelector('a'),
+  ).toHaveAttribute('href', '/library');
+  await userEvent.click(screen.getByRole('button', { name: 'Delete score' }));
+  const dialog = within(screen.getByRole('alertdialog'));
+  expect(
+    dialog.getByText(scoreText.deleteScoreDescription),
+  ).toBeInTheDocument();
+  await userEvent.click(dialog.getByRole('button', { name: 'Delete score' }));
+  await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith(['score']));
+  expect(mocks.push).toHaveBeenCalledWith('/library?view=created_by_me');
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
+  client.clear();
+});
+it('does not offer owner deletion for a collaborator', async () => {
+  mocks.score!.capabilities.can_delete = false;
+  mocks.score!.capabilities.can_leave = true;
+  const client = await page();
+  expect(
+    screen.queryByRole('button', { name: 'Delete score' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Leave score' }),
+  ).toBeInTheDocument();
+  client.clear();
+});
+
+it('leaves through current-user membership, clears authorized detail and returns to Shared with me', async () => {
+  mocks.score!.capabilities.can_delete = false;
+  mocks.score!.capabilities.can_leave = true;
+  const client = await page();
+  client.setQueryData(scoreQueryKeys.detail('score'), { data: mocks.score });
+  const invalidate = vi.spyOn(client, 'invalidateQueries');
+  await userEvent.click(screen.getByRole('button', { name: 'Leave score' }));
+  const dialog = within(screen.getByRole('alertdialog'));
+  expect(dialog.getByText(scoreText.leaveScoreDescription)).toBeInTheDocument();
+  expect(dialog.getByRole('heading')).toHaveTextContent('Leave “Owned score”?');
+  await userEvent.click(dialog.getByRole('button', { name: 'Leave score' }));
+  await waitFor(() =>
+    expect(mocks.push).toHaveBeenCalledWith('/library?view=shared_with_me'),
+  );
+  expect(mocks.leave).toHaveBeenCalledWith('score');
+  expect(client.getQueryData(scoreQueryKeys.detail('score'))).toBeUndefined();
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
+  client.clear();
+});
+it('returns load errors to Library', async () => {
+  mocks.error = new Error('not found');
+  mocks.score = null;
+  const client = await page();
+  expect(
+    screen.getByRole('link', { name: scoreText.backToLibrary }),
+  ).toHaveAttribute('href', '/library');
+  client.clear();
+});
+
+
+it('shows the immutable head revision number rather than the metadata token', async () => {
+  mocks.score = { ...mocks.score!, metadata_version: 42, head_revision_number: 7 };
+  await page();
+  expect(screen.getByText('Version v7')).toBeInTheDocument();
+  expect(screen.queryByText('Version v42')).not.toBeInTheDocument();
+});
+
+it('does not invent a revision number for a Score without a head', async () => {
+  mocks.score = { ...mocks.score!, metadata_version: 42, head_revision_id: null, head_revision_number: null };
+  await page();
+  expect(screen.queryByText(/^Version v/)).not.toBeInTheDocument();
+});

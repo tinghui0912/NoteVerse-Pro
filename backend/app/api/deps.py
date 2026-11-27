@@ -4,45 +4,57 @@ This file is canonical only for authentication and database access.
 Feature-specific dependency logic belongs in `app.modules.<feature>.dependencies`.
 """
 
-from collections.abc import AsyncGenerator
+from collections.abc import Generator
 from datetime import datetime, timezone
 
 import jwt
 from fastapi import Cookie, Depends
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlmodel import select
 
-from app.shared.constants import ErrorCode
+from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
+from app.shared.error_codes import CustomerErrorCode
 from app.core import security
 from app.core.config import settings
 from app.core.exceptions import (
     AuthenticationException,
     ExternalServiceException,
-    ResourceNotFoundException,
 )
 from app.db.session import get_session
 from app.db.models.user import User
 from app.modules.auth.schemas import TokenPayload
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async for session in get_session():
-        yield session
+
+def get_db() -> Generator[Session, None]:
+    yield from get_session()
 
 
-async def get_current_user(
-    session: AsyncSession = Depends(get_db),
+def get_command_db(
+    db: Session = Depends(get_db, scope="function"),
+) -> Generator[Session, None, None]:
+    """Own the outer transaction for an explicitly selected pure-DB HTTP command."""
+    try:
+        yield db
+        db.commit()
+    except BaseException:
+        db.rollback()
+        raise
+
+
+def get_current_user(
+    session: Session = Depends(get_db, scope="function"),
     session_cookie: str | None = Cookie(
         default=None,
-        alias=settings.AUTH_COOKIE_NAME,
+        alias=AUTH_COOKIE_NAME,
     ),
 ) -> User:
     """Resolve the authenticated user from the HttpOnly session cookie."""
     token = session_cookie
     if not token:
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "missing_token"},
         )
 
@@ -55,18 +67,18 @@ async def get_current_user(
         token_data = TokenPayload(**payload)
     except (jwt.InvalidTokenError, ValidationError):
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "invalid_token"},
         )
 
     if token_data.sub is None:
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "missing_subject"},
         )
     if token_data.typ != "access":
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "invalid_token_type"},
         )
 
@@ -74,12 +86,12 @@ async def get_current_user(
         user_id = int(token_data.sub)
     except (TypeError, ValueError):
         raise AuthenticationException(
-            code=ErrorCode.TOKEN_INVALID_EXPIRED,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
             details={"reason": "invalid_subject"},
         )
 
     try:
-        result = await session.execute(select(User).where(User.id == user_id))
+        result = session.execute(select(User).where(User.id == user_id))
     except (ConnectionRefusedError, SQLAlchemyError) as exc:
         raise ExternalServiceException(
             service="database",
@@ -92,37 +104,36 @@ async def get_current_user(
     user = result.scalars().first()
 
     if not user:
-        raise ResourceNotFoundException(
-            resource_type="user",
-            resource_id=str(token_data.sub),
-            code=ErrorCode.USER_NOT_FOUND,
-        )
-    if not user.is_active:
         raise AuthenticationException(
-            code=ErrorCode.ACCOUNT_INACTIVE,
+            code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
+            details={"reason": "principal_missing"},
+        )
+    if not user.is_active or user.deleted_at is not None:
+        raise AuthenticationException(
+            code=CustomerErrorCode.ACCOUNT_INACTIVE,
             details={"user_id": user.id},
         )
     if user.password_changed_at and token_data.iat:
-        token_issued_at = datetime.fromtimestamp(token_data.iat, timezone.utc).replace(tzinfo=None)
+        token_issued_at = datetime.fromtimestamp(token_data.iat, timezone.utc)
         if token_issued_at < user.password_changed_at:
             raise AuthenticationException(
-                code=ErrorCode.TOKEN_INVALID_EXPIRED,
+                code=CustomerErrorCode.TOKEN_INVALID_EXPIRED,
                 details={"reason": "password_changed"},
             )
     return user
 
 
-async def get_optional_current_user(
-    session: AsyncSession = Depends(get_db),
+def get_optional_current_user(
+    session: Session = Depends(get_db, scope="function"),
     session_cookie: str | None = Cookie(
         default=None,
-        alias=settings.AUTH_COOKIE_NAME,
+        alias=AUTH_COOKIE_NAME,
     ),
 ) -> User | None:
     """Resolve an optional principal for exact anonymous access routes."""
     if not session_cookie:
         return None
     try:
-        return await get_current_user(session, session_cookie)
+        return get_current_user(session, session_cookie)
     except AuthenticationException:
         return None

@@ -2,64 +2,88 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select, update, tuple_
+from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlmodel import col
 
-from app.db.models import NotificationEvent
+from app.db.models import Notification
 
 
-notification_created_col = NotificationEvent.__table__.c.created_at
+notification_created_col = Notification.__table__.c.created_at
 
 
 class NotificationRepository:
-    async def list_for_user(
-        self, db: AsyncSession, user_id: int, *, limit: int = 50
-    ) -> list[NotificationEvent]:
+    def admit_deduplicated(
+        self, db: Session, notification: Notification
+    ) -> tuple[Notification, bool]:
+        key = notification.dedupe_key
+        if key is None:
+            raise ValueError("Deduplicated admission requires a notification key")
+        insert = pg_insert if db.get_bind().dialect.name == "postgresql" else sqlite_insert
+        while True:
+            created = db.scalars(
+                insert(Notification)
+                .values(notification.model_dump(exclude={"id"}))
+                .on_conflict_do_nothing(index_elements=["dedupe_key"])
+                .returning(Notification)
+            ).one_or_none()
+            if created is not None:
+                return created, True
+            existing = self.by_dedupe_key(db, key)
+            if existing is not None:
+                return existing, False
+            # Retention can remove the winner between conflict detection and lookup.
+            # Retry atomic admission, rather than assuming that the absent row is durable.
+
+    def list_for_user(
+        self,
+        db: Session,
+        user_id: int,
+        *,
+        limit: int = 50,
+        before: tuple[datetime, int] | None = None,
+    ) -> list[Notification]:
+        statement = select(Notification).where(Notification.recipient_user_id == user_id)
+        if before is not None:
+            statement = statement.where(tuple_(Notification.created_at, Notification.id) < before)
         return list(
-            (
-                await db.execute(
-                    select(NotificationEvent)
-                    .where(NotificationEvent.recipient_user_id == user_id)
-                    .order_by(notification_created_col.desc())
-                    .limit(limit)
+            db.scalars(
+                statement.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(
+                    limit
                 )
-            ).scalars().all()
+            )
         )
 
-    async def unread_count(self, db: AsyncSession, user_id: int) -> int:
-        result = await db.execute(
-            select(func.count(NotificationEvent.id)).where(
-                NotificationEvent.recipient_user_id == user_id,
-                col(NotificationEvent.read_at).is_(None),
+    def unread_count(self, db: Session, user_id: int) -> int:
+        result = db.execute(
+            select(func.count(Notification.id)).where(
+                Notification.recipient_user_id == user_id,
+                col(Notification.read_at).is_(None),
             )
         )
         return int(result.scalar_one())
 
-    async def by_uuid(
-        self, db: AsyncSession, notification_uuid: str
-    ) -> NotificationEvent | None:
-        return (
-            await db.execute(
-                select(NotificationEvent).where(
-                    NotificationEvent.notification_uuid == notification_uuid
-                )
+    def mark_all_read_for_user(self, db: Session, user_id: int, *, read_at: datetime) -> int:
+        result = db.execute(
+            update(Notification)
+            .where(
+                Notification.recipient_user_id == user_id,
+                col(Notification.read_at).is_(None),
             )
-        ).scalar_one_or_none()
-
-    async def by_dedupe_key(
-        self, db: AsyncSession, dedupe_key: str
-    ) -> NotificationEvent | None:
-        return (
-            await db.execute(
-                select(NotificationEvent).where(
-                    NotificationEvent.dedupe_key == dedupe_key
-                )
-            )
-        ).scalar_one_or_none()
-
-    async def delete_older_than(self, db: AsyncSession, cutoff: datetime) -> int:
-        result = await db.execute(
-            delete(NotificationEvent).where(NotificationEvent.created_at < cutoff)
+            .values(read_at=read_at)
         )
         return int(result.rowcount or 0)
+
+    def by_uuid(self, db: Session, notification_uuid: str) -> Notification | None:
+        return (
+            db.execute(
+                select(Notification).where(Notification.notification_uuid == notification_uuid)
+            )
+        ).scalar_one_or_none()
+
+    def by_dedupe_key(self, db: Session, dedupe_key: str) -> Notification | None:
+        return (
+            db.execute(select(Notification).where(Notification.dedupe_key == dedupe_key))
+        ).scalar_one_or_none()

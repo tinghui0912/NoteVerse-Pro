@@ -1,17 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from app.modules.media_storage.delivery import MediaDeliveryService
+from app.modules.media_storage.reads import (
+    StoredObjectDelivery,
+    StoredObjectReadTarget,
+    read_admitted_bytes,
+)
+
 import io
 import zipfile
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from app.core.settings.service_identity import CUSTOMER_API_PREFIX
-from app.core.exceptions import FileException, ResourceNotFoundException
+from app.core.generated.customer_browser_protocol import CUSTOMER_API_PREFIX
+from app.core.exceptions import ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
-from app.db.models import Score, ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
-from app.db.models.score import RenderAssetKind
-from app.modules.score_access.policy import ScoreAccessPolicy, ScoreAction
+from app.db.models import ScoreRenderAsset, ScoreRevision, ScoreRevisionSource
+from app.modules.score_assets.domain import RenderAssetKind
+from app.modules.score_access.actions import ScoreAction
+from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.repository import ScoreAssetRecord, ScoreAssetRepository
 from app.modules.score_assets.schemas import (
     AssetAccessRead,
@@ -20,15 +27,7 @@ from app.modules.score_assets.schemas import (
     ScoreRevisionAssetsRead,
 )
 from app.modules.scores.repository import ScoreRepository
-from app.shared.constants import ErrorCode
-from app.storage import FileStorage, file_storage
-
-
-@dataclass(frozen=True)
-class ScoreAssetDelivery:
-    filename: str
-    media_type: str
-    storage_key: str
+from app.shared.error_codes import CustomerErrorCode
 
 
 class ScoreAssetService:
@@ -36,91 +35,84 @@ class ScoreAssetService:
         self,
         repository: ScoreAssetRepository | None = None,
         score_repository: ScoreRepository | None = None,
-        storage: FileStorage | None = None,
         access_policy: ScoreAccessPolicy | None = None,
+        *,
+        delivery: MediaDeliveryService,
     ) -> None:
+        self.delivery = delivery
         self.repository = repository or ScoreAssetRepository()
         self.score_repository = score_repository or ScoreRepository()
-        self.storage = storage or file_storage
+        self.storage = delivery.storage
         self.access_policy = access_policy or ScoreAccessPolicy()
 
-    async def list_revision_assets(
+    def list_revision_assets(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         user_id: int | None,
         *,
         revision_uuid: str | None = None,
         include_sources: bool = True,
-        share_token: str | None = None,
-        public_slug: str | None = None,
     ) -> ScoreRevisionAssetsRead:
-        access = await self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.VIEW,
             user_id=user_id,
             revision_uuid=revision_uuid,
-            share_token=share_token,
-            public_slug=public_slug,
         )
         revision = access.revision
         revision_id = require_persisted_id(revision.id, entity="score revision")
-        sources = await self.repository.list_sources(db, revision_id) if include_sources else []
-        render_assets = await self.repository.list_render_assets(db, revision_id)
+        sources = (
+            self.repository.list_sources(db, revision_id)
+            if include_sources and access.capabilities.can_edit
+            else []
+        )
+        render_assets = self.repository.list_render_assets(db, revision_id)
         return ScoreRevisionAssetsRead(
-            revision_sources=[self._source_read(source, revision) for source in sources],
+            revision_sources=[(self._source_read(source, revision)) for source in sources],
             render_assets=[
-                self._render_asset_read(render_asset, revision) for render_asset in render_assets
+                (self._render_asset_read(render_asset, revision)) for render_asset in render_assets
             ],
         )
 
-    async def source_delivery(
+    def source_delivery(
         self,
-        db: AsyncSession,
+        db: Session,
         source_uuid: str,
         user_id: int | None,
-        *,
-        share_token: str | None = None,
-        public_slug: str | None = None,
-    ) -> ScoreAssetDelivery:
-        source, _revision = await self._authorized_source(
+    ) -> StoredObjectDelivery:
+        source, _revision = self._authorized_source(
             db,
             source_uuid,
             user_id,
             ScoreAction.DOWNLOAD,
-            share_token=share_token,
-            public_slug=public_slug,
         )
         return self._delivery(source)
 
-    async def render_asset_delivery(
+    def render_asset_delivery(
         self,
-        db: AsyncSession,
+        db: Session,
         render_asset_uuid: str,
         user_id: int | None,
         *,
-        share_token: str | None = None,
-        public_slug: str | None = None,
         download: bool = True,
-    ) -> ScoreAssetDelivery:
-        render_asset, _revision = await self._authorized_render_asset(
+    ) -> StoredObjectDelivery:
+        render_asset, _revision = self._authorized_render_asset(
             db,
             render_asset_uuid,
             user_id,
             ScoreAction.DOWNLOAD if download else ScoreAction.VIEW,
-            share_token=share_token,
-            public_slug=public_slug,
         )
         return self._delivery(render_asset)
 
-    async def source_access_url(
+    def source_access_url(
         self,
-        db: AsyncSession,
+        db: Session,
         source_uuid: str,
         user_id: int | None,
     ) -> AssetAccessRead:
-        source, _revision = await self._authorized_source(
+        source, _revision = self._authorized_source(
             db,
             source_uuid,
             user_id,
@@ -128,164 +120,127 @@ class ScoreAssetService:
         )
         return self._access_read(source, source.source_uuid, "revision-sources")
 
-    async def render_asset_access_url(
+    def render_asset_access_url(
         self,
-        db: AsyncSession,
+        db: Session,
         render_asset_uuid: str,
         user_id: int | None,
     ) -> AssetAccessRead:
-        render_asset, _revision = await self._authorized_render_asset(
+        render_asset, _revision = self._authorized_render_asset(
             db,
             render_asset_uuid,
             user_id,
-            ScoreAction.VIEW,
+            ScoreAction.DOWNLOAD,
         )
         return self._access_read(render_asset, render_asset.asset_uuid, "render-assets")
 
-    async def render_asset_archive(
+    def render_asset_archive(
         self,
-        db: AsyncSession,
+        db: Session,
         score_uuid: str,
         user_id: int | None,
         *,
         revision_uuid: str | None = None,
         kind: RenderAssetKind,
-        share_token: str | None = None,
-        public_slug: str | None = None,
+        render_profile: str,
     ) -> tuple[io.BytesIO, str]:
-        access = await self.access_policy.authorize(
+        access = self.access_policy.authorize_revision(
             db,
             score_uuid,
             ScoreAction.DOWNLOAD,
             user_id=user_id,
             revision_uuid=revision_uuid,
-            share_token=share_token,
-            public_slug=public_slug,
         )
-        render_assets = await self.repository.list_render_assets(
+        render_assets = self.repository.list_render_assets(
             db,
             require_persisted_id(access.revision.id, entity="score revision"),
             kind,
+            render_profile=render_profile,
         )
         if not render_assets:
-            raise ResourceNotFoundException("render_asset", score_uuid, ErrorCode.FILE_NOT_FOUND)
+            raise ResourceNotFoundException(
+                "render_asset", score_uuid, CustomerErrorCode.FILE_NOT_FOUND
+            )
         archive = io.BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
             for render_asset in render_assets:
-                self._require_object(render_asset)
                 bundle.writestr(
                     render_asset.filename,
-                    self.storage.read_bytes(render_asset.storage_key),
+                    read_admitted_bytes(
+                        self.storage, StoredObjectReadTarget.from_object(render_asset.stored_object)
+                    ),
                 )
         archive.seek(0)
         return archive, f"score-{score_uuid}-{kind.value.lower()}.zip"
 
-    async def _authorized_source(
+    def _authorized_source(
         self,
-        db: AsyncSession,
+        db: Session,
         source_uuid: str,
         user_id: int | None,
         action: ScoreAction,
-        *,
-        share_token: str | None = None,
-        public_slug: str | None = None,
     ) -> tuple[ScoreRevisionSource, ScoreRevision]:
-        source = await self.repository.get_source(db, source_uuid)
+        source = self.repository.get_source(db, source_uuid)
         if not source:
             raise ResourceNotFoundException(
-                "revision_source", source_uuid, ErrorCode.FILE_NOT_FOUND
+                "revision_source", source_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
-        revision = await self.repository.revision_for_asset(db, source)
-        if not revision:
-            raise ResourceNotFoundException("revision", source_uuid, ErrorCode.REVISION_NOT_FOUND)
-        await self._authorize_asset_revision(
-            db,
-            revision,
-            user_id,
-            action,
-            share_token=share_token,
-            public_slug=public_slug,
-        )
+        revision = self._authorize_asset_revision(db, source, source_uuid, user_id, action)
         return source, revision
 
-    async def _authorized_render_asset(
+    def _authorized_render_asset(
         self,
-        db: AsyncSession,
+        db: Session,
         render_asset_uuid: str,
         user_id: int | None,
         action: ScoreAction,
-        *,
-        share_token: str | None = None,
-        public_slug: str | None = None,
     ) -> tuple[ScoreRenderAsset, ScoreRevision]:
-        render_asset = await self.repository.get_render_asset(db, render_asset_uuid)
-        if not render_asset:
+        render_asset = self.repository.get_render_asset(db, render_asset_uuid)
+        if render_asset is None:
             raise ResourceNotFoundException(
-                "render_asset", render_asset_uuid, ErrorCode.FILE_NOT_FOUND
+                "render_asset", render_asset_uuid, CustomerErrorCode.FILE_NOT_FOUND
             )
-        revision = await self.repository.revision_for_asset(db, render_asset)
-        if not revision:
-            raise ResourceNotFoundException(
-                "revision", render_asset_uuid, ErrorCode.REVISION_NOT_FOUND
-            )
-        await self._authorize_asset_revision(
-            db,
-            revision,
-            user_id,
-            action,
-            share_token=share_token,
-            public_slug=public_slug,
+        revision = self._authorize_asset_revision(
+            db, render_asset, render_asset_uuid, user_id, action
         )
         return render_asset, revision
 
-    async def _authorize_asset_revision(
+    def _authorize_asset_revision(
         self,
-        db: AsyncSession,
-        revision: ScoreRevision,
+        db: Session,
+        asset: ScoreAssetRecord,
+        asset_uuid: str,
         user_id: int | None,
         action: ScoreAction,
-        *,
-        share_token: str | None,
-        public_slug: str | None,
-    ) -> None:
-        score = await db.get(Score, revision.score_id)
-        if not score:
+    ) -> ScoreRevision:
+        identity = self.repository.revision_identity_for_asset(db, asset)
+        if identity is None:
             raise ResourceNotFoundException(
-                "score", revision.revision_uuid, ErrorCode.SCORE_NOT_FOUND
+                "revision", asset_uuid, CustomerErrorCode.REVISION_NOT_FOUND
             )
-        await self.access_policy.authorize(
+        score_uuid, revision_uuid = identity
+        access = self.access_policy.authorize_revision(
             db,
-            score.score_uuid,
+            score_uuid,
             action,
             user_id=user_id,
-            revision_uuid=revision.revision_uuid,
-            share_token=share_token,
-            public_slug=public_slug,
+            revision_uuid=revision_uuid,
         )
+        return access.revision
 
-    def _delivery(self, asset: ScoreAssetRecord) -> ScoreAssetDelivery:
-        self._require_object(asset)
-        return ScoreAssetDelivery(
-            filename=asset.filename,
-            media_type=asset.mime_type,
-            storage_key=asset.storage_key,
-        )
+    def _delivery(self, asset: ScoreAssetRecord) -> StoredObjectDelivery:
+        return StoredObjectDelivery.for_object(asset.stored_object, asset.filename)
 
     def _access_read(
         self, asset: ScoreAssetRecord, asset_uuid: str, route_prefix: str
     ) -> AssetAccessRead:
-        self._require_object(asset)
         return AssetAccessRead(
             asset_id=asset_uuid,
             url=f"{CUSTOMER_API_PREFIX}/{route_prefix}/{asset_uuid}/download",
             filename=asset.filename,
-            mime_type=asset.mime_type,
+            mime_type=asset.stored_object.content_type,
             expires_in=None,
         )
-
-    def _require_object(self, asset: ScoreAssetRecord) -> None:
-        if not self.storage.exists(asset.storage_key):
-            raise FileException(ErrorCode.FILE_NOT_FOUND, asset.storage_key)
 
     def source_read(
         self, source: ScoreRevisionSource, revision: ScoreRevision
@@ -305,23 +260,22 @@ class ScoreAssetService:
             revision_id=revision.revision_uuid,
             format=source.format,
             filename=source.filename,
-            mime_type=source.mime_type,
-            size_bytes=source.size_bytes,
+            mime_type=source.stored_object.content_type,
+            size_bytes=source.stored_object.byte_size,
             created_at=source.created_at,
-            available=self.storage.exists(source.storage_key),
         )
 
     def _render_asset_read(
         self, render_asset: ScoreRenderAsset, revision: ScoreRevision
     ) -> RenderAssetRead:
         return RenderAssetRead(
+            render_profile=render_asset.render_profile,
             render_asset_id=render_asset.asset_uuid,
             revision_id=revision.revision_uuid,
             kind=render_asset.kind,
             filename=render_asset.filename,
-            mime_type=render_asset.mime_type,
-            size_bytes=render_asset.size_bytes,
+            mime_type=render_asset.stored_object.content_type,
+            size_bytes=render_asset.stored_object.byte_size,
             page_number=render_asset.page_number,
             created_at=render_asset.created_at,
-            available=self.storage.exists(render_asset.storage_key),
         )

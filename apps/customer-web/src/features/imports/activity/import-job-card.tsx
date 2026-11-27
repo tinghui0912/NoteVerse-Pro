@@ -1,0 +1,75 @@
+'use client';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { formatApiDateTime } from '@/lib/date-time';
+import { isCustomerErrorCode } from '@/lib/i18n/customer-error-codes';
+import { translateErrorCode } from '@/lib/i18n/error-message';
+import type { ImportJobRead } from '@/generated/api';
+import { importJobDestination } from '@/features/imports/routes';
+
+export function ImportJobCard({
+  job,
+  retryPending,
+  deletePending,
+  onRetry,
+  onDelete,
+}: {
+  job: ImportJobRead;
+  retryPending: boolean;
+  deletePending: boolean;
+  onRetry: () => void;
+  onDelete: () => void;
+}) {
+  const t = useTranslations('imports');
+  const errors = useTranslations('errors');
+  const destination = importJobDestination(job);
+  const active = job.state === 'QUEUED' || job.state === 'PROCESSING';
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-5">
+        <h3 className="font-semibold">{job.display_title || t('untitled')}</h3>
+        <p>{t(`state.${job.state}`)}</p>
+        {job.created_at ? (
+          <p className="text-xs text-muted-foreground">{formatApiDateTime(job.created_at)}</p>
+        ) : null}
+        {active ? (
+          <div>
+            <Progress value={job.progress} aria-label={t('progress', { progress: job.progress })} />
+            <p>{t('progress', { progress: job.progress })}</p>
+          </div>
+        ) : null}
+        {job.state === 'FAILED' ? (
+          <p className="text-sm text-destructive">
+            {translateErrorCode(
+              errors,
+              isCustomerErrorCode(job.public_code) ? job.public_code : null,
+              t('failed'),
+            )}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {destination ? (
+            <Button asChild>
+              <Link href={destination.href}>
+                {t(destination.kind === 'review' ? 'review' : 'openScore')}
+              </Link>
+            </Button>
+          ) : null}
+          {job.state === 'FAILED' ? (
+            <Button disabled={retryPending} onClick={onRetry}>
+              {t('retry')}
+            </Button>
+          ) : null}
+          {job.state === 'FAILED' || job.state === 'READY_FOR_REVIEW' ? (
+            <Button variant="outline" disabled={deletePending} onClick={onDelete}>
+              {t('deleteImport')}
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
