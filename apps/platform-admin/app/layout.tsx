@@ -1,9 +1,14 @@
 import "./styles.css";
+import { AdminSessionProvider } from "../components/admin-session";
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AdminSessionProvider>{children}</AdminSessionProvider>
+      </body>
     </html>
   );
 }
