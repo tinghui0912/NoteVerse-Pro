@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.score_deletion_delivery import ScoreDeletionDeliverySettings
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
 
 
 def test_score_deletion_delivery_settings_accept_default_policy() -> None:

@@ -5,8 +5,8 @@ FastAPI composition roots:
 
 | Contract | Runtime | Consumer |
 | --- | --- | --- |
-| `customer-api.json` | `app.main` | Customer Web and external API consumers. |
-| `control-plane-api.json` | `app.control_plane_main` | Platform Admin only. |
+| `customer-api.json` | `app.runtime.customer_api.main` | Customer Web and external API consumers. |
+| `control-plane-api.json` | `app.runtime.control_plane.main` | Platform Admin only. |
 
 Generate a contract in its matching Docker runtime:
 

@@ -1,6 +1,9 @@
 """Partial recipient inserts/NOTIFY must not escape authoritative outcome rollback."""
 
-from app.composition import media_resources as _media_wiring
+from unittest.mock import Mock
+
+from tests.support.runtime_resources import resources_for
+
 
 from app.modules.media_storage.domain import ObjectWriteIntentStatus
 
@@ -23,16 +26,14 @@ from app.db.models import (
 )
 from app.modules.metadata.domain import MetadataStatus
 from app.modules.realtime import publisher
-from app.modules.revisions.metadata_delivery import (
-    metadata_delivery,
-    compute_metadata,
-    MetadataResult,
-)
+from app.modules.revisions.metadata_delivery import compute_metadata, MetadataResult
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.shared.time import utc_now
 from tests.test_revision_writer_postgres import database as database, initial
 from tests.test_derivative_adoption_postgres import generation as generation, semantic_snapshot
 from tests.support.write_cleanup import drain_write_cleanup
+from tests.support.runtime_resources import deliveries
+from tests.support.worker_context import inject_worker
 
 
 def add_member(engine):
@@ -77,7 +78,7 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
     add_member(engine)
     with Session(engine) as db:
         uuid = db.scalar(sa.select(RevisionMetadataOutbox.outbox_uuid))
-        first = metadata_delivery.claim(db, uuid)
+        first = deliveries().metadata.claim(db, uuid)
         db.commit()
     result = (
         MetadataResult(None, "unsupported_nontraditional_key")
@@ -87,7 +88,7 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
     original, recipients = interrupt_second_notify(monkeypatch)
     with Session(engine) as db:
         with pytest.raises(RuntimeError, match="fan-out interrupted"):
-            metadata_delivery.adopt(db, first, result)
+            deliveries().metadata.adopt(db, first, result)
         db.rollback()
         assert recipients == [1, 2]
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
@@ -99,19 +100,19 @@ def test_metadata_partial_publication_rolls_back_and_retry_is_authoritative(
         assert row.attempt_count == first.lease.attempt
         assert db.scalar(sa.select(RealtimeChange)) is None
     with Session(engine) as db:
-        assert metadata_delivery.fail(db, uuid, first.lease, "realtime publication unavailable")
+        assert deliveries().metadata.fail(db, uuid, first.lease, "realtime publication unavailable")
         db.commit()
         row = db.scalar(sa.select(RevisionMetadataOutbox))
         row.next_attempt_at = utc_now() - timedelta(seconds=1)
         db.commit()
-        second = metadata_delivery.claim(db, uuid)
+        second = deliveries().metadata.claim(db, uuid)
         db.commit()
         assert second.lease.attempt == 2 and second.lease.token != first.lease.token
         with pytest.raises(StaleDeliveryAttempt):
-            metadata_delivery.adopt(db, first, result)
+            deliveries().metadata.adopt(db, first, result)
         db.rollback()
         monkeypatch.setattr(publisher, "_notify_change", original)
-        metadata_delivery.adopt(db, second, result)
+        deliveries().metadata.adopt(db, second, result)
         db.commit()
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == (
             MetadataStatus.FAILED if semantic_failure else MetadataStatus.READY
@@ -135,7 +136,7 @@ def test_derivative_ready_publication_failure_rolls_back_adoption_and_fails_exac
     if replace_existing:
         assert execute(None, "delivery")["status"] in ("rendered", "generated")
         with Session(engine) as db:
-            lifecycle().rearm(db.scalar(sa.select(model)), now=utc_now())
+            lifecycle(config=service.config).rearm(db.scalar(sa.select(model)), now=utc_now())
             db.commit()
     with Session(engine) as db:
         before = semantic_snapshot(db)
@@ -182,10 +183,12 @@ def test_failed_outcome_publication_failure_leaves_processing_for_lease_recovery
     if kind == "render":
         monkeypatch.setattr(score_revision_render_outbox, "_render_revision", fail)
     else:
-        generator = _media_wiring.build_playback_generation_service(storage)
+        generator = resources_for(storage).build_playback_generation_service(renderer=Mock())
         monkeypatch.setattr(generator, "render_for_worker", fail)
         monkeypatch.setattr(
-            playback_outbox, "build_playback_generation_service", lambda *_: generator
+            playback_outbox.get_context().resources,
+            "build_playback_generation_service",
+            lambda *_: generator,
         )
     original, recipients = interrupt_second_notify(monkeypatch, first_outcome_only=True)
     with pytest.raises(RuntimeError, match="fan-out interrupted"):
@@ -233,10 +236,10 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
                 db.rollback()
                 raise
 
-    monkeypatch.setattr(worker, "SessionLocal", transaction)
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, sessions=transaction)
+    inject_worker(monkeypatch, worker, storage=storage)
     original, _ = interrupt_second_notify(monkeypatch)
-    failure = metadata_delivery.fail
+    failure = deliveries().metadata.fail
 
     def fail_after_rollback(db, uuid, lease, error):
         row = db.scalar(sa.select(RevisionMetadataOutbox))
@@ -248,7 +251,7 @@ def test_metadata_worker_retries_publication_infrastructure_failure(database, mo
         assert db.scalar(sa.select(RealtimeChange)) is None
         return failure(db, uuid, lease, error)
 
-    monkeypatch.setattr(metadata_delivery, "fail", fail_after_rollback)
+    monkeypatch.setattr(deliveries().metadata, "fail", fail_after_rollback)
     with Session(engine) as db:
         uuid = db.scalar(sa.select(RevisionMetadataOutbox.outbox_uuid))
     assert worker.execute_revision_metadata_task(None, uuid)["status"] == "failed"

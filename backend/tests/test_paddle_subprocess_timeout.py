@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+
 import subprocess
 import os
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app.processing.engines.ocr.paddle_worker import _build_paddleocr_kwargs
+from app.processing.engines.ocr.paddle_execution import _build_paddleocr_kwargs
+from app.runtime.paddle_ocr.settings import PaddleOcrSettings
 from app.modules.import_jobs.pipeline.steps.text import TextOcrStep
 from app.processing.engines.ocr.paddle import run_ocr_subprocess
 from app.processing.text.recognition import TextRecognitionEngine
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
+from app.runtime.worker.settings import WorkerSettings
 
 
 def _create_fake_paddle_model_dir(path) -> str:
@@ -23,7 +27,11 @@ def test_run_ocr_subprocess_maps_timeout_to_failure() -> None:
         "app.processing.engines.ocr.paddle.subprocess.run",
         side_effect=subprocess.TimeoutExpired(cmd=["python"], timeout=12),
     ):
-        result = run_ocr_subprocess(__file__, timeout_seconds=12)
+        result = run_ocr_subprocess(
+            __file__,
+            timeout_seconds=12,
+            config=WorkerModelEngineSettings.model_validate(WorkerSettings().model_dump()),
+        )
 
     assert result["success"] is False
     assert result["code"] == "task_timeout"
@@ -38,7 +46,11 @@ def test_run_ocr_subprocess_prefers_structured_stdout_error() -> None:
     )
 
     with patch("app.processing.engines.ocr.paddle.subprocess.run", return_value=completed):
-        result = run_ocr_subprocess(__file__, timeout_seconds=12)
+        result = run_ocr_subprocess(
+            __file__,
+            timeout_seconds=12,
+            config=WorkerModelEngineSettings.model_validate(WorkerSettings().model_dump()),
+        )
 
     assert result["success"] is False
     assert result["code"] == "ocr_failed"
@@ -54,7 +66,11 @@ def test_run_ocr_subprocess_accepts_json_after_stdout_noise() -> None:
     )
 
     with patch("app.processing.engines.ocr.paddle.subprocess.run", return_value=completed):
-        result = run_ocr_subprocess(__file__, timeout_seconds=12)
+        result = run_ocr_subprocess(
+            __file__,
+            timeout_seconds=12,
+            config=WorkerModelEngineSettings.model_validate(WorkerSettings().model_dump()),
+        )
 
     assert result["success"] is True
     assert result["result"] == []
@@ -72,7 +88,11 @@ def test_run_ocr_subprocess_accepts_structured_error_after_stdout_noise() -> Non
     )
 
     with patch("app.processing.engines.ocr.paddle.subprocess.run", return_value=completed):
-        result = run_ocr_subprocess(__file__, timeout_seconds=12)
+        result = run_ocr_subprocess(
+            __file__,
+            timeout_seconds=12,
+            config=WorkerModelEngineSettings.model_validate(WorkerSettings().model_dump()),
+        )
 
     assert result["success"] is False
     assert result["code"] == "ocr_failed"
@@ -102,7 +122,7 @@ def test_build_paddleocr_kwargs_supports_v3_device_parameter(monkeypatch, tmp_pa
     monkeypatch.setenv("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR", ori_dir)
     fake_paddle = SimpleNamespace(device=SimpleNamespace(is_compiled_with_cuda=lambda: True))
 
-    kwargs = _build_paddleocr_kwargs(fake_paddle, FakePaddleOcr)
+    kwargs = _build_paddleocr_kwargs(fake_paddle, FakePaddleOcr, config=PaddleOcrSettings())
 
     assert kwargs == {
         "lang": "ch",
@@ -137,7 +157,7 @@ def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch, tmp_p
     monkeypatch.setenv("PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR", ori_dir)
     fake_paddle = SimpleNamespace(device=SimpleNamespace(is_compiled_with_cuda=lambda: False))
 
-    kwargs = _build_paddleocr_kwargs(fake_paddle, FakePaddleOcr)
+    kwargs = _build_paddleocr_kwargs(fake_paddle, FakePaddleOcr, config=PaddleOcrSettings())
 
     assert kwargs == {
         "lang": "ch",
@@ -152,6 +172,7 @@ def test_build_paddleocr_kwargs_supports_v2_use_gpu_parameter(monkeypatch, tmp_p
 def test_text_ocr_step_caps_timeout_at_remaining_task_time() -> None:
     step = TextOcrStep()
     ctx = SimpleNamespace(
+        config=WorkerSettings(),
         job_id="job-ocr",
         first_image=__file__,
         remaining=lambda: 55,
@@ -171,13 +192,13 @@ def test_text_ocr_step_caps_timeout_at_remaining_task_time() -> None:
 def test_text_ocr_step_caps_timeout_at_paddle_limit(monkeypatch) -> None:
     step = TextOcrStep()
     ctx = SimpleNamespace(
+        config=WorkerSettings(),
         job_id="job-ocr",
         first_image=__file__,
         remaining=lambda: 600,
     )
-    from app.core.settings.worker_runtime import get_worker_runtime_settings
 
-    monkeypatch.setattr(get_worker_runtime_settings(), "PADDLEOCR_TIMEOUT_SECONDS", 120)
+    monkeypatch.setattr(ctx.config, "PADDLEOCR_TIMEOUT_SECONDS", 120)
 
     with patch.object(
         TextRecognitionEngine,
@@ -214,7 +235,7 @@ def test_text_ocr_step_summarizes_classified_text_values() -> None:
 
 
 def test_text_classifier_allows_title_words_containing_metadata_terms() -> None:
-    engine = TextRecognitionEngine()
+    engine = TextRecognitionEngine(config=WorkerModelEngineSettings(LEGATO_REPO_PATH="/tmp/legato"))
 
     result = engine.classify_texts(
         [
@@ -234,7 +255,7 @@ def test_text_classifier_allows_title_words_containing_metadata_terms() -> None:
 
 
 def test_text_classifier_excludes_title_metadata_labels() -> None:
-    engine = TextRecognitionEngine()
+    engine = TextRecognitionEngine(config=WorkerModelEngineSettings(LEGATO_REPO_PATH="/tmp/legato"))
 
     result = engine.classify_texts(
         [

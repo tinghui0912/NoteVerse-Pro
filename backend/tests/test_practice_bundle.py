@@ -1,6 +1,9 @@
 """Content-only compilation and binding-first application reads."""
 
-from app.composition import storage_resources as _resource_wiring
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 
 from dataclasses import replace
 from pathlib import Path
@@ -16,6 +19,8 @@ from app.modules.practice.bundle.service import PracticeBundleService
 from app.modules.score_access.actions import ScoreAction
 from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+from app.runtime.customer_api.context import get_context
 
 FIXTURE = Path(__file__).parent / "fixtures/musicxml/bundle-multi-part.musicxml"
 
@@ -124,7 +129,12 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
         compiler=compiler,
         asset_repository=assets,
         access_policy=Mock(authorize_revision=Mock(return_value=access)),
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
     )
     db = Mock()
     with patch(
@@ -182,7 +192,12 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
         compiler=compiler,
         asset_repository=assets,
         access_policy=Mock(authorize_revision=Mock(return_value=access)),
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
     )
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
@@ -235,8 +250,13 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
                 )
             )
         ),
-        writes=_resource_wiring.build_object_write_coordinator(
+        writes=resources_for(
             Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes()))
+        ).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
         ),
     )
     service.asset_repository.canonical_source.return_value.stored_object.id = 1

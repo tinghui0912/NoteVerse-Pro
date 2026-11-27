@@ -1,8 +1,7 @@
 """PostgreSQL hash-only credential invariants and serialized lifecycle commands."""
 
-from app.storage import object_storage as _storage_provider
+from tests.support.runtime_resources import resources_for
 
-from app.composition import storage_resources as _resource_wiring
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
@@ -18,6 +17,7 @@ from app.db.models import GuestPreviewCredential, Score, User
 from app.modules.guest_previews.credentials import guest_preview_token_hash
 from app.modules.guest_previews.service import GuestPreviewService
 from tests.support.postgres_schema import postgres_schema_database
+from tests.support.runtime_resources import storage as _storage_provider
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def test_fresh_postgres_credential_constraints(credential_database):
     fk = inspector.get_foreign_keys("guest_preview_credentials")[0]
     assert fk["referred_table"] == "scores" and fk["options"]["ondelete"] == "CASCADE"
     service = GuestPreviewService(
-        delivery=_resource_wiring.build_media_delivery_service(_storage_provider)
+        delivery=resources_for(_storage_provider).build_media_delivery_service()
     )
     with Session(engine) as db:
         issued = service.issue_credential(db, "preview", owner)
@@ -94,7 +94,7 @@ def test_credential_commands_serialize_on_score_before_credential(
 ):
     engine, owner = credential_database
     service = GuestPreviewService(
-        delivery=_resource_wiring.build_media_delivery_service(_storage_provider)
+        delivery=resources_for(_storage_provider).build_media_delivery_service()
     )
     with Session(engine) as db:
         original = (

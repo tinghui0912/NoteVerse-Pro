@@ -1078,6 +1078,7 @@ beat = [
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
     { name = "redis" },
+    { name = "sqlmodel" },
 ]
 cache = [
     { name = "loguru" },
@@ -1155,6 +1156,9 @@ http = [
 ]
 image = [
     { name = "pillow" },
+]
+metrics = [
+    { name = "prometheus-client" },
 ]
 migrations = [
     { name = "alembic" },
@@ -1237,9 +1241,12 @@ worker = [
     { name = "paddleocr", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "paddlepaddle", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pillow" },
+    { name = "prometheus-client" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pwdlib", extra = ["argon2"] },
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "pyparsing", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "redis" },
     { name = "sqlmodel" },
@@ -1258,9 +1265,12 @@ worker-app = [
     { name = "opentelemetry-exporter-otlp-proto-grpc" },
     { name = "opentelemetry-sdk" },
     { name = "pillow" },
+    { name = "prometheus-client" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pwdlib", extra = ["argon2"] },
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "redis" },
     { name = "sqlmodel" },
     { name = "verovio" },
@@ -1307,6 +1317,7 @@ beat = [
     { name = "pydantic", extras = ["email"], specifier = "==2.14.1" },
     { name = "pydantic-settings", specifier = "==2.16.0" },
     { name = "redis", specifier = "==7.4.0" },
+    { name = "sqlmodel", specifier = "==0.0.48" },
 ]
 cache = [
     { name = "loguru", specifier = "==0.7.3" },
@@ -1383,6 +1394,7 @@ http = [
     { name = "uvicorn", extras = ["standard"], specifier = "==0.54.0" },
 ]
 image = [{ name = "pillow", specifier = "==13.0.0" }]
+metrics = [{ name = "prometheus-client", specifier = "==0.26.0" }]
 migrations = [
     { name = "alembic", specifier = "==1.20.0" },
     { name = "loguru", specifier = "==0.7.3" },
@@ -1462,9 +1474,12 @@ worker = [
     { name = "paddleocr", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'", specifier = "==3.7.0" },
     { name = "paddlepaddle", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'", url = "https://paddle-whl.cdn.bcebos.com/stable/cpu/paddlepaddle/paddlepaddle-3.2.0-cp312-cp312-linux_x86_64.whl" },
     { name = "pillow", specifier = "==13.0.0" },
+    { name = "prometheus-client", specifier = "==0.26.0" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.6" },
+    { name = "pwdlib", extras = ["argon2"], specifier = "==0.3.1" },
     { name = "pydantic", extras = ["email"], specifier = "==2.14.1" },
     { name = "pydantic-settings", specifier = "==2.16.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = "==2.15.1" },
     { name = "pyparsing", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'", specifier = "==3.3.3" },
     { name = "redis", specifier = "==7.4.0" },
     { name = "sqlmodel", specifier = "==0.0.48" },
@@ -1483,9 +1498,12 @@ worker-app = [
     { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = "==1.45.1" },
     { name = "opentelemetry-sdk", specifier = "==1.45.1" },
     { name = "pillow", specifier = "==13.0.0" },
+    { name = "prometheus-client", specifier = "==0.26.0" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.6" },
+    { name = "pwdlib", extras = ["argon2"], specifier = "==0.3.1" },
     { name = "pydantic", extras = ["email"], specifier = "==2.14.1" },
     { name = "pydantic-settings", specifier = "==2.16.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = "==2.15.1" },
     { name = "redis", specifier = "==7.4.0" },
     { name = "sqlmodel", specifier = "==0.0.48" },
     { name = "verovio", specifier = "==6.3.0" },

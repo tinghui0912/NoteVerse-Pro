@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 import argparse
 import importlib
 import json
@@ -19,8 +20,8 @@ if str(BACKEND_ROOT) not in sys.path:
 
 CONTRACT_ROOT = BACKEND_ROOT / "docs" / "contracts" / "openapi"
 RUNTIME_MODULES = {
-    "customer-api": "app.main",
-    "control-plane-api": "app.control_plane_main",
+    "customer-api": "app.runtime.customer_api.main",
+    "control-plane-api": "app.runtime.control_plane.main",
 }
 CONTROL_PLANE_CONTRACT_DEFAULTS = {
     "CONTROL_PLANE_COOKIE_SECURE": "false",

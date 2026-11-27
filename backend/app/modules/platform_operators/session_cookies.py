@@ -4,14 +4,14 @@ import secrets
 
 from fastapi import Response
 
-from app.core.control_plane_settings import ControlPlaneSettings
+from app.platform.config.operator_session import OperatorSessionConfig
 
 
 def set_control_plane_session_cookies(
     response: Response,
     *,
     session_token: str,
-    security: ControlPlaneSettings,
+    security: OperatorSessionConfig,
 ) -> None:
     max_age = security.session_expire_minutes * 60
     response.set_cookie(
@@ -34,7 +34,9 @@ def set_control_plane_session_cookies(
     )
 
 
-def clear_control_plane_session_cookies(response: Response, *, security: ControlPlaneSettings) -> None:
+def clear_control_plane_session_cookies(
+    response: Response, *, security: OperatorSessionConfig
+) -> None:
     response.delete_cookie(
         key=security.auth_cookie_name,
         path="/",

@@ -1,5 +1,9 @@
 """Real PostgreSQL retirement/reference fences across independent connections."""
 
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import complete_image_upload
 from tests.support.uploads import settled_upload_session
 
@@ -38,14 +42,16 @@ from app.db.models import (
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.uploads.service import UploadService
 from app.modules.media_storage.persistence import object_from_bytes
-from app.modules.media_storage.retirement import (
-    retire_after_release,
-    retirement_delivery,
-    delivery_lifecycle,
-)
+from app.modules.media_storage.retirement import retire_after_release, delivery_lifecycle
 from app.worker.execution import stored_object_retirement as worker
 from app.modules.media_storage import retirement_execution
 from app.shared.time import utc_now
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import deliveries
+from app.platform.config.object_writes import ObjectWriteSettings
+from tests.support.worker_context import inject_worker
+
+settings = get_context().settings
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -58,8 +64,8 @@ def retirement_postgres(postgres_bundle, monkeypatch):
     with engine.connect() as connection:
         connection.scalar(text("SELECT current_schema()"))
     sessions = sessionmaker(engine, expire_on_commit=False)
-    monkeypatch.setattr(worker, "SessionLocal", sessions)
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, sessions=sessions)
+    inject_worker(monkeypatch, worker, storage=storage)
     yield engine, sessions, storage
 
 
@@ -116,7 +122,7 @@ def seed(fixture, *, prior_owner=False, queued=True):
             UploadService(
                 quota=_resource_wiring.storage_quota_service,
                 usage=_resource_wiring.storage_usage_service,
-                uploads=_resource_wiring.build_upload_session_service(storage),
+                uploads=resources_for(storage).build_upload_session_service(),
             ).delete_upload(db, db.get(User, 1), upload.upload_uuid)
             db.commit()
         elif queued:
@@ -168,9 +174,9 @@ def test_retirement_vs_reference_reacquisition_after_last_reference_release(
             if obj is None:
                 db.commit()
                 db.close()
-                receipt = ObjectWriteCoordinator(storage, sessions).write_bytes(
-                    key=key, content=CONTENT, content_type="image/png"
-                )
+                receipt = ObjectWriteCoordinator(
+                    storage, sessions, config=ObjectWriteSettings()
+                ).write_bytes(key=key, content=CONTENT, content_type="image/png")
                 obj = adopt_written_object(db, receipt)
             row = Upload(
                 upload_session=settled_upload_session(user_id=1),
@@ -260,22 +266,26 @@ async def test_attempt_takeover_fences_stale_work_and_holds_rows_across_delete(
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres)
     with Session(engine) as db:
-        old = retirement_delivery.claim(db, uuid)
+        old = deliveries().retirement.claim(db, uuid)
         db.commit()
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         operation.started_at = utc_now() - timedelta(
-            seconds=delivery_lifecycle().policy.processing_timeout_seconds
+            seconds=delivery_lifecycle(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ).policy.processing_timeout_seconds
         )
         db.commit()
-        assert retirement_delivery.recover_and_list_due(db) == [uuid]
+        assert deliveries().retirement.recover_and_list_due(db) == [uuid]
         db.commit()
-        current = retirement_delivery.claim(db, uuid)
+        current = deliveries().retirement.claim(db, uuid)
         db.commit()
         assert current.attempt == old.attempt + 1
-        assert not retirement_delivery.fail(db, old, "stale")
+        assert not deliveries().retirement.fail(db, old, "stale")
         db.commit()
-        operation_id = retirement_delivery.get(db, uuid).id
-    monkeypatch.setattr(retirement_delivery, "claim", lambda *_: old)
+        operation_id = deliveries().retirement.get(db, uuid).id
+    monkeypatch.setattr(deliveries().retirement, "claim", lambda *_: old)
     assert (await asyncio.to_thread(worker.execute_stored_object_retirement_task, None, uuid))[
         "status"
     ] == "ignored"
@@ -295,15 +305,17 @@ async def test_attempt_takeover_fences_stale_work_and_holds_rows_across_delete(
         return delete(key)
 
     monkeypatch.setattr(storage, "delete", locked_delete)
-    monkeypatch.setattr(retirement_delivery, "claim", lambda *_: current)
+    monkeypatch.setattr(deliveries().retirement, "claim", lambda *_: current)
     assert (await asyncio.to_thread(worker.execute_stored_object_retirement_task, None, uuid))[
         "status"
     ] == "completed"
     assert observations == ["stored_objects", "stored_object_retirements"]
     with Session(engine) as db:
         assert db.get(StoredObject, identity) is None
-        assert retirement_delivery.get(db, uuid).status is StoredObjectRetirementStatus.COMPLETED
-        assert not retirement_delivery.fail(db, old, "stale")
+        assert (
+            deliveries().retirement.get(db, uuid).status is StoredObjectRetirementStatus.COMPLETED
+        )
+        assert not deliveries().retirement.fail(db, old, "stale")
         db.commit()
 
 
@@ -370,7 +382,7 @@ async def test_shared_take_release_keeps_lineage_and_accounts_before_physical_re
         UploadService(
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            uploads=_resource_wiring.build_upload_session_service(storage),
+            uploads=resources_for(storage).build_upload_session_service(),
         ).delete_upload(db, db.get(User, 1), upload.upload_uuid)
         db.commit()
         operation = db.scalar(select(StoredObjectRetirement))
@@ -428,10 +440,10 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
                 raise ConnectionError("completion acknowledgement unavailable")
             super().commit()
 
-    monkeypatch.setattr(
+    inject_worker(
+        monkeypatch,
         worker,
-        "SessionLocal",
-        sessionmaker(engine, class_=UncertainCompletion, expire_on_commit=False),
+        sessions=sessionmaker(engine, class_=UncertainCompletion, expire_on_commit=False),
     )
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "failed"
     assert not storage.exists(key)
@@ -439,7 +451,8 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
         if commit_reached_server:
             assert db.get(StoredObject, identity) is None
             assert (
-                retirement_delivery.get(db, uuid).status == StoredObjectRetirementStatus.COMPLETED
+                deliveries().retirement.get(db, uuid).status
+                == StoredObjectRetirementStatus.COMPLETED
             )
         else:
             assert db.get(StoredObject, identity) is not None
@@ -448,9 +461,9 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
             db.rollback()
 
     # Resolve from a fresh transaction, never from the failed completion session.
-    monkeypatch.setattr(worker, "SessionLocal", sessions)
+    inject_worker(monkeypatch, worker, sessions=sessions)
     with sessions() as db:
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         assert operation.deletion_fenced_at is not None
         if not commit_reached_server:
             operation.next_attempt_at = utc_now()
@@ -459,7 +472,7 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
     assert outcome["status"] == ("ignored" if commit_reached_server else "completed")
     with sessions() as db:
         assert db.get(StoredObject, identity) is None
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         assert operation.status == StoredObjectRetirementStatus.COMPLETED
         assert operation.stored_object_id is None and operation.object_key == key
         assert operation.deletion_fenced_at is not None
@@ -468,7 +481,7 @@ def test_physical_delete_commit_uncertainty_cannot_restore_reference_authority(
             UploadService(
                 quota=_resource_wiring.storage_quota_service,
                 usage=_resource_wiring.storage_usage_service,
-                uploads=_resource_wiring.build_upload_session_service(storage),
+                uploads=resources_for(storage).build_upload_session_service(),
             ),
             db,
             db.get(User, 1),
@@ -506,24 +519,26 @@ def test_retirement_failure_retains_fence_and_retries_missing_key_idempotently(
     monkeypatch.setattr(storage, "delete", uncertain_delete)
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "failed"
     with sessions() as db:
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         fence = operation.deletion_fenced_at
         assert fence is not None and db.get(StoredObject, identity) is not None
         # Even an existing matching receipt cannot manufacture active reference authority.
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=key, content=CONTENT, content_type="image/png"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=key, content=CONTENT, content_type="image/png")
         )
         with pytest.raises(ValueError, match="deletion"):
             adopt_written_object(db, receipt)
         db.rollback()
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         operation.next_attempt_at = utc_now()
         db.commit()
     monkeypatch.setattr(storage, "delete", remove)
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "completed"
     with sessions() as db:
         assert db.get(StoredObject, identity) is None
-        assert retirement_delivery.get(db, uuid).deletion_fenced_at == fence
+        assert deliveries().retirement.get(db, uuid).deletion_fenced_at == fence
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "ignored"
 
 
@@ -543,7 +558,7 @@ def test_retirement_missing_physical_authority_never_deletes_snapshot_key(
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "failed"
     assert storage.exists(key)
     with sessions() as db:
-        assert retirement_delivery.get(db, uuid).deletion_fenced_at is None
+        assert deliveries().retirement.get(db, uuid).deletion_fenced_at is None
 
 
 @pytest.mark.parametrize("worker_wins", [False, True])
@@ -552,7 +567,7 @@ def test_retirement_worker_vs_practice_bundle_reacquisition(
 ):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding, PracticeBundleRecord
-    from app.modules.practice.bundle.retention import practice_bundle_retention
+    from app.modules.practice.bundle.retention import PracticeBundleRetention
     from tests.support.practice_bundle import bind_bundle
 
     engine, sessions, storage = retirement_postgres
@@ -573,7 +588,11 @@ def test_retirement_worker_vs_practice_bundle_reacquisition(
         original = db.get(PracticeBundleRecord, reference.id)
         ids = {original.prepared_musicxml_object_id, original.artifact_object_id}
         db.execute(delete(ScoreRevisionPracticeBinding))
-        operations = practice_bundle_retention.retire_unowned(db, reference.id)
+        operations = PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ).retire_unowned(db, reference.id)
         db.commit()
     entered, release = Event(), Event()
     remove, lookup = storage.delete, retirement_execution._object
@@ -651,14 +670,16 @@ def test_deletion_fence_commit_uncertainty_precedes_any_physical_delete(
                 raise ConnectionError("fence acknowledgement unavailable")
             super().commit()
 
-    monkeypatch.setattr(
-        worker, "SessionLocal", sessionmaker(engine, class_=UncertainFence, expire_on_commit=False)
+    inject_worker(
+        monkeypatch,
+        worker,
+        sessions=sessionmaker(engine, class_=UncertainFence, expire_on_commit=False),
     )
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "failed"
     assert injected and storage.read_bytes(key) == CONTENT
     with sessions() as db:
         assert db.get(StoredObject, identity) is not None
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         assert (operation.deletion_fenced_at is not None) == commit_reached_server
         if commit_reached_server:
             with pytest.raises(ValueError, match="deletion"):
@@ -679,7 +700,7 @@ def test_fenced_reference_is_integrity_failure_without_reference_or_physical_del
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres)
     with sessions() as db:
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         operation.deletion_fenced_at = utc_now()
         fence = operation.deletion_fenced_at
         # Deliberate corruption bypasses normal reference acquisition to exercise fail-closed IO.
@@ -693,7 +714,7 @@ def test_fenced_reference_is_integrity_failure_without_reference_or_physical_del
     delete.assert_not_called()
     assert storage.read_bytes(key) == CONTENT
     with sessions() as db:
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         assert operation.status == StoredObjectRetirementStatus.FAILED
         assert operation.deletion_fenced_at == fence
         assert db.get(User, 1).avatar_object_id == identity
@@ -706,7 +727,7 @@ def test_fenced_reference_is_integrity_failure_without_reference_or_physical_del
         with pytest.raises(IntegrityError):
             db.flush()
         db.rollback()
-        assert retirement_delivery.get(db, uuid).deletion_fenced_at == fence
+        assert deliveries().retirement.get(db, uuid).deletion_fenced_at == fence
     delete.assert_not_called()
 
 
@@ -714,21 +735,20 @@ def test_retirement_retry_exhaustion_preserves_fence_and_physical_evidence(
     retirement_postgres, monkeypatch
 ):
     from unittest.mock import Mock
-    from app.core.config import settings
     from app.modules.media_storage.retirement import retain_for_reference, snapshot
 
     engine, sessions, storage = retirement_postgres
     identity, key, uuid = seed(retirement_postgres)
-    monkeypatch.setattr(settings, "STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS", 2)
+    monkeypatch.setattr(deliveries().retirement.config, "STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS", 2)
     delete = Mock(side_effect=OSError("provider unavailable"))
     monkeypatch.setattr(storage, "delete", delete)
     with sessions() as db:
-        facts = snapshot(retirement_delivery.get(db, uuid))
+        facts = snapshot(deliveries().retirement.get(db, uuid))
     fence = None
     for attempt in [1, 2]:
         assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "failed"
         with sessions() as db:
-            operation = retirement_delivery.get(db, uuid)
+            operation = deliveries().retirement.get(db, uuid)
             assert operation.status == StoredObjectRetirementStatus.FAILED
             assert operation.attempt_count == attempt
             assert operation.deletion_fenced_at is not None
@@ -740,8 +760,8 @@ def test_retirement_retry_exhaustion_preserves_fence_and_physical_evidence(
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "ignored"
     assert delete.call_count == 2 and storage.read_bytes(key) == CONTENT
     with sessions() as db:
-        assert retirement_delivery.recover_and_list_due(db) == []
-        operation = retirement_delivery.get(db, uuid)
+        assert deliveries().retirement.recover_and_list_due(db) == []
+        operation = deliveries().retirement.get(db, uuid)
         assert operation.status == StoredObjectRetirementStatus.FAILED
         assert operation.attempt_count == 2 and operation.deletion_fenced_at == fence
         assert snapshot(operation) == facts and db.get(StoredObject, identity) is not None

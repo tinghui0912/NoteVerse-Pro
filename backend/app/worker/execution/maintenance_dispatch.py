@@ -2,32 +2,27 @@
 
 from __future__ import annotations
 
-from app.composition.media_resources import build_take_reservation_cleanup_service
-from app.composition.storage_resources import build_upload_session_service
+
 from app.modules.media_storage.upload_sessions.maintenance import UploadSessionMaintenance
 
-from app.db.session import SessionLocal
-from app.modules.import_jobs.dispatch_service import import_dispatch_service
-from app.modules.mail.outbox_service import mail_outbox_service
-from app.modules.media_storage.retirement import retirement_delivery
-from app.modules.practice.bundle.retention import practice_bundle_retention
-from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.revisions.render_delivery import revision_render_delivery
-from app.storage import object_storage
+from app.modules.practice.bundle.retention import PracticeBundleRetention
 from app.worker.task_runtime import run_scheduler_scan
+from app.runtime.worker.context import get_context
 
 
 def execute_import_dispatch_maintenance() -> dict[str, int]:
     """Recover stale import deliveries and dispatch all due jobs."""
 
     def scan() -> dict[str, int]:
-        with SessionLocal() as db:
-            due = import_dispatch_service.recover_and_list_due(db)
+        with get_context().sessions() as db:
+            due = get_context().deliveries.imports.recover_and_list_due(db)
             db.commit()
 
-        from app.worker.dispatch.import_jobs import dispatch_import_dispatch
-
-        dispatched = sum(1 for dispatch_uuid in due if dispatch_import_dispatch(dispatch_uuid))
+        dispatched = sum(
+            1
+            for dispatch_uuid in due
+            if get_context().dispatches.imports.dispatch_import_dispatch(dispatch_uuid)
+        )
         return {"due": len(due), "dispatched": dispatched}
 
     return run_scheduler_scan("import_dispatch", scan)
@@ -37,13 +32,15 @@ def execute_score_revision_render_maintenance() -> dict[str, int]:
     """Recover stale render deliveries and dispatch all due outbox records."""
 
     def scan() -> dict[str, int]:
-        with SessionLocal() as db:
-            due = revision_render_delivery.recover_and_list_due(db)
+        with get_context().sessions() as db:
+            due = get_context().deliveries.render.recover_and_list_due(db)
             db.commit()
 
-        from app.modules.revisions.render_dispatch import dispatch_score_revision_render
-
-        dispatched = sum(1 for outbox_uuid in due if dispatch_score_revision_render(outbox_uuid))
+        dispatched = sum(
+            1
+            for outbox_uuid in due
+            if get_context().dispatches.render.dispatch_score_revision_render(outbox_uuid)
+        )
         return {"due": len(due), "dispatched": dispatched}
 
     return run_scheduler_scan("score_revision_render_outbox", scan)
@@ -53,13 +50,15 @@ def execute_playback_outbox_maintenance() -> dict[str, int]:
     """Recover stale playback deliveries and dispatch all due outbox records."""
 
     def scan() -> dict[str, int]:
-        with SessionLocal() as db:
-            due = playback_outbox_service.recover_and_list_due(db)
+        with get_context().sessions() as db:
+            due = get_context().deliveries.playback.recover_and_list_due(db)
             db.commit()
 
-        from app.modules.playback.dispatch import dispatch_playback_outbox
-
-        dispatched = sum(1 for outbox_uuid in due if dispatch_playback_outbox(outbox_uuid))
+        dispatched = sum(
+            1
+            for outbox_uuid in due
+            if get_context().dispatches.playback.dispatch_playback_outbox(outbox_uuid)
+        )
         return {"due": len(due), "dispatched": dispatched}
 
     return run_scheduler_scan("playback_outbox", scan)
@@ -69,13 +68,15 @@ def execute_mail_outbox_maintenance() -> dict[str, int]:
     """Recover, dispatch, and expire durable mail records."""
 
     def scan() -> dict[str, int]:
-        with SessionLocal() as db:
-            due = mail_outbox_service.recover_and_list_due(db)
+        with get_context().sessions() as db:
+            due = get_context().deliveries.mail.recover_and_list_due(db)
             db.commit()
 
-        from app.worker.dispatch.mail import dispatch_mail_outbox
-
-        dispatched = sum(1 for outbox_uuid in due if dispatch_mail_outbox(outbox_uuid))
+        dispatched = sum(
+            1
+            for outbox_uuid in due
+            if get_context().dispatches.mail.dispatch_mail_outbox(outbox_uuid)
+        )
         return {"due": len(due), "dispatched": dispatched}
 
     return run_scheduler_scan("mail_outbox", scan)
@@ -83,18 +84,23 @@ def execute_mail_outbox_maintenance() -> dict[str, int]:
 
 def execute_stored_object_retirement_maintenance() -> dict[str, int]:
     def scan():
-        with SessionLocal() as db:
-            practice_bundle_retention.recover_stale_creating(db)
-            practice_bundle_retention.collect_unowned_ready(db)
-            due = retirement_delivery.recover_and_list_due(db)
+        with get_context().sessions() as db:
+            PracticeBundleRetention(config=get_context().settings).recover_stale_creating(db)
+            PracticeBundleRetention(config=get_context().settings).collect_unowned_ready(db)
+            due = get_context().deliveries.retirement.recover_and_list_due(db)
             db.commit()
-        with SessionLocal() as db:
-            expired = build_take_reservation_cleanup_service(object_storage).expire(db)
+        with get_context().sessions() as db:
+            expired = get_context().resources.build_take_reservation_cleanup_service().expire(db)
             db.commit()
-        transfers = UploadSessionMaintenance(build_upload_session_service(object_storage)).run()
-        from app.worker.dispatch.stored_object_retirement import dispatch_stored_object_retirement
+        transfers = UploadSessionMaintenance(
+            get_context().resources.build_upload_session_service()
+        ).run()
 
-        dispatched = sum(1 for uuid in due if dispatch_stored_object_retirement(uuid))
+        dispatched = sum(
+            1
+            for uuid in due
+            if get_context().dispatches.retirement.dispatch_stored_object_retirement(uuid)
+        )
         return {
             "due": len(due),
             "dispatched": dispatched,
@@ -106,32 +112,36 @@ def execute_stored_object_retirement_maintenance() -> dict[str, int]:
 
 
 def execute_object_write_cleanup_maintenance() -> dict[str, int]:
-    from app.modules.media_storage.write_cleanup import write_cleanup_delivery
-    from app.worker.dispatch.object_write_cleanup import dispatch_object_write_cleanup
 
     def scan():
-        with SessionLocal() as db:
-            due = write_cleanup_delivery.recover_and_list_due(db)
+        with get_context().sessions() as db:
+            due = get_context().deliveries.write_cleanup.recover_and_list_due(db)
             db.commit()
         return {
             "due": len(due),
-            "dispatched": sum(1 for uuid in due if dispatch_object_write_cleanup(uuid)),
+            "dispatched": sum(
+                1
+                for uuid in due
+                if get_context().dispatches.write_cleanup.dispatch_object_write_cleanup(uuid)
+            ),
         }
 
     return run_scheduler_scan("object_write_cleanup", scan)
 
 
 def execute_score_deletion_maintenance() -> dict[str, int]:
-    from app.modules.scores.deletion_delivery import score_deletion_delivery
-    from app.worker.dispatch.score_deletion import dispatch_score_deletion
 
     def scan():
-        with SessionLocal() as db:
-            due = score_deletion_delivery.recover_and_list_due(db)
+        with get_context().sessions() as db:
+            due = get_context().deliveries.score_deletion.recover_and_list_due(db)
             db.commit()
         return {
             "due": len(due),
-            "dispatched": sum(1 for uuid in due if dispatch_score_deletion(uuid)),
+            "dispatched": sum(
+                1
+                for uuid in due
+                if get_context().dispatches.score_deletion.dispatch_score_deletion(uuid)
+            ),
         }
 
     return run_scheduler_scan("score_deletion", scan)

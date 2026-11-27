@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 from collections.abc import Callable
 from time import monotonic
 from typing import Any
@@ -12,13 +13,13 @@ from app.core.background_tracing import (
     set_scheduler_trace_outcome,
 )
 from app.core.logger import logger, set_task_id
-from app.db.session import SessionLocal
 from app.modules.scheduler_observability.service import (
     SchedulerRunStats,
     scheduler_observability_service,
 )
-from app.modules.scheduler_lock.service import scheduler_lock_service
+from app.modules.scheduler_lock.service import SchedulerLockService
 from app.task_queue.protocols import CeleryTaskLike
+from app.runtime.worker.context import get_context
 
 
 def bind_task_context(task: CeleryTaskLike | None) -> None:
@@ -57,9 +58,9 @@ def start_attempt_trace(
 
 def run_scheduler_scan(job_key: str, callback: Callable[[], dict[str, int]]) -> dict[str, int]:
     started_at = monotonic()
-    with scheduler_lock_service.try_acquire(job_key) as acquired:
+    with SchedulerLockService(config=get_context().settings).try_acquire(job_key) as acquired:
         if not acquired:
-            with SessionLocal() as db:
+            with get_context().sessions() as db:
                 scheduler_observability_service.record_lock_skipped(db, job_key)
                 db.commit()
             operation_logger(
@@ -70,7 +71,7 @@ def run_scheduler_scan(job_key: str, callback: Callable[[], dict[str, int]]) -> 
             ).info("scheduler.scan_skipped")
             return {"due": 0, "dispatched": 0, "lock_skipped": 1}
 
-        with SessionLocal() as db:
+        with get_context().sessions() as db:
             scheduler_observability_service.record_lock_acquired(db, job_key)
             db.commit()
         with background_root_span(
@@ -88,14 +89,14 @@ def _run_locked_scheduler_scan(
     callback: Callable[[], dict[str, int]],
     started_at: float,
 ) -> dict[str, int]:
-    with SessionLocal() as db:
+    with get_context().sessions() as db:
         scheduler_observability_service.record_started(db, job_key)
         db.commit()
     try:
         result = callback()
     except Exception as exc:
         duration_seconds = monotonic() - started_at
-        with SessionLocal() as db:
+        with get_context().sessions() as db:
             scheduler_observability_service.record_failure(
                 db,
                 job_key,
@@ -119,7 +120,7 @@ def _run_locked_scheduler_scan(
         due=stats.due,
         dispatched=stats.dispatched,
     )
-    with SessionLocal() as db:
+    with get_context().sessions() as db:
         scheduler_observability_service.record_success(
             db,
             job_key,

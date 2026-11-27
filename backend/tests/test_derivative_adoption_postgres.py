@@ -1,5 +1,7 @@
 """Physical prewrite may race; semantic adoption and completion have one fenced commit."""
 
+from tests.support.runtime_resources import resources_for
+
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 
 from app.composition import storage_resources as _resource_wiring
@@ -40,14 +42,8 @@ from app.modules.revisions.domain import RevisionOrigin
 from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.score_assets import score_revision_rendering as render_service
 from app.modules.playback import service as playback_service
-from app.modules.revisions.render_delivery import (
-    revision_render_delivery,
-    _delivery_lifecycle as render_lifecycle,
-)
-from app.modules.playback.outbox_service import (
-    playback_outbox_service,
-    _delivery_lifecycle as playback_lifecycle,
-)
+from app.modules.revisions.render_delivery import _delivery_lifecycle as render_lifecycle
+from app.modules.playback.outbox_service import _delivery_lifecycle as playback_lifecycle
 from app.processing.engines.playback.renderer import RenderedAudio
 from app.shared.time import utc_now
 from app.worker.execution import score_revision_render_outbox, playback_outbox
@@ -55,6 +51,9 @@ from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import MUSICXML_2
+from tests.support.runtime_resources import deliveries
+from app.runtime.customer_api.context import get_context
+from tests.support.worker_context import inject_worker
 
 
 @pytest.fixture(params=["render", "playback"])
@@ -155,18 +154,29 @@ def generation(request, monkeypatch, tmp_path):
         )
         render = render_service.ScoreRevisionRenderService(
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            delivery=deliveries().render,
+            work_root=get_context().settings.WORK_ROOT,
         )
         playback = playback_service.PlaybackGenerationService(
             renderer=audio,
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            delivery=deliveries().playback,
         )
-        monkeypatch.setattr(score_revision_render_outbox, "build_render_service", lambda: render)
-        monkeypatch.setattr(playback_outbox, "build_playback_generation_service", lambda: playback)
+        monkeypatch.setattr(
+            score_revision_render_outbox.get_context().resources,
+            "build_render_service",
+            lambda: render,
+        )
+        monkeypatch.setattr(
+            playback_outbox.get_context().resources,
+            "build_playback_generation_service",
+            lambda *args, **kwargs: playback,
+        )
         worker = playback_outbox if kind == "playback" else score_revision_render_outbox
-        monkeypatch.setattr(worker, "SessionLocal", transaction)
-        service = playback_outbox_service if kind == "playback" else revision_render_delivery
+        inject_worker(monkeypatch, worker, sessions=transaction)
+        service = deliveries().playback if kind == "playback" else deliveries().render
         model = PlaybackOutbox if kind == "playback" else ScoreRevisionRenderOutbox
         module = {
             "render": render_service,
@@ -235,7 +245,9 @@ def test_mid_generation_takeover_cannot_adopt_or_replace(generation, monkeypatch
     if existing_asset:
         assert execute(None, "delivery")["status"] in ("rendered", "generated")
         with Session(engine) as db:
-            lifecycle().rearm(db.scalars(sa.select(model)).one(), now=utc_now())
+            lifecycle(config=get_context().settings).rearm(
+                db.scalars(sa.select(model)).one(), now=utc_now()
+            )
             db.commit()
     with Session(engine) as db:
         before = semantic_snapshot(db)
@@ -416,7 +428,7 @@ def test_asset_replacement_does_not_hold_released_object_while_waiting_for_write
     asset_model = ScorePlaybackAsset if kind == "playback" else ScoreRenderAsset
     with Session(engine) as db:
         old_object = db.scalar(sa.select(asset_model)).stored_object_id
-        lifecycle().rearm(db.scalar(sa.select(model)), now=utc_now())
+        lifecycle(config=get_context().settings).rearm(db.scalar(sa.select(model)), now=utc_now())
         db.commit()
     written, proceed = Event(), Event()
     receipts = []

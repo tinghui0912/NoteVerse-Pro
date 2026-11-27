@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 import hashlib
 import secrets
 from datetime import timedelta
@@ -10,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import security
-from app.core.control_plane_settings import ControlPlaneSettings
+from app.platform.config.operator_session import OperatorSessionConfig
 from app.core.exceptions import AuthenticationException
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
@@ -89,7 +90,7 @@ class OperatorAuthenticationService:
         password: str,
         user_agent: str | None,
         ip_address: str | None,
-        security_settings: ControlPlaneSettings,
+        security_settings: OperatorSessionConfig,
     ) -> tuple[Operator, OperatorIdentity, str]:
         subject = self.normalize_username(username)
         identity = (

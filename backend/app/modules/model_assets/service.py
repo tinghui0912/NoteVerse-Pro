@@ -1,9 +1,10 @@
 """Authenticated delivery of the configured acoustic model through ObjectStorage."""
 
+from app.platform.config.model_asset_delivery import ModelAssetDeliverySettings
+
 from app.modules.media_storage.delivery import MediaDeliveryService, SystemObjectDelivery
 
 from datetime import timedelta
-from app.core.config import settings
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
 from app.modules.model_assets.generated.practice_acoustic_model_asset import (
     MODEL_ASSET,
@@ -13,11 +14,20 @@ from app.shared.time import utc_now
 
 
 class ModelAssetService:
-    def __init__(self, ttl_seconds: int | None = None, *, delivery: MediaDeliveryService) -> None:
+    def __init__(
+        self,
+        ttl_seconds: int | None = None,
+        *,
+        delivery: MediaDeliveryService,
+        config: ModelAssetDeliverySettings,
+    ) -> None:
+        self.config = config
         self.delivery = delivery
         self.storage = delivery.storage
         self.ttl_seconds = (
-            ttl_seconds if ttl_seconds is not None else settings.MODEL_ASSET_SIGNED_GET_TTL_SECONDS
+            ttl_seconds
+            if ttl_seconds is not None
+            else self.config.MODEL_ASSET_SIGNED_GET_TTL_SECONDS
         )
 
     def get_practice_acoustic_access(self) -> PracticeAcousticAccessRead:

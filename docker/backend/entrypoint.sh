@@ -13,7 +13,7 @@ enable_uvicorn_reload() {
 
 case "${1:-api}" in
   api)
-    uvicorn_args=(app.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
+    uvicorn_args=(app.runtime.customer_api.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
     if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
       enable_uvicorn_reload
     fi
@@ -21,7 +21,7 @@ case "${1:-api}" in
     ;;
   control)
     python scripts/check_runtime.py --role control
-    uvicorn_args=(app.control_plane_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
+    uvicorn_args=(app.runtime.control_plane.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
     if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
       enable_uvicorn_reload
     fi
@@ -29,20 +29,19 @@ case "${1:-api}" in
     ;;
   observability-exporter)
     python scripts/check_runtime.py --role observability-exporter
-    uvicorn_args=(app.observability_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
+    uvicorn_args=(app.runtime.observability.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
     exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
   worker)
-    export NOTEVERSE_CELERY_IMPORT_TASKS=true
     python scripts/check_runtime.py --role worker
-    exec python -m celery -A app.task_queue.config:celery_app worker \
+    exec python -m celery -A app.runtime.worker.main:celery_app worker \
       --loglevel="${CELERY_LOGLEVEL:-info}" \
       --concurrency="${CELERY_WORKER_CONCURRENCY:-1}"
     ;;
   beat)
     python scripts/check_runtime.py --role beat
-    exec python -m app.modules.scheduler_lock.beat_leader -- \
-      python -m celery -A app.task_queue.config:celery_app beat \
+    exec python -m app.runtime.beat.leader -- \
+      python -m celery -A app.runtime.beat.main:celery_app beat \
       --loglevel="${CELERY_LOGLEVEL:-info}"
     ;;
   check)

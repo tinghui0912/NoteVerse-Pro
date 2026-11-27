@@ -166,9 +166,10 @@ into the browser bundle.
 
 Backend application database access is configured by one PostgreSQL psycopg
 `DATABASE_URL` (`postgresql+psycopg://...`). Domain, application, repository, API,
-Control Plane, worker and maintenance persistence use the synchronous engine and
-SessionLocal factory in `app.db.session`. Alembic uses synchronous PostgreSQL
-execution with the same configuration. The `database` runtime check validates
+Control Plane, worker and maintenance persistence use process-owned synchronous
+engines and SessionFactory instances built by `app.platform.db.engine`. Each
+runtime loads its own settings. Alembic loads only `MigrationSettings` and uses
+synchronous PostgreSQL execution. The `database` runtime check validates
 this application database authority for each role.
 
 FastAPI executes ordinary database-backed path operations in worker threads.

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+
+from app.platform.config.playback_delivery import PlaybackDeliverySettings
+
 import uuid
 from dataclasses import dataclass, asdict
 
@@ -7,9 +10,8 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.async_trace_context import get_async_trace_context
-from app.core.config import settings
 from app.core.logger import logger
-from app.core.request_correlation import get_request_id
+from app.platform.correlation import get_request_id
 from app.db.models import PlaybackOutbox, Score, ScoreRevision
 from app.modules.playback.domain import PlaybackAssetKind
 from app.modules.playback.domain import PlaybackOutboxStatus
@@ -24,6 +26,7 @@ from app.modules.durable_work.delivery import (
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
     DurableDeliveryLifecycle,
+    DeliveryTransitions,
     DeliveryAttemptLease,
     StaleDeliveryAttempt,
 )
@@ -35,7 +38,9 @@ from app.modules.revisions.presentation_demand import (
 )
 
 
-def _delivery_lifecycle() -> DurableDeliveryLifecycle[PlaybackOutboxStatus]:
+def _delivery_lifecycle(
+    *, config: PlaybackDeliverySettings
+) -> DurableDeliveryLifecycle[PlaybackOutboxStatus]:
     return DurableDeliveryLifecycle(
         statuses=DeliveryStatuses(
             pending=PlaybackOutboxStatus.PENDING,
@@ -45,10 +50,10 @@ def _delivery_lifecycle() -> DurableDeliveryLifecycle[PlaybackOutboxStatus]:
             succeeded=PlaybackOutboxStatus.COMPLETED,
         ),
         policy=DeliveryLifecyclePolicy(
-            retry_base_seconds=settings.PLAYBACK_OUTBOX_RETRY_BASE_SECONDS,
-            dispatch_timeout_seconds=settings.PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
-            processing_timeout_seconds=settings.PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
-            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+            retry_base_seconds=config.PLAYBACK_OUTBOX_RETRY_BASE_SECONDS,
+            dispatch_timeout_seconds=config.PLAYBACK_OUTBOX_DISPATCH_TIMEOUT_SECONDS,
+            processing_timeout_seconds=config.PLAYBACK_OUTBOX_PROCESSING_TIMEOUT_SECONDS,
+            max_attempts=config.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
         ),
     )
 
@@ -126,6 +131,9 @@ def _new_playback_outbox(
 
 
 class PlaybackOutboxService:
+    def __init__(self, *, config: PlaybackDeliverySettings) -> None:
+        self.config = config
+
     def require_attempt(
         self,
         db: Session,
@@ -139,7 +147,7 @@ class PlaybackOutboxService:
     ) -> PlaybackOutbox:
         """Caller holds Score; refresh the delivery fence before semantic mutation."""
         row = self._get(db, outbox_uuid)
-        if row is None or not _delivery_lifecycle().attempt_matches(row, lease):
+        if row is None or not _delivery_lifecycle(config=self.config).attempt_matches(row, lease):
             raise StaleDeliveryAttempt("Playback execution lease is stale")
         if (row.score_id, row.revision_id, row.source_fingerprint, row.asset_kind) != (
             score_id,
@@ -174,7 +182,7 @@ class PlaybackOutboxService:
             self._exhaust_unavailable_resources(outbox)
             return None
         if demand == RevisionPresentationDemand.NOT_DEMANDED:
-            _delivery_lifecycle().reset(
+            _delivery_lifecycle(config=self.config).reset(
                 outbox,
                 status=PlaybackOutboxStatus.SUPERSEDED,
                 reset_attempts=False,
@@ -189,7 +197,7 @@ class PlaybackOutboxService:
                 operation_kind="playback",
             ).info("revision_derivative.superseded")
             return None
-        lifecycle = _delivery_lifecycle()
+        lifecycle = _delivery_lifecycle(config=self.config)
         admission = lifecycle.claim_admission(outbox, now=utc_now())
         if admission is ClaimAdmission.EXHAUSTED:
             lifecycle.exhaust(outbox, error="Playback delivery attempts exhausted", now=utc_now())
@@ -248,9 +256,8 @@ class PlaybackOutboxService:
             tracestate=outbox.tracestate,
         )
 
-    @staticmethod
-    def _exhaust_unavailable_resources(outbox: PlaybackOutbox) -> None:
-        _delivery_lifecycle().exhaust(
+    def _exhaust_unavailable_resources(self, outbox: PlaybackOutbox) -> None:
+        _delivery_lifecycle(config=self.config).exhaust(
             outbox,
             error="Playback outbox references unavailable or stale resources",
             now=utc_now(),
@@ -265,9 +272,11 @@ class PlaybackOutboxService:
 
     def supersede(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().attempt_matches(outbox, lease):
+        if outbox is None or not _delivery_lifecycle(config=self.config).attempt_matches(
+            outbox, lease
+        ):
             return False
-        _delivery_lifecycle().reset(
+        _delivery_lifecycle(config=self.config).reset(
             outbox,
             status=PlaybackOutboxStatus.SUPERSEDED,
             reset_attempts=False,
@@ -278,7 +287,7 @@ class PlaybackOutboxService:
 
     def complete(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().complete_attempt(
+        if outbox is None or not _delivery_lifecycle(config=self.config).complete_attempt(
             outbox, lease=lease, now=utc_now()
         ):
             return False
@@ -289,7 +298,7 @@ class PlaybackOutboxService:
         self, db: Session, outbox_uuid: str, error: str, *, lease: DeliveryAttemptLease
     ) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().fail_attempt(
+        if outbox is None or not _delivery_lifecycle(config=self.config).fail_attempt(
             outbox, lease=lease, error=error, now=utc_now()
         ):
             return False
@@ -303,14 +312,16 @@ class PlaybackOutboxService:
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now()):
+        if outbox is None or not _delivery_lifecycle(config=self.config).dispatch(
+            outbox, now=utc_now()
+        ):
             return False
         clear_failure_facts(outbox)
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().release_dispatch(
+        if outbox is None or not _delivery_lifecycle(config=self.config).release_dispatch(
             outbox, error=error, now=utc_now()
         ):
             return
@@ -339,7 +350,7 @@ class PlaybackOutboxService:
             .all()
         )
         for outbox in stale:
-            if _delivery_lifecycle().recover_lease(
+            if _delivery_lifecycle(config=self.config).recover_lease(
                 outbox, error="Playback delivery lease expired", now=now
             ):
                 self._record_failure(
@@ -357,10 +368,10 @@ class PlaybackOutboxService:
                         [PlaybackOutboxStatus.PENDING, PlaybackOutboxStatus.FAILED]
                     ),
                     PlaybackOutbox.next_attempt_at <= now,
-                    PlaybackOutbox.attempt_count < settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+                    PlaybackOutbox.attempt_count < self.config.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
                 )
                 .order_by(PlaybackOutbox.created_at)
-                .limit(settings.PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE)
+                .limit(self.config.PLAYBACK_OUTBOX_DISPATCH_BATCH_SIZE)
             )
             .scalars()
             .all()
@@ -368,11 +379,10 @@ class PlaybackOutboxService:
         db.commit()
         return list(due)
 
-    @staticmethod
     def _record_failure(
-        outbox: PlaybackOutbox, *, code: str, stage: str, classification: DurableFailureClass
+        self, outbox: PlaybackOutbox, *, code: str, stage: str, classification: DurableFailureClass
     ) -> None:
-        retryable = outbox.attempt_count < settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS
+        retryable = outbox.attempt_count < self.config.PLAYBACK_OUTBOX_MAX_ATTEMPTS
         set_failure_facts(
             outbox,
             DurableFailure(
@@ -396,7 +406,7 @@ class PlaybackOutboxService:
         ):
             raise ValidationException(field="status", details={"status": outbox.status.value})
         previous = outbox.status.value
-        _delivery_lifecycle().rearm(outbox, now=utc_now())
+        _delivery_lifecycle(config=self.config).rearm(outbox, now=utc_now())
         clear_failure_facts(outbox)
         return previous
 
@@ -410,11 +420,16 @@ class PlaybackOutboxService:
         ).scalar_one_or_none()
 
 
-playback_outbox_service = PlaybackOutboxService()
-
-
 def rearm_revision_outbox(outbox: PlaybackOutbox) -> None:
-    _delivery_lifecycle().rearm(outbox, now=utc_now())
+    DeliveryTransitions(
+        DeliveryStatuses(
+            PlaybackOutboxStatus.PENDING,
+            PlaybackOutboxStatus.DISPATCHED,
+            PlaybackOutboxStatus.PROCESSING,
+            PlaybackOutboxStatus.FAILED,
+            PlaybackOutboxStatus.COMPLETED,
+        )
+    ).rearm(outbox, now=utc_now())
     clear_failure_facts(outbox)
     logger.bind(
         event="revision_derivative.reactivated",

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.realtime_retention import RealtimeRetentionSettings
+from app.platform.config.realtime_retention import RealtimeRetentionSettings
 
 
 def test_realtime_retention_settings_accept_explicit_deployment_policy() -> None:

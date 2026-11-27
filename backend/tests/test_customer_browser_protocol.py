@@ -1,6 +1,9 @@
 """Customer browser identity and HTTP route projections have explicit source owners."""
 
-from app.composition import storage_resources as _resource_wiring
+from app.runtime.customer_api.context import get_context
+
+from tests.support.runtime_resources import resources_for
+
 
 from app.modules.media_storage.reads import StoredObjectDelivery
 
@@ -19,8 +22,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.generated import customer_browser_protocol as protocol
-from app.core.settings.customer_session_security import CustomerSessionSecuritySettings
-from app.core.settings.service_identity import ServiceIdentitySettings
+from app.platform.config.customer_session_security import CustomerSessionSecuritySettings
+from app.platform.config.service_identity import ServiceIdentitySettings
 
 ROOT = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
 spec = importlib.util.spec_from_file_location(
@@ -46,11 +49,11 @@ def test_identity_projections_match_the_canonical_browser_protocol():
 
 
 def test_customer_composition_uses_the_generated_protocol():
-    from app.main import _csrf_settings, create_app
+    from app.runtime.customer_api.main import _csrf_settings, create_app
 
     app = create_app()
     assert app.openapi_url == f"{protocol.CUSTOMER_API_PREFIX}/openapi.json"
-    csrf = _csrf_settings()
+    csrf = _csrf_settings(get_context().settings)
     assert csrf.api_prefix == protocol.CUSTOMER_API_PREFIX
     assert csrf.session_cookie_names == (protocol.AUTH_COOKIE_NAME, protocol.REFRESH_COOKIE_NAME)
     assert csrf.csrf_cookie_name == protocol.CSRF_COOKIE_NAME
@@ -180,11 +183,12 @@ def test_gateway_customer_bindings_match_protocol_and_openapi_sources():
 def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
     identity, owner, method, mime, monkeypatch
 ):
-    from app.api.deps import get_current_user, get_db
-    from app.main import create_app
-    from app.api.resource_dependencies import get_guest_preview_service
-    from app.api.resource_dependencies import get_playback_delivery_service
-    from app.api.resource_dependencies import get_score_asset_service
+    from app.platform.db.dependencies import get_db
+    from app.runtime.customer_api.deps import get_current_user
+    from app.runtime.customer_api.main import create_app
+    from app.runtime.customer_api.resources import get_guest_preview_service
+    from app.runtime.customer_api.resources import get_playback_delivery_service
+    from app.runtime.customer_api.resources import get_score_asset_service
     from tests.support.object_storage import InMemoryObjectStorage
 
     app = create_app()
@@ -195,7 +199,7 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
 
     service = SimpleNamespace(
         storage=storage,
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        delivery=resources_for(storage).build_media_delivery_service(),
         async_storage=AsyncObjectReader(storage),
     )
     dependencies = {
@@ -213,7 +217,7 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
     def events(*args):
         yield ": connected\n\n"
 
-    monkeypatch.setattr("app.modules.realtime.router._event_stream", events)
+    monkeypatch.setattr("app.runtime.customer_api.routers.realtime.router._event_stream", events)
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     _, api = sources()
@@ -232,9 +236,9 @@ def test_openapi_native_route_metadata_reaches_the_real_customer_handler(
 
 
 def test_login_refresh_logout_use_canonical_customer_cookie_identity():
-    from app.api.deps import get_db
-    from app.main import create_app
-    from app.modules.auth.dependencies import get_auth_service, get_session_service
+    from app.platform.db.dependencies import get_db
+    from app.runtime.customer_api.main import create_app
+    from app.runtime.customer_api.auth_services import get_auth_service, get_session_service
 
     app = create_app()
     from app.modules.auth.service import LoginResult

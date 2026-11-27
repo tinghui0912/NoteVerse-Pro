@@ -4,9 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
-from app.api.deps import get_db
-from app.core.control_plane_settings import get_control_plane_runtime_settings
+from app.platform.db.dependencies import get_db
 from app.modules.platform_operators.service import OperatorAuthenticationService
+from app.runtime.control_plane.context import get_context as get_control_context
 
 
 @pytest.fixture
@@ -18,13 +18,13 @@ def control_app(monkeypatch):
         "CONTROL_PLANE_CORS_ORIGINS": '["http://testserver"]',
     }.items():
         monkeypatch.setenv(key, value)
-    get_control_plane_runtime_settings.cache_clear()
-    from app.control_plane_main import create_app
+    get_control_context.cache_clear()
+    from app.runtime.control_plane.main import create_app
 
     app = create_app()
     yield app
     app.dependency_overrides.clear()
-    get_control_plane_runtime_settings.cache_clear()
+    get_control_context.cache_clear()
 
 
 @pytest.fixture
@@ -56,3 +56,9 @@ def operator_client(control_app, control_db):
         )
         assert response.status_code == 204 and response.content == b""
         yield client
+
+
+def operator_policy():
+    from app.runtime.control_plane.settings import ControlPlaneSettings
+
+    return ControlPlaneSettings().to_security_settings()

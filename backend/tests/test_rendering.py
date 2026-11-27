@@ -1,5 +1,7 @@
 """Rendering target identities, caller-owned admission and bytes-to-pages execution."""
 
+from tests.support.runtime_resources import resources_for
+
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -76,7 +78,7 @@ def test_score_render_boundary_preserves_its_public_failure_mapping(monkeypatch)
 
     monkeypatch.setattr(score_revision_rendering, "render_musicxml", fail)
     with pytest.raises(ScoreRenderFailedException) as failure:
-        score_revision_rendering.ScoreRevisionRenderService._render_pages(b"xml", "revision")
+        resources_for().build_render_service()._render_pages(b"xml", "revision")
     assert failure.value.code == CustomerErrorCode.SCORE_PREVIEW_FAILED
 
 
@@ -103,7 +105,6 @@ def test_revision_admission_dedupes_and_reactivates_work_in_the_callers_transact
 
 @pytest.mark.parametrize("output_name", ["page", "excerpt"])
 def test_renderer_normalizes_outputs_and_releases_its_workspace(tmp_path, monkeypatch, output_name):
-    monkeypatch.setattr(renderer.settings, "WORK_ROOT", str(tmp_path))
     workspaces = []
 
     def engine(*, output_folder):
@@ -121,7 +122,9 @@ def test_renderer_normalizes_outputs_and_releases_its_workspace(tmp_path, monkey
         return SimpleNamespace(render_score=render_score)
 
     monkeypatch.setattr(renderer, "create_score_render_engine", engine)
-    assert renderer.render_musicxml(b"<score-partwise/>", output_name=output_name) == [
+    assert renderer.render_musicxml(
+        b"<score-partwise/>", output_name=output_name, work_root=str(tmp_path)
+    ) == [
         renderer.RenderedPage(1, b"page 1", "image/svg+xml", ".svg", "test-renderer"),
         renderer.RenderedPage(2, b"page 2", "image/png", ".png", "test-renderer"),
     ]
@@ -139,7 +142,6 @@ def test_renderer_normalizes_outputs_and_releases_its_workspace(tmp_path, monkey
 def test_renderer_classifies_execution_failure_and_cleans_the_workspace(
     tmp_path, monkeypatch, result
 ):
-    monkeypatch.setattr(renderer.settings, "WORK_ROOT", str(tmp_path))
     engine = Mock()
     if isinstance(result, Exception):
         engine.render_score.side_effect = result
@@ -147,7 +149,7 @@ def test_renderer_classifies_execution_failure_and_cleans_the_workspace(
         engine.render_score.return_value = result
     monkeypatch.setattr(renderer, "create_score_render_engine", lambda **_: engine)
     with pytest.raises(renderer.RenderExecutionError):
-        renderer.render_musicxml(b"<score-partwise/>", output_name="page")
+        renderer.render_musicxml(b"<score-partwise/>", output_name="page", work_root=str(tmp_path))
     assert list(tmp_path.iterdir()) == []
 
 
@@ -155,7 +157,7 @@ def test_worker_uses_revision_asset_owner_and_exact_attempt(monkeypatch):
     from app.worker.execution import score_revision_render_outbox as worker
 
     score = Mock()
-    monkeypatch.setattr(worker, "build_render_service", lambda *_: score)
+    monkeypatch.setattr(worker.get_context().resources, "build_render_service", lambda *_: score)
     target = revision_target()
     lease = DeliveryAttemptLease(attempt=1, token="token")
     db = Mock()

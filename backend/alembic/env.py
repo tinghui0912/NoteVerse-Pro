@@ -6,7 +6,9 @@ from sqlalchemy import engine_from_config
 from sqlmodel import SQLModel
 
 from alembic import context
-from app.core.config import settings
+from app.runtime.migrations.settings import MigrationSettings
+
+settings = MigrationSettings()
 from app.db.models import *  # noqa: F401,F403 - register SQLModel metadata
 
 # this is the Alembic Config object, which provides

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.customer_session_security import CustomerSessionSecuritySettings
+from app.platform.config.customer_session_security import CustomerSessionSecuritySettings
 
 
 def _settings(**overrides: object) -> CustomerSessionSecuritySettings:

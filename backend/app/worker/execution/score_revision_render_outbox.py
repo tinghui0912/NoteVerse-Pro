@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from app.composition.media_resources import build_render_service
 
 import sys
 from sqlalchemy.orm import Session
@@ -10,12 +9,10 @@ from app.modules.durable_work.delivery import StaleDeliveryAttempt
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 
 from app.core.background_tracing import record_current_attempt_failure
-from app.db.session import SessionLocal
 from app.modules.realtime.publisher import (
     publish_score_change,
 )
 from app.shared.realtime import RealtimeChangeKind
-from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.revisions.render_target import (
     ScoreRevisionRenderAttempt,
     ScoreRevisionRenderTarget,
@@ -27,6 +24,7 @@ from app.worker.task_runtime import (
     operation_logger,
     start_attempt_trace,
 )
+from app.runtime.worker.context import get_context
 
 
 def execute_score_revision_render_task(
@@ -38,8 +36,8 @@ def execute_score_revision_render_task(
     bind_task_context(task)
     trace_scope = None
     try:
-        with SessionLocal() as db:
-            payload = revision_render_delivery.claim(db, outbox_uuid)
+        with get_context().sessions() as db:
+            payload = get_context().deliveries.render.claim(db, outbox_uuid)
             db.commit()
         if payload is None:
             operation_logger(
@@ -64,15 +62,17 @@ def execute_score_revision_render_task(
         operation_logger("revision_render.started", **context).info("revision_render.started")
 
         try:
-            with SessionLocal() as db:
+            with get_context().sessions() as db:
                 _render_revision(db, payload)
                 _publish_revision_render_change(db, payload.target)
                 db.commit()
         except StaleDeliveryAttempt:
             return {"status": "stale", "outbox_uuid": outbox_uuid}
         except RevisionPresentationSuperseded:
-            with SessionLocal() as db:
-                accepted = revision_render_delivery.supersede(db, outbox_uuid, lease=payload.lease)
+            with get_context().sessions() as db:
+                accepted = get_context().deliveries.render.supersede(
+                    db, outbox_uuid, lease=payload.lease
+                )
                 db.commit()
             if not accepted:
                 return {"status": "stale", "outbox_uuid": outbox_uuid}
@@ -82,8 +82,8 @@ def execute_score_revision_render_task(
             return {"status": "superseded", "outbox_uuid": outbox_uuid}
         except Exception as exc:
             record_current_attempt_failure(exc)
-            with SessionLocal() as db:
-                accepted = revision_render_delivery.fail(
+            with get_context().sessions() as db:
+                accepted = get_context().deliveries.render.fail(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
                 if accepted:
@@ -113,7 +113,7 @@ def execute_score_revision_render_task(
 
 def _render_revision(db: Session, payload: ScoreRevisionRenderAttempt) -> None:
     target = payload.target
-    build_render_service().render_for_worker(
+    get_context().resources.build_render_service().render_for_worker(
         db,
         target.score_uuid,
         target.revision_uuid,

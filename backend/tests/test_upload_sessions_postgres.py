@@ -36,6 +36,7 @@ from app.storage.base import DirectUploadTarget, ObjectStorageUnavailableError
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.images import image_bytes
 from app.shared.time import utc_now
+from app.platform.config.object_writes import ObjectWriteSettings
 
 
 @pytest.fixture
@@ -55,7 +56,10 @@ def transfers(postgres_engine):
         4 * 1024**3,
     )
     service = UploadSessionService(
-        storage, sessions, ObjectWriteCoordinator(storage, sessions), policy
+        storage,
+        sessions,
+        ObjectWriteCoordinator(storage, sessions, config=ObjectWriteSettings()),
+        policy,
     )
     with sessions.begin() as db:
         db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=100 * 1024**2))
@@ -413,9 +417,10 @@ def test_account_closure_preserves_unsettled_transfer_and_restricts_user_deletio
 
 def test_http_capability_signing_releases_authentication_connection(transfers, monkeypatch):
     from fastapi.testclient import TestClient
-    from app.main import app
-    from app.api.deps import get_db, get_current_user
-    from app.api.resource_dependencies import get_upload_session_service
+    from app.runtime.customer_api.main import app
+    from app.platform.db.dependencies import get_db
+    from app.runtime.customer_api.deps import get_current_user
+    from app.runtime.customer_api.resources import get_upload_session_service
 
     sessions, storage, service = transfers
     transfer = admit(transfers, 4)

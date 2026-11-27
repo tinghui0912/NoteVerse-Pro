@@ -1,13 +1,13 @@
 """Import confirmation commits provenance, revision admission, notification enrichment and release together."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import settled_upload_session
 
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 
-from app.storage import object_storage as _storage_provider
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 
 from app.composition.storage_resources import storage_quota_service
@@ -66,6 +66,16 @@ from tests.support.postgres_schema import postgres_schema_database
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import MUSICXML_1
+from tests.support.runtime_resources import storage as _storage_provider
+from app.platform.config.application import InvitationConfig
+from app.platform.config.import_dispatch import ImportDispatchSettings
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import deliveries
+from tests.support.worker_context import inject_worker
+
+
+relay = resources_for().post_commit
 
 
 @pytest.fixture
@@ -154,7 +164,7 @@ def confirmation(monkeypatch, request):
         def latency_only(*args):
             pass
 
-        monkeypatch.setattr(review.revision_post_commit, "dispatch_best_effort", latency_only)
+        monkeypatch.setattr(relay, "dispatch_best_effort", latency_only)
         yield engine, storage
 
 
@@ -163,10 +173,11 @@ def confirm(engine, storage):
         return (
             review.ImportReviewService(
                 quota=_resource_wiring.storage_quota_service,
-                revision_writer=_media_wiring.build_revision_writer(),
-                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                revision_writer=resources_for().build_revision_writer(),
+                input_assets=resources_for().build_input_asset_lifecycle(),
                 usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
+                writes=resources_for(storage).build_object_write_coordinator(),
+                post_commit=relay,
             )
             .confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
             .score_id
@@ -207,10 +218,11 @@ def test_confirmation_initializes_display_title_from_explicit_precedence(
         processing_started_at = job.processing_started_at
         result = review.ImportReviewService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            revision_writer=resources_for().build_revision_writer(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=relay,
         ).confirm(
             db,
             "job",
@@ -223,10 +235,11 @@ def test_confirmation_initializes_display_title_from_explicit_precedence(
         assert job.processing_finished_at == processing_finished_at
         repeated = review.ImportReviewService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            revision_writer=resources_for().build_revision_writer(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=relay,
         ).confirm(db, "job", 1, ReviewConfirmRequest(content=content, display_title=explicit))
         assert repeated.score_id == result.score_id and job.confirmed_at == confirmed_at
         drain_revision_metadata(db, storage)
@@ -254,10 +267,11 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
         score_id = (
             review.ImportReviewService(
                 quota=_resource_wiring.storage_quota_service,
-                revision_writer=_media_wiring.build_revision_writer(),
-                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                revision_writer=resources_for().build_revision_writer(),
+                input_assets=resources_for().build_input_asset_lifecycle(),
                 usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
+                writes=resources_for(storage).build_object_write_coordinator(),
+                post_commit=relay,
             )
             .confirm(
                 db,
@@ -287,8 +301,9 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
         edited = content.replace("Moonlight Sonata", "Moonlight Sonata — edited notation")
         RevisionService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            revision_writer=resources_for().build_revision_writer(),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=relay,
         ).create(
             db,
             score_id,
@@ -315,11 +330,17 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
         from app.modules.collaboration.invitation_service import InvitationService
         from app.modules.collaboration.schemas import InviteCreateRequest
 
-        invite = InvitationService().create_invite(
+        invite = InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ).create_invite(
             db, score_id, 1, InviteCreateRequest(email="invite@example.com", locale="en")
         )
         assert (
-            InvitationService().inspect_invite(db, invite.token, None).score_display_title
+            InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            )
+            .inspect_invite(db, invite.token, None)
+            .score_display_title
             == "Moonlight Sonata"
         )
         mail = db.scalar(sa.select(MailOutbox).where(MailOutbox.recipient == "invite@example.com"))
@@ -334,8 +355,8 @@ def test_display_title_and_revision_notation_title_have_independent_lifecycles(c
         }
 
         ScoreService(
-            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-            delivery=_resource_wiring.build_media_delivery_service(storage),
+            lifecycle_service=resources_for().build_score_lifecycle_service(),
+            delivery=resources_for(storage).build_media_delivery_service(),
         ).update(
             db,
             score_id,
@@ -478,10 +499,11 @@ def test_confirmation_semantic_transaction_rolls_back_at_every_boundary(
         with pytest.raises(RuntimeError, match="confirmation interrupted"):
             review.ImportReviewService(
                 quota=_resource_wiring.storage_quota_service,
-                revision_writer=_media_wiring.build_revision_writer(),
-                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                revision_writer=resources_for().build_revision_writer(),
+                input_assets=resources_for().build_input_asset_lifecycle(),
                 usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
+                writes=resources_for(storage).build_object_write_coordinator(),
+                post_commit=relay,
             ).confirm(adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
         db.rollback()
         assert snapshot(db) == before
@@ -637,10 +659,11 @@ def test_confirmation_and_deletion_serialize_on_dispatch_before_job(
                 if kind == "confirm":
                     return review.ImportReviewService(
                         quota=_resource_wiring.storage_quota_service,
-                        revision_writer=_media_wiring.build_revision_writer(),
-                        input_assets=_media_wiring.build_input_asset_lifecycle(),
+                        revision_writer=resources_for().build_revision_writer(),
+                        input_assets=resources_for().build_input_asset_lifecycle(),
                         usage=_resource_wiring.storage_usage_service,
-                        writes=_resource_wiring.build_object_write_coordinator(storage),
+                        writes=resources_for(storage).build_object_write_coordinator(),
+                        post_commit=relay,
                     ).confirm(
                         db,
                         "job",
@@ -649,7 +672,7 @@ def test_confirmation_and_deletion_serialize_on_dispatch_before_job(
                     )
                 ImportJobService(
                     usage=_resource_wiring.storage_usage_service,
-                    delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                    delivery=resources_for(_storage_provider).build_media_delivery_service(),
                 ).delete(db, "job", 1)
                 db.commit()
             except (ResourceNotFoundException, ValidationException) as exc:
@@ -691,14 +714,15 @@ def test_import_commands_wait_on_dispatch_without_holding_job(confirmation, comm
             if command_kind == "confirm":
                 return review.ImportReviewService(
                     quota=_resource_wiring.storage_quota_service,
-                    revision_writer=_media_wiring.build_revision_writer(),
-                    input_assets=_media_wiring.build_input_asset_lifecycle(),
+                    revision_writer=resources_for().build_revision_writer(),
+                    input_assets=resources_for().build_input_asset_lifecycle(),
                     usage=_resource_wiring.storage_usage_service,
-                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                    writes=resources_for(storage).build_object_write_coordinator(),
+                    post_commit=relay,
                 ).confirm(adapter, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
             result = ImportJobService(
                 usage=_resource_wiring.storage_usage_service,
-                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                delivery=resources_for(_storage_provider).build_media_delivery_service(),
             ).delete(adapter, "job", 1)
             db.commit()
             return result
@@ -737,10 +761,11 @@ def test_confirmed_revision_render_adopts_its_first_pages(confirmation, monkeypa
         assert db.scalar(sa.select(ScoreRevisionRenderOutbox)) is None
         review.ImportReviewService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            revision_writer=resources_for().build_revision_writer(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=relay,
         ).confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
         outbox = db.scalar(sa.select(ScoreRevisionRenderOutbox))
         uuid = outbox.outbox_uuid
@@ -750,15 +775,17 @@ def test_confirmed_revision_render_adopts_its_first_pages(confirmation, monkeypa
         assert db.scalar(sa.select(PlaybackOutbox)) is not None
     renderer = ScoreRevisionRenderService(
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        delivery=deliveries().render,
+        work_root=get_context().settings.WORK_ROOT,
     )
     monkeypatch.setattr(
         renderer,
         "_render_pages",
         lambda *_: [RenderedPage(1, b"<svg>page</svg>", "image/svg+xml", ".svg", "test-renderer")],
     )
-    monkeypatch.setattr(worker, "build_render_service", lambda: renderer)
-    monkeypatch.setattr(worker, "SessionLocal", sessionmaker(engine))
+    monkeypatch.setattr(worker.get_context().resources, "build_render_service", lambda: renderer)
+    inject_worker(monkeypatch, worker, sessions=sessionmaker(engine))
     assert worker.execute_score_revision_render_task(None, uuid)["status"] == "rendered"
     with Session(engine) as db:
         asset = db.scalar(sa.select(ScoreRenderAsset))
@@ -851,10 +878,11 @@ def test_shared_upload_promotions_and_last_input_release_match_semantic_inventor
         assert_usage(db, 8, 0)
         service = review.ImportReviewService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            revision_writer=resources_for().build_revision_writer(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=relay,
         )
         first = service.confirm(
             db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
@@ -872,13 +900,13 @@ def test_shared_upload_promotions_and_last_input_release_match_semantic_inventor
             )
             db.add(operation)
             db.commit()
-            delivery = ScoreDeletionDeliveryService()
+            delivery = ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings())
             lease = delivery.claim(db, operation.operation_uuid)
             db.commit()
             assert lease is not None
             ScoreDeletionExecutor(
                 delivery,
-                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                input_assets=resources_for().build_input_asset_lifecycle(),
                 usage=_resource_wiring.storage_usage_service,
             ).execute(db, lease)
             db.commit()
@@ -911,7 +939,7 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
     engine, storage = confirmation
     imports = ImportJobService(
         usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        delivery=resources_for(storage).build_media_delivery_service(),
     )
     with Session(engine, expire_on_commit=False) as db:
         job = db.scalar(sa.select(ImportJob))
@@ -922,7 +950,7 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
             key=upload.stored_object.object_key, content=b"original", content_type="image/png"
         )
         assert job.state is ImportJobState.QUEUED
-        delivery = ImportDispatchService()
+        delivery = ImportDispatchService(config=ImportDispatchSettings())
         payload = delivery.claim(db, dispatch.dispatch_uuid)
         assert payload is not None
         db.commit()
@@ -938,10 +966,11 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
         assert db.get(ImportJob, job_id).state is ImportJobState.READY_FOR_REVIEW
         review_service = review.ImportReviewService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            revision_writer=resources_for().build_revision_writer(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=relay,
         )
         request = ReviewConfirmRequest(content=MUSICXML_1.decode())
         result = review_service.confirm(db, "job", 1, request)
@@ -972,19 +1001,19 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
             assert db.get(ImportJob, job_id).confirmed_at == confirmed_at
 
         ScoreService(
-            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-            delivery=_resource_wiring.build_media_delivery_service(storage),
+            lifecycle_service=resources_for().build_score_lifecycle_service(),
+            delivery=resources_for(storage).build_media_delivery_service(),
         ).delete(db, result.score_id, 1)
         assert_history_without_live_score()
         assert db.scalar(sa.select(sa.func.count()).select_from(Score)) == 1
         operation = db.scalar(sa.select(ScoreDeletionOperation))
-        deletion = ScoreDeletionDeliveryService()
+        deletion = ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings())
         lease = deletion.claim(db, operation.operation_uuid)
         assert lease is not None
         db.commit()
         deleted = ScoreDeletionExecutor(
             deletion,
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
         ).execute(db, lease)
         db.commit()
@@ -1008,8 +1037,8 @@ def test_confirmed_import_history_survives_its_score_graph_lifetime(confirmation
         assert all(storage.exists(row.object_key) for row in retirements)
         uuids = [row.retirement_uuid for row in retirements]
         db.rollback()
-    monkeypatch.setattr(retirement_worker, "SessionLocal", sessionmaker(bind=engine))
-    monkeypatch.setattr(retirement_worker, "object_storage", storage)
+    inject_worker(monkeypatch, retirement_worker, sessions=sessionmaker(bind=engine))
+    inject_worker(monkeypatch, retirement_worker, storage=storage)
     for identity in uuids:
         assert (
             retirement_worker.execute_stored_object_retirement_task(None, identity)["status"]

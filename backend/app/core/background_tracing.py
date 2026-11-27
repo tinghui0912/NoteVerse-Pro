@@ -16,7 +16,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ReadableSpan, Spa
 from opentelemetry.trace import SpanKind
 
 from app.core.async_trace_context import normalize_async_trace_context
-from app.core.config import settings
+from app.platform.config.observability import ObservabilitySettings
 from app.core.logger import get_otel_trace_context, set_otel_trace_context
 
 
@@ -49,15 +49,17 @@ class _SchedulerActivitySpanProcessor(SpanProcessor):
         return self._delegate.force_flush(timeout_millis=timeout_millis)
 
 
-def configure_background_tracing(*, service_name: str | None = None) -> None:
+def configure_background_tracing(
+    config: ObservabilitySettings, *, service_name: str | None = None
+) -> None:
     """Configure a worker-local tracer provider when tracing is enabled."""
 
     global _configured
-    if _configured or not settings.OTEL_TRACING_ENABLED:
+    if _configured or not config.OTEL_TRACING_ENABLED:
         return
 
-    endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT
-    configured_service_name = service_name or settings.OTEL_SERVICE_NAME
+    endpoint = config.OTEL_EXPORTER_OTLP_ENDPOINT
+    configured_service_name = service_name or config.OTEL_SERVICE_NAME
     if endpoint is None or configured_service_name is None:
         raise RuntimeError("OpenTelemetry tracing is enabled but not configured")
 
@@ -74,7 +76,7 @@ def configure_background_tracing(*, service_name: str | None = None) -> None:
             BatchSpanProcessor(
                 OTLPSpanExporter(
                     endpoint=endpoint,
-                    insecure=settings.OTEL_EXPORTER_OTLP_INSECURE,
+                    insecure=config.OTEL_EXPORTER_OTLP_INSECURE,
                 )
             )
         )

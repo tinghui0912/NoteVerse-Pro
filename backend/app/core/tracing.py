@@ -8,7 +8,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from app.core.config import settings
+from app.platform.config.observability import ObservabilitySettings
 from app.core.async_trace_context import set_async_trace_context
 from app.core.logger import logger, set_otel_trace_context
 
@@ -38,14 +38,14 @@ def capture_current_trace_context() -> None:
     )
 
 
-def configure_api_tracing(app: FastAPI) -> None:
+def configure_api_tracing(app: FastAPI, config: ObservabilitySettings) -> None:
     """Configure FastAPI request tracing when explicitly enabled."""
 
-    if not settings.OTEL_TRACING_ENABLED:
+    if not config.OTEL_TRACING_ENABLED:
         return
 
-    endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT
-    service_name = settings.OTEL_SERVICE_NAME
+    endpoint = config.OTEL_EXPORTER_OTLP_ENDPOINT
+    service_name = config.OTEL_SERVICE_NAME
     if endpoint is None or service_name is None:
         raise RuntimeError("OpenTelemetry tracing is enabled but not configured")
 
@@ -61,7 +61,7 @@ def configure_api_tracing(app: FastAPI) -> None:
         BatchSpanProcessor(
             OTLPSpanExporter(
                 endpoint=endpoint,
-                insecure=settings.OTEL_EXPORTER_OTLP_INSECURE,
+                insecure=config.OTEL_EXPORTER_OTLP_INSECURE,
             )
         )
     )

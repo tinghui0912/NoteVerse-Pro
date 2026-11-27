@@ -11,16 +11,17 @@ from fastapi.routing import iter_route_contexts
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
-from app.main import create_app
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
+from app.runtime.customer_api.main import create_app
 from app.modules.account.dependencies import get_profile_service
 from app.modules.account.schemas import ProfileRead, ProfileUserRead
-from app.api.resource_dependencies import get_upload_service
-from app.api.resource_dependencies import get_import_job_service
+from app.runtime.customer_api.resources import get_upload_service
+from app.runtime.customer_api.resources import get_import_job_service
 from app.modules.import_jobs.schemas import ImportJobSubmitRead
 from app.modules.library.dependencies import get_library_service
 from app.modules.library.schemas import LibraryFolderRead
-from app.modules.collaboration.dependencies import get_invitation_service
+from app.runtime.customer_api.collaboration import get_invitation_service
 from app.modules.collaboration.schemas import InviteListRead
 from app.shared.api_model import ApiModel
 
@@ -210,7 +211,7 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
     from http.cookies import SimpleCookie
 
     from app.core.generated import customer_browser_protocol as protocol
-    from app.modules.auth.dependencies import get_password_service, get_session_service
+    from app.runtime.customer_api.auth_services import get_password_service, get_session_service
 
     app = create_app()
 

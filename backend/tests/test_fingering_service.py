@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from app.core.config import settings
 from app.core.exceptions import ExternalServiceException, ValidationException
 from app.modules.fingering.schemas import FingeringRequest
 from app.modules.fingering.service import FingeringService
@@ -13,6 +13,10 @@ from app.processing.engines.fingering.pianoplayer import (
     PianoplayerFingeringEngine,
     strip_existing_fingerings,
 )
+from app.runtime.customer_api.context import get_context
+from app.platform.config.fingering_execution import FingeringExecutionSettings
+
+settings = get_context().settings
 
 
 MUSICXML = """<?xml version="1.0"?>
@@ -60,6 +64,7 @@ async def test_generation_authorizes_and_returns_an_unsaved_xml_suggestion() -> 
         access_policy=policy,  # type: ignore[arg-type]
         engine=engine,
         execution=InlineExecution(),  # type: ignore[arg-type]
+        config=FingeringExecutionSettings(),
     )
 
     service.authorize_generation(object(), "score-1", 9)
@@ -81,6 +86,7 @@ async def test_generation_rejects_invalid_input_and_invalid_engine_output() -> N
         access_policy=AllowEditAccessPolicy(),  # type: ignore[arg-type]
         engine=FakeEngine(content="<invalid />"),
         execution=InlineExecution(),  # type: ignore[arg-type]
+        config=FingeringExecutionSettings(),
     )
 
     with pytest.raises(ValidationException):
@@ -102,7 +108,7 @@ def test_pianoplayer_engine_uses_a_unique_cleaned_temporary_directory(
         seen_directories.append(input_file.parent)
         output_file.write_text(input_file.read_text(encoding="utf-8"), encoding="utf-8")
 
-    engine = PianoplayerFingeringEngine(runner=runner)
+    engine = PianoplayerFingeringEngine(work_root=str(tmp_path), runner=runner)
     first = engine.generate("../../untrusted-score", MUSICXML)
     second = engine.generate("../../untrusted-score", MUSICXML)
 
@@ -136,7 +142,10 @@ async def test_semantically_invalid_input_is_rejected_before_fingering_execution
 
     engine = FakeEngine()
     service = FingeringService(
-        access_policy=AllowEditAccessPolicy(), engine=engine, execution=InlineExecution()
+        access_policy=AllowEditAccessPolicy(),
+        engine=engine,
+        execution=InlineExecution(),
+        config=FingeringExecutionSettings(),
     )
     invalid = MUSICXML.replace("<note>", "<backup><duration>1</duration></backup><note>", 1)
     with pytest.raises(ValidationException) as caught:
@@ -152,7 +161,10 @@ async def test_semantically_invalid_generated_output_is_fingering_failure():
     invalid = MUSICXML.replace("<note>", "<backup><duration>1</duration></backup><note>", 1)
     engine = FakeEngine(content=invalid)
     service = FingeringService(
-        access_policy=AllowEditAccessPolicy(), engine=engine, execution=InlineExecution()
+        access_policy=AllowEditAccessPolicy(),
+        engine=engine,
+        execution=InlineExecution(),
+        config=FingeringExecutionSettings(),
     )
     with pytest.raises(ExternalServiceException) as caught:
         await service.generate("score-1", FingeringRequest(content=MUSICXML))

@@ -1,7 +1,8 @@
 """Committed object facts govern semantic reads independently of physical observations."""
 
+from tests.support.runtime_resources import resources_for
+
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 from app.storage.base import ObjectNotFoundError
 
@@ -44,6 +45,8 @@ from tests.test_guest_previews import (
     score_service_session as score_service_session,
 )
 from tests.support.object_storage import InMemoryObjectStorage
+from app.platform.config.storage import ObjectStorageConfig
+from app.runtime.customer_api.context import get_context
 
 
 def forbid_observations(storage, monkeypatch):
@@ -106,7 +109,7 @@ def admitted(preview_context, monkeypatch):
 
 def test_admitted_asset_lists_deliveries_and_review_use_database_facts(admitted):
     db, storage, score, source, page, guest = admitted
-    assets = ScoreAssetService(delivery=_resource_wiring.build_media_delivery_service(storage))
+    assets = ScoreAssetService(delivery=resources_for(storage).build_media_delivery_service())
     listed = assets.list_revision_assets(db, score.score_uuid, 1)
     assert listed.revision_sources[0].source_id == source.source_uuid
     assert listed.render_assets[0].render_asset_id == page.asset_uuid
@@ -158,8 +161,9 @@ def test_admitted_asset_lists_deliveries_and_review_use_database_facts(admitted)
     assert (
         RevisionService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            revision_writer=resources_for().build_revision_writer(),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=resources_for().post_commit,
         )
         .content(db, score.score_uuid, "revision-a", 1)
         .content.startswith("<score-partwise")
@@ -170,7 +174,7 @@ def test_physical_loss_preserves_admitted_assets_and_product_readiness(admitted)
     db, storage, score, source, page, guest = admitted
     storage.objects.clear()
     listed = ScoreAssetService(
-        delivery=_resource_wiring.build_media_delivery_service(storage)
+        delivery=resources_for(storage).build_media_delivery_service()
     ).list_revision_assets(db, score.score_uuid, 1)
     assert len(listed.revision_sources) == len(listed.render_assets) == 1
     token = guest.issue_credential(db, score.score_uuid, 1).token
@@ -178,8 +182,8 @@ def test_physical_loss_preserves_admitted_assets_and_product_readiness(admitted)
     assert len(preview.render_assets) == 1 and preview.audio_available
     state = (
         ScoreService(
-            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-            delivery=_resource_wiring.build_media_delivery_service(storage),
+            lifecycle_service=resources_for().build_score_lifecycle_service(),
+            delivery=resources_for(storage).build_media_delivery_service(),
         )
         .get(db, score.score_uuid, 1)
         .derived_assets
@@ -243,7 +247,7 @@ def test_stream_headers_and_ranges_use_persisted_size(
 def test_admitted_read_failures_have_safe_http_and_internal_diagnostics(
     monkeypatch, error, status, code
 ):
-    from app.main import create_app
+    from app.runtime.customer_api.main import create_app
     from app.modules.media_storage import reads
 
     storage = Mock(read_bytes=Mock(side_effect=error))
@@ -307,7 +311,9 @@ def test_provider_get_failures_are_classified_without_preflight(code, expected):
     from app.storage.s3_compatible import ClientError
     from app.storage.s3_compatible import S3CompatibleObjectStorage
 
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     storage.client.get_object.side_effect = ClientError(

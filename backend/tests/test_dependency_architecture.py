@@ -17,6 +17,7 @@ CAPABILITIES = {
     "cache",
     "celery",
     "tracing",
+    "metrics",
     "http",
     "auth",
     "storage",
@@ -65,6 +66,8 @@ def test_capability_and_runtime_composition():
     assert groups["worker-app"] == [
         {"include-group": role}
         for role in (
+            "auth",
+            "metrics",
             "db",
             "storage",
             "celery",

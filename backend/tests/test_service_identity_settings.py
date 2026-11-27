@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.service_identity import ServiceIdentitySettings
+from app.platform.config.service_identity import ServiceIdentitySettings
 
 
 def test_service_identity_settings_have_product_identity_defaults() -> None:

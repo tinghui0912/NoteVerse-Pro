@@ -18,6 +18,8 @@ from app.core.exceptions import ValidationException
 from app.modules.collaboration.invite_lifecycle import hash_invite_token
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import add_active_score_with_head_revision
+from app.platform.config.application import InvitationConfig
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.mark.parametrize(
@@ -64,7 +66,9 @@ def test_membership_lifecycle_serializes_after_locked_reread(monkeypatch, first,
             )
             setup.commit()
             member_id = member.id
-        invitations = InvitationService()
+        invitations = InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        )
         service = MembershipService()
 
         def command_for(db, action):

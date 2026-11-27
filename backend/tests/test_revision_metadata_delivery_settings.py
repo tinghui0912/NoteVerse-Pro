@@ -3,11 +3,16 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import settings
-from app.core.settings.revision_metadata_delivery import RevisionMetadataDeliverySettings
+from app.platform.config.revision_metadata_delivery import RevisionMetadataDeliverySettings
 from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
 from app.modules.revisions.metadata_delivery import metadata_lifecycle
 from app.task_queue.schedule import build_beat_schedule
+from app.runtime.customer_api.context import get_context
+from app.runtime.customer_api.settings import CustomerApiSettings
+from app.runtime.beat.settings import BeatSettings
+from app.platform.config.queue_schedule import QueueScheduleConfig
+
+settings = get_context().settings
 
 
 def test_metadata_defaults_match_delivery_and_schedule():
@@ -19,7 +24,9 @@ def test_metadata_defaults_match_delivery_and_schedule():
         "REVISION_METADATA_DISPATCH_TIMEOUT_SECONDS": 300,
         "REVISION_METADATA_PROCESSING_TIMEOUT_SECONDS": 300,
     }
-    lifecycle = metadata_lifecycle()
+    lifecycle = metadata_lifecycle(
+        config=RevisionMetadataDeliverySettings.model_validate(get_context().settings.model_dump())
+    )
     assert all(
         isinstance(value, RevisionMetadataOutboxStatus)
         for value in vars(lifecycle.statuses).values()
@@ -42,21 +49,30 @@ def test_metadata_lifecycle_and_beat_read_current_settings(monkeypatch):
         "REVISION_METADATA_PROCESSING_TIMEOUT_SECONDS": 17,
     }.items():
         monkeypatch.setattr(settings, name, value)
-    policy = metadata_lifecycle().policy
+    policy = metadata_lifecycle(
+        config=RevisionMetadataDeliverySettings.model_validate(get_context().settings.model_dump())
+    ).policy
     assert (
         policy.max_attempts,
         policy.retry_base_seconds,
         policy.dispatch_timeout_seconds,
         policy.processing_timeout_seconds,
     ) == (3, 11, 13, 17)
-    assert build_beat_schedule(settings)["revision-metadata-maintenance"]["schedule"] == 7.0
+    assert (
+        build_beat_schedule(
+            QueueScheduleConfig(
+                REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS=60,
+                REVISION_METADATA_DISPATCH_INTERVAL_SECONDS=settings.REVISION_METADATA_DISPATCH_INTERVAL_SECONDS,
+            )
+        )["revision-metadata-maintenance"]["schedule"]
+        == 7.0
+    )
 
 
 def test_metadata_settings_are_composed_into_runtime_settings(monkeypatch):
-    from app.core.config import Settings
 
     monkeypatch.setenv("REVISION_METADATA_DISPATCH_INTERVAL_SECONDS", "19")
     monkeypatch.setenv("REVISION_METADATA_DISPATCH_BATCH_SIZE", "23")
-    configured = Settings()
+    configured = CustomerApiSettings()
     assert configured.REVISION_METADATA_DISPATCH_BATCH_SIZE == 23
-    assert build_beat_schedule(configured)["revision-metadata-maintenance"]["schedule"] == 19.0
+    assert build_beat_schedule(BeatSettings())["revision-metadata-maintenance"]["schedule"] == 19.0

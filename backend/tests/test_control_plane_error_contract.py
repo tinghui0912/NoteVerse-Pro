@@ -10,8 +10,8 @@ from app.core.generated.control_plane_browser_protocol import (
     OPERATOR_CSRF_HEADER_NAME,
 )
 from app.db.models import MailOutbox, MailOutboxStatus
-from app.modules.platform_operators.dependencies import get_current_operator
-from app.modules.ops.router import get_ops_async_operation_query_service
+from app.runtime.control_plane.deps import get_current_operator
+from app.runtime.control_plane.routers.ops.router import get_ops_async_operation_query_service
 from tests.support.control_plane import (
     control_app as control_app,
     control_db as control_db,

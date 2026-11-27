@@ -167,6 +167,10 @@ class CsrfProtectionMiddleware(BaseHTTPMiddleware):
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Log request lifecycle events and attach tracing headers."""
 
+    def __init__(self, app, *, trusted_proxy_cidrs: tuple[str, ...]) -> None:
+        super().__init__(app)
+        self.trusted_proxy_cidrs = trusted_proxy_cidrs
+
     async def dispatch(self, request: Request, call_next):
         # Record the start time for latency logging.
         start_time = time.time()
@@ -181,7 +185,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             method=request.method,
             http_path=request.url.path,
             peer_address=peer_address(request) or "unknown",
-            client_address=client_address(request) or "unknown",
+            client_address=client_address(request, trusted_proxy_cidrs=self.trusted_proxy_cidrs)
+            or "unknown",
         )
         try:
             response = await call_next(request)

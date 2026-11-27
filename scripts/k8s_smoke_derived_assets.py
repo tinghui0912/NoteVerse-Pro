@@ -75,16 +75,18 @@ def ensure_user(namespace: str, deployment: str, email: str, password: str) -> N
     code = f"""
 from sqlalchemy import select
 from app.core.security import get_password_hash
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 from app.db.models.user import User
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 email = {email!r}
 password = {password!r}
-with SessionLocal() as db:
+with sessions() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if user is None:
-        now = utc_now_naive()
+        now = utc_now()
         user = User(
             email=email,
             display_name="K8s Smoke",
@@ -99,7 +101,7 @@ with SessionLocal() as db:
     else:
         user.password_hash = get_password_hash(password)
         user.is_active = True
-        user.email_verified_at = user.email_verified_at or utc_now_naive()
+        user.email_verified_at = user.email_verified_at or utc_now()
     db.commit()
 """
     kubectl_exec_python(namespace, deployment, code)
@@ -118,16 +120,17 @@ from app.db.models import User
 from app.db.models import Score
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.revisions.domain import RevisionOrigin
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 from app.modules.revisions.writer import InitialRevisionWrite, PreparedRevisionSource
-from app.composition.media_resources import build_revision_writer
-from app.modules.revisions.post_commit import revision_post_commit
-from app.composition.storage_resources import build_object_write_coordinator, storage_quota_service
+from app.runtime.cli.resources import get_context
+resources = get_context().resources
+from app.composition.storage_resources import storage_quota_service
 from app.shared.time import utc_now
 from datetime import timedelta
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.storage import object_storage
 
 email = {email!r}
 musicxml = b'''<?xml version="1.0" encoding="UTF-8"?>
@@ -154,7 +157,7 @@ musicxml = b'''<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>
 '''
 
-with SessionLocal() as db:
+with sessions() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one()
     user_id = require_persisted_id(user.id, entity="user")
     score_uuid = str(uuid.uuid4())
@@ -164,14 +167,14 @@ with SessionLocal() as db:
         bytes_count=len(musicxml), command_key="k8s-smoke:" + revision_uuid, expires_at=utc_now() + timedelta(minutes=15))
     try:
         db.commit()
-        stored = build_object_write_coordinator(object_storage).write_bytes(
+        stored = resources.build_object_write_coordinator().write_bytes(
             key=canonical_revision_source_object_key(score_uuid=score_uuid, revision_uuid=revision_uuid), content=musicxml,
             content_type="application/vnd.recordare.musicxml+xml")
         db.add(Score(score_uuid=score_uuid, owner_user_id=user_id, display_title="K8s Smoke Derived Asset"))
         db.flush()
         prepared = PreparedRevisionSource(revision_uuid, stored, hashlib.sha256(musicxml).hexdigest(),
             "k8s-smoke", "1", reservation.hold_id)
-        result = build_revision_writer().write(db, InitialRevisionWrite(score_uuid, user_id, prepared,
+        result = resources.build_revision_writer().write(db, InitialRevisionWrite(score_uuid, user_id, prepared,
             "k8s-smoke-initial", RevisionOrigin.EDIT))
         db.commit()
     except Exception:
@@ -181,7 +184,7 @@ with SessionLocal() as db:
         raise
     work = result.post_commit_work
     assert work is not None
-    revision_post_commit.dispatch_best_effort(work)
+    resources.post_commit.dispatch_best_effort(work)
     print(json.dumps({{
         "score_id": score_uuid,
         "revision_id": revision_uuid,
@@ -351,13 +354,15 @@ def wait_for_score_deletion(namespace: str, deployment: str, score_id: str) -> N
 import time
 from sqlalchemy import select
 from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 from app.worker.tasks import run_score_deletion_maintenance
 
 run_score_deletion_maintenance()
 deadline = time.monotonic() + 180
 while True:
-    with SessionLocal() as db:
+    with sessions() as db:
         operation = db.scalar(select(ScoreDeletionOperation).where(
             ScoreDeletionOperation.score_uuid == {score_id!r}
         ))
@@ -376,10 +381,12 @@ def assert_owner_usage_zero(namespace: str, deployment: str, email: str) -> None
 from sqlalchemy import select
 from app.db.models.storage_usage import StorageUsageCounter
 from app.db.models.user import User
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 
 email = {email!r}
-with SessionLocal() as db:
+with sessions() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one()
     counters = db.execute(
         select(StorageUsageCounter.category, StorageUsageCounter.used_bytes)

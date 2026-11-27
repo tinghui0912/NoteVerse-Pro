@@ -1,9 +1,10 @@
 """Password management for authenticated users."""
 
+from app.platform.config.service_identity import ServiceIdentitySettings
+
 from sqlalchemy.orm import Session
 
 from app.core import security
-from app.core.config import settings
 from app.core.exceptions import ValidationException
 from app.db.model_utils import require_persisted_id
 from app.db.models.user import User
@@ -20,8 +21,9 @@ from app.shared.time import utc_now
 class PasswordService:
     """Owns current-user credential changes."""
 
-    def __init__(self, session_service: SessionService | None = None) -> None:
-        self.session_service = session_service or SessionService()
+    def __init__(self, session_service: SessionService, *, config: ServiceIdentitySettings) -> None:
+        self.config = config
+        self.session_service = session_service
 
     def change_current_user_password(
         self,
@@ -61,7 +63,7 @@ class PasswordService:
 
         email_content = build_password_changed_email(
             locale=request.locale,
-            project_name=settings.PROJECT_NAME,
+            project_name=self.config.PROJECT_NAME,
         )
         queue_mail(
             db,

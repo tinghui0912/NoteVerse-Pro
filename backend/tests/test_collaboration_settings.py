@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from app.core.settings.collaboration import CollaborationSettings
+from app.platform.config.collaboration import CollaborationSettings
 
 
 def test_default_invite_validity_is_seven_days():

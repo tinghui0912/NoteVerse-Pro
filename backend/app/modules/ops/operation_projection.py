@@ -2,7 +2,7 @@
 
 from sqlalchemy import String, cast, case, func, literal, select, union_all, and_, or_
 from app.shared.time import utc_now
-from app.core.config import settings
+from app.platform.config.delivery import OpsDeliveryConfig
 from app.db.models import (
     ImportJob,
     ImportDispatch,
@@ -72,7 +72,9 @@ def _delivery_projection(
     )
 
 
-def _import_projection():
+def _import_projection(
+    config: OpsDeliveryConfig,
+):
     j, d = ImportJob.__table__.c, ImportDispatch.__table__.c
     terminal_failure = j.state == "FAILED"
     status = case(
@@ -98,7 +100,7 @@ def _import_projection():
         d.originating_request_id,
         status.label("status"),
         d.attempt_count.label("attempts"),
-        literal(settings.IMPORT_DISPATCH_MAX_ATTEMPTS).label("max_attempts"),
+        literal(config.IMPORT_DISPATCH_MAX_ATTEMPTS).label("max_attempts"),
         d.next_attempt_at,
         failure("code").label("failure_code"),
         failure("stage").label("failure_stage"),
@@ -112,21 +114,21 @@ def _import_projection():
     ).select_from(ImportJob.__table__.join(ImportDispatch.__table__, d.job_id == j.id))
 
 
-def operation_projection():
+def operation_projection(config: OpsDeliveryConfig):
     """One aligned SQL definition per kind, shared by list, summary and metrics."""
     r, p, m, s = (
         model.__table__.c
         for model in (ScoreRevisionRenderOutbox, PlaybackOutbox, MailOutbox, ScoreDeletionOperation)
     )
     return union_all(
-        _import_projection(),
+        _import_projection(config),
         _delivery_projection(
             ScoreRevisionRenderOutbox,
             kind=AsyncOperationKind.REVISION_RENDER,
             identity=r.outbox_uuid,
             resource_type=literal("score_revision"),
             resource_id=ScoreRevision.revision_uuid,
-            max_attempts=settings.REVISION_RENDER_MAX_ATTEMPTS,
+            max_attempts=config.REVISION_RENDER_MAX_ATTEMPTS,
         )
         .select_from(ScoreRevisionRenderOutbox)
         .join(ScoreRevision, ScoreRevision.id == r.revision_id),
@@ -136,7 +138,7 @@ def operation_projection():
             identity=p.outbox_uuid,
             resource_type=func.lower(cast(p.asset_kind, String)),
             resource_id=p.outbox_uuid,
-            max_attempts=settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
+            max_attempts=config.PLAYBACK_OUTBOX_MAX_ATTEMPTS,
         ),
         _delivery_projection(
             MailOutbox,
@@ -144,7 +146,7 @@ def operation_projection():
             identity=m.outbox_uuid,
             resource_type=m.category,
             resource_id=m.outbox_uuid,
-            max_attempts=settings.MAIL_OUTBOX_MAX_ATTEMPTS,
+            max_attempts=config.MAIL_OUTBOX_MAX_ATTEMPTS,
             succeeded="SENT",
         ),
         _delivery_projection(
@@ -153,7 +155,7 @@ def operation_projection():
             identity=s.operation_uuid,
             resource_type=literal("score_deletion"),
             resource_id=s.score_uuid,
-            max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
+            max_attempts=config.SCORE_DELETION_MAX_ATTEMPTS,
         ),
         _delivery_projection(
             AccountDeletionOperation,
@@ -161,7 +163,7 @@ def operation_projection():
             identity=AccountDeletionOperation.operation_uuid,
             resource_type=literal("account_erasure"),
             resource_id=AccountDeletionOperation.operation_uuid,
-            max_attempts=settings.ACCOUNT_DELETION_MAX_ATTEMPTS,
+            max_attempts=config.ACCOUNT_DELETION_MAX_ATTEMPTS,
         ),
         _delivery_projection(
             StoredObjectRetirement,
@@ -169,7 +171,7 @@ def operation_projection():
             identity=StoredObjectRetirement.retirement_uuid,
             resource_type=literal("stored_object"),
             resource_id=StoredObjectRetirement.retirement_uuid,
-            max_attempts=settings.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS,
+            max_attempts=config.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS,
         ),
     ).subquery("durable_work")
 

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.notification_lifecycle import NotificationLifecycleSettings
+from app.platform.config.notification_lifecycle import NotificationLifecycleSettings
 
 
 def test_notification_lifecycle_settings_accept_default_policy() -> None:

@@ -98,7 +98,7 @@ def test_ops_representations_are_direct_and_utc_in_nested_pages(operator_client,
 
 def test_operator_and_customer_credentials_have_distinct_audiences(operator_client, control_app):
     from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
-    from app.main import create_app
+    from app.runtime.customer_api.main import create_app
 
     with TestClient(control_app) as client:
         client.cookies.set(AUTH_COOKIE_NAME, "customer-credential")

@@ -8,7 +8,6 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.engine import make_url
 from alembic.config import Config
-from app.core.config import settings
 
 
 @contextmanager
@@ -31,12 +30,14 @@ def postgres_schema_database(monkeypatch):
     backend = Path(__file__).resolve().parents[2]
     config = Config(str(backend / "alembic.ini"))
     config.set_main_option("script_location", str(backend / "alembic"))
-    monkeypatch.setattr(settings, "DATABASE_URL", url.render_as_string(hide_password=False))
+    monkeypatch.setenv("DATABASE_URL", url.render_as_string(hide_password=False))
     from sqlalchemy.orm import sessionmaker
-    from app.composition import storage_resources
+    from app.runtime.customer_api.context import get_context
+
+    context = get_context()
 
     monkeypatch.setattr(
-        storage_resources, "write_sessions", sessionmaker(bind=engine, expire_on_commit=False)
+        context.resources, "sessions", sessionmaker(bind=engine, expire_on_commit=False)
     )
     try:
         yield engine, config

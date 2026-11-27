@@ -1,11 +1,12 @@
-from app.composition import media_resources as _media_wiring
+from tests.support.runtime_resources import resources_for
 
-from app.composition import storage_resources as _resource_wiring
 from unittest.mock import Mock
 
 from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
-from app.task_queue.config import celery_app
+from app.runtime.worker.main import celery_app
 from app.worker.tasks import import_dispatch_task
+from app.platform.config.application import ImportExecutionConfig
+from app.runtime.worker.settings import WorkerSettings
 
 
 def test_import_job_keeps_celery_delivery_guarantees() -> None:
@@ -25,12 +26,14 @@ def test_worker_materializes_admitted_inputs_without_metadata_probes(tmp_path, m
         method.side_effect = AssertionError("Physical metadata is not read authority")
     destination = tmp_path / "input.png"
     monkeypatch.setattr(
-        "app.modules.import_jobs.pipeline_runner.object_work_path", lambda _: str(destination)
+        "app.modules.import_jobs.pipeline_runner.object_work_path",
+        lambda _, *, work_root: str(destination),
     )
     service = ImportPipelineRunner(
-        recorder=_media_wiring.build_import_artifact_recorder().recorder,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
-        sessions=_resource_wiring.write_sessions,
+        recorder=resources_for().build_import_artifact_recorder().recorder,
+        writes=resources_for(storage).build_object_write_coordinator(),
+        sessions=resources_for().sessions,
+        config=ImportExecutionConfig.model_validate(WorkerSettings().model_dump()),
     )
     paths = service._resolve_input_paths(
         [StoredObjectReadTarget(1, "blobs/input.png", 5, "image/png")]

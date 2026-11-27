@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+
 from ipaddress import IPv4Address, IPv6Address, ip_address, ip_network
 
 from fastapi import Request
 
-from app.core.config import settings
+from collections.abc import Sequence
 
 
 IPAddress = IPv4Address | IPv6Address
@@ -18,7 +19,7 @@ def peer_address(request: Request) -> str | None:
     return request.client.host if request.client is not None else None
 
 
-def client_address(request: Request) -> str | None:
+def client_address(request: Request, *, trusted_proxy_cidrs: Sequence[str]) -> str | None:
     """Return the originating address only when the direct peer is trusted.
 
     Forwarding headers are caller-controlled until the immediate ASGI peer is a
@@ -27,35 +28,43 @@ def client_address(request: Request) -> str | None:
     """
 
     peer = peer_address(request)
-    if peer is None or not _is_trusted_proxy(peer):
+    if peer is None or not _is_trusted_proxy(peer, trusted_proxy_cidrs):
         return peer
 
     forwarded = request.headers.get("forwarded")
     if forwarded is not None:
         chain = _forwarded_for_chain(forwarded)
-        return _resolve_forwarded_chain(chain, fallback=peer) if chain is not None else peer
+        return (
+            _resolve_forwarded_chain(chain, fallback=peer, trusted_proxy_cidrs=trusted_proxy_cidrs)
+            if chain is not None
+            else peer
+        )
 
     x_forwarded_for = request.headers.get("x-forwarded-for")
     if x_forwarded_for is not None:
         chain = _x_forwarded_for_chain(x_forwarded_for)
         if chain is not None:
-            return _resolve_forwarded_chain(chain, fallback=peer)
+            return _resolve_forwarded_chain(
+                chain, fallback=peer, trusted_proxy_cidrs=trusted_proxy_cidrs
+            )
 
     return peer
 
 
-def _is_trusted_proxy(value: str) -> bool:
+def _is_trusted_proxy(value: str, trusted_proxy_cidrs: Sequence[str]) -> bool:
     parsed = _parse_ip(value)
     if parsed is None:
         return False
-    return any(parsed in ip_network(network, strict=False) for network in settings.TRUSTED_PROXY_CIDRS)
+    return any(parsed in ip_network(network, strict=False) for network in trusted_proxy_cidrs)
 
 
-def _resolve_forwarded_chain(chain: list[IPAddress], *, fallback: str) -> str:
+def _resolve_forwarded_chain(
+    chain: list[IPAddress], *, fallback: str, trusted_proxy_cidrs: Sequence[str]
+) -> str:
     """Walk the proxy chain from the nearest hop toward the originating peer."""
 
     for address in reversed(chain):
-        if not _is_trusted_proxy(str(address)):
+        if not _is_trusted_proxy(str(address), trusted_proxy_cidrs):
             return str(address)
     return str(chain[0]) if chain else fallback
 

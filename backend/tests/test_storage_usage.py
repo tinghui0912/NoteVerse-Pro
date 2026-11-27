@@ -1,9 +1,12 @@
 from __future__ import annotations
+from tests.support.worker_context import inject_worker
+
+
+from tests.support.runtime_resources import resources_for
 from tests.support.uploads import complete_image_upload
 from tests.support.uploads import settled_upload_session
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 from uuid import uuid4
 from app.composition.storage_resources import storage_quota_service
 from tests.support.quota import admit_hold
@@ -22,8 +25,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 
-from app.api.deps import get_current_user, get_db
-from app.main import app
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
+from app.runtime.customer_api.main import app
 from app.core.exceptions import AppException, ValidationException
 from app.db.models import (
     ImportArtifact,
@@ -47,7 +51,7 @@ from app.modules.import_jobs.domain import ImportJobState
 from app.modules.revisions.domain import RevisionOrigin
 from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.uploads.service import UploadService
-from app.api.resource_dependencies import get_upload_service
+from app.runtime.customer_api.resources import get_upload_service
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.revisions.schemas import RevisionCreateRequest
 from app.modules.revisions.service import RevisionService
@@ -366,7 +370,7 @@ def test_upload_quota_exceeded_does_not_store_file(
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
     db = session
     user = session.get(User, 1)
@@ -411,7 +415,7 @@ def test_upload_api_returns_storage_quota_error_without_storing_file(
     app.dependency_overrides[get_upload_service] = lambda: UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
     try:
         response = client.post(
@@ -457,7 +461,7 @@ def test_upload_api_hides_storage_key(
     app.dependency_overrides[get_upload_service] = lambda: UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
     try:
         response = client.post(
@@ -495,8 +499,9 @@ def test_revision_create_quota_exceeded_does_not_create_revision_or_source(
     _set_quota(session, 1)
     service = RevisionService(
         quota=_resource_wiring.storage_quota_service,
-        revision_writer=_media_wiring.build_revision_writer(),
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        revision_writer=resources_for().build_revision_writer(),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        post_commit=resources_for().post_commit,
     )
     db = session
 
@@ -542,8 +547,8 @@ def test_score_delete_releases_source_usage_and_storage_object(
     assert storage.exists(source_storage_key)
 
     service = ScoreService(
-        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        lifecycle_service=resources_for().build_score_lifecycle_service(),
+        delivery=resources_for(storage).build_media_delivery_service(),
     )
     service.delete(session, score.score_uuid, 1)
 
@@ -596,7 +601,9 @@ def test_score_deletion_execution_records_delivery_retry_on_failure(
             session.rollback()
             raise
 
-    monkeypatch.setattr("app.worker.execution.score_deletion.SessionLocal", worker_db)
+    from app.worker.execution import score_deletion as executor
+
+    inject_worker(monkeypatch, executor, sessions=worker_db)
     monkeypatch.setattr(
         ScoreDeletionExecutor,
         "execute",
@@ -724,8 +731,8 @@ def test_score_delete_keeps_confirmed_history_after_import_binary_release(
     )
     session.commit()
     service = ScoreService(
-        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        lifecycle_service=resources_for().build_score_lifecycle_service(),
+        delivery=resources_for(storage).build_media_delivery_service(),
     )
     service.delete(session, score.score_uuid, 1)
 
@@ -839,7 +846,7 @@ def test_import_job_delete_releases_owned_upload_and_temp_artifacts(
 
     ImportJobService(
         usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        delivery=resources_for(storage).build_media_delivery_service(),
     ).delete(session, job_uuid, 1)
 
     assert session.get(ImportJob, 1001) is None
@@ -935,7 +942,7 @@ def test_import_job_delete_keeps_shared_upload_usage_and_storage(
 
     ImportJobService(
         usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        delivery=resources_for(storage).build_media_delivery_service(),
     ).delete(
         session,
         "job-delete-shared-a",
@@ -961,7 +968,7 @@ def test_independent_upload_commands_release_only_their_own_objects(storage_usag
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
 
     def upload(name):
@@ -1002,7 +1009,7 @@ def test_failed_semantic_adoption_retains_hold_until_cancellation(
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
 
     def reject(*args, **kwargs):

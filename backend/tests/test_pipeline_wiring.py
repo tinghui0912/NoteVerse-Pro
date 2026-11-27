@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from app.composition import media_resources as _media_wiring
+
+from tests.support.runtime_resources import resources_for
+
 
 import os
 import subprocess
@@ -21,6 +23,9 @@ from app.processing.engines.omr.factory import create_omr_engine
 from app.processing.engines.omr.legato import LegatoOmrEngine
 from app.processing.engines.render.factory import create_score_render_engine
 from app.processing.engines.render.verovio import VerovioRenderEngine
+from app.platform.config.application import ImportExecutionConfig
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
+from app.runtime.worker.settings import WorkerSettings
 
 
 def test_copy_image_step_copies_input_and_updates_context() -> None:
@@ -68,8 +73,9 @@ def test_job_context_complete_records_review_musicxml_without_creating_score() -
                 update_state=lambda *_args, **_kwargs: None,
             ),
             image_paths=[],
-            recorder=_media_wiring.build_import_artifact_recorder().recorder,
-            artifacts=_media_wiring.build_import_artifact_recorder(),
+            recorder=resources_for().build_import_artifact_recorder().recorder,
+            artifacts=resources_for().build_import_artifact_recorder(),
+            config=ImportExecutionConfig.model_validate(WorkerSettings().model_dump()),
         )
         ctx.main_xml = main_xml
         ctx._tracker = None
@@ -123,6 +129,7 @@ def test_factory_can_create_legato_engine() -> None:
             output_folder=temp_dir,
             timeout_seconds=120,
             engine_name="legato",
+            config=WorkerModelEngineSettings.model_validate(WorkerSettings().model_dump()),
         )
 
     assert isinstance(engine, LegatoOmrEngine)
@@ -142,6 +149,7 @@ def test_engine_factories_reject_unregistered_engines() -> None:
                 output_folder=temp_dir,
                 timeout_seconds=120,
                 engine_name="unknown",
+                config=WorkerModelEngineSettings.model_validate(WorkerSettings().model_dump()),
             )
 
 
@@ -208,6 +216,7 @@ def test_legato_omr_engine_writes_musicxml_result() -> None:
             processor_path="processor",
             device="cpu",
             fp16=False,
+            config=WorkerModelEngineSettings(LEGATO_REPO_PATH="/tmp/legato"),
         )
 
         inference_result = subprocess.CompletedProcess(
@@ -286,6 +295,7 @@ def test_legato_omr_engine_merges_multi_page_musicxml() -> None:
             processor_path="processor",
             device="cpu",
             fp16=False,
+            config=WorkerModelEngineSettings(LEGATO_REPO_PATH="/tmp/legato"),
         )
 
         inference_result = subprocess.CompletedProcess(

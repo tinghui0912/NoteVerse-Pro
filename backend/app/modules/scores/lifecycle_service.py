@@ -1,11 +1,15 @@
 """Score-owned deletion admission and its post-commit latency hint."""
 
+from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService
+from collections.abc import Callable
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+
 from app.modules.scores.deletion_executor import ScoreDeletionExecutor
 from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 from app.shared.integrity import ResourceIntegrityError
 from app.core.async_trace_context import get_async_trace_context
-from app.core.request_correlation import get_request_id
+from app.platform.correlation import get_request_id
 from app.core.exceptions import ResourceNotFoundException, UnauthorizedException
 from app.core.logger import logger
 from app.db.model_utils import require_persisted_id
@@ -20,14 +24,21 @@ from app.shared.time import utc_now
 
 class ScoreLifecycleService:
     def __init__(
-        self, repository: ScoreRepository | None = None, *, deletion_executor: ScoreDeletionExecutor
+        self,
+        repository: ScoreRepository | None = None,
+        *,
+        deletion_executor: ScoreDeletionExecutor,
+        config: ScoreDeletionDeliverySettings,
+        dispatch_after_commit: Callable[[str], None],
     ) -> None:
+        self.dispatch_after_commit = dispatch_after_commit
+        self.config = config
+        self.delivery = ScoreDeletionDeliveryService(config=config)
         self.repository = repository or ScoreRepository()
         self.deletion_executor = deletion_executor
 
     def cleanup_for_account(self, db: Session, user_id: int) -> str:
         """Erase one owned graph using its existing deletion authority."""
-        from app.modules.scores.deletion_delivery import score_deletion_delivery
 
         score = db.scalar(
             select(Score).where(Score.owner_user_id == user_id).order_by(Score.id).limit(1)
@@ -47,11 +58,9 @@ class ScoreLifecycleService:
         )
         if operation is None:
             raise ResourceIntegrityError("Tombstoned Score has no deletion operation")
-        lease = score_deletion_delivery.claim(db, operation.operation_uuid)
+        lease = self.delivery.claim(db, operation.operation_uuid)
         if lease is None:
-            from app.core.config import settings
-
-            if operation.attempt_count >= settings.SCORE_DELETION_MAX_ATTEMPTS:
+            if operation.attempt_count >= self.config.SCORE_DELETION_MAX_ATTEMPTS:
                 raise ResourceIntegrityError("Owned Score deletion has exhausted retries")
             return "busy"
         db.flush()
@@ -129,11 +138,10 @@ class ScoreLifecycleService:
         except Exception:
             db.rollback()
             raise
-        from app.worker.dispatch.score_deletion import dispatch_score_deletion_best_effort
 
         for operation_uuid in operations:
             try:
-                dispatch_score_deletion_best_effort(operation_uuid)
+                self.dispatch_after_commit(operation_uuid)
             except Exception as exc:
                 logger.bind(operation_id=operation_uuid, exception_type=type(exc).__name__).warning(
                     "score_deletion.immediate_dispatch_failed"

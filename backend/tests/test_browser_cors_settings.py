@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.browser_cors import BrowserCorsSettings
+from app.platform.config.browser_cors import BrowserCorsSettings
 
 
 def test_browser_cors_settings_accept_url_array() -> None:

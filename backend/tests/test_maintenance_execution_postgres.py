@@ -100,7 +100,7 @@ def test_batch_cleanup_obeys_its_execution_transaction(maintenance, monkeypatch,
     seed_batch(engine, storage, kind)
     service, method, execute, model, key, result_key = {
         "notification": (
-            worker.notification_maintenance_service,
+            worker.get_context().deliveries.notifications,
             "run",
             worker.execute_notification_maintenance,
             Notification,
@@ -108,7 +108,7 @@ def test_batch_cleanup_obeys_its_execution_transaction(maintenance, monkeypatch,
             "expired_notifications_deleted",
         ),
         "mail": (
-            worker.mail_outbox_service,
+            worker.get_context().deliveries.mail,
             "cleanup",
             worker.execute_mail_outbox_cleanup,
             MailOutbox,
@@ -116,7 +116,7 @@ def test_batch_cleanup_obeys_its_execution_transaction(maintenance, monkeypatch,
             "deleted",
         ),
         "job": (
-            worker.build_import_maintenance_service(),
+            worker.get_context().resources.build_import_maintenance_service(),
             "run",
             worker.execute_job_maintenance,
             Upload,
@@ -125,7 +125,9 @@ def test_batch_cleanup_obeys_its_execution_transaction(maintenance, monkeypatch,
         ),
     }[kind]
     if kind == "job":
-        monkeypatch.setattr(worker, "build_import_maintenance_service", lambda: service)
+        monkeypatch.setattr(
+            worker.get_context().resources, "build_import_maintenance_service", lambda: service
+        )
     mutate = getattr(service, method)
     if outcome == "caller_rollback":
         with Session(engine) as db:
@@ -260,7 +262,12 @@ def test_derived_retention_commits_each_score_and_its_complete_release_graph(
     engine, storage, worker = maintenance
     facts = seed_derived(engine, storage)
     with Session(engine) as db:
-        assert worker.build_derived_asset_retention_service().candidate_score_ids(db) == [10, 20]
+        assert (
+            worker.get_context()
+            .resources.build_derived_asset_retention_service()
+            .candidate_score_ids(db)
+            == [10, 20]
+        )
     if stage in {"asset_deletion", "usage_release"}:
         release = storage_usage_service.record_release
 
@@ -286,7 +293,8 @@ def test_derived_retention_commits_each_score_and_its_complete_release_graph(
     if stage == "caller_rollback":
         with Session(engine) as db:
             assert (
-                worker.build_derived_asset_retention_service()
+                worker.get_context()
+                .resources.build_derived_asset_retention_service()
                 .cleanup_for_score(db, score_id=10)
                 .object_retirements_queued
                 == 2

@@ -6,6 +6,8 @@ from typing import get_type_hints
 from app.storage.base import ObjectStorage, DirectUploadTarget
 from sqlmodel import SQLModel
 import app.db.models  # noqa: F401
+from app.platform.config.storage import ObjectStorageConfig
+from app.runtime.customer_api.context import get_context
 
 ROOT = Path(__file__).parents[1] / "app"
 
@@ -34,7 +36,7 @@ def test_provider_sdk_imports_and_dependencies_have_one_boundary():
 
 
 def test_application_depends_on_storage_port_and_composition_only():
-    allowed = {"app.storage", "app.storage.base", "app.storage.factory", "app.storage.paths"}
+    allowed = {"app.storage", "app.storage.base", "app.storage.paths"}
     for directory in ("modules", "worker", "api"):
         for path in (ROOT / directory).rglob("*.py"):
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8-sig"))):
@@ -111,7 +113,16 @@ def test_capability_surface_and_write_observation():
     assert public_operations(ObjectStorage) == expected
     assert public_operations(S3CompatibleObjectStorage) == expected
     assert expected <= public_operations(InMemoryObjectStorage)
-    assert {name for name in vars(S3CompatibleObjectStorage()) if not name.startswith("_")} == {
+    assert {
+        name
+        for name in vars(
+            S3CompatibleObjectStorage(
+                config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+            )
+        )
+        if not name.startswith("_")
+    } == {
+        "config",
         "bucket",
         "endpoint_url",
         "region",

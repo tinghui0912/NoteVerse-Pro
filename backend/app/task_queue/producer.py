@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 from collections.abc import Callable
 from typing import Any
 
@@ -9,12 +10,13 @@ from opentelemetry.trace import SpanKind
 
 from app.core.background_tracing import background_attempt_span, record_current_attempt_failure
 from app.core.logger import logger
-from app.task_queue.config import celery_app
+from celery import Celery
 from app.task_queue.tracing import DurableTraceContext
 
 
 def send_durable_task(
     *,
+    sender: Celery,
     task_name: str,
     task_kwargs: dict[str, str],
     task_id: str,
@@ -41,7 +43,7 @@ def send_durable_task(
             },
         ):
             try:
-                celery_app.send_task(
+                sender.send_task(
                     task_name,
                     kwargs=task_kwargs,
                     task_id=task_id,

@@ -1,5 +1,7 @@
 """Real PostgreSQL head-writer / final-admission serialization for both derivatives."""
 
+from tests.support.runtime_resources import resources_for
+
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 
 from app.composition import storage_resources as _resource_wiring
@@ -50,6 +52,9 @@ from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import MUSICXML_2
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import deliveries
+from tests.support.worker_context import inject_worker
 
 
 @pytest.mark.parametrize("kind", ["render", "audio"])
@@ -159,7 +164,7 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                     raise
 
         monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", paused_write)
-        monkeypatch.setattr(worker, "SessionLocal", database)
+        inject_worker(monkeypatch, worker, sessions=database)
         publish = Mock()
         if kind == "render":
             svg = tmp_path / "page.svg"
@@ -174,11 +179,13 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                 "app.modules.rendering.renderer.create_score_render_engine", lambda **_: renderer
             )
             monkeypatch.setattr(
-                worker,
+                worker.get_context().resources,
                 "build_render_service",
                 lambda: render_service.ScoreRevisionRenderService(
                     usage=_resource_wiring.storage_usage_service,
-                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                    writes=resources_for(storage).build_object_write_coordinator(),
+                    delivery=deliveries().render,
+                    work_root=get_context().settings.WORK_ROOT,
                 ),
             )
             monkeypatch.setattr(worker, "_publish_revision_render_change", publish)
@@ -197,12 +204,13 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
                 soundfont_sha256="a" * 64,
             )
             monkeypatch.setattr(
-                worker,
+                worker.get_context().resources,
                 "build_playback_generation_service",
-                lambda: playback_service.PlaybackGenerationService(
+                lambda *args, **kwargs: playback_service.PlaybackGenerationService(
                     renderer=renderer,
                     usage=_resource_wiring.storage_usage_service,
-                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                    writes=resources_for(storage).build_object_write_coordinator(),
+                    delivery=deliveries().playback,
                 ),
             )
             monkeypatch.setattr(worker, "_publish_playback_change", publish)
@@ -262,9 +270,9 @@ def test_final_admission_serializes_with_current_score(monkeypatch, tmp_path, ki
             if change == "head":
                 assert execute(None, f"race-{kind}")["status"] == "ignored"
                 delivery = (
-                    worker.revision_render_delivery
+                    worker.get_context().deliveries.render
                     if kind == "render"
-                    else worker.playback_outbox_service
+                    else worker.get_context().deliveries.playback
                 )
                 assert not delivery.complete(check, f"race-{kind}", lease=lease)
                 check.commit()

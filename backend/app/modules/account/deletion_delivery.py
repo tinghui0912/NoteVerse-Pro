@@ -1,12 +1,13 @@
 """Account-owned delivery leases, successful unit continuation and retry recovery."""
 
+from app.platform.config.account_deletion import AccountDeletionSettings
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import uuid4
 from sqlalchemy import select, or_, and_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, OperationalError
-from app.core.config import settings
 from app.db.models import AccountDeletionOperation, AccountDeletionStatus as Status
 from app.modules.durable_work.delivery import (
     DeliveryAttemptLease,
@@ -33,11 +34,13 @@ class StaleAccountDeletionAttempt(RuntimeError):
 
 
 class AccountDeletionDelivery:
-    def __init__(self) -> None:
+    def __init__(self, *, config: AccountDeletionSettings) -> None:
+        self.config = config
         self.repository = AccountDeletionRepository()
 
-    @staticmethod
-    def lifecycle() -> DurableDeliveryLifecycle[Status]:
+    def lifecycle(
+        self,
+    ) -> DurableDeliveryLifecycle[Status]:
         return DurableDeliveryLifecycle(
             DeliveryStatuses(
                 Status.PENDING,
@@ -47,10 +50,10 @@ class AccountDeletionDelivery:
                 Status.COMPLETED,
             ),
             DeliveryLifecyclePolicy(
-                settings.ACCOUNT_DELETION_MAX_ATTEMPTS,
-                settings.ACCOUNT_DELETION_INTERVAL_SECONDS,
-                settings.ACCOUNT_DELETION_PROCESSING_TIMEOUT_SECONDS,
-                settings.ACCOUNT_DELETION_PROCESSING_TIMEOUT_SECONDS,
+                self.config.ACCOUNT_DELETION_MAX_ATTEMPTS,
+                self.config.ACCOUNT_DELETION_INTERVAL_SECONDS,
+                self.config.ACCOUNT_DELETION_PROCESSING_TIMEOUT_SECONDS,
+                self.config.ACCOUNT_DELETION_PROCESSING_TIMEOUT_SECONDS,
             ),
         )
 
@@ -128,7 +131,7 @@ class AccountDeletionDelivery:
         stage: str,
         classification: DurableFailureClass,
     ) -> None:
-        exhausted = row.attempt_count >= settings.ACCOUNT_DELETION_MAX_ATTEMPTS
+        exhausted = row.attempt_count >= self.config.ACCOUNT_DELETION_MAX_ATTEMPTS
         set_failure_facts(
             row,
             DurableFailure(
@@ -166,18 +169,22 @@ class AccountDeletionDelivery:
                         AccountDeletionOperation.status == Status.DISPATCHED,
                         AccountDeletionOperation.dispatched_at
                         <= now
-                        - timedelta(seconds=settings.ACCOUNT_DELETION_PROCESSING_TIMEOUT_SECONDS),
+                        - timedelta(
+                            seconds=self.config.ACCOUNT_DELETION_PROCESSING_TIMEOUT_SECONDS
+                        ),
                     ),
                     and_(
                         AccountDeletionOperation.status == Status.PROCESSING,
                         AccountDeletionOperation.started_at
                         <= now
-                        - timedelta(seconds=settings.ACCOUNT_DELETION_PROCESSING_TIMEOUT_SECONDS),
+                        - timedelta(
+                            seconds=self.config.ACCOUNT_DELETION_PROCESSING_TIMEOUT_SECONDS
+                        ),
                     ),
                 )
             )
             .order_by(AccountDeletionOperation.id)
-            .limit(settings.ACCOUNT_DELETION_BATCH_SIZE)
+            .limit(self.config.ACCOUNT_DELETION_BATCH_SIZE)
             .with_for_update(skip_locked=True)
             .execution_options(populate_existing=True)
         )
@@ -194,12 +201,10 @@ class AccountDeletionDelivery:
                     AccountDeletionOperation.status.in_([Status.PENDING, Status.FAILED]),
                     AccountDeletionOperation.failure_retryable.is_not(False),
                     AccountDeletionOperation.next_attempt_at <= now,
-                    AccountDeletionOperation.attempt_count < settings.ACCOUNT_DELETION_MAX_ATTEMPTS,
+                    AccountDeletionOperation.attempt_count
+                    < self.config.ACCOUNT_DELETION_MAX_ATTEMPTS,
                 )
                 .order_by(AccountDeletionOperation.id)
-                .limit(settings.ACCOUNT_DELETION_BATCH_SIZE)
+                .limit(self.config.ACCOUNT_DELETION_BATCH_SIZE)
             )
         )
-
-
-account_deletion_delivery = AccountDeletionDelivery()

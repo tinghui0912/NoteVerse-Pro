@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from app.composition import storage_resources as _resource_wiring
+
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+
+from tests.support.runtime_resources import resources_for
+
+
 from app.modules.practice.bundle.object_keys import (
     practice_bundle_musicxml_object_key,
     practice_bundle_artifact_object_key,
@@ -35,6 +41,8 @@ from app.db.models import User, Score, ScoreRevision
 from app.modules.practice.bundle.compiler import PracticeBundleCompiler
 from app.modules.practice.bundle.repository import PracticeBundleRepository
 from tests.support.object_storage import InMemoryObjectStorage
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.fixture
@@ -52,10 +60,9 @@ def postgres_bundle(tmp_path, request, monkeypatch):
     with admin.begin() as connection:
         connection.execute(text(f'CREATE SCHEMA "{schema}"'))
     engine = create_engine(url, connect_args={"options": f"-csearch_path={schema}"})
-    from app.composition import storage_resources
 
     monkeypatch.setattr(
-        storage_resources, "write_sessions", sessionmaker(engine, expire_on_commit=False)
+        get_context().resources, "sessions", sessionmaker(engine, expire_on_commit=False)
     )
     try:
         # DDL compilation owns a private metadata graph, independently of other test dialects.
@@ -199,7 +206,6 @@ async def test_identical_content_across_scores_shares_one_bundle_two_bindings(po
 def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted(postgres_bundle):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding
-    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
@@ -222,11 +228,22 @@ def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted(postg
         db.execute(delete(ScoreRevision).where(ScoreRevision.id == repository.test_revision_id))
         db.commit()
         assert db.get(ScoreRevisionPracticeBinding, repository.test_revision_id) is None
-        assert practice_bundle_retention.collect_unowned_ready(db) == []
+        assert (
+            PracticeBundleRetention(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ).collect_unowned_ready(db)
+            == []
+        )
         db.commit()
         db.execute(delete(ScoreRevision).where(ScoreRevision.id == second_id))
         db.commit()
-        due = practice_bundle_retention.collect_unowned_ready(db)
+        due = PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ).collect_unowned_ready(db)
         db.commit()
         assert len(due) == 2
         assert db.get(PracticeBundleRecord, ref.id) is None
@@ -235,14 +252,17 @@ def test_binding_cascade_retains_shared_bundle_until_last_revision_deleted(postg
 def test_collected_bundle_rebinds_only_through_fenced_object_adoption(postgres_bundle):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding, StoredObjectRetirement
-    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as db:
         ref, _ = bind_bundle(db, storage, bundle, revision_id=repository.test_revision_id)
         db.execute(delete(ScoreRevisionPracticeBinding))
-        due = practice_bundle_retention.retire_unowned(db, ref.id)
+        due = PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ).retire_unowned(db, ref.id)
         db.commit()
         assert len(due) == 2
         rebound, verified = bind_bundle(
@@ -258,13 +278,19 @@ def test_collected_bundle_rebinds_only_through_fenced_object_adoption(postgres_b
 
 
 def test_binding_committed_before_gc_protects_the_bundle(postgres_bundle):
-    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
     with sessions() as a, sessions() as b:
         ref, _ = bind_bundle(a, storage, bundle, revision_id=repository.test_revision_id)
-        assert practice_bundle_retention.retire_unowned(b, ref.id) == []
+        assert (
+            PracticeBundleRetention(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ).retire_unowned(b, ref.id)
+            == []
+        )
         b.commit()
         assert repository.reference(repository.read_bound(a, repository.test_revision_id)) == ref
 
@@ -289,7 +315,6 @@ def test_durable_representation_corruption_fails_closed(postgres_bundle, represe
 def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
     from sqlalchemy import delete
     from app.db.models import ScoreRevisionPracticeBinding
-    from app.modules.practice.bundle.retention import practice_bundle_retention
     from tests.test_stored_object_retirement_postgres import assert_blocked
 
     engine, repository, bundle, storage = postgres_bundle
@@ -316,7 +341,11 @@ def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
     def collect():
         with sessions() as db:
             pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-            outcome = practice_bundle_retention.retire_unowned(db, ref.id)
+            outcome = PracticeBundleRetention(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ).retire_unowned(db, ref.id)
             db.commit()
             return outcome
 
@@ -336,7 +365,14 @@ def test_binding_and_gc_serialize_on_bundle_row(postgres_bundle, winner):
                         sleep(0.01)
                     assert_blocked(engine, pid[0])
                     assert not pending.done()
-                    assert practice_bundle_retention.retire_unowned(gc, ref.id) is not None
+                    assert (
+                        PracticeBundleRetention(
+                            config=StoredObjectRetirementSettings.model_validate(
+                                get_context().settings.model_dump()
+                            )
+                        ).retire_unowned(gc, ref.id)
+                        is not None
+                    )
                 finally:
                     gc.commit()
                 rebound, verified = pending.result(10)
@@ -367,7 +403,6 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
     from datetime import timedelta
     from unittest.mock import patch
     from app.db.models import ScoreRevisionPracticeBinding
-    from app.modules.practice.bundle.retention import practice_bundle_retention
     from app.shared.time import utc_now
 
     engine, repository, bundle, storage = postgres_bundle
@@ -403,7 +438,11 @@ def test_interrupted_creation_has_durable_lease_for_orphan_cleanup(postgres_bund
         assert db.scalar(select(ScoreRevisionPracticeBinding)) is None
         row.creation_expires_at = utc_now() - timedelta(seconds=1)
         db.commit()
-        due = practice_bundle_retention.recover_stale_creating(db)
+        due = PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ).recover_stale_creating(db)
         db.commit()
         assert due == [] and db.scalar(select(PracticeBundleRecord)) is None
         assert db.scalar(select(StoredObject)) is None
@@ -420,7 +459,6 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
     from app.db.models import ScoreMembership
     from app.db.models.score_access import MembershipRole
     from app.modules.practice.bundle.service import PracticeBundleService
-    from app.modules.practice.bundle.retention import practice_bundle_retention
 
     engine, repository, bundle, storage = postgres_bundle
     sessions = sessionmaker(engine, expire_on_commit=False)
@@ -447,7 +485,13 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
             seed.commit()
 
     service = PracticeBundleService(
-        repository=repository, writes=_resource_wiring.build_object_write_coordinator(storage)
+        repository=repository,
+        writes=resources_for(storage).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
     )
     entered, release = Event(), Event()
     from app.modules.practice.bundle.content import read_verified_bundle
@@ -524,7 +568,11 @@ async def test_bound_readers_share_locks_and_fence_gc_during_verification(
                     def collect():
                         with sessions() as db:
                             collection_pid.append(db.scalar(text("SELECT pg_backend_pid()")))
-                            outcome = practice_bundle_retention.retire_unowned(db, ref.id)
+                            outcome = PracticeBundleRetention(
+                                config=StoredObjectRetirementSettings.model_validate(
+                                    get_context().settings.model_dump()
+                                )
+                            ).retire_unowned(db, ref.id)
                             db.commit()
                             return outcome
 

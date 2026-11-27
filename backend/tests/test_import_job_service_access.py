@@ -1,4 +1,4 @@
-from app.storage import object_storage as _storage_provider
+from tests.support.runtime_resources import resources_for
 
 from app.composition import storage_resources as _resource_wiring
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -16,6 +16,7 @@ from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.service import ImportJobService
 from app.shared.error_codes import CustomerErrorCode
 from pydantic import ValidationError
+from tests.support.runtime_resources import storage as _storage_provider
 
 
 def test_retry_rejects_invalid_persisted_genres_before_submission():
@@ -42,7 +43,7 @@ def _service_with_job(job: object | None) -> tuple[ImportJobService, Mock]:
     return ImportJobService(
         repository=repository,
         usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        delivery=resources_for(_storage_provider).build_media_delivery_service(),
     ), repository
 
 
@@ -156,7 +157,7 @@ def test_delete_delegates_owned_jobs_to_locked_deletion_admission(state) -> None
         repository=repository,
         deletion_service=deletion_service,
         usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        delivery=resources_for(_storage_provider).build_media_delivery_service(),
     )
     database = Mock(commit=Mock())
 

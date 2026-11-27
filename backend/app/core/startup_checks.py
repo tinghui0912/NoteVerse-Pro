@@ -2,17 +2,14 @@
 
 from pathlib import Path
 
-from app.core.config import settings
-from app.core.settings.worker_runtime import get_worker_runtime_settings
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
 from app.core.logger import logger
-from app.core.runtime_checks import RuntimeRole
+from app.platform.runtime import RuntimeRole
 
 
-def ensure_runtime_directories() -> None:
+def ensure_runtime_directories(work_root: str) -> None:
     """Create required runtime directories if they do not exist yet."""
-    for raw_path in (
-        settings.WORK_ROOT,
-    ):
+    for raw_path in (work_root,):
         path = Path(raw_path)
         if path.exists():
             continue
@@ -24,19 +21,18 @@ def ensure_runtime_directories() -> None:
         ).info("Runtime directory created")
 
 
-def log_external_tool_status(role: RuntimeRole) -> None:
+def log_external_tool_status(role: RuntimeRole, worker_settings: WorkerModelEngineSettings) -> None:
     """Log role-specific runtime tool configuration."""
     if role in {RuntimeRole.WORKER, RuntimeRole.ALL}:
-        _log_worker_tool_status()
+        _log_worker_tool_status(worker_settings)
 
 
-def _log_worker_tool_status() -> None:
+def _log_worker_tool_status(worker_settings: WorkerModelEngineSettings) -> None:
     from app.processing.engines.omr.legato_manifest import LEGATO_MODEL_REPOSITORY, OMR_ENGINE_NAME
     from app.processing.engines.render.verovio_render_profile import (
         DEFAULT_VEROVIO_RENDER_PROFILE,
     )
 
-    worker_settings = get_worker_runtime_settings()
     logger.bind(
         event="runtime.omr_engine_configured",
         engine=OMR_ENGINE_NAME,

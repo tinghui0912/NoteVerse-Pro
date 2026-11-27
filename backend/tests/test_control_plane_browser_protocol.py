@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 import pytest
 from app.core.generated import control_plane_browser_protocol as protocol
-from app.core.control_plane_settings import ControlPlaneRuntimeSettings
 from tests.support.control_plane import control_app as control_app
+from app.runtime.control_plane.settings import ControlPlaneSettings
 
 ROOT = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
 spec = importlib.util.spec_from_file_location(
@@ -36,7 +36,9 @@ def test_generated_protocol_matches_the_canonical_identity_and_composition(contr
     assert csrf.csrf_cookie_name == protocol.OPERATOR_CSRF_COOKIE_NAME
     assert csrf.csrf_header_name == protocol.OPERATOR_CSRF_HEADER_NAME
     assert csrf.api_prefix == protocol.CONTROL_PLANE_API_PREFIX
-    assert set(ControlPlaneRuntimeSettings.model_fields) == {
+    assert {
+        name for name in ControlPlaneSettings.model_fields if name.startswith("CONTROL_PLANE_")
+    } == {
         "CONTROL_PLANE_COOKIE_SECURE",
         "CONTROL_PLANE_COOKIE_SAMESITE",
         "CONTROL_PLANE_SESSION_EXPIRE_MINUTES",
@@ -107,7 +109,9 @@ def test_protocol_source_requires_strict_json(document, tmp_path):
 
 
 def test_policy_templates_describe_deployment_policy_and_topology():
-    allowed = set(ControlPlaneRuntimeSettings.model_fields)
+    allowed = {
+        name for name in ControlPlaneSettings.model_fields if name.startswith("CONTROL_PLANE_")
+    }
     for relative in [
         "backend/.env.docker.control-plane.example",
         "deploy/application/overlays/staging/control-plane-config.env",

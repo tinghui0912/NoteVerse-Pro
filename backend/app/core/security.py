@@ -7,7 +7,6 @@ import jwt
 from pwdlib import PasswordHash
 from pwdlib.exceptions import UnknownHashError
 
-from .config import settings
 from app.core.token_constants import TOKEN_ALGORITHM
 from app.shared.time import utc_now
 
@@ -21,13 +20,16 @@ def create_token(
     subject: object,
     token_type: str,
     expires_delta: timedelta | None = None,
+    *,
+    secret_key: str,
+    access_token_expire_minutes: int = 15,
 ) -> str:
     """Create a signed JWT for the given subject and token type."""
     issued_at = utc_now()
     if expires_delta:
         expire = issued_at + expires_delta
     else:
-        expire = issued_at + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = issued_at + timedelta(minutes=access_token_expire_minutes)
     to_encode = {
         "exp": expire,
         "iat": issued_at,
@@ -35,23 +37,32 @@ def create_token(
         "sub": str(subject),
         "typ": token_type,
     }
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=ALGORITHM)
     return encoded_jwt
 
 
 def create_access_token(
     subject: object,
     expires_delta: timedelta | None = None,
+    *,
+    secret_key: str,
+    access_token_expire_minutes: int = 15,
 ) -> str:
     """Create a JWT access token for the given subject."""
-    return create_token(subject, "access", expires_delta)
+    return create_token(
+        subject,
+        "access",
+        expires_delta,
+        secret_key=secret_key,
+        access_token_expire_minutes=access_token_expire_minutes,
+    )
 
 
-def decode_token(token: str) -> dict[str, object]:
+def decode_token(token: str, *, secret_key: str) -> dict[str, object]:
     """Decode and validate a signed JWT."""
 
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, secret_key, algorithms=[ALGORITHM])
         return payload
     except jwt.ExpiredSignatureError:
         raise ValueError("Token has expired")

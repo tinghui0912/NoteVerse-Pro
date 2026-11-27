@@ -1,14 +1,11 @@
 import pytest
 from pydantic import ValidationError
 from app.core.generated.control_plane_browser_protocol import CONTROL_PLANE_API_PREFIX
-
-from app.core.control_plane_settings import (
-    ControlPlaneRuntimeSettings,
-)
+from app.runtime.control_plane.settings import ControlPlaneSettings
 
 
 def test_control_plane_runtime_settings_accept_complete_operator_contract() -> None:
-    runtime_settings = ControlPlaneRuntimeSettings(
+    runtime_settings = ControlPlaneSettings(
         CONTROL_PLANE_COOKIE_SECURE=True,
         CONTROL_PLANE_COOKIE_SAMESITE="strict",
         CONTROL_PLANE_SESSION_EXPIRE_MINUTES=30,
@@ -38,7 +35,7 @@ def test_control_plane_runtime_settings_reject_invalid_operator_contract(
     values[field] = value
 
     with pytest.raises(ValidationError, match=field):
-        ControlPlaneRuntimeSettings(**values)
+        ControlPlaneSettings(**values)
 
 
 def test_control_plane_api_prefix_is_a_fixed_versioned_contract() -> None:

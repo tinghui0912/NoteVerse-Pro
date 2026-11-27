@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.worker_model_engine import WorkerModelEngineSettings
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
 from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES
 
 

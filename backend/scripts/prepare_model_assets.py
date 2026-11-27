@@ -5,9 +5,11 @@ normal API/worker startup. Worker pods consume the same node-local cache
 read-only after the model-cache DaemonSet has completed successfully.
 """
 
+from __future__ import annotations
+
+
 # ruff: noqa: E402 - bootstrap the backend import root before app imports.
 
-from __future__ import annotations
 
 import argparse
 import asyncio
@@ -153,14 +155,18 @@ def _safe_extract_tar(archive_path: Path, target_dir: Path) -> None:
             if target_root not in (member_path, *member_path.parents):
                 raise RuntimeError(f"unsafe path in PaddleOCR model archive: {member.name}")
             if member.issym() or member.islnk():
-                raise RuntimeError(f"links are not allowed in PaddleOCR model archive: {member.name}")
+                raise RuntimeError(
+                    f"links are not allowed in PaddleOCR model archive: {member.name}"
+                )
         archive.extractall(target_dir, members=members)
 
 
 def _find_inference_model_dir(root: Path) -> Path:
     if _has_required_inference_files(root):
         return root
-    candidates = [path for path in root.rglob("*") if path.is_dir() and _has_required_inference_files(path)]
+    candidates = [
+        path for path in root.rglob("*") if path.is_dir() and _has_required_inference_files(path)
+    ]
     if len(candidates) != 1:
         raise RuntimeError(
             f"expected exactly one PaddleOCR inference model directory in {root}, found {len(candidates)}"
@@ -203,7 +209,9 @@ def _prepare_paddleocr_model_asset(asset: PaddleOcrModelAsset, target: Path) -> 
         for item in model_dir.iterdir():
             shutil.move(str(item), prepared_root / item.name)
         if not _has_required_inference_files(prepared_root):
-            raise RuntimeError(f"PaddleOCR model did not contain required inference files: {asset.name}")
+            raise RuntimeError(
+                f"PaddleOCR model did not contain required inference files: {asset.name}"
+            )
         _replace_directory(prepared_root, target)
         print(f"[OK] PaddleOCR model ready: {asset.name} -> {target}")
     finally:
@@ -232,11 +240,11 @@ def prepare_soundfont(target_path: Path) -> None:
 
 
 def prepare_soundfonts() -> None:
-    from app.core.settings.worker_runtime import get_worker_runtime_settings
+    from app.runtime.cli.settings import AssetCommandSettings
 
     targets = {
         "PLAYBACK_SOUNDFONT_PATH": _require_path(
-            get_worker_runtime_settings().PLAYBACK_SOUNDFONT_PATH,
+            AssetCommandSettings().PLAYBACK_SOUNDFONT_PATH,
             "PLAYBACK_SOUNDFONT_PATH",
         ),
     }
@@ -271,19 +279,21 @@ def prepare_huggingface_snapshots(hf_home: Path, repo_ids: Sequence[str]) -> Non
 
 
 def prepare_paddleocr_models() -> None:
-    from app.core.settings.worker_runtime import get_worker_runtime_settings
+    from app.runtime.cli.settings import AssetCommandSettings
 
-    worker_settings = get_worker_runtime_settings()
+    worker_settings = AssetCommandSettings()
     model_root = _require_path(worker_settings.PADDLEOCR_MODEL_ROOT, "PADDLEOCR_MODEL_ROOT")
     _ensure_directory(model_root)
     for asset in PADDLEOCR_MODEL_ASSETS:
-        target = _require_path(getattr(worker_settings, asset.target_env_name), asset.target_env_name)
+        target = _require_path(
+            getattr(worker_settings, asset.target_env_name), asset.target_env_name
+        )
         _prepare_paddleocr_model_asset(asset, target)
     print("[OK] PaddleOCR models prepared")
 
 
 async def run_final_checks(include_sizes: bool) -> int:
-    from app.core.runtime_checks import RuntimeRole, run_runtime_checks
+    from app.runtime.checks import RuntimeRole, run_runtime_checks
 
     results = await run_runtime_checks(RuntimeRole.WORKER, include_sizes=include_sizes)
     failed = False
@@ -294,7 +304,7 @@ async def run_final_checks(include_sizes: bool) -> int:
 
 
 def run_asset_checks(include_sizes: bool) -> int:
-    from app.core.runtime_checks import (
+    from app.runtime.checks import (
         check_huggingface_models,
         check_paddleocr_models,
         check_playback_renderer,
@@ -318,10 +328,10 @@ def run_asset_checks(include_sizes: bool) -> int:
 async def main() -> int:
     args = parse_args()
 
-    from app.core.settings.worker_runtime import get_worker_runtime_settings
+    from app.runtime.cli.settings import AssetCommandSettings
     from app.processing.engines.omr.legato_manifest import HF_MODEL_REPOSITORIES
 
-    worker_settings = get_worker_runtime_settings()
+    worker_settings = AssetCommandSettings()
     model_root = _require_path(worker_settings.MODEL_ROOT, "MODEL_ROOT")
     _ensure_directory(model_root)
 

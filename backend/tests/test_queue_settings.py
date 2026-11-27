@@ -1,4 +1,4 @@
-from app.core.settings.queue import QueueSettings
+from app.platform.config.queue import QueueSettings
 
 
 def test_queue_settings_keep_redis_and_celery_connections_explicit() -> None:

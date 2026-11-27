@@ -15,8 +15,10 @@ from app.shared.error_codes import CustomerErrorCode
 from app.core.control_plane_errors import ControlPlaneErrorCode
 from app.core.logger import json_format, logger
 from app.core.middleware import LoggingMiddleware
-from app.core.request_correlation import REQUEST_ID_PATTERN, get_request_id, request_correlation_id
-from app.main import create_app
+from app.shared.request_id import REQUEST_ID_PATTERN
+from app.platform.correlation import get_request_id
+from app.core.request_correlation import request_correlation_id
+from app.runtime.customer_api.main import create_app
 from app.core.generated.customer_browser_protocol import (
     CUSTOMER_API_PREFIX,
     AUTH_COOKIE_NAME,

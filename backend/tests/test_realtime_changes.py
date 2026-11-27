@@ -9,10 +9,11 @@ import pytest
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 from app.db.models import User, RealtimeStreamState
-from app.modules.realtime.router import _format_sse
+from app.runtime.customer_api.routers.realtime.router import _format_sse
 from app.modules.realtime.replay import parse_cursor, read_page
 from app.modules.realtime.generated.transport import change_read_adapter
 from app.shared.time import utc_now
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.fixture
@@ -134,7 +135,7 @@ def test_unreplayable_cursor_resets_once_to_the_high_watermark(realtime_session,
 
 @pytest.mark.asyncio
 async def test_replay_reads_bounded_pages_in_short_off_loop_sessions(realtime_session, monkeypatch):
-    from app.modules.realtime import router
+    from app.runtime.customer_api.routers.realtime import router
 
     for recipient in (7, 8, 7, 7, 7, 7):
         change(realtime_session, recipient)
@@ -154,24 +155,29 @@ async def test_replay_reads_bounded_pages_in_short_off_loop_sessions(realtime_se
             finally:
                 closed.append(self)
 
-    monkeypatch.setattr(router, "CHANGE_BATCH_SIZE", 2)
-    monkeypatch.setattr(router, "SessionLocal", lambda: CatchupSession(bind))
-    pages = [page async for page in router._replay_pages(7, 1)]
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                settings=get_context().settings.model_copy(update={"REALTIME_EVENT_BATCH_SIZE": 2}),
+                session_factory=lambda: CatchupSession(bind),
+            )
+        )
+    )
+    pages = [page async for page in router._replay_pages(request, 7, 1)]
     assert pages[-1].cursor == 5
     assert [[change.sequence for change in page.changes] for page in pages] == [[2, 3], [4, 5], []]
     assert len(opened) == 3 and closed == opened
     assert all(thread != threading.get_ident() for thread in threads)
-    idle = [page async for page in router._replay_pages(7, 5)]
+    idle = [page async for page in router._replay_pages(request, 7, 5)]
     assert len(idle) == 1 and idle[0].changes == ()
 
 
 def test_sse_authentication_releases_its_session_before_streaming(realtime_session, monkeypatch):
     from fastapi.testclient import TestClient
-    from app.main import create_app
+    from app.runtime.customer_api.main import create_app
     from app.core.security import create_access_token
     from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
-    from app.db import session as database
-    from app.modules.realtime import router as stream_router
+    from app.runtime.customer_api.routers.realtime import router as stream_router
 
     bind = realtime_session.get_bind()
     opened, closed = [], []
@@ -195,11 +201,13 @@ def test_sse_authentication_releases_its_session_before_streaming(realtime_sessi
         assert len(opened) == 1 and closed == opened
         yield ": authenticated\n\n"
 
-    monkeypatch.setattr(database, "SessionLocal", sessions)
     monkeypatch.setattr(stream_router, "_event_stream", events)
     application = create_app()
+    application.state.session_factory = sessions
     with TestClient(application) as client:
-        client.cookies.set(AUTH_COOKIE_NAME, create_access_token("7"))
+        client.cookies.set(
+            AUTH_COOKIE_NAME, create_access_token("7", secret_key=get_context().settings.SECRET_KEY)
+        )
         response = client.get("/api/v1/realtime/events", headers={"Last-Event-ID": "12"})
     assert response.status_code == 200
     assert response.content == b": authenticated\n\n"
@@ -209,13 +217,13 @@ def test_sse_authentication_releases_its_session_before_streaming(realtime_sessi
 @pytest.mark.asyncio
 @pytest.mark.parametrize("reason", ["retention_gap", "cursor_out_of_range", "invalid_cursor"])
 async def test_resync_control_advances_cursor_then_keeps_the_same_stream_live(monkeypatch, reason):
-    from app.modules.realtime import router
+    from app.runtime.customer_api.routers.realtime import router
     from app.modules.realtime.replay import ReplayPage
     from app.modules.realtime.wakeup import RealtimeWakeupHub
 
     calls = []
 
-    def fetch(user_id, cursor):
+    def fetch(request, user_id, cursor):
         calls.append(cursor)
         if len(calls) == 1:
             return ReplayPage(42, reason=reason)
@@ -240,7 +248,10 @@ async def test_resync_control_advances_cursor_then_keeps_the_same_stream_live(mo
     stream = router._event_stream(
         SimpleNamespace(
             is_disconnected=AsyncMock(return_value=False),
-            state=SimpleNamespace(realtime_wakeup_hub=RealtimeWakeupHub(enabled=False)),
+            app=SimpleNamespace(state=SimpleNamespace(settings=get_context().settings)),
+            state=SimpleNamespace(
+                realtime_wakeup_hub=RealtimeWakeupHub(enabled=False, engine=get_context().engine)
+            ),
         ),
         7,
         0,

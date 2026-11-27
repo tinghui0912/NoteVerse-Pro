@@ -23,7 +23,7 @@ from app.shared.time import utc_now
 from .content import read_verified_bundle
 from .domain import PracticeBundle, PracticeBundleRef
 from .repository import PracticeBundleRepository
-from .retention import PracticeBundleRetention, practice_bundle_retention
+from .retention import PracticeBundleRetention
 
 BUNDLE_CREATION_LEASE_SECONDS = 15 * 60
 
@@ -33,13 +33,13 @@ class PracticeBundleWriter:
         self,
         *,
         repository: PracticeBundleRepository | None = None,
-        retention: PracticeBundleRetention | None = None,
+        retention: PracticeBundleRetention,
         writes: ObjectWriteCoordinator,
     ) -> None:
         self.writes = writes
         self.storage = writes.storage
         self.repository = repository or PracticeBundleRepository()
-        self.retention = retention or practice_bundle_retention
+        self.retention = retention
 
     def ensure_binding(
         self,

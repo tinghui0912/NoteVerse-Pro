@@ -35,18 +35,17 @@ from app.modules.import_jobs.domain import ImportJobState
 from app.modules.revisions.domain import RevisionOrigin
 from app.modules.revisions.domain import RevisionSourceFormat
 from app.modules.import_jobs.requested_options import encode_requested_options
-from app.modules.mail.outbox_service import mail_outbox_service
-from app.modules.playback.outbox_service import playback_outbox_service
-from app.modules.revisions.render_delivery import revision_render_delivery
 from app.modules.revisions.presentation_demand import RevisionPresentationSuperseded
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.storage_state import provision_storage_users
+from tests.support.runtime_resources import deliveries
+from tests.support.worker_context import inject_worker
 
 SERVICES = {
-    "render": (ScoreRevisionRenderOutbox, revision_render_delivery),
-    "playback": (PlaybackOutbox, playback_outbox_service),
-    "mail": (MailOutbox, mail_outbox_service),
+    "render": (ScoreRevisionRenderOutbox, deliveries().render),
+    "playback": (PlaybackOutbox, deliveries().playback),
+    "mail": (MailOutbox, deliveries().mail),
 }
 
 
@@ -289,7 +288,7 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
         if result == "supersede":
             raise RevisionPresentationSuperseded()
 
-    monkeypatch.setattr(module, "SessionLocal", transaction)
+    inject_worker(monkeypatch, module, sessions=transaction)
     publish = Mock()
     monkeypatch.setattr(module, "publish_score_change", publish)
     if kind == "render":
@@ -297,9 +296,9 @@ def test_stale_derivative_worker_cannot_publish_status(database, monkeypatch, ki
         execute = module.execute_score_revision_render_task
     else:
         monkeypatch.setattr(
-            module,
+            module.get_context().resources,
             "build_playback_generation_service",
-            lambda: SimpleNamespace(render_for_worker=generate),
+            lambda *args, **kwargs: SimpleNamespace(render_for_worker=generate),
         )
         execute = module.execute_playback_outbox_task
     assert execute(None, kind)["status"] == "stale"

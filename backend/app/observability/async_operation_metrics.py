@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 from collections.abc import Iterable
 
 from datetime import timedelta
@@ -9,7 +10,11 @@ from datetime import timedelta
 from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.platform.config.delivery import OpsDeliveryConfig
+from pydantic import Field
+from app.platform.config.maintenance_defaults import DEFAULT_TAKE_PROCESSING_LEASE_SECONDS
+
+
 from app.db.models import (
     ImportJob,
     MailOutbox,
@@ -29,7 +34,12 @@ from app.modules.scheduler_observability.service import scheduler_observability_
 from app.shared.time import utc_now
 
 
-def async_operation_metrics_text(db: Session) -> str:
+class MetricsConfig(OpsDeliveryConfig):
+    SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS: int = Field(default=15, gt=0)
+    TAKE_PROCESSING_LEASE_SECONDS: int = Field(default=DEFAULT_TAKE_PROCESSING_LEASE_SECONDS, gt=0)
+
+
+def async_operation_metrics_text(db: Session, *, config: MetricsConfig) -> str:
     """Return current async operation state metrics in Prometheus text format."""
 
     lines = [
@@ -78,24 +88,25 @@ def async_operation_metrics_text(db: Session) -> str:
         ),
         "# HELP noteverse_async_operation_oldest_open_age_seconds Oldest non-terminal async operation age in seconds.",
         "# TYPE noteverse_async_operation_oldest_open_age_seconds gauge",
-        *_oldest_open_age_lines(db),
+        *_oldest_open_age_lines(db, config=config),
         "# HELP noteverse_async_operation_oldest_unfinished_age_seconds Oldest unfinished operation including stopped failures.",
         "# TYPE noteverse_async_operation_oldest_unfinished_age_seconds gauge",
         *_projected_age_lines(
             db,
+            config=config,
             statuses=("queued", "dispatched", "processing", "retrying", "failed"),
             column="created_at",
             metric="noteverse_async_operation_oldest_unfinished_age_seconds",
         ),
         "# HELP noteverse_async_operations_by_status Durable operations by unified kind and status.",
         "# TYPE noteverse_async_operations_by_status gauge",
-        *_projected_status_lines(db),
+        *_projected_status_lines(db, config=config),
         "# HELP noteverse_async_operation_oldest_processing_age_seconds Oldest currently processing async operation age in seconds.",
         "# TYPE noteverse_async_operation_oldest_processing_age_seconds gauge",
-        *_oldest_processing_age_lines(db),
+        *_oldest_processing_age_lines(db, config=config),
         "# HELP noteverse_async_operation_completed_duration_average_seconds Average completed async operation duration in seconds over the last 24 hours.",
         "# TYPE noteverse_async_operation_completed_duration_average_seconds gauge",
-        *_completed_duration_average_lines(db),
+        *_completed_duration_average_lines(db, config=config),
         "# HELP noteverse_scheduler_last_success_timestamp_seconds Unix timestamp of the last successful scheduler scan.",
         "# TYPE noteverse_scheduler_last_success_timestamp_seconds gauge",
         "# HELP noteverse_scheduler_last_failure_timestamp_seconds Unix timestamp of the last failed scheduler scan.",
@@ -133,11 +144,11 @@ def async_operation_metrics_text(db: Session) -> str:
         "# TYPE noteverse_scheduler_leader_standby_total counter",
         "# HELP noteverse_scheduler_leader_child_exits_total Total unexpected Celery Beat child exits.",
         "# TYPE noteverse_scheduler_leader_child_exits_total counter",
-        *_scheduler_leader_lines(db),
+        *_scheduler_leader_lines(db, config=config),
         "# HELP noteverse_scheduler_lag_seconds Oldest due record delay before scheduler dispatch by async operation kind.",
         "# TYPE noteverse_scheduler_lag_seconds gauge",
-        *_scheduler_lag_lines(db),
-        *_media_resource_lines(db),
+        *_scheduler_lag_lines(db, config=config),
+        *_media_resource_lines(db, config=config),
     ]
     return "\n".join(lines) + "\n"
 
@@ -190,18 +201,20 @@ def _escape_label_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace("\n", "\\n").replace('"', '\\"')
 
 
-def _oldest_open_age_lines(db: Session) -> list[str]:
+def _oldest_open_age_lines(db: Session, *, config: MetricsConfig) -> list[str]:
     return _projected_age_lines(
         db,
+        config=config,
         statuses=("queued", "dispatched", "processing", "retrying"),
         column="created_at",
         metric="noteverse_async_operation_oldest_open_age_seconds",
     )
 
 
-def _oldest_processing_age_lines(db: Session) -> list[str]:
+def _oldest_processing_age_lines(db: Session, *, config: MetricsConfig) -> list[str]:
     return _projected_age_lines(
         db,
+        config=config,
         statuses=("processing",),
         column="started_at",
         metric="noteverse_async_operation_oldest_processing_age_seconds",
@@ -209,9 +222,9 @@ def _oldest_processing_age_lines(db: Session) -> list[str]:
 
 
 def _projected_age_lines(
-    db: Session, *, statuses: tuple[str, ...], column: str, metric: str
+    db: Session, *, statuses: tuple[str, ...], column: str, metric: str, config: MetricsConfig
 ) -> list[str]:
-    c = operation_projection().c
+    c = operation_projection(config=config).c
     rows = dict(
         db.execute(
             select(c.kind, func.min(c[column])).where(c.status.in_(statuses)).group_by(c.kind)
@@ -231,15 +244,15 @@ def _projected_age_lines(
     ]
 
 
-def _completed_duration_average_lines(db: Session) -> list[str]:
-    c = operation_projection().c
+def _completed_duration_average_lines(db: Session, *, config: MetricsConfig) -> list[str]:
+    c = operation_projection(config=config).c
     start = case(
         (c.kind.in_(("account_deletion", "stored_object_retirement")), c.created_at),
         else_=c.started_at,
     )
     rows = dict(
         db.execute(
-            select(c.kind, func.avg(_duration_seconds(start, c.completed_at)))
+            select(c.kind, func.avg(_duration_seconds(db, start, c.completed_at)))
             .where(
                 c.status == "succeeded",
                 start.is_not(None),
@@ -384,7 +397,7 @@ def _scheduler_heartbeat_lines(db: Session) -> list[str]:
     return lines
 
 
-def _scheduler_leader_lines(db: Session) -> list[str]:
+def _scheduler_leader_lines(db: Session, *, config: MetricsConfig) -> list[str]:
     status = db.get(SchedulerLeaderStatus, BEAT_LEADER_SCHEDULER_NAME)
     if status is None:
         return [
@@ -401,7 +414,7 @@ def _scheduler_leader_lines(db: Session) -> list[str]:
     active = int(
         heartbeat_timestamp > 0
         and utc_now().timestamp() - heartbeat_timestamp
-        <= settings.SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS * 2
+        <= config.SCHEDULER_LEADER_HEARTBEAT_INTERVAL_SECONDS * 2
     )
     return [
         _metric_line(
@@ -421,8 +434,8 @@ def _scheduler_leader_lines(db: Session) -> list[str]:
     ]
 
 
-def _projected_status_lines(db: Session) -> list[str]:
-    c = operation_projection().c
+def _projected_status_lines(db: Session, *, config: MetricsConfig) -> list[str]:
+    c = operation_projection(config=config).c
     rows = db.execute(select(c.kind, c.status, func.count()).group_by(c.kind, c.status)).all()
     from app.modules.ops.schemas import AsyncOperationStatus
 
@@ -439,8 +452,8 @@ def _projected_status_lines(db: Session) -> list[str]:
     ]
 
 
-def _scheduler_lag_lines(db: Session) -> list[str]:
-    c = operation_projection().c
+def _scheduler_lag_lines(db: Session, *, config: MetricsConfig) -> list[str]:
+    c = operation_projection(config=config).c
     now = utc_now()
     rows = dict(
         db.execute(
@@ -465,13 +478,13 @@ def _scheduler_lag_lines(db: Session) -> list[str]:
     ]
 
 
-def _duration_seconds(start_column, end_column):
-    if settings.DATABASE_URL.startswith("sqlite"):
+def _duration_seconds(db: Session, start_column, end_column):
+    if db.get_bind().dialect.name == "sqlite":
         return (func.julianday(end_column) - func.julianday(start_column)) * 86400
     return func.extract("epoch", end_column - start_column)
 
 
-def _media_resource_lines(db: Session) -> list[str]:
+def _media_resource_lines(db: Session, *, config: MetricsConfig) -> list[str]:
     """Aggregate physical responsibility without exporting identities or locators."""
     from app.modules.media_storage.domain import ObjectWriteIntentStatus as Write
     from app.modules.media_storage.upload_sessions.domain import ACTIVE_STATUSES
@@ -508,7 +521,7 @@ def _media_resource_lines(db: Session) -> list[str]:
             (TakeProcessingOutbox.status == Take.PROCESSING)
             & (
                 TakeProcessingOutbox.started_at
-                <= now - timedelta(seconds=settings.TAKE_PROCESSING_LEASE_SECONDS)
+                <= now - timedelta(seconds=config.TAKE_PROCESSING_LEASE_SECONDS)
             ),
         ),
         ("upload_active", UploadSession.created_at, UploadSession.status.in_(ACTIVE_STATUSES)),

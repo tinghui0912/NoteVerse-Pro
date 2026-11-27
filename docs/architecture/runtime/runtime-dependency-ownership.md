@@ -22,6 +22,7 @@ changes rather than ordinary build side effects.
 | `cache` | Redis and shared configuration |
 | `celery` | Task dispatch and cache/configuration |
 | `tracing` | OpenTelemetry SDK and OTLP gRPC exporter |
+| `metrics` | Prometheus metric primitives |
 | `http` | FastAPI, Uvicorn, metrics/instrumentation |
 | `auth` | JWT and password hashing |
 | `storage` | Object storage clients |
@@ -39,8 +40,8 @@ Nested `include-group` entries compose responsibilities without copying roots.
 | Group | Composition |
 | --- | --- |
 | `api` | HTTP, DB/migrations, storage, dispatch, auth, image, fingering |
-| `beat` | Celery/shared settings and PostgreSQL advisory-lock driver |
-| `worker-app` | DB, storage, Celery, image, render, tracing |
+| `beat` | Celery, DB factories and PostgreSQL advisory locks |
+| `worker-app` | DB, storage, Celery, image, render, tracing, metrics and password/token libraries |
 | `worker` | Worker application, OCR, Torch, CPU Paddle, Legato execution libraries |
 | `quality` | API, Beat, render, quality tools; no heavy Worker stack |
 | `dev` | Default developer environment; includes Quality |
@@ -112,7 +113,7 @@ The offline checker runs `uv pip check --python <active-interpreter>`. API check
 all shipped composition roots and migration modules. Beat checks scheduler
 imports and heavy-dependency isolation. Worker-deps checks bounded OTLP/Paddle/
 PaddleOCR/PaddleX imports. Final Worker delegates canonical 16-task registration
-to `app.core.runtime_checks.check_celery_tasks()` and imports Verovio/OCR without
+to `app.runtime.checks.check_celery_tasks()` and imports Verovio/OCR without
 initializing models.
 
 Checks require no database, Redis, S3, model cache, GPU, production secrets or

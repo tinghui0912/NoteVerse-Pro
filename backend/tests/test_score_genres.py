@@ -1,8 +1,7 @@
+from tests.support.runtime_resources import resources_for
 from tests.support.uploads import settled_upload_session
-from app.storage import object_storage as _storage_provider
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 from uuid import uuid4
 
 import pytest
@@ -33,6 +32,7 @@ from tests.test_score_revision_services import (
     add_active_score_with_head_revision,
     score_service_session as score_service_session,
 )
+from tests.support.runtime_resources import storage as _storage_provider
 
 
 @pytest.fixture
@@ -106,8 +106,8 @@ def test_score_genres_replace_clear_and_preserve_with_version_checks(genre_sessi
     )
     db = session
     service = ScoreService(
-        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        lifecycle_service=resources_for().build_score_lifecycle_service(),
+        delivery=resources_for(storage).build_media_delivery_service(),
     )
     for patch, expected in [
         ({"genres": list(reversed(ScoreGenre))}, list(ScoreGenre)),
@@ -219,16 +219,17 @@ def test_import_review_score_and_library_share_score_genres(
     db = session
     review = ImportReviewService(
         quota=_resource_wiring.storage_quota_service,
-        revision_writer=_media_wiring.build_revision_writer(),
-        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        revision_writer=resources_for().build_revision_writer(),
+        input_assets=resources_for().build_input_asset_lifecycle(),
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        post_commit=resources_for().post_commit,
     )
     assert (review.detail(db, job.job_uuid, 1)).genres == ordered_unique_genres(requested)
     assert (
         ImportJobService(
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         ).detail(db, job.job_uuid, 1)
     ).genres == ordered_unique_genres(requested)
     values = {"content": MUSICXML_1.decode()}
@@ -240,8 +241,8 @@ def test_import_review_score_and_library_share_score_genres(
     assert all(type(code) is str for code in score.genres)
     assert (
         ScoreService(
-            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-            delivery=_resource_wiring.build_media_delivery_service(storage),
+            lifecycle_service=resources_for().build_score_lifecycle_service(),
+            delivery=resources_for(storage).build_media_delivery_service(),
         ).get(db, score.score_uuid, 1)
     ).genres == expected
     entries, total = LibraryService().list_scores(

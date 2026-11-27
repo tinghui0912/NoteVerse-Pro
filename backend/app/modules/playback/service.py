@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from app.modules.storage_governance.usage.service import StorageUsageService
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 from app.modules.score_access.queries import active_score_predicate
@@ -29,7 +30,7 @@ from app.modules.playback.asset_records import (
     playback_audio_object_key,
 )
 from app.modules.playback.execution_manifest import build_playback_execution_manifest
-from app.modules.playback.outbox_service import playback_outbox_service
+from app.modules.playback.outbox_service import PlaybackOutboxService
 from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.processing.engines.playback import FluidSynthAudioRenderer
 from app.modules.score_assets.repository import ScoreAssetRepository
@@ -43,16 +44,18 @@ class PlaybackGenerationService:
 
     def __init__(
         self,
-        renderer: FluidSynthAudioRenderer | None = None,
+        renderer: FluidSynthAudioRenderer,
         asset_repository: ScoreAssetRepository | None = None,
         *,
         usage: StorageUsageService,
         writes: ObjectWriteCoordinator,
+        delivery: PlaybackOutboxService,
     ) -> None:
+        self.delivery = delivery
         self.usage = usage
         self.writes = writes
         self.storage = writes.storage
-        self.renderer = renderer or FluidSynthAudioRenderer()
+        self.renderer = renderer
         self.asset_repository = asset_repository or ScoreAssetRepository()
 
     def render(
@@ -279,7 +282,7 @@ class PlaybackGenerationService:
             .with_for_update()
             .execution_options(populate_existing=True)
         ).scalar_one_or_none()
-        playback_outbox_service.require_attempt(
+        self.delivery.require_attempt(
             db,
             outbox_uuid=outbox_uuid,
             lease=lease,
@@ -339,7 +342,7 @@ class PlaybackGenerationService:
                 )
             if previous is not None:
                 retire_after_release(db, previous.stored_object_id)
-            if not playback_outbox_service.complete(db, outbox_uuid, lease=lease):
+            if not self.delivery.complete(db, outbox_uuid, lease=lease):
                 raise StaleDeliveryAttempt("Playback completion lost execution ownership")
             db.flush()
         except Exception:

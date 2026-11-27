@@ -9,7 +9,7 @@ from app.modules.collaboration.read_model import CollaborationReadModel
 from app.modules.collaboration.repository import CollaborationRepository
 from app.modules.score_access import roles
 from app.modules.mail.templates.score_invites import invite_role_label
-from app.main import app
+from app.runtime.customer_api.main import app
 
 ROOT = Path(__file__).parents[1] / "app/modules"
 

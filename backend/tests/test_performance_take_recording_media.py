@@ -12,18 +12,18 @@ from tests.support.recording_media import SIGNATURE_HEADERS
 import pytest
 from sqlalchemy import select
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import ValidationException
 from app.db.models import PerformanceTake, PerformanceTakeManifest, PerformanceTakeUploadReservation
-from app.main import app
-from app.api.resource_dependencies import (
+from app.runtime.customer_api.main import app
+from app.runtime.customer_api.resources import (
     get_performance_take_service,
     get_performance_take_reservation_service,
     get_performance_take_finalization_service,
 )
 from app.modules.storage_governance.usage.service import StorageUsageService
-from app.api.resource_dependencies import get_storage_usage_service
-from app.storage.factory import get_object_storage
+from app.runtime.customer_api.resources import get_storage_usage_service
 from app.storage.base import ObjectMetadata
 from tests.support.take_fixtures import (
     PerformanceTakeTestClient,
@@ -52,7 +52,6 @@ def recording_client(test_env):
         {
             get_db: db,
             get_current_user: lambda: user,
-            get_object_storage: lambda: storage,
             get_storage_usage_service: lambda: usage,
             get_performance_take_service: lambda: service.takes,
             get_performance_take_reservation_service: lambda: service,

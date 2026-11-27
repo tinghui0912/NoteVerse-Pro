@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from app.core.config import settings
-from app.core.settings.worker_runtime import get_worker_runtime_settings
 from .profile import DEFAULT_PLAYBACK_PROFILE, PlaybackProfile
 from .soundfont import soundfont_sha256
 
@@ -31,18 +30,20 @@ class FluidSynthAudioSynthesizer:
     def __init__(
         self,
         *,
-        soundfont_path: str | None = None,
+        soundfont_path: str,
+        work_root: str,
         profile: PlaybackProfile = DEFAULT_PLAYBACK_PROFILE,
     ) -> None:
-        self.soundfont_path = soundfont_path or get_worker_runtime_settings().PLAYBACK_SOUNDFONT_PATH
+        self.soundfont_path = soundfont_path
+        self.work_root = work_root
         self.profile = profile
 
     def synthesize(self, midi: bytes) -> SynthesizedAudio:
         soundfont = self._soundfont()
         resolved_soundfont_sha256 = soundfont_sha256(soundfont)
 
-        Path(settings.WORK_ROOT).mkdir(parents=True, exist_ok=True)
-        with TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
+        Path(self.work_root).mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(dir=self.work_root) as work_dir:
             midi_path = Path(work_dir) / "score.mid"
             wav_path = Path(work_dir) / "score.wav"
             midi_path.write_bytes(midi)

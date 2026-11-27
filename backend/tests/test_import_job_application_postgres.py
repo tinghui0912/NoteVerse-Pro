@@ -1,11 +1,11 @@
 """Real Session Import HTTP admission, bulk projection and idempotency."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import settled_upload_session
 
-from app.storage import object_storage as _storage_provider
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 from app.modules.import_jobs.requested_options import encode_requested_options
 
@@ -30,7 +30,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import ResourceNotFoundException
 from app.db.execution_manifests import manifest_sha256
 from app.db.models import (
@@ -48,13 +49,15 @@ from app.db.models import (
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.import_jobs.domain import ImportJobState
 from app.composition.storage_resources import storage_usage_service
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.import_jobs.domain import ImportArtifactKind
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.import_jobs.service import ImportJobService
 from app.modules.import_jobs.submission_service import ImportJobSubmissionService
 from app.shared.error_codes import CustomerErrorCode
 from tests.support.postgres_schema import postgres_schema_database
+from tests.support.runtime_resources import storage as _storage_provider
+
 
 NOW = datetime(2026, 11, 13, 1, 2, 3, 456789, tzinfo=UTC)
 MANIFEST = {"schema_version": 1, "kind": "omr", "engine": "legato"}
@@ -216,7 +219,7 @@ def test_list_and_detail_share_the_complete_current_projection(application_db):
     complete_jobs(db)
     service = ImportJobService(
         usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        delivery=resources_for(_storage_provider).build_media_delivery_service(),
     )
     detail = service.detail(db, "complete-0", 1)
     rows, total = service.list_jobs(db, 1, page=1, page_size=20)
@@ -259,7 +262,7 @@ def test_list_projection_query_count_is_bounded_for_one_and_fifty_jobs(applicati
     try:
         service = ImportJobService(
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         )
         one, total = service.list_jobs(db, 1, page=1, page_size=1)
         first_count = len(calls)
@@ -281,7 +284,7 @@ def test_read_model_requires_valid_durable_requested_options(application_db):
     with pytest.raises(ValidationError):
         ImportJobService(
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         ).detail(db, job.job_uuid, 1)
 
 
@@ -507,7 +510,7 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
                 return ImportJobService(
                     deletion_service=WaitingDeletion(usage=_resource_wiring.storage_usage_service),
                     usage=_resource_wiring.storage_usage_service,
-                    delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                    delivery=resources_for(_storage_provider).build_media_delivery_service(),
                 ).delete(request_db, job_uuid, 1)
 
         request = asyncio.create_task(asyncio.to_thread(delete))
@@ -515,10 +518,11 @@ async def test_review_confirmation_wins_over_stale_customer_delete_and_retains_p
         try:
             review = ImportReviewService(
                 quota=_resource_wiring.storage_quota_service,
-                revision_writer=_media_wiring.build_revision_writer(),
-                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                revision_writer=resources_for().build_revision_writer(),
+                input_assets=resources_for().build_input_asset_lifecycle(),
                 usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
+                writes=resources_for(storage).build_object_write_coordinator(),
+                post_commit=resources_for().post_commit,
             )
             confirmed = review.confirm(
                 confirming, job.job_uuid, 1, ReviewConfirmRequest(content=MUSICXML_1.decode())
@@ -617,7 +621,7 @@ def test_retry_decodes_intent_and_encodes_a_new_durable_payload(application_db, 
     monkeypatch.setattr(submission_service, "encode_requested_options", encoder)
     result = ImportJobService(
         usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+        delivery=resources_for(_storage_provider).build_media_delivery_service(),
     ).retry(db, original.job_uuid, db.get(User, 1), 1)
     encoder.assert_called_once()
     intent = encoder.call_args.args[0]

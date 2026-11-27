@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME, CSRF_COOKIE_NAME
 
 from collections.abc import Generator
 
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_db
-from app.main import app
-from app.api.resource_dependencies import get_guest_preview_service
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.main import app
+from app.runtime.customer_api.resources import get_guest_preview_service
 from app.shared.error_codes import CustomerErrorCode
 from app.core.generated.control_plane_browser_protocol import (
     OPERATOR_AUTH_COOKIE_NAME,
@@ -16,6 +17,7 @@ from app.core.generated.control_plane_browser_protocol import (
 )
 from app.core.control_plane_errors import ControlPlaneErrorResponse
 from app.shared.responses import ApiErrorResponse
+from app.runtime.control_plane.context import get_context as get_control_context
 
 
 def _assert_public_error_payload(payload: dict, expected_code: str) -> None:
@@ -100,10 +102,9 @@ def test_control_plane_errors_do_not_expose_internal_details_before_authorizatio
     monkeypatch.setenv("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
     monkeypatch.setenv("CONTROL_PLANE_CORS_ORIGINS", '["http://testserver"]')
 
-    from app.control_plane_main import create_app
-    from app.core.control_plane_settings import get_control_plane_runtime_settings
+    from app.runtime.control_plane.main import create_app
 
-    get_control_plane_runtime_settings.cache_clear()
+    get_control_context.cache_clear()
 
     try:
         with TestClient(create_app()) as control_client:
@@ -115,7 +116,7 @@ def test_control_plane_errors_do_not_expose_internal_details_before_authorizatio
                 headers={"X-Request-ID": "ops-csrf-contract"},
             )
     finally:
-        get_control_plane_runtime_settings.cache_clear()
+        get_control_context.cache_clear()
 
     assert response.status_code == 403
     payload = response.json()

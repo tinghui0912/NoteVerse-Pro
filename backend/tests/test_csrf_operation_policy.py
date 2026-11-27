@@ -1,5 +1,7 @@
 """CSRF admission follows actual matched operations and explicit application policy."""
 
+from app.runtime.customer_api.context import get_context
+
 from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
 
 import ast
@@ -22,7 +24,7 @@ from app.api.customer_security import (
     CUSTOMER_CSRF_EXEMPT_OPERATION_IDS,
     customer_csrf_exempt_operation,
 )
-from app.api.deps import get_db
+from app.platform.db.dependencies import get_db
 from app.core.generated.customer_browser_protocol import (
     AUTH_COOKIE_NAME,
     REFRESH_COOKIE_NAME,
@@ -31,16 +33,16 @@ from app.core.generated.customer_browser_protocol import (
     CUSTOMER_API_PREFIX,
 )
 from app.core.middleware import CookieCsrfSettings, CsrfProtectionMiddleware
-from app.main import _csrf_settings, create_app
+from app.runtime.customer_api.main import _csrf_settings, create_app
 from app.modules.auth.service import LoginResult
 from app.modules.account.schemas import ProfileUserRead
-from app.modules.auth.dependencies import (
+from app.runtime.customer_api.auth_services import (
     get_auth_service,
     get_email_change_service,
     get_password_reset_service,
     get_session_service,
 )
-from app.api.resource_dependencies import get_email_verification_service
+from app.runtime.customer_api.resources import get_email_verification_service
 
 
 @pytest.fixture
@@ -173,7 +175,9 @@ def admitted():
 def security_app():
     app = HttpApplication()
     app.add_middleware(
-        CsrfProtectionMiddleware, csrf_settings=_csrf_settings(), **CUSTOMER_HTTP_ERRORS
+        CsrfProtectionMiddleware,
+        csrf_settings=_csrf_settings(get_context().settings),
+        **CUSTOMER_HTTP_ERRORS,
     )
     return app
 
@@ -238,7 +242,7 @@ def test_only_a_full_match_to_an_explicit_exempt_operation_skips_csrf(case):
 
 
 def test_customer_security_composition_supplies_a_semantic_operation_policy():
-    assert _csrf_settings().exempt_operation is customer_csrf_exempt_operation
+    assert _csrf_settings(get_context().settings).exempt_operation is customer_csrf_exempt_operation
     assert {name for name, _, _ in PUBLIC_COMMANDS} == CUSTOMER_CSRF_EXEMPT_OPERATION_IDS
     routes = {
         route.operation_id: route

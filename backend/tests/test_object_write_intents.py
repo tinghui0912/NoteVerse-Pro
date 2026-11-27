@@ -1,8 +1,9 @@
 """Unadopted bytes retain durable ownership across write and adoption crash windows."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import settled_upload_session
 
-from app.composition import storage_resources as _resource_wiring
 from tests.support.media_writes import persist_prepared_bytes
 
 from app.modules.media_storage.domain import ObjectWriteIntentStatus
@@ -21,16 +22,19 @@ from app.modules.media_storage.persistence import object_from_bytes
 from app.modules.media_storage.write_intents import prepare_write, lock_intent
 
 from app.modules.media_storage.adoption import adopt_written_object
-from app.modules.media_storage.write_cleanup import write_cleanup_delivery
 from app.shared.time import utc_now
 from app.worker.execution import object_write_cleanup as worker
 from tests.test_stored_object_retirement import retirement_db as retirement_db
+from tests.support.runtime_resources import deliveries
+from tests.support.worker_context import inject_worker
+from app.platform.config.object_writes import ObjectWriteSettings
+from app.runtime.customer_api.context import get_context
 
 
 def wire(fixture, monkeypatch):
     engine, storage, transaction = fixture
-    monkeypatch.setattr(worker, "SessionLocal", transaction)
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, sessions=transaction)
+    inject_worker(monkeypatch, worker, storage=storage)
     return engine, storage, transaction
 
 
@@ -45,7 +49,7 @@ def expire(transaction, uuid):
         row = lock_intent(db, uuid)
         row.write_expires_at = utc_now() - timedelta(seconds=1)
     with transaction() as db:
-        assert write_cleanup_delivery.recover_and_list_due(db) == [uuid]
+        assert deliveries().write_cleanup.recover_and_list_due(db) == [uuid]
 
 
 def test_prepare_is_committed_before_put_and_returned_facts_are_verified(
@@ -63,8 +67,10 @@ def test_prepare_is_committed_before_put_and_returned_facts_are_verified(
 
     monkeypatch.setattr(storage, "put_bytes", writing)
     with Session(engine) as db:
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=facts().object_key, content=b"bytes"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=facts().object_key, content=b"bytes")
         )
         assert lock_intent(db, receipt.intent_uuid).status is ObjectWriteIntentStatus.WRITTEN
         assert db.scalar(select(StoredObject)) is None
@@ -90,7 +96,11 @@ def test_prepare_is_committed_before_put_and_returned_facts_are_verified(
 def test_crash_windows_are_cleanup_owned(retirement_db, monkeypatch, phase):
     engine, storage, transaction = wire(retirement_db, monkeypatch)
     with Session(engine) as db:
-        receipt = prepare_write(db, facts())
+        receipt = prepare_write(
+            db,
+            facts(),
+            config=ObjectWriteSettings.model_validate(get_context().settings.model_dump()),
+        )
         db.commit()
         if phase == "put_before_written":
             storage.put_bytes(key=receipt.object_key, content=b"bytes")
@@ -123,11 +133,26 @@ def test_crash_windows_are_cleanup_owned(retirement_db, monkeypatch, phase):
 def test_same_key_exact_reuse_conflict_and_generation_fence(retirement_db, monkeypatch):
     engine, storage, transaction = wire(retirement_db, monkeypatch)
     with Session(engine) as db:
-        first = prepare_write(db, facts())
+        first = prepare_write(
+            db,
+            facts(),
+            config=ObjectWriteSettings.model_validate(get_context().settings.model_dump()),
+        )
         db.commit()
-        assert prepare_write(db, facts()) == first
+        assert (
+            prepare_write(
+                db,
+                facts(),
+                config=ObjectWriteSettings.model_validate(get_context().settings.model_dump()),
+            )
+            == first
+        )
         with pytest.raises(ValueError, match="conflicting"):
-            prepare_write(db, replace(facts(), sha256="f" * 64))
+            prepare_write(
+                db,
+                replace(facts(), sha256="f" * 64),
+                config=ObjectWriteSettings.model_validate(get_context().settings.model_dump()),
+            )
             db.commit()
         db.rollback()
         with pytest.raises(ValueError, match=ObjectWriteIntentStatus.WRITTEN):
@@ -136,7 +161,11 @@ def test_same_key_exact_reuse_conflict_and_generation_fence(retirement_db, monke
     expire(transaction, first.intent_uuid)
     assert worker.execute_object_write_cleanup_task(None, first.intent_uuid)["status"] == "cleaned"
     with Session(engine) as db:
-        current = prepare_write(db, facts())
+        current = prepare_write(
+            db,
+            facts(),
+            config=ObjectWriteSettings.model_validate(get_context().settings.model_dump()),
+        )
         db.commit()
         assert current.intent_uuid == first.intent_uuid and current.write_token != first.write_token
         with pytest.raises(ValueError, match="Stale"):
@@ -149,8 +178,10 @@ def test_same_key_exact_reuse_conflict_and_generation_fence(retirement_db, monke
 def test_cleanup_obeys_committed_physical_authority(retirement_db, monkeypatch, conflict):
     engine, storage, transaction = wire(retirement_db, monkeypatch)
     with Session(engine) as db:
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=facts().object_key, content=b"bytes"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=facts().object_key, content=b"bytes")
         )
         obj = object_from_bytes(
             object_key=receipt.object_key,
@@ -171,8 +202,10 @@ def test_cleanup_obeys_committed_physical_authority(retirement_db, monkeypatch, 
 def test_delete_failure_and_uncertain_completion_retry_idempotently(retirement_db, monkeypatch):
     engine, storage, transaction = wire(retirement_db, monkeypatch)
     with Session(engine) as db:
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=facts().object_key, content=b"bytes"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=facts().object_key, content=b"bytes")
         )
     expire(transaction, receipt.intent_uuid)
     delete = storage.delete
@@ -196,10 +229,10 @@ def test_delete_failure_and_uncertain_completion_retry_idempotently(retirement_d
     def uncertain():
         return UncertainSession(engine)
 
-    monkeypatch.setattr(worker, "SessionLocal", uncertain)
+    inject_worker(monkeypatch, worker, sessions=uncertain)
     assert worker.execute_object_write_cleanup_task(None, receipt.intent_uuid)["status"] == "failed"
     assert not storage.exists(receipt.object_key)
-    monkeypatch.setattr(worker, "SessionLocal", transaction)
+    inject_worker(monkeypatch, worker, sessions=transaction)
     with transaction() as db:
         lock_intent(db, receipt.intent_uuid).next_attempt_at = utc_now()
     assert (
@@ -210,7 +243,7 @@ def test_delete_failure_and_uncertain_completion_retry_idempotently(retirement_d
 def test_existing_object_is_not_rewritten_and_adoption_rollback_does_not_cancel_retirement(
     retirement_db, monkeypatch
 ):
-    from app.modules.media_storage.retirement import retire_after_release, retirement_delivery
+    from app.modules.media_storage.retirement import retire_after_release
 
     engine, storage, transaction = wire(retirement_db, monkeypatch)
     with transaction() as db:
@@ -223,14 +256,16 @@ def test_existing_object_is_not_rewritten_and_adoption_rollback_does_not_cancel_
     put = Mock(wraps=storage.put_bytes)
     monkeypatch.setattr(storage, "put_bytes", put)
     with Session(engine) as db:
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=facts().object_key, content=b"bytes"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=facts().object_key, content=b"bytes")
         )
-        assert retirement_delivery.get(db, uuid).status == "PENDING"
+        assert deliveries().retirement.get(db, uuid).status == "PENDING"
         adopt_written_object(db, receipt)
-        assert retirement_delivery.get(db, uuid).status == "CANCELLED"
+        assert deliveries().retirement.get(db, uuid).status == "CANCELLED"
         db.rollback()
-        assert retirement_delivery.get(db, uuid).status == "PENDING"
+        assert deliveries().retirement.get(db, uuid).status == "PENDING"
     assert put.call_count == 0
 
 
@@ -251,7 +286,7 @@ def test_incorrect_storage_write_result_is_cleanup_owned(retirement_db, monkeypa
     monkeypatch.setattr(storage, "put_bytes", incorrect)
     with Session(engine) as db:
         with pytest.raises(ValueError, match="result disagrees"):
-            _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+            resources_for(storage).build_object_write_coordinator().write_bytes(
                 key=facts().object_key, content=b"bytes"
             )
         row = db.scalar(select(ObjectWriteIntent))
@@ -267,35 +302,39 @@ def test_incorrect_storage_write_result_is_cleanup_owned(retirement_db, monkeypa
 def test_cleanup_generation_takeover_rejects_stale_failure(retirement_db, monkeypatch):
     engine, storage, transaction = wire(retirement_db, monkeypatch)
     with Session(engine) as db:
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=facts().object_key, content=b"bytes"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=facts().object_key, content=b"bytes")
         )
     expire(transaction, receipt.intent_uuid)
     with transaction() as db:
-        old = write_cleanup_delivery.claim(db, receipt.intent_uuid)
+        old = deliveries().write_cleanup.claim(db, receipt.intent_uuid)
     with transaction() as db:
         row = lock_intent(db, receipt.intent_uuid)
         from app.modules.media_storage.write_lifecycle import cleanup_lifecycle
 
         row.started_at = utc_now() - timedelta(
-            seconds=cleanup_lifecycle().policy.processing_timeout_seconds
+            seconds=cleanup_lifecycle(
+                config=ObjectWriteSettings.model_validate(get_context().settings.model_dump())
+            ).policy.processing_timeout_seconds
         )
     with transaction() as db:
-        assert write_cleanup_delivery.recover_and_list_due(db) == [receipt.intent_uuid]
+        assert deliveries().write_cleanup.recover_and_list_due(db) == [receipt.intent_uuid]
     with transaction() as db:
-        current = write_cleanup_delivery.claim(db, receipt.intent_uuid)
+        current = deliveries().write_cleanup.claim(db, receipt.intent_uuid)
         assert current.attempt == old.attempt + 1 and current.token != old.token
-        write_cleanup_delivery.fail(db, old, "stale")
+        deliveries().write_cleanup.fail(db, old, "stale")
         assert (
             lock_intent(db, receipt.intent_uuid).status
             is ObjectWriteIntentStatus.CLEANUP_PROCESSING
         )
-    monkeypatch.setattr(write_cleanup_delivery, "claim", lambda *_: old)
+    monkeypatch.setattr(deliveries().write_cleanup, "claim", lambda *_: old)
     assert (
         worker.execute_object_write_cleanup_task(None, receipt.intent_uuid)["status"] == "ignored"
     )
     assert storage.exists(receipt.object_key)
-    monkeypatch.setattr(write_cleanup_delivery, "claim", lambda *_: current)
+    monkeypatch.setattr(deliveries().write_cleanup, "claim", lambda *_: current)
     assert (
         worker.execute_object_write_cleanup_task(None, receipt.intent_uuid)["status"] == "cleaned"
     )
@@ -317,8 +356,10 @@ def test_retired_existing_authority_cannot_be_recreated_by_an_unwritten_receipt(
         uuid = retire_after_release(db, obj.id)[0]
     storage.put_bytes(key=facts().object_key, content=b"bytes")
     with Session(engine) as db:
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=facts().object_key, content=b"bytes"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=facts().object_key, content=b"bytes")
         )
         assert lock_intent(db, receipt.intent_uuid).status is ObjectWriteIntentStatus.ADOPTED
         db.rollback()
@@ -331,8 +372,10 @@ def test_retired_existing_authority_cannot_be_recreated_by_an_unwritten_receipt(
             adopt_written_object(db, receipt)
         db.rollback()
         assert db.scalar(select(StoredObject)) is None and not storage.exists(receipt.object_key)
-        fresh = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=receipt.object_key, content=b"bytes"
+        fresh = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=receipt.object_key, content=b"bytes")
         )
         assert fresh.write_token != receipt.write_token
         obj = adopt_written_object(db, fresh)
@@ -352,16 +395,19 @@ def test_retired_existing_authority_cannot_be_recreated_by_an_unwritten_receipt(
 def test_cleanup_dispatch_rejection_preserves_attempt_and_durable_work(
     retirement_db, monkeypatch, broker_accepts
 ):
-    from app.worker.dispatch import object_write_cleanup as dispatch
-    from app.task_queue import producer
+    from app.runtime.worker.context import get_context as worker_context
+
+    dispatch = worker_context().dispatches.write_cleanup
 
     engine, storage, transaction = wire(retirement_db, monkeypatch)
     with Session(engine) as db:
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=facts().object_key, content=b"bytes"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=facts().object_key, content=b"bytes")
         )
     expire(transaction, receipt.intent_uuid)
-    monkeypatch.setattr(dispatch, "SessionLocal", transaction)
+    monkeypatch.setattr(dispatch, "sessions", transaction)
 
     def send(name, *, kwargs, task_id):
         assert name == "app.worker.tasks.object_write_cleanup_task"
@@ -374,7 +420,7 @@ def test_cleanup_dispatch_rejection_preserves_attempt_and_durable_work(
         if not broker_accepts:
             raise OSError("broker unavailable")
 
-    monkeypatch.setattr(producer.celery_app, "send_task", send)
+    monkeypatch.setattr(dispatch.sender, "send_task", send)
     assert dispatch.dispatch_object_write_cleanup(receipt.intent_uuid) is broker_accepts
     with transaction() as db:
         row = lock_intent(db, receipt.intent_uuid)

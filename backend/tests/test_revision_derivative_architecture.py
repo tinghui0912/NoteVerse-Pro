@@ -22,29 +22,23 @@ def test_render_and_playback_claim_use_one_demand_policy():
     assert outbox_service.revision_presentation_demand is revision_presentation_demand
 
 
-def test_post_commit_and_maintenance_use_domain_owned_broker_relays():
-    relays = {
-        "app.modules.revisions.render_dispatch",
-        "app.modules.playback.dispatch",
-        "app.modules.revisions.metadata_dispatch",
-    }
-    assert relays <= imports(ROOT / "modules/revisions/post_commit.py")
-    assert relays - {"app.modules.revisions.metadata_dispatch"} <= imports(
-        ROOT / "worker/execution/maintenance_dispatch.py"
-    )
-    assert "app.modules.revisions.metadata_dispatch" in imports(
-        ROOT / "worker/execution/revision_metadata.py"
+def test_post_commit_receives_callbacks_and_worker_receives_process_resources():
+    dependencies = imports(ROOT / "modules/revisions/post_commit.py")
+    assert "collections.abc" in dependencies
+    assert not any(
+        name.startswith(("app.runtime", "app.task_queue", "app.composition"))
+        for name in dependencies
     )
     for relative in (
-        "modules/revisions/render_dispatch.py",
-        "modules/playback/dispatch.py",
-        "modules/revisions/metadata_dispatch.py",
+        "worker/execution/maintenance_dispatch.py",
+        "worker/execution/revision_metadata.py",
     ):
-        assert "app.task_queue.producer" in imports(ROOT / relative)
-        assert all(not module.startswith("app.worker") for module in imports(ROOT / relative))
-    assert "app.modules.revisions.post_commit" not in imports(
-        ROOT / "worker/execution/maintenance_dispatch.py"
-    )
+        assert "app.runtime.worker.context" in imports(ROOT / relative)
+    for path in (ROOT / "composition/dispatch").glob("*.py"):
+        if path.name in ("__init__.py", "services.py"):
+            continue
+        assert "app.task_queue.producer" in imports(path)
+        assert not any(name.startswith("app.runtime") for name in imports(path))
 
 
 def test_demand_and_retention_are_independent_policy_owners():

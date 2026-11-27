@@ -1,11 +1,16 @@
 """Bind test candidates under the real live Practice mutation authority."""
 
-from app.composition import storage_resources as _resource_wiring
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 
 from app.db.models import Score, ScoreRevision
 from app.modules.practice.bundle.writer import PracticeBundleWriter
 from app.modules.practice.bundle.mutation_access import lock_live_practice_mutation_access
 from app.modules.score_access.policy import ScoreAccessPolicy
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+from app.runtime.customer_api.context import get_context
 
 
 def bind_bundle(db, storage, candidate, *, revision_id):
@@ -28,7 +33,12 @@ def bind_bundle(db, storage, candidate, *, revision_id):
 
     reauthorize_mutation()
     return PracticeBundleWriter(
-        writes=_resource_wiring.build_object_write_coordinator(storage)
+        writes=resources_for(storage).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
     ).ensure_binding(
         db,
         candidate,

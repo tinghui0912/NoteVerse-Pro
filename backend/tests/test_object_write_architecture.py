@@ -138,7 +138,7 @@ def test_transport_ownership_and_delivery_contracts():
         UploadCreationRequest,
         PerformanceTakeUploadReservation,
     )
-    from app.main import app
+    from app.runtime.customer_api.main import app
     from sqlalchemy import UniqueConstraint
 
     table = UploadSession.__table__

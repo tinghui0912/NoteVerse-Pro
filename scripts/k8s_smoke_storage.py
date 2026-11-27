@@ -66,16 +66,18 @@ def ensure_user(namespace: str, deployment: str, email: str, password: str) -> N
     code = f"""
 from sqlalchemy import select
 from app.core.security import get_password_hash
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 from app.db.models.user import User
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 email = {email!r}
 password = {password!r}
-with SessionLocal() as db:
+with sessions() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if user is None:
-        now = utc_now_naive()
+        now = utc_now()
         user = User(
             email=email,
             display_name="K8s Smoke",
@@ -90,7 +92,7 @@ with SessionLocal() as db:
     else:
         user.password_hash = get_password_hash(password)
         user.is_active = True
-        user.email_verified_at = user.email_verified_at or utc_now_naive()
+        user.email_verified_at = user.email_verified_at or utc_now()
     db.commit()
 """
     kubectl_exec_python(namespace, deployment, code)

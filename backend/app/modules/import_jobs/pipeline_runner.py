@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+
+from app.platform.config.application import ImportExecutionConfig
+
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator, SessionFactory
 from app.modules.import_jobs.pipeline.artifact_recorder import ImportArtifactRecorder
@@ -30,10 +33,12 @@ class ImportPipelineRunner:
     def __init__(
         self,
         *,
+        config: ImportExecutionConfig,
         recorder: ImportExecutionRecorder,
         writes: ObjectWriteCoordinator,
         sessions: SessionFactory,
     ) -> None:
+        self.config = config
         self.recorder = recorder
         self.writes = writes
         self.sessions = sessions
@@ -64,7 +69,11 @@ class ImportPipelineRunner:
 
     def _resolve_input_paths(self, inputs: list[StoredObjectReadTarget]) -> list[str]:
         return [
-            materialize_admitted_object(self.storage, target, object_work_path(target.storage_key))
+            materialize_admitted_object(
+                self.storage,
+                target,
+                object_work_path(target.storage_key, work_root=self.config.WORK_ROOT),
+            )
             for target in inputs
         ]
 
@@ -82,6 +91,7 @@ class ImportPipelineRunner:
             with self.sessions() as db:
                 bind_import_job_execution_manifest(db, lease)
                 context = JobContext(
+                    config=self.config,
                     lease=lease,
                     db=db,
                     recorder=self.recorder,

@@ -15,6 +15,7 @@ from app.modules.realtime.replay import read_page
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.maintenance import configure_maintenance
+from app.platform.config.realtime_retention import RealtimeRetentionSettings
 
 
 @pytest.fixture
@@ -69,7 +70,7 @@ def test_retention_waits_for_replay_page_and_next_page_reports_the_gap(
     ready = Event()
     pid = []
 
-    original = retention_worker.realtime_maintenance_service.cleanup_recipient
+    original = retention_worker.get_context().deliveries.realtime.cleanup_recipient
 
     def cleanup_recipient(db, recipient_user_id, *, cutoff):
         pid.append(db.scalar(sa.text("SELECT pg_backend_pid()")))
@@ -77,7 +78,7 @@ def test_retention_waits_for_replay_page_and_next_page_reports_the_gap(
         return original(db, recipient_user_id, cutoff=cutoff)
 
     monkeypatch.setattr(
-        retention_worker.realtime_maintenance_service, "cleanup_recipient", cleanup_recipient
+        retention_worker.get_context().deliveries.realtime, "cleanup_recipient", cleanup_recipient
     )
 
     def cleanup():
@@ -114,14 +115,14 @@ def test_retention_waits_for_replay_page_and_next_page_reports_the_gap(
 
 
 def test_retention_floor_and_deletion_roll_back_together(stream, retention_worker, monkeypatch):
-    original = retention_worker.realtime_maintenance_service.cleanup_recipient
+    original = retention_worker.get_context().deliveries.realtime.cleanup_recipient
 
     def interrupted(db, recipient_user_id, *, cutoff):
         assert original(db, recipient_user_id, cutoff=cutoff) == 2
         raise RuntimeError("retention interrupted")
 
     monkeypatch.setattr(
-        retention_worker.realtime_maintenance_service, "cleanup_recipient", interrupted
+        retention_worker.get_context().deliveries.realtime, "cleanup_recipient", interrupted
     )
     with pytest.raises(RuntimeError, match="retention interrupted"):
         retention_worker.execute_realtime_maintenance()
@@ -218,7 +219,7 @@ def test_recipient_retention_allows_another_recipient_to_publish(
     stream, retention_worker, monkeypatch
 ):
     ready, release = Event(), Event()
-    original = retention_worker.realtime_maintenance_service.cleanup_recipient
+    original = retention_worker.get_context().deliveries.realtime.cleanup_recipient
 
     def paused(db, recipient_user_id, *, cutoff):
         count = original(db, recipient_user_id, cutoff=cutoff)
@@ -229,7 +230,9 @@ def test_recipient_retention_allows_another_recipient_to_publish(
         assert release.wait(15)
         return count
 
-    monkeypatch.setattr(retention_worker.realtime_maintenance_service, "cleanup_recipient", paused)
+    monkeypatch.setattr(
+        retention_worker.get_context().deliveries.realtime, "cleanup_recipient", paused
+    )
     with ThreadPoolExecutor(max_workers=2) as pool:
         cleaning = pool.submit(retention_worker.execute_realtime_maintenance)
         try:
@@ -308,7 +311,7 @@ def test_retention_commits_each_recipient_independently(stream, retention_worker
     with Session(stream) as db:
         publish(db, 2).created_at = utc_now() - timedelta(days=30)
         db.commit()
-    original = retention_worker.realtime_maintenance_service.cleanup_recipient
+    original = retention_worker.get_context().deliveries.realtime.cleanup_recipient
 
     def interrupted(db, recipient_user_id, *, cutoff):
         count = original(db, recipient_user_id, cutoff=cutoff)
@@ -318,7 +321,7 @@ def test_retention_commits_each_recipient_independently(stream, retention_worker
 
     with monkeypatch.context() as patch:
         patch.setattr(
-            retention_worker.realtime_maintenance_service, "cleanup_recipient", interrupted
+            retention_worker.get_context().deliveries.realtime, "cleanup_recipient", interrupted
         )
         with pytest.raises(RuntimeError, match="second recipient interrupted"):
             retention_worker.execute_realtime_maintenance()
@@ -353,7 +356,11 @@ def test_retention_processes_a_bounded_recipient_batch(stream, retention_worker,
 def test_recipient_service_leaves_commit_to_its_caller(stream):
     from app.modules.realtime.maintenance_service import RealtimeMaintenanceService
 
-    service = RealtimeMaintenanceService()
+    service = RealtimeMaintenanceService(
+        config=RealtimeRetentionSettings(
+            REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS=60, REALTIME_EVENT_RETENTION_DAYS=30
+        )
+    )
     with Session(stream) as db:
         assert service.cleanup_recipient(db, 1, cutoff=service.retention_cutoff()) == 2
         db.rollback()

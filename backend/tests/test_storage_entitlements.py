@@ -1,5 +1,7 @@
 """Current entitlement resolution, read-only projections and explicit provisioning."""
 
+from app.platform.runtime import RuntimeRole
+
 from app.composition import storage_resources as _resource_wiring
 
 from tests.support.quota import admit_hold
@@ -15,7 +17,8 @@ import sqlalchemy as sa
 from alembic import command
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import AppException, ValidationException
 from app.db.models import (
     StoragePlanPolicy,
@@ -29,14 +32,16 @@ from app.db.models import (
 from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
 from app.modules.storage_governance.quota.states import StoragePlanCode
 from app.db.models.auth import PendingRegistration
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.auth.email_verification_service import EmailVerificationService
 from app.modules.auth.schemas import VerifyEmailRequest
 from app.composition.storage_resources import provision_storage_resources
-from app.api.resource_dependencies import get_storage_usage_service
+from app.runtime.customer_api.resources import get_storage_usage_service
 from app.modules.storage_governance.usage.service import StorageUsageService
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
+from app.platform.config.application import AccountEmailConfig
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.fixture
@@ -293,7 +298,8 @@ def test_email_verification_provisions_user_storage_in_one_transaction(
     database, monkeypatch, outcome
 ):
     service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
+        provision_storage=_resource_wiring.provision_storage_resources,
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
     )
     token = "verification-token"
     with Session(database) as db:
@@ -390,7 +396,7 @@ def test_zero_policy_and_current_plan_identity_are_resolved_without_snapshot(pro
 
 @pytest.mark.parametrize("limit", [100, 0, None])
 def test_runtime_readiness_observes_the_current_default_plan(database, monkeypatch, limit):
-    from app.core.runtime_checks import check_storage_quota_policy
+    from app.runtime.diagnostics import checks_for_role
 
     with Session(database) as db:
         policy = db.get(StoragePlanPolicy, "FREE")
@@ -399,8 +405,9 @@ def test_runtime_readiness_observes_the_current_default_plan(database, monkeypat
         else:
             policy.default_limit_bytes = limit
         db.commit()
-    monkeypatch.setattr("app.db.session.engine", database)
-    assert check_storage_quota_policy().ok is (limit is not None)
+    checks = checks_for_role(RuntimeRole.API)
+    monkeypatch.setattr(checks, "engine", database)
+    assert checks.check_storage_quota_policy().ok is (limit is not None)
 
 
 def test_storage_records_use_plan_and_user_primary_identities(provisioned):

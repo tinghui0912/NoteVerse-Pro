@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from starlette.exceptions import HTTPException
 from pydantic import TypeAdapter, ValidationError
 
-from app.api.deps import get_db
+from app.platform.db.dependencies import get_db
 from app.api.runtime_schemas import ReadinessUnavailableRead
 from app.core.exceptions import (
     AppException,
@@ -20,8 +20,8 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
-from app.main import app
-from app.api.resource_dependencies import get_guest_preview_service
+from app.runtime.customer_api.main import app
+from app.runtime.customer_api.resources import get_guest_preview_service
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.responses import ApiErrorResponse
 
@@ -144,13 +144,18 @@ def test_customer_application_operations_declare_canonical_errors(client):
 @pytest.mark.parametrize("failure", ["database", "storage"])
 def test_readiness_failure_uses_process_schema(client, monkeypatch, failure):
     monkeypatch.setattr(
-        "app.api.health.check_database_readiness", AsyncMock(return_value=failure != "database")
+        client.app.state.runtime_checks,
+        "check_database_readiness",
+        AsyncMock(return_value=failure != "database"),
     )
     monkeypatch.setattr(
-        "app.api.health.check_storage_quota_policy_readiness",
+        client.app.state.runtime_checks,
+        "check_storage_quota_policy_readiness",
         AsyncMock(return_value=failure != "storage"),
     )
-    monkeypatch.setattr("app.api.health.check_redis_readiness", AsyncMock(return_value=True))
+    monkeypatch.setattr(
+        client.app.state.runtime_checks, "check_redis_readiness", AsyncMock(return_value=True)
+    )
     response = client.get("/health/ready")
     assert response.status_code == 503
     assert TypeAdapter(ReadinessUnavailableRead).validate_python(response.json()) == response.json()

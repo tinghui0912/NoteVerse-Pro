@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 import argparse
 from contextlib import contextmanager
 import importlib
@@ -23,8 +24,8 @@ ROLES = ("api", "beat", "worker", "worker-deps")
 def packaging_environment(role: str):
     """Supply valid, synthetic import-time settings only in this CI process.
 
-    Global Settings requires URLs/cookie policy even for non-HTTP roles. These
-    endpoints are never contacted; workflows additionally use --network none.
+    Each process receives its declared synthetic environment. These endpoints
+    are never contacted; workflows additionally use --network none.
     No production settings/defaults or readiness validators are changed.
     """
     with TemporaryDirectory(prefix="noteverse-image-contract-") as directory:
@@ -50,7 +51,6 @@ def packaging_environment(role: str):
             "S3_BUCKET": "contract",
             "S3_ACCESS_KEY_ID": "contract",
             "S3_SECRET_ACCESS_KEY": "contract-secret",
-            "NOTEVERSE_CELERY_IMPORT_TASKS": "true" if role == "worker" else "false",
             "HF_HUB_OFFLINE": "1",
             "TRANSFORMERS_OFFLINE": "1",
             "PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK": "True",
@@ -67,6 +67,7 @@ def packaging_environment(role: str):
         if role == "worker":
             # Required setting, intentionally not an existing asset/readiness check.
             env["PLAYBACK_SOUNDFONT_PATH"] = str(root / "not-required.sf2")
+            env["LEGATO_REPO_PATH"] = str(root / "not-required-legato")
         previous = {key: os.environ.get(key) for key in env}
         os.environ.update(env)
         try:
@@ -113,14 +114,18 @@ def run_contract(role: str) -> list[str]:
     subprocess.run(["uv", "pip", "check", "--python", sys.executable], check=True)
     evidence = ["uv dependency check passed"]
     if role == "api":
-        for module in ("app.main", "app.control_plane_main", "app.observability_main"):
+        for module in (
+            "app.runtime.customer_api.main",
+            "app.runtime.control_plane.main",
+            "app.runtime.observability.main",
+        ):
             require_import(module, "app")
             evidence.append(f"{module}:app import passed (lifespan not started)")
         check_migration_packaging()
         evidence.append("migration command/revision imports passed (no database execution)")
     elif role == "beat":
-        require_import("app.task_queue.config", "celery_app")
-        require_import("app.modules.scheduler_lock.beat_leader", "BeatLeader")
+        require_import("app.runtime.beat.main", "celery_app")
+        require_import("app.runtime.beat.leader", "BeatLeader")
         require_import("app.modules.scheduler_lock.connection", "open_scheduler_lock_connection")
         require_import("psycopg", "connect")
         if "app.worker.tasks" in sys.modules:
@@ -134,8 +139,10 @@ def run_contract(role: str) -> list[str]:
         evidence.append("OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized")
     else:
         # The existing contract owns the task list and loads app.worker.tasks.
-        runtime = importlib.import_module("app.core.runtime_checks")
-        tasks = runtime.check_celery_tasks()
+        from app.runtime.diagnostics import checks_for_role
+        from app.platform.runtime import RuntimeRole
+
+        tasks = checks_for_role(RuntimeRole.WORKER).check_celery_tasks()
         if not tasks.ok:
             raise RuntimeError(tasks.message)
         evidence.append(tasks.message)

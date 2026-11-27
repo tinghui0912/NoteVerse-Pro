@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from app.composition.media_resources import build_import_pipeline_runner
 
 import sys
+from app.platform.config.application import ImportExecutionConfig
 
-from app.db.session import SessionLocal
 from app.modules.import_jobs.lifecycle import IMPORT_EXECUTION_CLOSED_STATES
 from app.modules.import_jobs.dispatch_service import (
-    import_dispatch_service,
     require_current_attempt,
     StaleImportDispatchAttempt,
 )
@@ -20,6 +18,7 @@ from app.worker.task_runtime import (
     operation_logger,
     start_attempt_trace,
 )
+from app.runtime.worker.context import get_context
 
 
 def execute_import_dispatch_task(
@@ -31,8 +30,8 @@ def execute_import_dispatch_task(
     bind_task_context(task)
     trace_scope = None
     try:
-        with SessionLocal() as db:
-            payload = import_dispatch_service.claim(db, dispatch_uuid)
+        with get_context().sessions() as db:
+            payload = get_context().deliveries.imports.claim(db, dispatch_uuid)
             db.commit()
         if payload is None:
             operation_logger(
@@ -67,10 +66,16 @@ def execute_import_dispatch_task(
             upload_count=len(payload.inputs),
         ).info("import.started")
         try:
-            result = build_import_pipeline_runner().run_pipeline(
-                task,
-                payload.lease,
-                payload.inputs,
+            result = (
+                get_context()
+                .resources.build_import_pipeline_runner(
+                    ImportExecutionConfig.model_validate(get_context().settings.model_dump())
+                )
+                .run_pipeline(
+                    task,
+                    payload.lease,
+                    payload.inputs,
+                )
             )
         except StaleImportDispatchAttempt:
             raise
@@ -80,15 +85,15 @@ def execute_import_dispatch_task(
                 **context,
                 exception_type=type(exc).__name__,
             ).opt(exception=True).error("import.failed")
-            with SessionLocal() as db:
+            with get_context().sessions() as db:
                 job = require_current_attempt(db, payload.lease)
                 if job.state in IMPORT_EXECUTION_CLOSED_STATES:
-                    import_dispatch_service.complete(db, payload.lease)
+                    get_context().deliveries.imports.complete(db, payload.lease)
                 db.commit()
             raise
 
-        with SessionLocal() as db:
-            import_dispatch_service.complete(db, payload.lease)
+        with get_context().sessions() as db:
+            get_context().deliveries.imports.complete(db, payload.lease)
             db.commit()
         operation_logger(
             "import.ready_for_review",

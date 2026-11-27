@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.transactional_mail_provider import TransactionalMailProviderSettings
+from app.platform.config.transactional_mail_provider import TransactionalMailProviderSettings
 
 
 def test_transactional_mail_provider_settings_allow_an_explicitly_disabled_provider() -> None:

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.realtime_stream import RealtimeStreamSettings
+from app.platform.config.realtime_stream import RealtimeStreamSettings
 
 
 def test_realtime_stream_settings_accept_default_policy() -> None:

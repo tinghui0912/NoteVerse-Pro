@@ -1,9 +1,14 @@
 """Import delivery, domain outcomes and current-attempt mutation authority."""
 
+from app.runtime.worker.context import get_context as worker_context
+
+from app.runtime.worker.context import get_context as get_worker_context
+
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import settled_upload_session
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 
 from app.composition.storage_resources import storage_quota_service
@@ -44,7 +49,7 @@ from app.db.models import (
     User,
 )
 from app.modules.import_jobs.domain import ImportJobState
-from app.modules.import_jobs import dispatch_service as dispatch_module, execution_manifest
+from app.modules.import_jobs import execution_manifest
 from app.modules.import_jobs.dispatch_service import (
     ImportDispatchService,
     StaleImportDispatchAttempt,
@@ -58,6 +63,13 @@ from app.task_queue.tracing import import_dispatch_trace_context
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.support.write_cleanup import drain_write_cleanup
+from app.platform.config.application import ImportExecutionConfig
+from app.platform.config.import_dispatch import ImportDispatchSettings
+from app.runtime.worker.settings import WorkerSettings
+from app.platform.config.delivery import DeliveryConfig
+from tests.support.worker_context import inject_worker
+
+policy_import_dispatch = ImportDispatchSettings()
 
 
 @pytest.fixture
@@ -95,7 +107,7 @@ def setup_delivery(score_service_session):
 
 
 def claim(db, row):
-    payload = ImportDispatchService().claim(db, row.dispatch_uuid)
+    payload = ImportDispatchService(config=policy_import_dispatch).claim(db, row.dispatch_uuid)
     db.commit()
     assert payload is not None
     return payload.lease
@@ -103,7 +115,7 @@ def claim(db, row):
 
 def expire(db, row):
     row.started_at = utc_now() - timedelta(
-        seconds=dispatch_module.settings.IMPORT_PROCESSING_TIMEOUT_SECONDS + 1
+        seconds=policy_import_dispatch.IMPORT_PROCESSING_TIMEOUT_SECONDS + 1
     )
     db.add(row)
     db.commit()
@@ -111,13 +123,15 @@ def expire(db, row):
 
 def takeover(db, row):
     expire(db, row)
-    assert ImportDispatchService().recover_and_list_due(db) == [row.dispatch_uuid]
+    assert ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(db) == [
+        row.dispatch_uuid
+    ]
     return claim(db, row)
 
 
 def test_delivery_lifecycle_preserves_command_and_domain_identities(setup_delivery):
     db, _, job, row = setup_delivery
-    service = ImportDispatchService()
+    service = ImportDispatchService(config=policy_import_dispatch)
     assert service.recover_and_list_due(db) == [row.dispatch_uuid]
     assert row.status == ImportDispatchStatus.PENDING
     assert service.mark_dispatched(db, row.dispatch_uuid)
@@ -128,7 +142,7 @@ def test_delivery_lifecycle_preserves_command_and_domain_identities(setup_delive
     assert payload.lease.dispatch_uuid == row.dispatch_uuid != job.job_uuid
     assert payload.job_uuid == payload.lease.job_uuid == job.job_uuid
     assert payload.attempt == row.attempt_count == 1
-    assert payload.max_attempts == dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+    assert payload.max_attempts == policy_import_dispatch.IMPORT_DISPATCH_MAX_ATTEMPTS
     assert payload.originating_request_id == row.originating_request_id
     assert payload.traceparent == row.traceparent
     assert service.claim(db, row.dispatch_uuid) is None
@@ -154,7 +168,7 @@ def test_publish_release_changes_delivery_only(setup_delivery):
     job.current_step = "queued"
     db.add(job)
     db.commit()
-    service = ImportDispatchService()
+    service = ImportDispatchService(config=policy_import_dispatch)
     assert service.mark_dispatched(db, row.dispatch_uuid)
     db.commit()
     service.release_dispatch(db, row.dispatch_uuid, "broker unavailable")
@@ -168,10 +182,10 @@ def test_publish_release_changes_delivery_only(setup_delivery):
 
 def test_expired_dispatch_preserves_domain_progress_and_steps(setup_delivery):
     db, _, job, row = setup_delivery
-    service = ImportDispatchService()
+    service = ImportDispatchService(config=policy_import_dispatch)
     assert service.mark_dispatched(db, row.dispatch_uuid)
     row.dispatched_at = utc_now() - timedelta(
-        seconds=dispatch_module.settings.IMPORT_DISPATCH_TIMEOUT_SECONDS + 1
+        seconds=policy_import_dispatch.IMPORT_DISPATCH_TIMEOUT_SECONDS + 1
     )
     job.progress, job.current_step = 17, "queued"
     db.add(ImportJobStep(job_id=job.id, step_order=1, name="queued", status="PENDING"))
@@ -196,7 +210,9 @@ def test_expired_processing_resets_execution_and_preserves_inputs_and_binding(se
     db.add(job)
     db.commit()
     expire(db, row)
-    assert ImportDispatchService().recover_and_list_due(db) == [row.dispatch_uuid]
+    assert ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(db) == [
+        row.dispatch_uuid
+    ]
     assert row.status == ImportDispatchStatus.FAILED and row.attempt_count == lease.attempt
     assert row.failure_code == "import_dispatch_lease_expired"
     assert row.failure_classification == "transient" and row.failure_retryable is True
@@ -249,12 +265,12 @@ def test_closed_execution_outcome_reconciles_expired_delivery_without_execution(
     db.add(job)
     db.commit()
     expire(db, row)
-    assert ImportDispatchService().recover_and_list_due(db) == []
+    assert ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(db) == []
     assert row.status == ImportDispatchStatus.COMPLETED and row.attempt_token is None
     assert job.state == state and job.progress == 100
     assert job.failure_code == ("domain-result" if state == ImportJobState.FAILED else None)
     assert db.scalar(select(ImportJobStep)).status.value == "COMPLETED"
-    assert ImportDispatchService().claim(db, row.dispatch_uuid) is None
+    assert ImportDispatchService(config=policy_import_dispatch).claim(db, row.dispatch_uuid) is None
 
 
 @pytest.mark.parametrize("processing_started", [False, True])
@@ -269,11 +285,11 @@ def test_exhausted_delivery_accepts_failure_with_the_observed_processing_start(
         )
     observed_start = job.processing_started_at
     assert job.processing_last_heartbeat_at is None
-    row.attempt_count = dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+    row.attempt_count = policy_import_dispatch.IMPORT_DISPATCH_MAX_ATTEMPTS
     db.add_all([row, job])
     db.commit()
     expire(db, row)
-    assert ImportDispatchService().recover_and_list_due(db) == []
+    assert ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(db) == []
     assert row.status == ImportDispatchStatus.FAILED and row.attempt_token is None
     assert row.failure_code == job.failure_code == "import_dispatch_attempts_exhausted"
     assert row.failure_retryable is job.failure_retryable is False
@@ -290,17 +306,19 @@ def test_exhausted_delivery_accepts_failure_with_the_observed_processing_start(
     from app.modules.ops.query_service import OpsAsyncOperationQueryService
     from app.modules.ops.schemas import AsyncOperationKind
 
-    projected = OpsAsyncOperationQueryService().get_operation(
-        db, kind=AsyncOperationKind.IMPORT, operation_id=row.dispatch_uuid
-    )
+    projected = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    ).get_operation(db, kind=AsyncOperationKind.IMPORT, operation_id=row.dispatch_uuid)
     assert projected.status.value == "failed"
     assert projected.failure.code == row.failure_code
     before = (row.status, row.attempt_count, row.completed_at, row.updated_at)
-    assert ImportDispatchService().claim(db, row.dispatch_uuid) is None
-    assert not ImportDispatchService().mark_dispatched(db, row.dispatch_uuid)
+    assert ImportDispatchService(config=policy_import_dispatch).claim(db, row.dispatch_uuid) is None
+    assert not ImportDispatchService(config=policy_import_dispatch).mark_dispatched(
+        db, row.dispatch_uuid
+    )
     db.commit()
     assert (row.status, row.attempt_count, row.completed_at, row.updated_at) == before
-    assert ImportDispatchService().recover_and_list_due(db) == []
+    assert ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(db) == []
 
 
 @pytest.mark.parametrize(
@@ -329,7 +347,9 @@ def test_only_current_execution_lease_can_mutate_job(setup_delivery, mutation):
                 "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
             ),
         ),
-        "complete": lambda: ImportDispatchService().complete(db, first),
+        "complete": lambda: ImportDispatchService(config=policy_import_dispatch).complete(
+            db, first
+        ),
     }
     with pytest.raises(StaleImportDispatchAttempt):
         actions[mutation]()
@@ -401,9 +421,11 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
             yield own
             own.commit()
 
-    monkeypatch.setattr("app.db.session.SessionLocal", worker_db)
-    original = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-        key="jobs/current-result", content=b"current", content_type="application/xml"
+    monkeypatch.setattr(get_worker_context().resources, "sessions", worker_db)
+    original = (
+        resources_for(storage)
+        .build_object_write_coordinator()
+        .write_bytes(key="jobs/current-result", content=b"current", content_type="application/xml")
     )
     worker.replace_artifacts(
         db,
@@ -419,8 +441,10 @@ def test_written_artifact_requires_current_lease_at_transactional_adoption(
         ],
     )
     artifact_id = db.scalar(select(ImportArtifact)).id
-    receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-        key="jobs/written-result", content=b"result", content_type="application/xml"
+    receipt = (
+        resources_for(storage)
+        .build_object_write_coordinator()
+        .write_bytes(key="jobs/written-result", content=b"result", content_type="application/xml")
     )
     db.commit()
     second = takeover(db, row)
@@ -467,12 +491,12 @@ def test_domain_pipeline_failure_completes_current_delivery(setup_delivery):
             "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
         ),
     )
-    ImportDispatchService().complete(db, lease)
+    ImportDispatchService(config=policy_import_dispatch).complete(db, lease)
     db.commit()
     assert job.state == ImportJobState.FAILED and job.failure_code
     assert row.status == ImportDispatchStatus.COMPLETED
     assert row.failure_detail is None and row.failure_code is None
-    assert ImportDispatchService().recover_and_list_due(db) == []
+    assert ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(db) == []
 
 
 def test_trace_context_belongs_to_dispatch(setup_delivery):
@@ -537,8 +561,9 @@ def test_pipeline_telemetry_never_swallows_lease_loss(monkeypatch, path):
         db=Mock(),
         celery_task=Mock(),
         image_paths=[],
-        recorder=_media_wiring.build_import_artifact_recorder().recorder,
-        artifacts=_media_wiring.build_import_artifact_recorder(),
+        recorder=resources_for().build_import_artifact_recorder().recorder,
+        artifacts=resources_for().build_import_artifact_recorder(),
+        config=ImportExecutionConfig.model_validate(WorkerSettings().model_dump()),
     )
     stale = Mock(side_effect=StaleImportDispatchAttempt("lost"))
     if path == "progress":
@@ -611,9 +636,11 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
         worker.finalize_success(db, lease)
         return {"success": True, "job_id": job.job_uuid}
 
-    monkeypatch.setattr(executor, "SessionLocal", worker_db)
+    inject_worker(monkeypatch, executor, sessions=worker_db)
     monkeypatch.setattr(
-        executor, "build_import_pipeline_runner", lambda: SimpleNamespace(run_pipeline=run)
+        executor.get_context().resources,
+        "build_import_pipeline_runner",
+        lambda config: SimpleNamespace(run_pipeline=run),
     )
     task = Mock()
     task.request.id = "celery-task"
@@ -627,7 +654,7 @@ def test_worker_completes_delivery_after_durable_domain_outcome(
         )
         assert job.state == ImportJobState.READY_FOR_REVIEW
     assert row.status == ImportDispatchStatus.COMPLETED and row.attempt_token is None
-    assert ImportDispatchService().recover_and_list_due(db) == []
+    assert ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(db) == []
 
 
 def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_timestamps(
@@ -637,11 +664,11 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
     from app.modules.ops.schemas import AsyncOperationKind
 
     db, _, job, row = setup_delivery
-    row.attempt_count = dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS - 1
+    row.attempt_count = policy_import_dispatch.IMPORT_DISPATCH_MAX_ATTEMPTS - 1
     db.add(row)
     db.commit()
     lease = claim(db, row)
-    assert lease.attempt == dispatch_module.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+    assert lease.attempt == policy_import_dispatch.IMPORT_DISPATCH_MAX_ATTEMPTS
     ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service).finalize_failure(
         db,
         lease,
@@ -650,22 +677,26 @@ def test_final_attempt_domain_failure_completes_delivery_and_preserves_terminal_
         ),
     )
     assert (
-        OpsAsyncOperationQueryService()
+        OpsAsyncOperationQueryService(
+            config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+        )
         .get_operation(db, kind=AsyncOperationKind.IMPORT, operation_id=row.dispatch_uuid)
         .status.value
         == "failed"
     )
-    ImportDispatchService().complete(db, lease)
+    ImportDispatchService(config=policy_import_dispatch).complete(db, lease)
     db.commit()
-    projected = OpsAsyncOperationQueryService().get_operation(
-        db, kind=AsyncOperationKind.IMPORT, operation_id=row.dispatch_uuid
-    )
+    projected = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    ).get_operation(db, kind=AsyncOperationKind.IMPORT, operation_id=row.dispatch_uuid)
     assert projected.status.value == "failed"
     assert projected.failure.code == job.failure_code
     assert row.status == ImportDispatchStatus.COMPLETED and row.completed_at is not None
     before = (row.status, row.attempt_count, row.completed_at, row.updated_at)
-    assert not ImportDispatchService().mark_dispatched(db, row.dispatch_uuid)
-    assert ImportDispatchService().claim(db, row.dispatch_uuid) is None
+    assert not ImportDispatchService(config=policy_import_dispatch).mark_dispatched(
+        db, row.dispatch_uuid
+    )
+    assert ImportDispatchService(config=policy_import_dispatch).claim(db, row.dispatch_uuid) is None
     db.commit()
     assert (row.status, row.attempt_count, row.completed_at, row.updated_at) == before
 
@@ -680,7 +711,9 @@ def test_started_execution_crash_before_progress_recovers_to_queued(setup_delive
     assert job.processing_last_heartbeat_at is job.current_step is None and job.progress == 0
     created_at = job.created_at
     expire(db, row)
-    assert ImportDispatchService().recover_and_list_due(db) == [row.dispatch_uuid]
+    assert ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(db) == [
+        row.dispatch_uuid
+    ]
     db.commit()
     db.refresh(job)
     assert job.state == ImportJobState.QUEUED and job.progress == 0
@@ -702,14 +735,15 @@ def test_materialization_failure_preserves_committed_start_without_a_progress_he
     from app.modules.media_storage.reads import StoredObjectIntegrityError
 
     db, storage, job, row = setup_delivery
-    payload = ImportDispatchService().claim(db, row.dispatch_uuid)
+    payload = ImportDispatchService(config=policy_import_dispatch).claim(db, row.dispatch_uuid)
     db.commit()
     engine = db.get_bind()
     job_uuid = job.job_uuid
     runner = pipeline_runner.ImportPipelineRunner(
-        recorder=_media_wiring.build_import_artifact_recorder().recorder,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
-        sessions=_resource_wiring.write_sessions,
+        recorder=resources_for().build_import_artifact_recorder().recorder,
+        writes=resources_for(storage).build_object_write_coordinator(),
+        sessions=resources_for().sessions,
+        config=ImportExecutionConfig.model_validate(WorkerSettings().model_dump()),
     )
     resolve_inputs = runner._resolve_input_paths
     observed_start = []
@@ -726,7 +760,9 @@ def test_materialization_failure_preserves_committed_start_without_a_progress_he
         return resolve_inputs(inputs)
 
     monkeypatch.setattr(runner, "sessions", sessionmaker(bind=engine))
-    monkeypatch.setattr(pipeline_runner, "object_work_path", lambda _: str(tmp_path / "input.png"))
+    monkeypatch.setattr(
+        pipeline_runner, "object_work_path", lambda _, *, work_root: str(tmp_path / "input.png")
+    )
     monkeypatch.setattr(runner, "_resolve_input_paths", materialize)
     with pytest.raises(StoredObjectIntegrityError):
         runner.run_pipeline(Mock(), payload.lease, payload.inputs)
@@ -762,7 +798,7 @@ def test_pipeline_and_review_updates_share_content_addressed_musicxml_identity(
     def session():
         yield db
 
-    artifacts = _media_wiring.build_import_artifact_recorder(storage)
+    artifacts = resources_for(storage).build_import_artifact_recorder()
     artifacts.sessions = session
     content = admit_musicxml_document(MUSICXML_1)
     expected = review_musicxml_object_key(
@@ -781,10 +817,11 @@ def test_pipeline_and_review_updates_share_content_addressed_musicxml_identity(
     assert job.state is ImportJobState.READY_FOR_REVIEW
     service = ImportReviewService(
         quota=_resource_wiring.storage_quota_service,
-        revision_writer=_media_wiring.build_revision_writer(),
-        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        revision_writer=resources_for().build_revision_writer(),
+        input_assets=resources_for().build_input_asset_lifecycle(),
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        post_commit=resources_for().post_commit,
     )
     service.update(db, job.job_uuid, 1, ReviewUpdateRequest(content=content.decode()))
     db.refresh(artifact)

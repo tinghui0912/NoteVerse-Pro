@@ -18,12 +18,14 @@ profile management, and Celery-based background workflows.
 Canonical structure:
 
 - `app/modules/*` for feature code
-- `app/core/*` for runtime setup and platform concerns
-- `app/db/*` for DB/session entrypoints and ORM models
+- `app/platform/*` for configuration values and database factories
+- `app/runtime/*` for isolated process composition and HTTP adapters
+- `app/core/*` for shared HTTP, logging and security primitives
+- `app/db/*` for ORM models and persistence contracts
 - `app/shared/*` for shared helpers and enums
-- `app/worker/*` for Celery runtime entrypoints
+- `app/worker/*` for task registration and execution handlers
 - `app/modules/import_jobs/pipeline/*` and `app/processing/*` for processing workflows
-- `app/api/v1/router.py` for top-level route aggregation
+- `app/runtime/customer_api/router.py` for top-level route aggregation
 
 `scripts/` owns runtime and operational tools; `tests/` owns core backend behavior
 tests. [Research](research/README.md) owns experiments, qualification, datasets and

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from app.composition import storage_resources as _resource_wiring
 
 from datetime import timedelta
@@ -7,7 +8,6 @@ from datetime import timedelta
 import pytest
 
 from app.core import security
-from app.core.config import settings
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.models.auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
 from app.db.models.user import User
@@ -30,6 +30,12 @@ from app.modules.auth.schemas import (
 from app.modules.auth.sessions_service import SessionService
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
+from app.runtime.customer_api.context import get_context
+from app.platform.config.application import AccountEmailConfig
+from app.platform.config.application import CustomerAuthConfig
+from app.platform.config.service_identity import ServiceIdentitySettings
+
+settings = get_context().settings
 
 
 class FakeResult:
@@ -167,7 +173,8 @@ def test_register_creates_pending_registration_and_sends_verification_link(
 ) -> None:
     db = FakeDb()
     service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
+        provision_storage=_resource_wiring.provision_storage_resources,
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
     )
 
     service.register(
@@ -192,7 +199,8 @@ def test_register_refreshes_existing_pending_registration(
 ) -> None:
     db = FakeDb()
     service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
+        provision_storage=_resource_wiring.provision_storage_resources,
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
     )
     service.register(
         db,  # type: ignore[arg-type]
@@ -227,7 +235,8 @@ def test_verify_email_creates_user_and_removes_pending_registration(
 ) -> None:
     db = FakeDb()
     service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
+        provision_storage=_resource_wiring.provision_storage_resources,
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
     )
     token = service._new_token()
     db.add(
@@ -263,7 +272,8 @@ def test_register_rejects_existing_verified_user() -> None:
         )
     )
     service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
+        provision_storage=_resource_wiring.provision_storage_resources,
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
     )
 
     with pytest.raises(ResourceAlreadyExistsException):
@@ -291,7 +301,9 @@ def test_request_email_change_creates_request_and_sends_confirmation_link(
     )
     db.add(user)
 
-    EmailChangeService().request_email_change(
+    EmailChangeService(
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump())
+    ).request_email_change(
         db,  # type: ignore[arg-type]
         user,
         RequestEmailChangeRequest(
@@ -313,7 +325,9 @@ def test_confirm_email_change_updates_user_and_consumes_request(
     email_change_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
-    service = EmailChangeService()
+    service = EmailChangeService(
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump())
+    )
     token = service._new_token()
     user = User(
         email="old@example.com",
@@ -349,7 +363,12 @@ def test_password_reset_request_is_generic_for_unknown_email(
     auth_queued_mail: list[dict[str, object]],
 ) -> None:
     db = FakeDb()
-    service = PasswordResetService()
+    service = PasswordResetService(
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
+        session_service=SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        ),
+    )
 
     service.request_password_reset(
         db,  # type: ignore[arg-type]
@@ -373,7 +392,12 @@ def test_password_reset_token_is_single_use(
     )
     db.add(user)
 
-    service = PasswordResetService()
+    service = PasswordResetService(
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
+        session_service=SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        ),
+    )
     token = service._create_token(
         db,  # type: ignore[arg-type]
         user.id,
@@ -410,7 +434,12 @@ def test_expired_password_reset_token_is_rejected(
     )
     db.add(user)
 
-    service = PasswordResetService()
+    service = PasswordResetService(
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
+        session_service=SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        ),
+    )
     token = service._create_token(
         db,  # type: ignore[arg-type]
         user.id,
@@ -454,7 +483,12 @@ def test_current_user_password_change_revokes_sessions_and_sends_notice(
         )
     )
 
-    PasswordService().change_current_user_password(
+    PasswordService(
+        config=ServiceIdentitySettings(),
+        session_service=SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        ),
+    ).change_current_user_password(
         db,  # type: ignore[arg-type]
         user,
         ChangePasswordRequest(
@@ -486,7 +520,12 @@ def test_current_user_password_change_rejects_wrong_current_password() -> None:
     db.add(user)
 
     with pytest.raises(ValidationException) as exc:
-        PasswordService().change_current_user_password(
+        PasswordService(
+            config=ServiceIdentitySettings(),
+            session_service=SessionService(
+                config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+            ),
+        ).change_current_user_password(
             db,  # type: ignore[arg-type]
             user,
             ChangePasswordRequest(
@@ -503,7 +542,9 @@ def test_current_user_password_change_rejects_wrong_current_password() -> None:
 
 def test_session_list_marks_current_active_session() -> None:
     db = FakeDb()
-    service = SessionService()
+    service = SessionService(
+        config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+    )
     current_token = "current-refresh-token"
     expired_token = "expired-refresh-token"
     db.add(
@@ -554,7 +595,9 @@ def test_session_list_marks_current_active_session() -> None:
 
 def test_revoke_user_session_revokes_only_target_session() -> None:
     db = FakeDb()
-    service = SessionService()
+    service = SessionService(
+        config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+    )
     current_token = "current-refresh-token"
     target = RefreshToken(
         user_id=1,
@@ -584,7 +627,9 @@ def test_revoke_user_session_revokes_only_target_session() -> None:
 
 def test_revoke_other_user_sessions_keeps_current_session() -> None:
     db = FakeDb()
-    service = SessionService()
+    service = SessionService(
+        config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+    )
     current_token = "current-refresh-token"
     current = RefreshToken(
         user_id=1,

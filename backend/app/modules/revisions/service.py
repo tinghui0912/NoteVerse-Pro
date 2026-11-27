@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from app.modules.storage_governance.quota.service import StorageQuotaService
 from app.modules.revisions.writer import RevisionWriter
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
@@ -27,7 +28,7 @@ from app.db.models import ScoreRevision, ScoreRevisionNote
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.revisions.domain import RevisionOrigin
 from app.modules.revisions.writer import PreparedRevisionSource, AppendRevisionWrite, RestoreLineage
-from app.modules.revisions.post_commit import revision_post_commit
+from app.modules.revisions.post_commit import RevisionPostCommitCoordinator
 from app.core.logger import logger
 from app.modules.revisions.read_model import RevisionReadModel
 from app.modules.revisions.schemas import (
@@ -57,9 +58,11 @@ class RevisionService:
         quota: StorageQuotaService,
         revision_writer: RevisionWriter,
         writes: ObjectWriteCoordinator,
+        post_commit: RevisionPostCommitCoordinator,
     ) -> None:
         self.quota = quota
         self.revision_writer = revision_writer
+        self.post_commit = post_commit
         self.writes = writes
         self.repository = repository or ScoreRepository()
         self.asset_repository = asset_repository or ScoreAssetRepository()
@@ -159,7 +162,7 @@ class RevisionService:
         work = result.post_commit_work
         if work is not None:
             try:
-                revision_post_commit.dispatch_best_effort(work)
+                self.post_commit.dispatch_best_effort(work)
             except Exception as exc:
                 logger.bind(
                     event="revision_post_commit.coordinator_failed",

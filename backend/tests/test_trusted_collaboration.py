@@ -1,9 +1,12 @@
 """Authenticated collaboration matrix and real source disclosure boundaries."""
 
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import settled_upload_session
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 import hashlib
 from app.processing.musicxml.admission import admit_musicxml_document
@@ -14,7 +17,8 @@ from datetime import timedelta
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import UnauthorizedException
 from app.db.models import (
     ScoreMembership,
@@ -26,24 +30,24 @@ from app.db.models import (
 )
 from app.db.models.score_access import MembershipRole, AccessOrigin, InviteTerminalOutcome
 from app.modules.revisions.domain import RevisionSourceFormat
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
 from app.modules.score_assets.service import ScoreAssetService
 from app.modules.scores.service import ScoreService
 from app.modules.revisions.service import RevisionService
 from app.modules.playback.delivery import PlaybackDeliveryService
-from app.api.resource_dependencies import get_playback_delivery_service
+from app.runtime.customer_api.resources import get_playback_delivery_service
 from app.modules.practice.bundle.service import PracticeBundleService
-from app.api.resource_dependencies import get_practice_bundle_service
-from app.api.resource_dependencies import get_score_asset_service
-from app.api.resource_dependencies import get_score_service, get_revision_service
-from app.modules.collaboration.dependencies import get_invitation_service
+from app.runtime.customer_api.resources import get_practice_bundle_service
+from app.runtime.customer_api.resources import get_score_asset_service
+from app.runtime.customer_api.resources import get_score_service, get_revision_service
+from app.runtime.customer_api.collaboration import get_invitation_service
 from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.schemas import InviteCreateRequest, MemberUpdateRequest
 from app.modules.score_access.roles import stronger_role
 from app.modules.collaboration.membership_service import MembershipService
-from app.modules.collaboration.dependencies import get_membership_service
+from app.runtime.customer_api.collaboration import get_membership_service
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_score_revision_services import (
@@ -52,6 +56,9 @@ from tests.test_score_revision_services import (
 )
 from tests.support.take_fixtures import DEFAULT_TAKE_RECORDING_TIMEBASE
 from tests.test_guest_previews import add_page, add_audio
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+from app.platform.config.application import InvitationConfig
+from app.runtime.customer_api.context import get_context
 
 
 ROLES = ["OWNER", "VIEWER", "PRACTITIONER", "EDITOR"]
@@ -169,10 +176,17 @@ def test_every_action_is_authorized_by_the_canonical_matrix(collaboration, role)
 async def test_http_source_disclosure_and_editing_boundaries(collaboration, role):
     session, storage, score, db = collaboration
     user_id = member_for(session, role)
-    source = PracticeBundleService(writes=_resource_wiring.build_object_write_coordinator(storage))
+    source = PracticeBundleService(
+        writes=resources_for(storage).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
+    )
     admitted = source.resolve_bundle(db, score.score_uuid, 1, "trusted-revision")
     bundle_id = admitted.bundle.bundle_id
-    from app.api.resource_dependencies import (
+    from app.runtime.customer_api.resources import (
         get_performance_take_reservation_service,
         get_performance_take_finalization_service,
     )
@@ -183,22 +197,25 @@ async def test_http_source_disclosure_and_editing_boundaries(collaboration, role
             storage=storage, practice_bundle_service=source
         ),
         get_score_service: ScoreService(
-            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-            delivery=_resource_wiring.build_media_delivery_service(storage),
+            lifecycle_service=resources_for().build_score_lifecycle_service(),
+            delivery=resources_for(storage).build_media_delivery_service(),
         ),
         get_revision_service: RevisionService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            revision_writer=resources_for().build_revision_writer(),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=resources_for().post_commit,
         ),
         get_score_asset_service: ScoreAssetService(
-            delivery=_resource_wiring.build_media_delivery_service(storage)
+            delivery=resources_for(storage).build_media_delivery_service()
         ),
         get_practice_bundle_service: source,
         get_playback_delivery_service: PlaybackDeliveryService(
-            delivery=_resource_wiring.build_media_delivery_service(storage)
+            delivery=resources_for(storage).build_media_delivery_service()
         ),
-        get_invitation_service: InvitationService(),
+        get_invitation_service: InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ),
         get_membership_service: MembershipService(),
     }
 
@@ -347,7 +364,9 @@ def test_invite_acceptance_preserves_role_rank(collaboration, existing, invited,
             member.revoked_at = utc_now() - timedelta(days=1)
             session.add(member)
             session.commit()
-    service = InvitationService()
+    service = InvitationService(
+        config=InvitationConfig.model_validate(get_context().settings.model_dump())
+    )
     created = service.create_invite(
         db,
         score.score_uuid,

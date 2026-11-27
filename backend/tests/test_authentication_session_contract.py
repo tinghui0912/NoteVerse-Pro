@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.platform.db.dependencies import get_db
 from app.core import security
 from app.core.generated.customer_browser_protocol import (
     AUTH_COOKIE_NAME,
@@ -15,11 +15,15 @@ from app.core.generated.customer_browser_protocol import (
     CSRF_COOKIE_NAME,
 )
 from app.db.models import User, RefreshToken
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.account.profile_service import ProfileService
 from app.modules.auth.password_reset_service import PasswordResetService
 from app.modules.auth.schemas import ForgotPasswordRequest
 from app.modules.auth.service import AuthService
+from app.modules.auth.sessions_service import SessionService
+from app.platform.config.application import AccountEmailConfig
+from app.platform.config.application import CustomerAuthConfig
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.fixture
@@ -98,8 +102,17 @@ def test_password_reset_revokes_all_sessions_and_clears_current_browser_cookies(
     response = login(client)
     assert response.status_code == 200
     old_access = client.cookies[AUTH_COOKIE_NAME]
-    AuthService().login(db, "login@example.com", "password", user_agent="another browser")
-    service = PasswordResetService()
+    AuthService(
+        session_service=SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        )
+    ).login(db, "login@example.com", "password", user_agent="another browser")
+    service = PasswordResetService(
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
+        session_service=SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        ),
+    )
     monkeypatch.setattr(service, "_new_token", lambda: "reset-token")
     service.request_password_reset(
         db, ForgotPasswordRequest(email="login@example.com", locale="en")

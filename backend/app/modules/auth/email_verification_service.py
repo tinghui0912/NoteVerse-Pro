@@ -1,5 +1,7 @@
 """Registration and email verification workflow."""
 
+from app.platform.config.application import AccountEmailConfig
+
 import hashlib
 import secrets
 from datetime import timedelta
@@ -9,7 +11,6 @@ from sqlmodel import select
 from sqlalchemy.orm import Session
 
 from app.core import security
-from app.core.config import settings
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.models.auth import PendingRegistration
 from app.db.models.user import User
@@ -27,7 +28,10 @@ from app.shared.time import utc_now
 class EmailVerificationService:
     """Owns pending registrations and email verification tokens."""
 
-    def __init__(self, provision_storage: Callable[[Session, int], None]) -> None:
+    def __init__(
+        self, provision_storage: Callable[[Session, int], None], *, config: AccountEmailConfig
+    ) -> None:
+        self.config = config
         self.provision_storage = provision_storage
 
     def _hash_token(self, token: str) -> str:
@@ -37,7 +41,7 @@ class EmailVerificationService:
         return secrets.token_urlsafe(48)
 
     def _frontend_url(self, path: str, token: str) -> str:
-        base_url = settings.FRONTEND_BASE_URL.rstrip("/")
+        base_url = self.config.FRONTEND_BASE_URL.rstrip("/")
         return f"{base_url}{path}?{urlencode({'token': token})}"
 
     def register(
@@ -57,7 +61,7 @@ class EmailVerificationService:
                 details={"email": email},
             )
 
-        ttl_seconds = settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
+        ttl_seconds = self.config.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
         token = self._new_token()
         now = utc_now()
         password_hash = security.get_password_hash(request.password)
@@ -98,7 +102,7 @@ class EmailVerificationService:
 
         email_content = build_email_verification_email(
             locale=request.locale,
-            project_name=settings.PROJECT_NAME,
+            project_name=self.config.PROJECT_NAME,
             verification_url=self._frontend_url("/auth/verify-email", token),
             ttl_seconds=ttl_seconds,
         )

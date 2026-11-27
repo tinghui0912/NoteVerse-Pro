@@ -1,6 +1,7 @@
 """Consumer operations have explicit semantic identities and truthful success bodies."""
 
-from app.composition import storage_resources as _resource_wiring
+from tests.support.runtime_resources import resources_for
+
 
 from app.modules.media_storage.reads import StoredObjectDelivery
 
@@ -16,15 +17,16 @@ from pydantic import TypeAdapter
 import pytest
 from fastapi.routing import APIRoute, iter_route_contexts
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.api.runtime_schemas import RootRead, LivenessRead, ReadinessRead
-from app.main import app
-from app.modules.auth.dependencies import get_password_reset_service
-from app.api.resource_dependencies import get_avatar_service
-from app.api.resource_dependencies import get_guest_preview_service
-from app.api.resource_dependencies import get_import_job_service
-from app.api.resource_dependencies import get_score_asset_service
-from app.api.resource_dependencies import get_score_service
+from app.runtime.customer_api.main import app
+from app.runtime.customer_api.auth_services import get_password_reset_service
+from app.runtime.customer_api.resources import get_avatar_service
+from app.runtime.customer_api.resources import get_guest_preview_service
+from app.runtime.customer_api.resources import get_import_job_service
+from app.runtime.customer_api.resources import get_score_asset_service
+from app.runtime.customer_api.resources import get_score_service
 from tests.support.object_storage import InMemoryObjectStorage
 
 
@@ -91,9 +93,11 @@ def test_process_json_success_matches_named_schemas(client, monkeypatch):
     async def available():
         return True
 
-    monkeypatch.setattr("app.api.health.check_database_readiness", available)
-    monkeypatch.setattr("app.api.health.check_storage_quota_policy_readiness", available)
-    monkeypatch.setattr("app.api.health.check_redis_readiness", available)
+    monkeypatch.setattr(client.app.state.runtime_checks, "check_database_readiness", available)
+    monkeypatch.setattr(
+        client.app.state.runtime_checks, "check_storage_quota_policy_readiness", available
+    )
+    monkeypatch.setattr(client.app.state.runtime_checks, "check_redis_readiness", available)
     spec = operations(client.get("/api/v1/openapi.json").json())
     for path, identity, model in [
         ("/", "serviceInfoGet", RootRead),
@@ -180,7 +184,7 @@ def test_storage_route_success_matches_its_declared_binary_content(
     result = delivery
     service = SimpleNamespace(
         storage=storage,
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        delivery=resources_for(storage).build_media_delivery_service(),
         async_storage=AsyncObjectReader(storage),
         **{method: Mock(return_value=result)},
     )
@@ -244,7 +248,7 @@ def test_realtime_success_is_an_event_stream(client, monkeypatch):
         yield ": connected\n\n"
         yield 'id: 1\nevent: change\ndata: {"schemaVersion":1,"sequence":1,"changeId":"change","kind":"notifications.changed","notificationId":null,"createdAt":"2026-11-15T00:00:00Z"}\n\n'
 
-    monkeypatch.setattr("app.modules.realtime.router._event_stream", events)
+    monkeypatch.setattr("app.runtime.customer_api.routers.realtime.router._event_stream", events)
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     try:
         response = client.get("/api/v1/realtime/events")
@@ -287,9 +291,9 @@ def test_avatar_resolution_is_a_bodyless_redirect_with_location(client):
     service = SimpleNamespace(
         avatar_exists=Mock(return_value=True),
         storage=SimpleNamespace(download_url=Mock(return_value=target)),
-        delivery=_resource_wiring.build_media_delivery_service(
+        delivery=resources_for(
             SimpleNamespace(download_url=Mock(return_value=target))
-        ),
+        ).build_media_delivery_service(),
     )
 
     def database():

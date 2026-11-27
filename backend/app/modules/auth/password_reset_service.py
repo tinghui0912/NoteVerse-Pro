@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+
+from app.platform.config.application import AccountEmailConfig
+
 import hashlib
 import secrets
 from datetime import timedelta
@@ -11,7 +14,6 @@ from sqlmodel import select
 from sqlalchemy.orm import Session
 
 from app.core import security
-from app.core.config import settings
 from app.core.exceptions import ValidationException
 from app.db.model_utils import require_persisted_id
 from app.db.models.auth import AuthToken
@@ -34,8 +36,9 @@ AUTH_TOKEN_PASSWORD_RESET = "password_reset"
 class PasswordResetService:
     """Owns password reset tokens, recovery emails, and reset completion."""
 
-    def __init__(self, session_service: SessionService | None = None) -> None:
-        self.session_service = session_service or SessionService()
+    def __init__(self, session_service: SessionService, *, config: AccountEmailConfig) -> None:
+        self.config = config
+        self.session_service = session_service
 
     def _hash_token(self, token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -44,7 +47,7 @@ class PasswordResetService:
         return secrets.token_urlsafe(48)
 
     def _frontend_url(self, path: str, token: str) -> str:
-        base_url = settings.FRONTEND_BASE_URL.rstrip("/")
+        base_url = self.config.FRONTEND_BASE_URL.rstrip("/")
         return f"{base_url}{path}?{urlencode({'token': token})}"
 
     def _create_token(
@@ -136,7 +139,7 @@ class PasswordResetService:
             return
 
         user_id = require_persisted_id(user.id, entity="user")
-        ttl_seconds = settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS
+        ttl_seconds = self.config.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS
         token = self._create_token(
             db,
             user_id,
@@ -151,7 +154,7 @@ class PasswordResetService:
         )
         email_content = build_password_reset_email(
             locale=request.locale,
-            project_name=settings.PROJECT_NAME,
+            project_name=self.config.PROJECT_NAME,
             reset_url=self._frontend_url("/auth/reset-password", token),
             ttl_seconds=ttl_seconds,
         )
@@ -189,7 +192,7 @@ class PasswordResetService:
 
         email_content = build_password_changed_email(
             locale=request.locale,
-            project_name=settings.PROJECT_NAME,
+            project_name=self.config.PROJECT_NAME,
         )
         queue_mail(
             db,

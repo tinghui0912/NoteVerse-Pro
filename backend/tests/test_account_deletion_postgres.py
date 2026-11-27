@@ -1,10 +1,9 @@
 """Durable account erasure, authority cutoff and caller-owned cleanup transactions."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import settled_upload_session
 
-from app.storage import object_storage as _storage_provider
-
-from app.composition import storage_resources as _resource_wiring
 
 import pytest
 from sqlalchemy import select, func
@@ -24,13 +23,22 @@ from app.db.models import (
 from app.modules.storage_governance.usage.domain import StorageUsageCategory as Category
 from app.db.models.score_access import InviteTerminalOutcome
 from app.modules.account.deletion_service import AccountDeletionService
-from app.modules.account.deletion_delivery import account_deletion_delivery as delivery
 from app.composition.account_deletion import AccountDeletionExecutor
 from app.composition.storage_inventory import build_storage_inventory_registry
 from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.score_access.queries import active_score_predicate
 from app.composition.storage_resources import storage_usage_service as usage
 from tests.support.storage_state import provision_storage_users
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import deliveries
+from tests.support.runtime_resources import storage as _storage_provider
+from app.modules.auth.sessions_service import SessionService
+from app.platform.config.account_deletion import AccountDeletionSettings
+from app.platform.config.application import CustomerAuthConfig
+from app.platform.config.application import InvitationConfig
+from tests.support.worker_context import inject_worker
+
+settings = get_context().settings
 
 
 @pytest.fixture
@@ -54,18 +62,27 @@ def account_database(postgres_engine):
 
 def request(engine):
     with Session(engine) as db:
-        uuid = AccountDeletionService().request_deletion(db, 1, current_password="secret123")
+        uuid = AccountDeletionService(
+            session_service=SessionService(
+                config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+            )
+        ).request_deletion(db, 1, current_password="secret123")
         db.commit()
         return uuid
 
 
 def unit(engine, uuid):
     with Session(engine) as db:
-        lease = delivery.claim(db, uuid)
+        lease = deliveries().account_deletion.claim(db, uuid)
         db.commit()
     assert lease is not None
     with Session(engine) as db:
-        complete = AccountDeletionExecutor(build_storage_inventory_registry()).execute(db, lease)
+        complete = AccountDeletionExecutor(
+            build_storage_inventory_registry(),
+            resources=resources_for(),
+            delivery=deliveries().account_deletion,
+            config=deliveries().account_deletion.config,
+        ).execute(db, lease)
         db.commit()
     return complete
 
@@ -73,10 +90,18 @@ def unit(engine, uuid):
 def test_admission_rejects_password_and_rolls_back_with_caller(account_database):
     with Session(account_database) as db:
         with pytest.raises(ValidationException):
-            AccountDeletionService().request_deletion(db, 1, current_password="incorrect")
+            AccountDeletionService(
+                session_service=SessionService(
+                    config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+                )
+            ).request_deletion(db, 1, current_password="incorrect")
         db.rollback()
         assert db.get(User, 1).deleted_at is None
-        AccountDeletionService().request_deletion(db, 1, current_password="secret123")
+        AccountDeletionService(
+            session_service=SessionService(
+                config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+            )
+        ).request_deletion(db, 1, current_password="secret123")
         db.rollback()
         assert db.get(User, 1).deleted_at is None
         assert db.scalar(select(func.count()).select_from(AccountDeletionOperation)) == 0
@@ -93,7 +118,12 @@ def test_tombstone_immediately_extinguishes_owned_score_authority(account_databa
         with pytest.raises(ResourceNotFoundException):
             lock_active_resource_user(db, 1)
         assert (
-            AccountDeletionService().request_deletion(db, 1, current_password="secret123") == uuid
+            AccountDeletionService(
+                session_service=SessionService(
+                    config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+                )
+            ).request_deletion(db, 1, current_password="secret123")
+            == uuid
         )
     for _ in range(15):
         if unit(account_database, uuid):
@@ -120,9 +150,11 @@ def test_account_tombstone_cuts_guest_and_invite_authorities_before_graph_cleanu
     token = "invite-token"
     guests, invitations = (
         GuestPreviewService(
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider)
+            delivery=resources_for(_storage_provider).build_media_delivery_service()
         ),
-        InvitationService(),
+        InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ),
     )
     with Session(account_database) as db:
         score = add_active_score_with_head_revision(
@@ -210,7 +242,9 @@ def test_session_revocation_and_foreign_actor_history_survive_correctly(account_
     from app.shared.time import utc_now
 
     with Session(account_database) as db:
-        SessionService().create_token_pair(db, 1)
+        SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        ).create_token_pair(db, 1)
         score = Score(score_uuid="other-owner", owner_user_id=2, display_title="Retained")
         db.add(score)
         db.flush()
@@ -321,9 +355,11 @@ def test_tombstone_and_final_erasure_use_distinct_user_lock_strength(account_dat
         # Closing admission never waits for admitted creators or takes Score locks.
         with Session(account_database) as closing:
             closing.execute(text("SET LOCAL statement_timeout='2000ms'"))
-            uuid = AccountDeletionService().request_deletion(
-                closing, 1, current_password="secret123"
-            )
+            uuid = AccountDeletionService(
+                session_service=SessionService(
+                    config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+                )
+            ).request_deletion(closing, 1, current_password="secret123")
             closing.commit()
         with Session(account_database) as late:
             with pytest.raises(ResourceNotFoundException):
@@ -398,13 +434,14 @@ def test_http_admission_closes_session_without_waiting_for_physical_cleanup(
     account_database, monkeypatch
 ):
     from fastapi.testclient import TestClient
-    from app.main import app
-    from app.api.deps import get_db, get_current_user
+    from app.runtime.customer_api.main import app
+    from app.platform.db.dependencies import get_db
+    from app.runtime.customer_api.deps import get_current_user
     from unittest.mock import Mock
 
     dispatch = Mock()
     monkeypatch.setattr(
-        "app.modules.account.router.dispatch_account_deletion_best_effort", dispatch
+        app.state.dispatches.account_deletion, "dispatch_account_deletion_best_effort", dispatch
     )
     with Session(account_database) as db:
 
@@ -434,16 +471,21 @@ def test_committed_unit_survives_lost_delivery_acknowledgement(account_database)
 
     uuid = request(account_database)
     with Session(account_database) as db:
-        lease = delivery.claim(db, uuid)
+        lease = deliveries().account_deletion.claim(db, uuid)
         db.commit()
     with Session(account_database) as db:
-        assert not AccountDeletionExecutor(build_storage_inventory_registry()).execute(db, lease)
+        assert not AccountDeletionExecutor(
+            build_storage_inventory_registry(),
+            resources=resources_for(),
+            delivery=deliveries().account_deletion,
+            config=AccountDeletionSettings.model_validate(get_context().settings.model_dump()),
+        ).execute(db, lease)
         db.commit()
     # Crash between unit COMMIT and broker continuation: periodic discovery owns retry.
     with Session(account_database) as db:
-        assert delivery.recover_and_list_due(db) == [uuid]
+        assert deliveries().account_deletion.recover_and_list_due(db) == [uuid]
         with pytest.raises(StaleAccountDeletionAttempt):
-            delivery.require(db, lease)
+            deliveries().account_deletion.require(db, lease)
         db.rollback()
     assert not unit(account_database, uuid)
 
@@ -456,7 +498,7 @@ def test_execution_failure_rolls_back_unit_and_persists_failed_attempt(
     from app.db.models import AccountDeletionPhase
 
     uuid = request(account_database)
-    monkeypatch.setattr(worker, "SessionLocal", sessionmaker(account_database))
+    inject_worker(monkeypatch, worker, sessions=sessionmaker(account_database))
     original = AccountDeletionExecutor.execute
 
     def interrupted(self, db, lease):
@@ -479,28 +521,31 @@ def test_delivery_recovery_is_bounded_and_attempt_exhaustion_stays_visible(
     account_database, monkeypatch
 ):
     from datetime import timedelta
-    from app.core.config import settings
     from app.shared.time import utc_now
 
-    monkeypatch.setattr(settings, "ACCOUNT_DELETION_BATCH_SIZE", 1)
-    monkeypatch.setattr(settings, "ACCOUNT_DELETION_MAX_ATTEMPTS", 1)
+    monkeypatch.setattr(deliveries().account_deletion.config, "ACCOUNT_DELETION_BATCH_SIZE", 1)
+    monkeypatch.setattr(deliveries().account_deletion.config, "ACCOUNT_DELETION_MAX_ATTEMPTS", 1)
     first = request(account_database)
     with Session(account_database) as db:
-        second = AccountDeletionService().request_deletion(db, 2, current_password="secret123")
+        second = AccountDeletionService(
+            session_service=SessionService(
+                config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+            )
+        ).request_deletion(db, 2, current_password="secret123")
         db.commit()
-        assert len(delivery.recover_and_list_due(db)) == 1
-        lease = delivery.claim(db, first)
+        assert len(deliveries().account_deletion.recover_and_list_due(db)) == 1
+        lease = deliveries().account_deletion.claim(db, first)
         db.commit()
-        row = delivery.require(db, lease)
+        row = deliveries().account_deletion.require(db, lease)
         row.started_at = utc_now() - timedelta(hours=1)
         db.commit()
-        assert delivery.recover_and_list_due(db) == [second]
+        assert deliveries().account_deletion.recover_and_list_due(db) == [second]
         db.commit()
         row = db.scalar(
             select(AccountDeletionOperation).where(AccountDeletionOperation.operation_uuid == first)
         )
         assert row.status == AccountDeletionStatus.FAILED and row.attempt_count == 1
-        assert delivery.claim(db, first) is None
+        assert deliveries().account_deletion.claim(db, first) is None
 
 
 def test_account_score_admission_serializes_with_pre_admitted_customer_deletion(account_database):
@@ -508,7 +553,6 @@ def test_account_score_admission_serializes_with_pre_admitted_customer_deletion(
     from queue import Queue
     from time import monotonic
     from sqlalchemy import text
-    from app.composition.media_resources import build_score_lifecycle_service
 
     with Session(account_database) as db:
         db.add(Score(score_uuid="closing-score", owner_user_id=1, display_title="Closing"))
@@ -516,17 +560,24 @@ def test_account_score_admission_serializes_with_pre_admitted_customer_deletion(
     ready = Queue()
     with Session(account_database) as customer, ThreadPoolExecutor(1) as pool:
         owner = customer.scalar(text("SELECT pg_backend_pid()"))
-        build_score_lifecycle_service().admit_deletions(customer, ["closing-score"], 1)
+        resources_for().build_score_lifecycle_service().admit_deletions(
+            customer, ["closing-score"], 1
+        )
         uuid = request(account_database)
 
         def erase():
             with Session(account_database) as db:
-                lease = delivery.claim(db, uuid)
+                lease = deliveries().account_deletion.claim(db, uuid)
                 db.commit()
                 ready.put(db.scalar(text("SELECT pg_backend_pid()")))
-                result = AccountDeletionExecutor(build_storage_inventory_registry()).execute(
-                    db, lease
-                )
+                result = AccountDeletionExecutor(
+                    build_storage_inventory_registry(),
+                    resources=resources_for(),
+                    delivery=deliveries().account_deletion,
+                    config=AccountDeletionSettings.model_validate(
+                        get_context().settings.model_dump()
+                    ),
+                ).execute(db, lease)
                 db.commit()
                 return result
 
@@ -558,19 +609,20 @@ def test_real_access_cookie_is_rejected_immediately_and_missed_dispatch_is_disco
     account_database, monkeypatch
 ):
     from fastapi.testclient import TestClient
-    from app.main import app
-    from app.api.deps import get_db
+    from app.runtime.customer_api.main import app
+    from app.platform.db.dependencies import get_db
     from app.modules.auth.sessions_service import SessionService
     from app.core.generated.customer_browser_protocol import (
         AUTH_COOKIE_NAME,
         CSRF_COOKIE_NAME,
         CSRF_HEADER_NAME,
     )
-    from app.worker.dispatch import account_deletion as dispatcher
 
     with Session(account_database) as db:
         db.get(User, 1).email = "closed@example.com"
-        access, _, _ = SessionService().create_token_pair(db, 1)
+        access, _, _ = SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        ).create_token_pair(db, 1)
         db.commit()
 
     def database():
@@ -580,7 +632,9 @@ def test_real_access_cookie_is_rejected_immediately_and_missed_dispatch_is_disco
     def unavailable(uuid):
         raise OSError("broker unavailable")
 
-    monkeypatch.setattr(dispatcher, "dispatch_account_deletion", unavailable)
+    monkeypatch.setattr(
+        app.state.dispatches.account_deletion, "dispatch_account_deletion", unavailable
+    )
     app.dependency_overrides[get_db] = database
     try:
         with TestClient(app) as client:
@@ -600,13 +654,13 @@ def test_real_access_cookie_is_rejected_immediately_and_missed_dispatch_is_disco
             assert client.get("/api/v1/me/profile").status_code == 401
             assert client.get("/api/v1/me/deletion-status").status_code == 404
             with Session(account_database) as observer:
-                assert delivery.recover_and_list_due(observer) == [operation]
+                assert deliveries().account_deletion.recover_and_list_due(observer) == [operation]
             for _ in range(20):
                 if unit(account_database, operation):
                     break
             assert client.get("/api/v1/me/profile").status_code == 401
         with Session(account_database) as db:
-            assert delivery.recover_and_list_due(db) == []
+            assert deliveries().account_deletion.recover_and_list_due(db) == []
             assert db.get(User, 1) is None
             assert (
                 db.scalar(select(AccountDeletionOperation)).status
@@ -629,9 +683,9 @@ def test_account_failure_facts_classify_typed_errors_and_do_not_leak_details(
 ):
     uuid = request(account_database)
     with Session(account_database) as db:
-        lease = delivery.claim(db, uuid)
+        lease = deliveries().account_deletion.claim(db, uuid)
         db.commit()
-        delivery.fail(db, lease, error)
+        deliveries().account_deletion.fail(db, lease, error)
         db.commit()
         row = db.scalar(select(AccountDeletionOperation))
         assert row.failure_classification == classification and row.failure_retryable is retryable
@@ -641,16 +695,17 @@ def test_account_failure_facts_classify_typed_errors_and_do_not_leak_details(
 
         row.next_attempt_at = utc_now()
         db.commit()
-        assert (uuid in delivery.recover_and_list_due(db)) is retryable
+        assert (uuid in deliveries().account_deletion.recover_and_list_due(db)) is retryable
 
 
 def test_private_history_erasure_is_bounded_and_preserves_other_recipients(
     account_database, monkeypatch
 ):
-    from app.core.config import settings
     from app.db.models import AccountDeletionPhase, Notification, NotificationKind
 
-    monkeypatch.setattr(settings, "ACCOUNT_DELETION_RESOURCE_BATCH_SIZE", 2)
+    monkeypatch.setattr(
+        deliveries().account_deletion.config, "ACCOUNT_DELETION_RESOURCE_BATCH_SIZE", 2
+    )
     with Session(account_database) as db:
         for number in range(5):
             db.add(
@@ -787,8 +842,8 @@ def test_account_completion_precedes_independent_physical_retirement(account_dat
         assert db.get(StoredObject, object_id) is not None
         retirement_uuid = retirement.retirement_uuid
     assert storage.exists("account-only-object")
-    monkeypatch.setattr(worker, "SessionLocal", sessionmaker(account_database))
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, sessions=sessionmaker(account_database))
+    inject_worker(monkeypatch, worker, storage=storage)
     assert (
         worker.execute_stored_object_retirement_task(None, retirement_uuid)["status"] == "completed"
     )

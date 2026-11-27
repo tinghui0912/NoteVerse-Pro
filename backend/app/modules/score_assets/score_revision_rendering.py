@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from app.modules.storage_governance.usage.service import StorageUsageService
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 from app.modules.score_access.queries import active_score_predicate
@@ -33,7 +34,7 @@ from app.modules.score_assets.render_asset_records import (
     rendered_page_object_key,
 )
 from app.modules.rendering.execution_manifest import build_render_execution_manifest
-from app.modules.revisions.render_delivery import revision_render_delivery
+from app.modules.revisions.render_delivery import ScoreRevisionRenderDelivery
 from app.modules.durable_work.delivery import DeliveryAttemptLease, StaleDeliveryAttempt
 from app.modules.revisions.presentation_demand import (
     lock_presentation_score,
@@ -47,7 +48,15 @@ from app.shared.error_codes import CustomerErrorCode
 class ScoreRevisionRenderService:
     """Generate replaceable derived pages without mutating canonical revisions."""
 
-    def __init__(self, *, usage: StorageUsageService, writes: ObjectWriteCoordinator) -> None:
+    def __init__(
+        self,
+        *,
+        usage: StorageUsageService,
+        writes: ObjectWriteCoordinator,
+        delivery: ScoreRevisionRenderDelivery,
+        work_root: str,
+    ) -> None:
+        self.delivery, self.work_root = delivery, work_root
         self.usage = usage
         self.writes = writes
         self.storage = writes.storage
@@ -111,7 +120,7 @@ class ScoreRevisionRenderService:
                 profile=profile,
             )
             score = lock_presentation_score(db, score_id)
-            revision_render_delivery.require_revision_attempt(
+            self.delivery.require_revision_attempt(
                 db,
                 outbox_uuid=outbox_uuid,
                 lease=lease,
@@ -170,7 +179,7 @@ class ScoreRevisionRenderService:
                     storage_key=usage.storage_key,
                 )
             retire_after_release(db, *(item.stored_object_id for item in previous))
-            if not revision_render_delivery.complete(db, outbox_uuid, lease=lease):
+            if not self.delivery.complete(db, outbox_uuid, lease=lease):
                 raise StaleDeliveryAttempt("Render completion lost execution ownership")
             db.flush()
         except Exception:
@@ -228,10 +237,9 @@ class ScoreRevisionRenderService:
         )
         return item, key, output.mime_type, output.content
 
-    @staticmethod
-    def _render_pages(content: bytes, revision_uuid: str) -> list[RenderedPage]:
+    def _render_pages(self, content: bytes, revision_uuid: str) -> list[RenderedPage]:
         try:
-            return render_musicxml(content, output_name="page")
+            return render_musicxml(content, output_name="page", work_root=self.work_root)
         except RenderExecutionError as error:
             try:
                 code = (

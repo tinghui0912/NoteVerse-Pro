@@ -10,17 +10,20 @@ from app.modules.media_storage.references import stored_object_has_semantic_refe
 from app.modules.media_storage.retirement import (
     _object,
     delivery_lifecycle,
-    retirement_delivery,
+    StoredObjectRetirementDelivery,
     snapshot,
 )
 from app.storage import ObjectStorage
 
 
 def execute_retirement(
-    retirement_uuid: str, sessions: SessionFactory, storage: ObjectStorage
+    retirement_uuid: str,
+    sessions: SessionFactory,
+    storage: ObjectStorage,
+    delivery: StoredObjectRetirementDelivery,
 ) -> dict[str, str]:
     with sessions() as db:
-        attempt = retirement_delivery.claim(db, retirement_uuid)
+        attempt = delivery.claim(db, retirement_uuid)
         db.commit()
     if attempt is None:
         return {"status": "ignored", "retirement_uuid": retirement_uuid}
@@ -33,8 +36,8 @@ def execute_retirement(
                 if attempt.stored_object_id is not None
                 else None
             )
-            operation = retirement_delivery.get(db, retirement_uuid, lock=True)
-            lifecycle = delivery_lifecycle()
+            operation = delivery.get(db, retirement_uuid, lock=True)
+            lifecycle = delivery_lifecycle(config=delivery.config)
             if operation is None or not lifecycle.attempt_matches(operation, attempt):
                 db.commit()
                 return {"status": "ignored", "retirement_uuid": retirement_uuid}
@@ -67,7 +70,7 @@ def execute_retirement(
                 db.commit()
                 assert attempt.stored_object_id is not None
                 row = _object(db, attempt.stored_object_id)
-                operation = retirement_delivery.get(db, retirement_uuid, lock=True)
+                operation = delivery.get(db, retirement_uuid, lock=True)
                 if operation is None or not lifecycle.attempt_matches(operation, attempt):
                     return {"status": "ignored", "retirement_uuid": retirement_uuid}
                 if row is None or operation.stored_object_id != row.id:
@@ -90,6 +93,6 @@ def execute_retirement(
             "stored_object_retirement.failed"
         )
         with sessions() as db:
-            retirement_delivery.fail(db, attempt, error, stage=stage)
+            delivery.fail(db, attempt, error, stage=stage)
             db.commit()
         return {"status": "failed", "retirement_uuid": retirement_uuid}

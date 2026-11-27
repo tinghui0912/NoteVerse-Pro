@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from app.composition.storage_resources import storage_quota_service
 from app.db.models import StoredObject
 
@@ -9,6 +10,17 @@ from app.modules.revisions.domain import RevisionOrigin
 from app.modules.revisions.domain import RevisionSourceFormat
 from scripts import seed_integration_user
 from tests.test_stored_object_retirement_postgres import retirement_postgres as retirement_postgres
+from app.runtime.cli.resources import ResourceCommandContext
+from tests.support.runtime_resources import resources_for
+
+
+def inject_seed(monkeypatch, *, sessions=None, storage=None):
+    current = seed_integration_user.get_context()
+    factory = sessions if sessions is not None else current.sessions
+    provider = storage if storage is not None else current.resources.storage
+    context = ResourceCommandContext(current.engine, factory, resources_for(provider, factory))
+    monkeypatch.setattr(seed_integration_user, "get_context", lambda: context)
+
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -27,12 +39,9 @@ async def test_seed_source_reservation_and_revision_have_explicit_durable_bounda
     with Session(engine) as db:
         db.add(StoragePlanPolicy(plan_code="FREE", default_limit_bytes=10000))
         db.commit()
-    monkeypatch.setattr(
-        seed_integration_user,
-        "SessionLocal",
-        sessionmaker(engine, class_=Session, expire_on_commit=False),
-    )
-    monkeypatch.setattr(seed_integration_user, "object_storage", storage)
+    sessions = sessionmaker(engine, class_=Session, expire_on_commit=False)
+    context = ResourceCommandContext(engine, sessions, resources_for(storage, sessions))
+    monkeypatch.setattr(seed_integration_user, "get_context", lambda: context)
     monkeypatch.setenv(
         seed_integration_user.INTEGRATION_PASSWORD_ENV, "explicit-integration-password"
     )
@@ -57,8 +66,10 @@ async def test_seed_source_reservation_and_revision_have_explicit_durable_bounda
         return result
 
     monkeypatch.setattr(storage, "put_bytes", physical_put)
-    writer = seed_integration_user.build_revision_writer()
-    monkeypatch.setattr(seed_integration_user, "build_revision_writer", lambda: writer)
+    writer = seed_integration_user.get_context().resources.build_revision_writer()
+    monkeypatch.setattr(
+        seed_integration_user.get_context().resources, "build_revision_writer", lambda: writer
+    )
     write = writer.write
 
     def reject_admission(*args, **kwargs):
@@ -179,8 +190,8 @@ async def test_seed_existing_integration_user_is_read_only(monkeypatch: pytest.M
     )
     session = _FakeSeedSession([user, score, revision, source])
 
-    monkeypatch.setattr(seed_integration_user, "SessionLocal", lambda: session)
-    monkeypatch.setattr(seed_integration_user, "object_storage", _FailingStorage())
+    inject_seed(monkeypatch, sessions=lambda: session)
+    inject_seed(monkeypatch, storage=_FailingStorage())
 
     seed_integration_user.seed_user()
 
@@ -203,7 +214,7 @@ async def test_seed_existing_integration_user_inactive_fails_closed(
     )
     session = _FakeSeedSession([user])
 
-    monkeypatch.setattr(seed_integration_user, "SessionLocal", lambda: session)
+    inject_seed(monkeypatch, sessions=lambda: session)
 
     with pytest.raises(RuntimeError, match="inactive"):
         seed_integration_user.seed_user()
@@ -220,7 +231,7 @@ async def test_seed_new_integration_user_requires_explicit_password(
 ):
     session = _FakeSeedSession([None])
 
-    monkeypatch.setattr(seed_integration_user, "SessionLocal", lambda: session)
+    inject_seed(monkeypatch, sessions=lambda: session)
     monkeypatch.delenv(seed_integration_user.INTEGRATION_PASSWORD_ENV, raising=False)
 
     with pytest.raises(RuntimeError, match=seed_integration_user.INTEGRATION_PASSWORD_ENV):
@@ -243,8 +254,8 @@ async def test_seed_new_integration_score_refuses_existing_storage_key(
         def put_bytes(self, **_kwargs: object) -> object:
             raise AssertionError("seed must not overwrite existing storage object")
 
-    monkeypatch.setattr(seed_integration_user, "SessionLocal", lambda: session)
-    monkeypatch.setattr(seed_integration_user, "object_storage", ExistingObjectStorage())
+    inject_seed(monkeypatch, sessions=lambda: session)
+    inject_seed(monkeypatch, storage=ExistingObjectStorage())
     monkeypatch.setenv(seed_integration_user.INTEGRATION_PASSWORD_ENV, "explicit-dev-password")
 
     with pytest.raises(RuntimeError, match="already exists"):

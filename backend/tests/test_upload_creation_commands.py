@@ -1,5 +1,7 @@
 """Stable Upload command identity closes duplicate and uncertain-COMMIT allocations."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import complete_image_upload
 
 from app.composition import storage_resources as _resource_wiring
@@ -35,7 +37,7 @@ def upload(db, storage, key="stable", name="image.png"):
         UploadService(
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            uploads=_resource_wiring.build_upload_session_service(storage),
+            uploads=resources_for(storage).build_upload_session_service(),
         ),
         db,
         db.get(User, 1),
@@ -67,7 +69,7 @@ def test_concurrent_same_command_admits_one_transfer(uploads):
         service = UploadService(
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            uploads=_resource_wiring.build_upload_session_service(storage),
+            uploads=resources_for(storage).build_upload_session_service(),
         )
         with Session(engine) as db:
             barrier.wait()
@@ -135,7 +137,7 @@ def test_replay_after_semantic_delete_never_recreates_resource(uploads):
         UploadService(
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            uploads=_resource_wiring.build_upload_session_service(storage),
+            uploads=resources_for(storage).build_upload_session_service(),
         ).delete_upload(db, db.get(User, 1), first.upload_id)
         db.commit()
         with pytest.raises(ResourceNotFoundException):

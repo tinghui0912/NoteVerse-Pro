@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+
 from collections.abc import Callable
 from typing import ParamSpec, TypeVar
 
 import anyio
 
-from app.core.config import settings
 from app.core.metrics import (
     fingering_generation_completed,
     fingering_generation_queue_rejected,
@@ -56,9 +56,3 @@ class FingeringExecutionService:
             return result
         finally:
             self._limiter.release()
-
-
-fingering_execution_service = FingeringExecutionService(
-    max_concurrency=settings.FINGERING_MAX_CONCURRENCY,
-    queue_wait_seconds=settings.FINGERING_QUEUE_WAIT_SECONDS,
-)

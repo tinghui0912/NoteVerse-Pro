@@ -1,0 +1,1 @@
+"""Isolated OCR subprocess composition."""

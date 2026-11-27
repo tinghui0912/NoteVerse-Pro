@@ -1,9 +1,11 @@
 """Product tombstones and independently fenced Score deletion operations."""
 
-from app.storage import object_storage as _storage_provider
+from app.runtime.worker.context import get_context as worker_context
+
+from tests.support.runtime_resources import resources_for
+
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 from contextlib import contextmanager
 from dataclasses import replace
@@ -19,8 +21,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 
-from app.api.deps import get_current_user, get_db
-from app.core.config import settings
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.db.models import (
     Score,
     ScoreInvite,
@@ -35,7 +37,7 @@ from app.db.models import (
     StoredObjectRetirement,
 )
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.deletion_delivery import (
     ScoreDeletionDeliveryService,
@@ -52,7 +54,6 @@ from app.shared.durable_failure import DurableFailureClass
 from app.modules.ops.operation_summary import AsyncOperationSummaryQuery
 from app.modules.ops.schemas import AsyncOperationKind
 from app.modules.ops.operation_filters import AsyncOperationFilters
-from app.worker.dispatch import score_deletion as producer
 from app.worker.execution import score_deletion as execution
 from app.worker.execution import maintenance_dispatch
 from app.worker.tasks import score_deletion_task
@@ -66,6 +67,18 @@ from tests.test_storage_usage import (
     _seed_score_with_source,
 )
 from tests.support.postgres_schema import postgres_schema_database
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import storage as _storage_provider
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+from tests.support.runtime_resources import deliveries
+from tests.support.runtime_resources import ignore_dispatch
+from app.platform.config.delivery import DeliveryConfig
+from tests.support.worker_context import inject_worker
+from app.platform.config.delivery import OpsDeliveryConfig
+
+producer = worker_context().dispatches.score_deletion
+
+settings = get_context().settings
 
 
 @pytest.fixture
@@ -110,7 +123,6 @@ def test_admission_commits_tombstone_operation_and_attempts_immediate_dispatch(
 ):
     db, score = score_db
     send = Mock()
-    monkeypatch.setattr(producer, "dispatch_score_deletion_best_effort", send)
     monkeypatch.setattr(
         "app.modules.scores.lifecycle_service.get_request_id", lambda: "delete-request"
     )
@@ -119,7 +131,9 @@ def test_admission_commits_tombstone_operation_and_attempts_immediate_dispatch(
         lambda: ("traceparent", "tracestate"),
     )
     ScoreLifecycleService(
-        deletion_executor=_media_wiring.build_score_deletion_executor()
+        deletion_executor=resources_for().build_score_deletion_executor(),
+        config=ScoreDeletionDeliverySettings(),
+        dispatch_after_commit=send,
     ).delete_score(db, score.score_uuid, 1)
     operation = db.scalar(select(ScoreDeletionOperation))
     assert score.deleted_at is not None
@@ -136,7 +150,9 @@ def test_admission_failure_rolls_back_tombstone_and_operation(score_db):
     db.commit = Mock(side_effect=RuntimeError("commit failed"))
     with pytest.raises(RuntimeError, match="commit failed"):
         ScoreLifecycleService(
-            deletion_executor=_media_wiring.build_score_deletion_executor()
+            deletion_executor=resources_for().build_score_deletion_executor(),
+            config=ScoreDeletionDeliverySettings(),
+            dispatch_after_commit=ignore_dispatch,
         ).delete_score(db, score.score_uuid, 1)
     db.refresh(score)
     assert score.deleted_at is None
@@ -152,7 +168,7 @@ async def test_http_delete_hides_resource_before_cleanup(score_db):
 
     guest_token = (
         GuestPreviewService(
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider)
+            delivery=resources_for(_storage_provider).build_media_delivery_service()
         )
         .issue_credential(db, score.score_uuid, 1)
         .token
@@ -237,14 +253,16 @@ async def test_http_delete_hides_resource_before_cleanup(score_db):
 def test_producer_publishes_operation_uuid_and_releases_broker_failure(score_db, monkeypatch):
     db, score = score_db
     operation = admitted(db, score)
-    monkeypatch.setattr(producer, "SessionLocal", worker_sessions(db))
+    monkeypatch.setattr(producer, "sessions", worker_sessions(db))
     send = Mock(side_effect=RuntimeError("broker unavailable"))
-    monkeypatch.setattr("app.task_queue.producer.celery_app.send_task", send)
+    monkeypatch.setattr(producer.sender, "send_task", send)
     assert producer.dispatch_score_deletion(operation.operation_uuid) is False
     db.refresh(operation)
     assert operation.status == Status.PENDING and operation.attempt_count == 0
     assert score.deleted_at is not None
-    assert ScoreDeletionDeliveryService().recover_and_list_due(db) == [operation.operation_uuid]
+    assert ScoreDeletionDeliveryService(
+        config=ScoreDeletionDeliverySettings()
+    ).recover_and_list_due(db) == [operation.operation_uuid]
     send.side_effect = None
     assert producer.dispatch_score_deletion(operation.operation_uuid) is True
     db.refresh(operation)
@@ -257,7 +275,7 @@ def test_producer_publishes_operation_uuid_and_releases_broker_failure(score_db,
 def test_expired_delivery_recovers_without_consuming_an_attempt(score_db, processing):
     db, score = score_db
     operation = admitted(db, score)
-    service = ScoreDeletionDeliveryService()
+    service = ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings())
     if processing:
         lease = service.claim(db, operation.operation_uuid)
         operation.started_at = utc_now() - timedelta(
@@ -282,8 +300,9 @@ def test_expired_delivery_recovers_without_consuming_an_attempt(score_db, proces
         assert service.fail(db, lease, "stale failure") is False
         with pytest.raises(StaleScoreDeletionAttempt):
             ScoreDeletionExecutor(
-                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                input_assets=resources_for().build_input_asset_lifecycle(),
                 usage=_resource_wiring.storage_usage_service,
+                delivery=deliveries().score_deletion,
             ).execute(db, lease)
         assert operation.attempt_token == current.token
         assert service.complete(db, replace(current, token="wrong-token")) is False
@@ -293,7 +312,7 @@ def test_expired_delivery_recovers_without_consuming_an_attempt(score_db, proces
 def test_failed_attempts_exhaust_and_operator_rearm_uses_lifecycle(score_db, monkeypatch):
     db, score = score_db
     operation = admitted(db, score)
-    service = ScoreDeletionDeliveryService()
+    service = ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings())
     for attempt in range(1, settings.SCORE_DELETION_MAX_ATTEMPTS + 1):
         operation.next_attempt_at = utc_now()
         db.commit()
@@ -316,7 +335,9 @@ def test_failed_attempts_exhaust_and_operator_rearm_uses_lifecycle(score_db, mon
     assert service.mark_dispatched(db, operation.operation_uuid) is False
     assert service.claim(db, operation.operation_uuid) is None
     assert (
-        OpsAsyncOperationQueryService()
+        OpsAsyncOperationQueryService(
+            config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+        )
         .get_operation(
             db, kind=AsyncOperationKind.SCORE_DELETION, operation_id=operation.operation_uuid
         )
@@ -335,12 +356,12 @@ def test_cleanup_and_completion_commit_together_and_operation_survives(score_db)
     db, score = score_db
     score_id = score.id
     operation = admitted(db, score)
-    service = ScoreDeletionDeliveryService()
+    service = ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings())
     lease = service.claim(db, operation.operation_uuid)
     db.commit()
     result = ScoreDeletionExecutor(
         service,
-        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        input_assets=resources_for().build_input_asset_lifecycle(),
         usage=_resource_wiring.storage_usage_service,
     ).execute(db, lease)
     db.commit()
@@ -355,7 +376,9 @@ def test_cleanup_and_completion_commit_together_and_operation_survives(score_db)
     assert service.fail(db, lease, "late failure") is False
     assert service.complete(db, lease) is False
     assert operation.status == Status.COMPLETED and operation.completed_at == timestamp
-    read = OpsAsyncOperationQueryService().get_operation(
+    read = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    ).get_operation(
         db, kind=AsyncOperationKind.SCORE_DELETION, operation_id=operation.operation_uuid
     )
     assert read.operation_id == operation.operation_uuid and read.resource_id == "deletion-score"
@@ -370,11 +393,14 @@ def test_absent_score_reconciles_to_success(score_db):
     db.commit()
     db.refresh(operation)
     assert operation.score_id is None
-    lease = ScoreDeletionDeliveryService().claim(db, operation.operation_uuid)
+    lease = ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings()).claim(
+        db, operation.operation_uuid
+    )
     db.commit()
     result = ScoreDeletionExecutor(
-        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        input_assets=resources_for().build_input_asset_lifecycle(),
         usage=_resource_wiring.storage_usage_service,
+        delivery=deliveries().score_deletion,
     ).execute(db, lease)
     db.commit()
     assert result.scores_deleted == 0 and operation.status == Status.COMPLETED
@@ -397,14 +423,14 @@ def test_completion_failure_rolls_back_graph_accounting_and_retirements(
         storage_key=source.stored_object.object_key,
     )
     operation = admitted(db, score)
-    service = ScoreDeletionDeliveryService()
+    service = ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings())
     lease = service.claim(db, operation.operation_uuid)
     db.commit()
     monkeypatch.setattr(service, "complete", Mock(return_value=False))
     with pytest.raises(StaleScoreDeletionAttempt):
         ScoreDeletionExecutor(
             service,
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
         ).execute(db, lease)
     db.rollback()
@@ -418,7 +444,7 @@ def test_completion_failure_rolls_back_graph_accounting_and_retirements(
 def test_worker_runs_claim_execution_completion_and_failure_transactions(score_db, monkeypatch):
     db, score = score_db
     operation = admitted(db, score)
-    monkeypatch.setattr(execution, "SessionLocal", worker_sessions(db))
+    inject_worker(monkeypatch, execution, sessions=worker_sessions(db))
     result = execution.execute_score_deletion_task(None, operation.operation_uuid)
     assert result["status"] == "completed"
     assert operation.status == Status.COMPLETED
@@ -432,7 +458,7 @@ def test_maintenance_relays_due_operation_ids(score_db, monkeypatch):
     db, score = score_db
     operation = admitted(db, score)
     send = Mock(return_value=True)
-    monkeypatch.setattr(maintenance_dispatch, "SessionLocal", worker_sessions(db))
+    inject_worker(monkeypatch, maintenance_dispatch, sessions=worker_sessions(db))
     monkeypatch.setattr(maintenance_dispatch, "run_scheduler_scan", lambda key, scan: scan())
     monkeypatch.setattr(producer, "dispatch_score_deletion", send)
     assert maintenance_dispatch.execute_score_deletion_maintenance() == {"due": 1, "dispatched": 1}
@@ -506,12 +532,12 @@ def test_postgres_operation_constraints_indexes_and_retention(postgres_score):
                     )
                 )
                 db.flush()
-        delivery = ScoreDeletionDeliveryService()
+        delivery = ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings())
         lease = delivery.claim(db, operation.operation_uuid)
         db.commit()
         ScoreDeletionExecutor(
             delivery,
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
         ).execute(db, lease)
         db.commit()
@@ -535,7 +561,9 @@ async def test_postgres_concurrent_admission_creates_one_operation(postgres_scor
 
     service = ScoreLifecycleService(
         repository=ConcurrentRepository(),
-        deletion_executor=_media_wiring.build_score_deletion_executor(),
+        deletion_executor=resources_for().build_score_deletion_executor(),
+        config=ScoreDeletionDeliverySettings(),
+        dispatch_after_commit=ignore_dispatch,
     )
 
     def delete():
@@ -589,10 +617,12 @@ def test_score_operation_list_and_summary_share_domain_failure_facts(
             ),
         )
     db.commit()
-    read = OpsAsyncOperationQueryService().get_operation(
+    read = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    ).get_operation(
         db, kind=AsyncOperationKind.SCORE_DELETION, operation_id=operation.operation_uuid
     )
-    summary = AsyncOperationSummaryQuery().summary(
+    summary = AsyncOperationSummaryQuery(config=OpsDeliveryConfig()).summary(
         db, kinds=(AsyncOperationKind.SCORE_DELETION,), filters=AsyncOperationFilters()
     )
     assert read.status.value == expected

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 from dataclasses import dataclass
 
 from sqlmodel import select
@@ -27,8 +28,8 @@ class LoginResult:
 class AuthService:
     """Encapsulate login and session creation."""
 
-    def __init__(self, session_service: SessionService | None = None) -> None:
-        self.session_service = session_service or SessionService()
+    def __init__(self, session_service: SessionService) -> None:
+        self.session_service = session_service
 
     def login(
         self,

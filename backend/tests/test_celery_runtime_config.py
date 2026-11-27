@@ -1,23 +1,23 @@
-from app.core.config import settings
-from app.core.settings.task_reliability import get_task_reliability_settings
-from app.core.settings.worker_runtime import get_worker_runtime_settings
+from app.runtime.beat.settings import BeatSettings
+from app.runtime.worker.settings import WorkerSettings
 from app.task_queue.schedule import build_beat_schedule
-from app.task_queue.config import celery_app
+from app.runtime.worker.main import celery_app
 from app.task_queue.options import build_celery_runtime_options
+from app.runtime.worker.context import get_context
+
+settings = get_context().settings
 
 
 def test_task_time_limits_form_ordered_shutdown_envelope() -> None:
-    task_settings = get_task_reliability_settings()
+    task_settings = BeatSettings()
 
-    assert (
-        get_worker_runtime_settings().PADDLEOCR_TIMEOUT_SECONDS <= task_settings.MAX_PROCESSING_TIME
-    )
+    assert WorkerSettings().PADDLEOCR_TIMEOUT_SECONDS <= task_settings.MAX_PROCESSING_TIME
     assert task_settings.MAX_PROCESSING_TIME < task_settings.CELERY_TASK_SOFT_TIME_LIMIT
     assert task_settings.CELERY_TASK_SOFT_TIME_LIMIT < task_settings.CELERY_TASK_TIME_LIMIT
 
 
 def test_celery_uses_explicit_task_time_limits() -> None:
-    task_settings = get_task_reliability_settings()
+    task_settings = BeatSettings()
 
     assert celery_app.conf.task_soft_time_limit == task_settings.CELERY_TASK_SOFT_TIME_LIMIT
     assert celery_app.conf.task_time_limit == task_settings.CELERY_TASK_TIME_LIMIT
@@ -30,7 +30,7 @@ def test_celery_uses_the_declared_beat_schedule_contract() -> None:
 def test_celery_uses_the_declared_runtime_options_contract() -> None:
     expected = build_celery_runtime_options(
         settings,
-        get_task_reliability_settings(),
+        BeatSettings(),
         beat_schedule_filename=celery_app.conf.beat_schedule_filename,
     )
 

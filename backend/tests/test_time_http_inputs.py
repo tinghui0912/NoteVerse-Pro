@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from unittest.mock import Mock
 import pytest
-from app.modules.ops.router import get_ops_async_operation_query_service
+from app.runtime.control_plane.routers.ops.router import get_ops_async_operation_query_service
 from app.shared.pagination import OffsetPage
 from tests.support.control_plane import (
     control_app as control_app,

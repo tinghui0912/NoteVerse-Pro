@@ -1,15 +1,19 @@
 """PracticeBundle retention owns semantic GC; physical retirement is shared."""
 
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
 from app.modules.practice.bundle.states import PracticeBundleStatus
 
 from sqlalchemy import select
-from app.core.config import settings
 from app.db.models import PracticeBundleRecord, ScoreRevisionPracticeBinding
 from app.modules.media_storage.retirement import retire_after_release
 from app.shared.time import utc_now
 
 
 class PracticeBundleRetention:
+    def __init__(self, *, config: StoredObjectRetirementSettings) -> None:
+        self.config = config
+
     @staticmethod
     def has_owner(db, bundle):
         return (
@@ -61,7 +65,7 @@ class PracticeBundleRetention:
                     PracticeBundleRecord.creation_expires_at <= utc_now(),
                 )
                 .order_by(PracticeBundleRecord.id)
-                .limit(settings.PRACTICE_BUNDLE_GC_BATCH_SIZE)
+                .limit(self.config.PRACTICE_BUNDLE_GC_BATCH_SIZE)
                 .with_for_update(skip_locked=True)
             )
         )
@@ -78,11 +82,8 @@ class PracticeBundleRetention:
                     .exists(),
                 )
                 .order_by(PracticeBundleRecord.id)
-                .limit(settings.PRACTICE_BUNDLE_GC_BATCH_SIZE)
+                .limit(self.config.PRACTICE_BUNDLE_GC_BATCH_SIZE)
                 .with_for_update(skip_locked=True)
             )
         )
         return [uuid for row in rows for uuid in self._retire(db, row)]
-
-
-practice_bundle_retention = PracticeBundleRetention()

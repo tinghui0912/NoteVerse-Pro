@@ -1,11 +1,12 @@
 """Write-generation row locking, fact checks and transactional intent mutation."""
 
+from app.platform.config.object_writes import ObjectWriteSettings
+
 from datetime import timedelta
 from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from app.core.config import settings
 from app.db.models.object_write_intent import ObjectWriteIntent
 from app.db.models.stored_object import StoredObject
 from app.modules.media_storage.domain import ObjectWriteIntentStatus
@@ -13,7 +14,7 @@ from app.modules.media_storage.facts import StoredObjectFacts
 from app.modules.media_storage.persistence import object_from_row
 from app.shared.time import utc_now
 from app.modules.media_storage.write_contracts import ObjectWriteReceipt
-from app.modules.media_storage.write_lifecycle import cleanup_lifecycle
+from app.modules.media_storage.write_lifecycle import cleanup_transitions
 from app.storage.base import ObjectWriteResult
 
 
@@ -45,7 +46,9 @@ def _matching_object(db: Session, facts: StoredObjectFacts) -> StoredObject | No
     return row
 
 
-def reserve_intent(db: Session, facts: StoredObjectFacts) -> ObjectWriteIntent:
+def reserve_intent(
+    db: Session, facts: StoredObjectFacts, *, config: ObjectWriteSettings
+) -> ObjectWriteIntent:
     if facts.sha256 is None:
         raise ValueError("Server writes require a full digest")
     now = utc_now()
@@ -65,7 +68,7 @@ def reserve_intent(db: Session, facts: StoredObjectFacts) -> ObjectWriteIntent:
                     content_type=facts.content_type,
                     write_token=str(uuid4()),
                     write_expires_at=now
-                    + timedelta(seconds=settings.OBJECT_WRITE_INTENT_LEASE_SECONDS),
+                    + timedelta(seconds=config.OBJECT_WRITE_INTENT_LEASE_SECONDS),
                 )
                 db.add(row)
                 db.flush()
@@ -83,20 +86,22 @@ def reserve_intent(db: Session, facts: StoredObjectFacts) -> ObjectWriteIntent:
     return row
 
 
-def prepare_write(db: Session, facts: StoredObjectFacts) -> ObjectWriteReceipt:
-    row = reserve_intent(db, facts)
+def prepare_write(
+    db: Session, facts: StoredObjectFacts, *, config: ObjectWriteSettings
+) -> ObjectWriteReceipt:
+    row = reserve_intent(db, facts, config=config)
     now = utc_now()
     existing = _matching_object(db, facts)
     if existing is None and row.status in (
         ObjectWriteIntentStatus.ADOPTED,
         ObjectWriteIntentStatus.CLEANED,
     ):
-        cleanup_lifecycle().reset(
+        cleanup_transitions().reset(
             row, status=ObjectWriteIntentStatus.PREPARED, reset_attempts=True, now=now
         )
         row.write_token = str(uuid4())
         row.written_at = None
-        row.write_expires_at = now + timedelta(seconds=settings.OBJECT_WRITE_INTENT_LEASE_SECONDS)
+        row.write_expires_at = now + timedelta(seconds=config.OBJECT_WRITE_INTENT_LEASE_SECONDS)
     elif row.status not in (
         ObjectWriteIntentStatus.PREPARED,
         ObjectWriteIntentStatus.WRITTEN,
@@ -109,7 +114,7 @@ def prepare_write(db: Session, facts: StoredObjectFacts) -> ObjectWriteReceipt:
         row.write_token = str(uuid4())
         row.status = ObjectWriteIntentStatus.PREPARED
         row.written_at = None
-        row.write_expires_at = now + timedelta(seconds=settings.OBJECT_WRITE_INTENT_LEASE_SECONDS)
+        row.write_expires_at = now + timedelta(seconds=config.OBJECT_WRITE_INTENT_LEASE_SECONDS)
         row.updated_at = now
     receipt = ObjectWriteReceipt(row.intent_uuid, row.write_token, facts)
     db.flush()
@@ -140,7 +145,7 @@ def inspect_write(
         ObjectWriteIntentStatus.WRITTEN,
         ObjectWriteIntentStatus.ADOPTED,
     ):
-        cleanup_lifecycle().finish(
+        cleanup_transitions().finish(
             row, status=ObjectWriteIntentStatus.ADOPTED, error=None, now=utc_now()
         )
         return row, False

@@ -13,13 +13,8 @@ from typing import Optional
 
 from loguru import logger as _logger
 
-from app.core.config import settings
-from app.core.request_correlation import get_request_id
+from app.platform.correlation import get_request_id
 from app.shared.time import require_utc
-
-_logger.remove()
-
-log_format = settings.LOG_FORMAT
 
 
 task_id_var: ContextVar[Optional[str]] = ContextVar("task_id", default=None)
@@ -397,16 +392,20 @@ def json_sink(message):
         sys.stdout.write(safe_payload)
 
 
-if log_format == "console":
-    _logger.add(
-        sys.stdout,
-        colorize=True,
-        format=console_format,
-        level="DEBUG",
-        filter=filtered_format,
-    )
-else:
-    _logger.add(json_sink, level="INFO", filter=filtered_format)
+def configure_logging(log_format: str) -> None:
+    """Install the stdout policy selected by the process composition root."""
+    _logger.remove()
+    if log_format == "console":
+        _logger.add(
+            sys.stdout,
+            colorize=True,
+            format=console_format,
+            level="DEBUG",
+            filter=filtered_format,
+        )
+    else:
+        _logger.add(json_sink, level="INFO", filter=filtered_format)
+
 
 logger = _logger
 

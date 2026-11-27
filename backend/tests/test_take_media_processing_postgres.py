@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import select
 from app.db.models import PerformanceTake, TakeProcessingOutbox
-from app.composition import media_resources as wiring
 from app.modules.performance_takes.processing_states import (
     TakeProcessingStatus as Status,
     TakeMediaStatus as Media,
@@ -13,6 +12,7 @@ from app.modules.performance_takes.processing_states import (
 from app.shared.time import utc_now
 from app.storage.base import ObjectStorageUnavailableError
 from tests.test_performance_take_finalization_postgres import setup
+from tests.support.runtime_resources import resources_for
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -30,7 +30,7 @@ def pending(postgres_bundle):
         db.add(operation)
         db.commit()
         uuid = operation.operation_uuid
-    return sessions, wiring.build_take_processing_service(storage), uuid
+    return sessions, resources_for(storage).build_take_processing_service(), uuid
 
 
 def test_transient_verification_retries_and_commits_ready_digest(postgres_bundle):

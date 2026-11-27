@@ -1,5 +1,7 @@
 """Accounting and semantic ownership follow the caller's PostgreSQL transaction."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import complete_image_upload
 from tests.support.uploads import settled_upload_session
 
@@ -281,7 +283,7 @@ async def test_upload_persists_its_hold_before_io_and_adopts_accounting_atomical
                 UploadService(
                     quota=_resource_wiring.storage_quota_service,
                     usage=_resource_wiring.storage_usage_service,
-                    uploads=_resource_wiring.build_upload_session_service(storage),
+                    uploads=resources_for(storage).build_upload_session_service(),
                 ),
                 db,
                 user,

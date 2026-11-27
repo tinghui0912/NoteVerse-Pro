@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+
+from app.platform.config.import_dispatch import ImportDispatchSettings
+
 from app.modules.storage_governance.usage.service import StorageUsageService
 
 from dataclasses import dataclass
@@ -8,7 +11,6 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 from app.modules.uploads.repository import UploadRepository
 
-from app.core.config import settings
 from app.core.logger import logger
 from app.db.models import StoredObject
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
@@ -25,8 +27,13 @@ class JobMaintenanceResult:
 
 class ImportJobMaintenanceService:
     def __init__(
-        self, repository: ImportJobRepository | None = None, *, usage: StorageUsageService
+        self,
+        repository: ImportJobRepository | None = None,
+        *,
+        usage: StorageUsageService,
+        config: ImportDispatchSettings,
     ) -> None:
+        self.config = config
         self.usage = usage
         self.repository = repository or ImportJobRepository()
 
@@ -36,7 +43,7 @@ class ImportJobMaintenanceService:
         )
 
     def cleanup_orphan_uploads(self, db: Session) -> int:
-        cutoff = utc_now() - timedelta(seconds=settings.ORPHAN_UPLOAD_TTL_SECONDS)
+        cutoff = utc_now() - timedelta(seconds=self.config.ORPHAN_UPLOAD_TTL_SECONDS)
         deleted = 0
         for upload in self.repository.list_orphan_uploads(db, cutoff):
             try:

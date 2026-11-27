@@ -1,3 +1,4 @@
+from app.platform.config.observability import ObservabilitySettings
 from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
 from app.core.http_application import HttpApplication
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,10 +21,13 @@ def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatc
         "app.core.http_runtime.register_exception_handlers",
         lambda app, **_: registered_apps.append(app),
     )
-    monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", traced_apps.append)
+    monkeypatch.setattr(
+        "app.core.http_runtime.configure_api_tracing", lambda app, config: traced_apps.append(app)
+    )
     app = HttpApplication()
+    app.state.settings = ObservabilitySettings(LOG_FORMAT="console")
 
-    install_http_runtime(app, **CUSTOMER_HTTP_ERRORS)
+    install_http_runtime(app, trusted_proxy_cidrs=(), **CUSTOMER_HTTP_ERRORS)
 
     assert [middleware.cls for middleware in app.user_middleware] == [LoggingMiddleware]
     assert registered_apps == [app]
@@ -34,10 +38,15 @@ def test_install_http_runtime_preserves_explicit_cors_and_csrf_policy(monkeypatc
     monkeypatch.setattr(
         "app.core.http_runtime.register_exception_handlers", lambda _, **kwargs: None
     )
-    monkeypatch.setattr("app.core.http_runtime.configure_api_tracing", lambda _, **kwargs: None)
+    monkeypatch.setattr(
+        "app.core.http_runtime.configure_api_tracing", lambda _, *args, **kwargs: None
+    )
     app = HttpApplication()
+    app.state.settings = ObservabilitySettings(LOG_FORMAT="console")
 
-    install_http_runtime(app, **CUSTOMER_HTTP_ERRORS, cors_origins=["https://app.example"])
+    install_http_runtime(
+        app, trusted_proxy_cidrs=(), **CUSTOMER_HTTP_ERRORS, cors_origins=["https://app.example"]
+    )
 
     assert [middleware.cls for middleware in app.user_middleware] == [
         CORSMiddleware,

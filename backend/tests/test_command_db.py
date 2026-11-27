@@ -7,28 +7,31 @@ from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_command_db, get_current_user, get_db
+from app.platform.db.dependencies import get_command_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core import security
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
 from app.db.models import User
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.mark.parametrize(
     "outcome", ["success", "endpoint_error", "commit_error", "invalid_response"]
 )
 def test_command_uses_one_authenticated_session_and_finishes_before_response(monkeypatch, outcome):
-    from app.db import session as session_module
 
     db = Mock(spec=Session)
     db.__enter__ = Mock(return_value=db)
     db.__exit__ = Mock(return_value=False)
     factory = Mock(return_value=db)
-    monkeypatch.setattr(session_module, "SessionLocal", factory)
     user = User(id=1, email="command@example.test", password_hash="hash")
     db.execute.return_value.scalars.return_value.first.return_value = user
     if outcome == "commit_error":
         db.commit.side_effect = RuntimeError("commit unavailable")
     app = FastAPI()
+    app.state.settings = get_context().settings
+    app.state.session_factory = factory
 
     @app.post("/command", response_model=dict[str, int])
     def command(
@@ -41,7 +44,10 @@ def test_command_uses_one_authenticated_session_and_finishes_before_response(mon
         return {"id": "invalid" if outcome == "invalid_response" else principal.id}
 
     with TestClient(app, raise_server_exceptions=False) as client:
-        client.cookies.set(AUTH_COOKIE_NAME, security.create_access_token(subject="1"))
+        client.cookies.set(
+            AUTH_COOKIE_NAME,
+            security.create_access_token(subject="1", secret_key=get_context().settings.SECRET_KEY),
+        )
         response = client.post("/command")
     assert response.status_code == (200 if outcome == "success" else 500)
     assert factory.call_count == 1
@@ -54,13 +60,12 @@ def test_command_uses_one_authenticated_session_and_finishes_before_response(mon
 
 
 def test_read_session_does_not_commit(monkeypatch):
-    from app.db import session as session_module
 
     db = Mock(spec=Session)
     db.__enter__ = Mock(return_value=db)
     db.__exit__ = Mock(return_value=False)
-    monkeypatch.setattr(session_module, "SessionLocal", lambda: db)
     app = FastAPI()
+    app.state.session_factory = lambda: db
 
     @app.get("/read")
     def read(session: Session = Depends(get_db, scope="function")):
@@ -85,11 +90,18 @@ def test_command_rolls_back_base_exception():
 
 def test_pure_database_http_routes_explicitly_select_the_transaction_scope():
     from fastapi.routing import APIRoute
-    from app.modules.collaboration.router import score_router, invite_router, me_router
-    from app.modules.library.router import router as library
-    from app.modules.guest_previews.router import score_router as guest_settings, preview_router
-    from app.modules.notifications.router import router as notifications
-    from app.modules.practice.activities.router import router as activities
+    from app.runtime.customer_api.routers.collaboration.router import (
+        score_router,
+        invite_router,
+        me_router,
+    )
+    from app.runtime.customer_api.routers.library.router import router as library
+    from app.runtime.customer_api.routers.guest_previews.router import (
+        score_router as guest_settings,
+        preview_router,
+    )
+    from app.runtime.customer_api.routers.notifications.router import router as notifications
+    from app.runtime.customer_api.routers.practice.activities.router import router as activities
 
     for router in (
         score_router,

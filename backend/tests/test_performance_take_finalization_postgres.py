@@ -5,7 +5,6 @@ from threading import Event
 from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy import select, func
-from app.composition import media_resources as wiring
 from app.composition import storage_resources as resources
 from app.db.models import (
     PerformanceTake,
@@ -18,14 +17,15 @@ from app.modules.performance_takes.manifest_persistence import manifest_from_row
 from app.modules.media_storage.upload_sessions.domain import UploadStatus
 from app.storage.base import DirectUploadTarget
 from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
+from tests.support.runtime_resources import resources_for
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
 
 def setup(postgres_bundle):
     sessions, source, storage, request = setup_bundle(postgres_bundle)
-    reservations = wiring.build_take_reservation_service(storage)
-    finalization = wiring.build_take_finalization_service(storage)
+    reservations = resources_for(storage).build_take_reservation_service()
+    finalization = resources_for(storage).build_take_finalization_service()
     with sessions() as db:
         accepted = reservations.reserve_upload(db, 1, request)
     transfer = accepted.upload_session
@@ -101,8 +101,8 @@ def test_large_take_promotion_never_reads_or_copies_and_worker_enriches_digest(p
     request = request.model_copy(
         update={"media": request.media.model_copy(update={"byte_size": size})}
     )
-    reservations = wiring.build_take_reservation_service(storage)
-    finalization = wiring.build_take_finalization_service(storage)
+    reservations = resources_for(storage).build_take_reservation_service()
+    finalization = resources_for(storage).build_take_finalization_service()
     with sessions() as db:
         accepted = reservations.reserve_upload(db, 1, request)
     transfer = accepted.upload_session
@@ -128,7 +128,7 @@ def test_large_take_promotion_never_reads_or_copies_and_worker_enriches_digest(p
         take = db.scalar(select(PerformanceTake))
         assert take.recording_object.sha256 is None
         uuid = db.scalar(select(TakeProcessingOutbox.operation_uuid))
-    assert wiring.build_take_processing_service(storage).execute(uuid) == "completed"
+    assert resources_for(storage).build_take_processing_service().execute(uuid) == "completed"
     with sessions() as db:
         take = db.scalar(select(PerformanceTake))
         assert take.media_status == "READY" and len(take.recording_object.sha256) == 64
@@ -206,7 +206,9 @@ def test_reservation_expiry_during_finalize_releases_capacity_without_publishing
                 row = db.scalar(select(PerformanceTakeUploadReservation).with_for_update())
                 row.expires_at = utc_now() - timedelta(seconds=1)
                 db.commit()
-                assert wiring.build_take_reservation_cleanup_service(storage).expire(db) == 1
+                assert (
+                    resources_for(storage).build_take_reservation_cleanup_service().expire(db) == 1
+                )
                 db.commit()
         finally:
             release.set()

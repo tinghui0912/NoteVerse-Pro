@@ -13,11 +13,12 @@ from alembic import command
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import ValidationException
 from app.db.models import Score, ScoreInvite, ScoreMembership, User
 from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.collaboration.pagination import encode_cursor, decode_cursor
 from app.modules.collaboration.repository import CollaborationRepository
 from tests.support.postgres_schema import postgres_schema_database

@@ -6,11 +6,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import UnauthorizedException
 from app.db.models import Score, ScoreRevision, ScoreMembership, ScoreLibraryOrganization
 from app.db.models.score_access import MembershipRole
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.library.schemas import (
     LibraryView,
     LibrarySort,
@@ -26,6 +27,8 @@ from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.membership_service import MembershipService
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_trusted_collaboration import collaboration as collaboration, member_for
+from app.platform.config.application import InvitationConfig
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.mark.asyncio
@@ -93,7 +96,12 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
     member_for(session, "EDITOR")
     membership = session.scalar(select(ScoreMembership))
     membership_id = membership.id
-    library, collaboration_service = LibraryService(), InvitationService()
+    library, collaboration_service = (
+        LibraryService(),
+        InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ),
+    )
     folder = library.create_folder(db, 2, LibraryFolderCreateRequest(name="Studies"))
     library.batch_move(
         db,

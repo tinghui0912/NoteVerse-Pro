@@ -8,9 +8,12 @@ from pathlib import Path
 from sqlalchemy import UniqueConstraint
 from app.db.models import ScoreRevisionRenderOutbox
 from app.modules.revisions.render_states import ScoreRevisionRenderStatus
-from app.modules.revisions.render_delivery import _delivery_lifecycle, revision_render_delivery
+from app.modules.revisions.render_delivery import _delivery_lifecycle
 from app.modules.revisions.render_target import ScoreRevisionRenderTarget
 from app.modules.durable_work.delivery import DurableDeliveryLifecycle
+from tests.support.runtime_resources import deliveries
+from app.platform.config.revision_render_delivery import RevisionRenderDeliverySettings
+from app.runtime.customer_api.context import get_context
 
 ROOT = Path(__file__).parents[1] / "app"
 
@@ -45,15 +48,18 @@ def test_revision_render_record_has_one_revision_profile_identity():
 
 
 def test_revision_domain_owns_durable_admission_and_dispatch():
-    assert revision_render_delivery.__class__.__module__ == "app.modules.revisions.render_delivery"
-    assert isinstance(_delivery_lifecycle(), DurableDeliveryLifecycle)
+    assert deliveries().render.__class__.__module__ == "app.modules.revisions.render_delivery"
+    assert isinstance(
+        _delivery_lifecycle(
+            config=RevisionRenderDeliverySettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
+        DurableDeliveryLifecycle,
+    )
     assert "app.modules.revisions.render_admission" in imports("modules/revisions/writer.py")
-    assert "app.modules.revisions.render_delivery" in imports(
-        "modules/revisions/render_dispatch.py"
-    )
-    assert "app.modules.revisions.render_dispatch" in imports(
-        "worker/execution/maintenance_dispatch.py"
-    )
+    assert "app.modules.revisions.render_delivery" in imports("composition/dispatch/render.py")
+    assert "app.runtime.worker.context" in imports("worker/execution/maintenance_dispatch.py")
     for file in (ROOT / "modules/import_jobs/review").glob("*.py"):
         dependencies = imports(str(file.relative_to(ROOT)))
         assert all(not name.startswith("app.modules.revisions.render_") for name in dependencies)
@@ -76,7 +82,7 @@ def test_renderer_capability_and_revision_execution_have_distinct_owners():
         "traceparent",
         "tracestate",
     }
-    assert "app.composition.media_resources" in imports(
+    assert "app.runtime.worker.context" in imports(
         "worker/execution/score_revision_render_outbox.py"
     )
     assert "app.modules.revisions.render_delivery" in imports(
@@ -101,7 +107,12 @@ def test_revision_render_asset_mutation_requires_durable_execution_ownership():
         assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
         assert parameter.default is inspect.Parameter.empty
     assert get_type_hints(execution)["lease"] is DeliveryAttemptLease
-    assert set(inspect.signature(ScoreRevisionRenderService).parameters) == {"writes", "usage"}
+    assert set(inspect.signature(ScoreRevisionRenderService).parameters) == {
+        "writes",
+        "usage",
+        "delivery",
+        "work_root",
+    }
 
 
 def test_rendered_page_variant_identity_is_required_in_persistence_and_public_contract():

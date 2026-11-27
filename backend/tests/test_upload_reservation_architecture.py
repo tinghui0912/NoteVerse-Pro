@@ -41,7 +41,6 @@ def test_lifecycle_writes_belong_to_persistence_adapter():
     for name in [
         "upload_reservation/reservation_service.py",
         "upload_reservation/cleanup.py",
-        "router.py",
     ]:
         tree = ast.parse((MODULE / name).read_text())
         for node in ast.walk(tree):
@@ -104,7 +103,10 @@ def test_object_ownership_is_explicit_in_persistence_shape():
 
 
 def test_router_dispatches_domain_commands():
-    assert not any("upload_reservation.domain" in name for name in imports(MODULE / "router.py"))
+    assert not any(
+        "upload_reservation.domain" in name
+        for name in imports(ROOT / "runtime/customer_api/routers/performance_takes/router.py")
+    )
 
 
 def test_manifest_semantics_and_persistence_have_explicit_dependency_owners():

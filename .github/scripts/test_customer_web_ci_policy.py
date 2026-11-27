@@ -313,7 +313,7 @@ class ImagePolicyTests(unittest.TestCase):
                 self.assert_no_image(event, [])
 
     def test_backend_and_unrelated_workflow_are_not_customer_runtime(self):
-        self.assertFalse(policy.runtime_relevant("backend/app/main.py"))
+        self.assertFalse(policy.runtime_relevant("backend/app/runtime/customer_api/main.py"))
         self.assertFalse(policy.runtime_relevant(".github/workflows/backend-quality.yml"))
 
 

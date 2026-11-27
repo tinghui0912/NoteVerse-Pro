@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+
+from app.platform.config.application import AccountEmailConfig
+
 import hashlib
 import secrets
 from datetime import timedelta
@@ -11,7 +14,6 @@ from sqlmodel import select
 from sqlalchemy.orm import Session
 
 from app.core import security
-from app.core.config import settings
 from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
 from app.db.model_utils import require_persisted_id
 from app.db.models.auth import EmailChangeRequest
@@ -32,6 +34,9 @@ from app.shared.time import utc_now
 class EmailChangeService:
     """Owns request-confirm email change tokens for authenticated users."""
 
+    def __init__(self, *, config: AccountEmailConfig) -> None:
+        self.config = config
+
     def _hash_token(self, token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -39,7 +44,7 @@ class EmailChangeService:
         return secrets.token_urlsafe(48)
 
     def _frontend_url(self, path: str, token: str) -> str:
-        base_url = settings.FRONTEND_BASE_URL.rstrip("/")
+        base_url = self.config.FRONTEND_BASE_URL.rstrip("/")
         return f"{base_url}{path}?{urlencode({'token': token})}"
 
     def request_email_change(
@@ -91,7 +96,7 @@ class EmailChangeService:
             if pending.user_id == user_id and pending.consumed_at is None:
                 pending.consumed_at = now
 
-        ttl_seconds = settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
+        ttl_seconds = self.config.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS
         token = self._new_token()
         email_change = EmailChangeRequest(
             user_id=user_id,
@@ -107,7 +112,7 @@ class EmailChangeService:
 
         email_content = build_email_change_confirmation_email(
             locale=request.locale,
-            project_name=settings.PROJECT_NAME,
+            project_name=self.config.PROJECT_NAME,
             confirmation_url=self._frontend_url("/auth/confirm-email-change", token),
             ttl_seconds=ttl_seconds,
         )
@@ -186,7 +191,7 @@ class EmailChangeService:
 
         email_content = build_email_changed_email(
             locale=record.locale,
-            project_name=settings.PROJECT_NAME,
+            project_name=self.config.PROJECT_NAME,
             new_email=record.new_email,
         )
         queue_mail(

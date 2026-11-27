@@ -15,7 +15,10 @@ from app.modules.collaboration.mail_lifecycle import close_account_collaboration
 
 
 class AccountDeletionService:
-    def __init__(self, repository: AccountDeletionRepository | None = None) -> None:
+    def __init__(
+        self, session_service: SessionService, repository: AccountDeletionRepository | None = None
+    ) -> None:
+        self.sessions = session_service
         self.repository = repository or AccountDeletionRepository()
 
     def request_deletion(self, db: Session, user_id: int, *, current_password: str) -> str:
@@ -36,7 +39,7 @@ class AccountDeletionService:
         invalidate_user_credentials(db, user_id, now=now)
         cancel_user_authentication_mail(db, user_id)
         close_account_collaboration_data(db, user_id=user_id, email=user.email, closed_at=now)
-        SessionService().revoke_user_refresh_tokens(db, user_id, revoked_at=now, commit=False)
+        self.sessions.revoke_user_refresh_tokens(db, user_id, revoked_at=now, commit=False)
         operation = AccountDeletionOperation(
             user_id=user_id,
             user_id_snapshot=user_id,

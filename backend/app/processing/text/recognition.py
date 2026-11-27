@@ -5,6 +5,7 @@ import re
 from typing import Iterable, List, Literal, Optional, TypedDict
 
 from app.core.logger import logger
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
 from app.processing.engines.ocr import run_ocr_subprocess
 
 from .config import ClassificationConfig, OCR_CORRECTIONS, OcrConfig
@@ -65,6 +66,9 @@ class TextRecognitionProcessFailureResult(TypedDict):
 
 
 class TextRecognitionEngine:
+    def __init__(self, *, config: WorkerModelEngineSettings) -> None:
+        self.config = config
+
     """Recognize text in score images and classify the extracted fields."""
 
     def _post_process_ocr_text(self, text: str) -> str:
@@ -144,7 +148,9 @@ class TextRecognitionEngine:
                 timeout_seconds=timeout_seconds,
             ).info("Text recognition started")
 
-            process_result = run_ocr_subprocess(image_path, timeout_seconds=timeout_seconds)
+            process_result = run_ocr_subprocess(
+                image_path, timeout_seconds=timeout_seconds, config=self.config
+            )
             if not process_result["success"]:
                 logger.bind(
                     event="text_recognition.subprocess_failed",

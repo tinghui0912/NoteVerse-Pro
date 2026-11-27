@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.fingering_execution import FingeringExecutionSettings
+from app.platform.config.fingering_execution import FingeringExecutionSettings
 
 
 def test_fingering_execution_settings_accept_default_policy() -> None:

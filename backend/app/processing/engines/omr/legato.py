@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 import importlib.util
 import json
 import os
@@ -11,7 +12,7 @@ from typing import Callable
 import copy
 import xml.etree.ElementTree as ET
 
-from app.core.settings.worker_runtime import get_worker_runtime_settings
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
 from app.core.logger import logger
 from app.processing.musicxml import normalize_initial_musicxml_clefs
 from app.shared.error_codes import CustomerErrorCode
@@ -32,6 +33,7 @@ class LegatoOmrEngine:
     def __init__(
         self,
         output_folder: str,
+        config: WorkerModelEngineSettings,
         timeout_seconds: int,
         repo_path: str | None = None,
         python_executable: str | None = None,
@@ -42,7 +44,8 @@ class LegatoOmrEngine:
         beam_size: int | None = None,
         batch_size: int | None = None,
     ) -> None:
-        settings = get_worker_runtime_settings()
+        self.config = config
+        settings = config
         self.output_folder = Path(output_folder)
         self.timeout_seconds = min(
             timeout_seconds,
@@ -254,7 +257,7 @@ class LegatoOmrEngine:
             if not current_pythonpath
             else f"{self.repo_path}{os.pathsep}{current_pythonpath}"
         )
-        settings = get_worker_runtime_settings()
+        settings = self.config
         if settings.HF_HOME:
             env["HF_HOME"] = settings.HF_HOME
         if settings.HF_HUB_OFFLINE:

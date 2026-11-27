@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+
+from app.platform.config.revision_render_delivery import RevisionRenderDeliverySettings
+
 import uuid
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from sqlmodel import col
 
-from app.core.config import settings
 from app.core.logger import logger
 from app.db.models import ScoreRevisionRenderOutbox
 from app.modules.revisions.render_states import ScoreRevisionRenderStatus
@@ -21,6 +23,7 @@ from app.modules.durable_work.delivery import (
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
     DurableDeliveryLifecycle,
+    DeliveryTransitions,
     DeliveryAttemptLease,
     StaleDeliveryAttempt,
 )
@@ -33,7 +36,9 @@ from app.modules.revisions.presentation_demand import (
 )
 
 
-def _delivery_lifecycle() -> DurableDeliveryLifecycle[ScoreRevisionRenderStatus]:
+def _delivery_lifecycle(
+    *, config: RevisionRenderDeliverySettings
+) -> DurableDeliveryLifecycle[ScoreRevisionRenderStatus]:
     return DurableDeliveryLifecycle(
         statuses=DeliveryStatuses(
             pending=ScoreRevisionRenderStatus.PENDING,
@@ -43,15 +48,18 @@ def _delivery_lifecycle() -> DurableDeliveryLifecycle[ScoreRevisionRenderStatus]
             succeeded=ScoreRevisionRenderStatus.COMPLETED,
         ),
         policy=DeliveryLifecyclePolicy(
-            max_attempts=settings.REVISION_RENDER_MAX_ATTEMPTS,
-            retry_base_seconds=settings.REVISION_RENDER_RETRY_BASE_SECONDS,
-            dispatch_timeout_seconds=settings.REVISION_RENDER_DISPATCH_TIMEOUT_SECONDS,
-            processing_timeout_seconds=settings.REVISION_RENDER_PROCESSING_TIMEOUT_SECONDS,
+            max_attempts=config.REVISION_RENDER_MAX_ATTEMPTS,
+            retry_base_seconds=config.REVISION_RENDER_RETRY_BASE_SECONDS,
+            dispatch_timeout_seconds=config.REVISION_RENDER_DISPATCH_TIMEOUT_SECONDS,
+            processing_timeout_seconds=config.REVISION_RENDER_PROCESSING_TIMEOUT_SECONDS,
         ),
     )
 
 
 class ScoreRevisionRenderDelivery:
+    def __init__(self, *, config: RevisionRenderDeliverySettings) -> None:
+        self.config = config
+
     def require_revision_attempt(
         self,
         db: Session,
@@ -83,7 +91,7 @@ class ScoreRevisionRenderDelivery:
         self, db: Session, uuid: str, lease: DeliveryAttemptLease
     ) -> ScoreRevisionRenderOutbox:
         row = self._get(db, uuid)
-        if row is None or not _delivery_lifecycle().attempt_matches(row, lease):
+        if row is None or not _delivery_lifecycle(config=self.config).attempt_matches(row, lease):
             raise StaleDeliveryAttempt("Render execution lease is stale")
         return row
 
@@ -113,7 +121,7 @@ class ScoreRevisionRenderDelivery:
             self._exhaust_unavailable_resources(outbox)
             return None
         if demand == RevisionPresentationDemand.NOT_DEMANDED:
-            _delivery_lifecycle().reset(
+            _delivery_lifecycle(config=self.config).reset(
                 outbox,
                 status=ScoreRevisionRenderStatus.SUPERSEDED,
                 reset_attempts=False,
@@ -128,7 +136,7 @@ class ScoreRevisionRenderDelivery:
                 operation_kind="revision_render",
             ).info("revision_derivative.superseded")
             return None
-        lifecycle = _delivery_lifecycle()
+        lifecycle = _delivery_lifecycle(config=self.config)
         admission = lifecycle.claim_admission(outbox, now=utc_now())
         if admission is ClaimAdmission.EXHAUSTED:
             lifecycle.exhaust(outbox, error="Render delivery attempts exhausted", now=utc_now())
@@ -160,9 +168,8 @@ class ScoreRevisionRenderDelivery:
             self._exhaust_unavailable_resources(outbox)
         return payload
 
-    @staticmethod
-    def _exhaust_unavailable_resources(outbox: ScoreRevisionRenderOutbox) -> None:
-        _delivery_lifecycle().exhaust(
+    def _exhaust_unavailable_resources(self, outbox: ScoreRevisionRenderOutbox) -> None:
+        _delivery_lifecycle(config=self.config).exhaust(
             outbox, error="Render outbox references unavailable resources", now=utc_now()
         )
         set_failure_facts(
@@ -175,9 +182,11 @@ class ScoreRevisionRenderDelivery:
 
     def supersede(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().attempt_matches(outbox, lease):
+        if outbox is None or not _delivery_lifecycle(config=self.config).attempt_matches(
+            outbox, lease
+        ):
             return False
-        _delivery_lifecycle().reset(
+        _delivery_lifecycle(config=self.config).reset(
             outbox, status=ScoreRevisionRenderStatus.SUPERSEDED, reset_attempts=False, now=utc_now()
         )
         clear_failure_facts(outbox)
@@ -185,7 +194,7 @@ class ScoreRevisionRenderDelivery:
 
     def complete(self, db: Session, outbox_uuid: str, *, lease: DeliveryAttemptLease) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().complete_attempt(
+        if outbox is None or not _delivery_lifecycle(config=self.config).complete_attempt(
             outbox, lease=lease, now=utc_now()
         ):
             return False
@@ -196,7 +205,7 @@ class ScoreRevisionRenderDelivery:
         self, db: Session, outbox_uuid: str, error: str, *, lease: DeliveryAttemptLease
     ) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().fail_attempt(
+        if outbox is None or not _delivery_lifecycle(config=self.config).fail_attempt(
             outbox, lease=lease, error=error, now=utc_now()
         ):
             return False
@@ -210,14 +219,16 @@ class ScoreRevisionRenderDelivery:
 
     def mark_dispatched(self, db: Session, outbox_uuid: str) -> bool:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().dispatch(outbox, now=utc_now()):
+        if outbox is None or not _delivery_lifecycle(config=self.config).dispatch(
+            outbox, now=utc_now()
+        ):
             return False
         clear_failure_facts(outbox)
         return True
 
     def release_dispatch(self, db: Session, outbox_uuid: str, error: str) -> None:
         outbox = self._get(db, outbox_uuid)
-        if outbox is None or not _delivery_lifecycle().release_dispatch(
+        if outbox is None or not _delivery_lifecycle(config=self.config).release_dispatch(
             outbox, error=error, now=utc_now()
         ):
             return
@@ -246,7 +257,7 @@ class ScoreRevisionRenderDelivery:
             .all()
         )
         for outbox in stale:
-            if _delivery_lifecycle().recover_lease(
+            if _delivery_lifecycle(config=self.config).recover_lease(
                 outbox, error="Render delivery lease expired", now=now
             ):
                 self._record_failure(
@@ -264,10 +275,11 @@ class ScoreRevisionRenderDelivery:
                         [ScoreRevisionRenderStatus.PENDING, ScoreRevisionRenderStatus.FAILED]
                     ),
                     ScoreRevisionRenderOutbox.next_attempt_at <= now,
-                    ScoreRevisionRenderOutbox.attempt_count < settings.REVISION_RENDER_MAX_ATTEMPTS,
+                    ScoreRevisionRenderOutbox.attempt_count
+                    < self.config.REVISION_RENDER_MAX_ATTEMPTS,
                 )
                 .order_by(ScoreRevisionRenderOutbox.created_at)
-                .limit(settings.REVISION_RENDER_DISPATCH_BATCH_SIZE)
+                .limit(self.config.REVISION_RENDER_DISPATCH_BATCH_SIZE)
             )
             .scalars()
             .all()
@@ -275,15 +287,15 @@ class ScoreRevisionRenderDelivery:
         db.commit()
         return list(due)
 
-    @staticmethod
     def _record_failure(
+        self,
         outbox: ScoreRevisionRenderOutbox,
         *,
         code: str,
         stage: str,
         classification: DurableFailureClass,
     ) -> None:
-        retryable = outbox.attempt_count < settings.REVISION_RENDER_MAX_ATTEMPTS
+        retryable = outbox.attempt_count < self.config.REVISION_RENDER_MAX_ATTEMPTS
         set_failure_facts(
             outbox,
             DurableFailure(
@@ -308,7 +320,7 @@ class ScoreRevisionRenderDelivery:
         ):
             raise ValidationException(field="status", details={"status": outbox.status.value})
         previous = outbox.status.value
-        _delivery_lifecycle().rearm(outbox, now=utc_now())
+        _delivery_lifecycle(config=self.config).rearm(outbox, now=utc_now())
         clear_failure_facts(outbox)
         return previous
 
@@ -322,11 +334,16 @@ class ScoreRevisionRenderDelivery:
         ).scalar_one_or_none()
 
 
-revision_render_delivery = ScoreRevisionRenderDelivery()
-
-
 def rearm_revision_outbox(outbox: ScoreRevisionRenderOutbox) -> None:
-    _delivery_lifecycle().rearm(outbox, now=utc_now())
+    DeliveryTransitions(
+        DeliveryStatuses(
+            ScoreRevisionRenderStatus.PENDING,
+            ScoreRevisionRenderStatus.DISPATCHED,
+            ScoreRevisionRenderStatus.PROCESSING,
+            ScoreRevisionRenderStatus.FAILED,
+            ScoreRevisionRenderStatus.COMPLETED,
+        )
+    ).rearm(outbox, now=utc_now())
     clear_failure_facts(outbox)
     logger.bind(
         event="revision_derivative.reactivated",

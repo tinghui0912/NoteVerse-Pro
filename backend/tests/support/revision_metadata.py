@@ -3,7 +3,7 @@
 from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
 
 from contextlib import contextmanager
-from unittest.mock import patch
+from tests.support.worker_context import patch_worker
 from sqlalchemy import select
 from app.db.models import RevisionMetadataOutbox
 from app.worker.execution import revision_metadata as worker
@@ -30,8 +30,5 @@ def drain_revision_metadata(db, storage):
             db.rollback()
             raise
 
-    with (
-        patch.object(worker, "SessionLocal", transaction),
-        patch.object(worker, "object_storage", storage),
-    ):
+    with patch_worker(worker, sessions=transaction, storage=storage):
         return [worker.execute_revision_metadata_task(None, uuid) for uuid in identities]

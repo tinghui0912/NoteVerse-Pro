@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.observability import ObservabilitySettings
+from app.platform.config.observability import ObservabilitySettings
 
 
 def test_observability_settings_normalize_log_format_and_otlp_endpoint() -> None:

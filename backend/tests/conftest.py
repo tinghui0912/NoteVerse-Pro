@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from collections.abc import Iterator
 
 import pytest
@@ -7,6 +8,12 @@ from fastapi.testclient import TestClient
 import os
 
 for name, value in {
+    "LEGATO_REPO_PATH": "/tmp/legato",
+    "PLAYBACK_SOUNDFONT_PATH": "/tmp/test.sf2",
+    "CONTROL_PLANE_COOKIE_SECURE": "false",
+    "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
+    "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",
+    "CONTROL_PLANE_CORS_ORIGINS": '["http://testserver"]',
     "S3_ENDPOINT_URL": "https://storage.example.test",
     "S3_BUCKET": "unit-tests",
     "S3_ACCESS_KEY_ID": "test-key",
@@ -17,7 +24,7 @@ for name, value in {
 
 @pytest.fixture(scope="session")
 def client() -> Iterator[TestClient]:
-    from app.main import app
+    from app.runtime.customer_api.main import app
 
     with TestClient(app) as test_client:
         yield test_client
@@ -25,40 +32,24 @@ def client() -> Iterator[TestClient]:
 
 @pytest.fixture(scope="session")
 def exporter_client() -> Iterator[TestClient]:
-    from app.observability_main import app
+    from app.runtime.observability.main import app
 
     with TestClient(app) as test_client:
         yield test_client
 
 
 @pytest.fixture(autouse=True)
-def isolated_revision_post_commit_relay(monkeypatch):
-    """Business transaction tests do not publish to an external broker.
-
-    Relay protocol tests install their controlled producer explicitly.
-    """
+def isolated_immediate_dispatch(monkeypatch):
     from unittest.mock import Mock
-    from app.modules.revisions.post_commit import revision_post_commit
+    from app.runtime.customer_api.context import get_context
+    from app.composition.dispatch.retirement import StoredObjectRetirementDispatcher
+    from app.composition.dispatch.score_deletion import ScoreDeletionDispatcher
 
-    monkeypatch.setattr(revision_post_commit, "dispatch_best_effort", Mock())
-
-
-@pytest.fixture(autouse=True)
-def isolated_retirement_immediate_dispatch(monkeypatch):
-    from unittest.mock import Mock
-
+    monkeypatch.setattr(get_context().resources.post_commit, "dispatch_best_effort", Mock())
     monkeypatch.setattr(
-        "app.worker.dispatch.stored_object_retirement.dispatch_retirements_best_effort", Mock()
+        StoredObjectRetirementDispatcher, "dispatch_retirements_best_effort", Mock()
     )
-
-
-@pytest.fixture(autouse=True)
-def isolated_score_deletion_immediate_dispatch(monkeypatch):
-    from unittest.mock import Mock
-
-    monkeypatch.setattr(
-        "app.worker.dispatch.score_deletion.dispatch_score_deletion_best_effort", Mock()
-    )
+    monkeypatch.setattr(ScoreDeletionDispatcher, "dispatch_score_deletion_best_effort", Mock())
 
 
 @pytest.fixture

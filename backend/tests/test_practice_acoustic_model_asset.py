@@ -1,26 +1,29 @@
 """Network-free current delivery and strict descriptor conformance."""
 
-from app.composition import storage_resources as _resource_wiring
+from tests.support.runtime_resources import resources_for
+
 
 from tests.support.object_storage import InMemoryObjectStorage
 import pytest
 from pydantic import ValidationError
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from app.api.deps import get_current_user
+from app.runtime.customer_api.deps import get_current_user
 from app.modules.model_assets.generated.practice_acoustic_model_asset import (
     MODEL_ASSET,
     MODEL_ASSET_DESCRIPTOR,
 )
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
 from app.modules.model_assets.service import ModelAssetService
-from app.api.resource_dependencies import get_model_asset_service
-from app.modules.model_assets.router import router
+from app.runtime.customer_api.resources import get_model_asset_service
+from app.runtime.customer_api.routers.model_assets.router import router
+from app.platform.config.model_asset_delivery import ModelAssetDeliverySettings
 
 
 def delivery():
     return ModelAssetService(
-        delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage())
+        delivery=resources_for(InMemoryObjectStorage()).build_media_delivery_service(),
+        config=ModelAssetDeliverySettings(),
     )
 
 

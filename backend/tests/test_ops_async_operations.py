@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from app.runtime.worker.context import get_context as worker_context
+
+from app.observability.async_operation_metrics import MetricsConfig
+
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 
 from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
@@ -15,7 +20,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel, select
 
-from app.api.deps import get_db
+from app.platform.db.dependencies import get_db
 from app.db.models import (
     User,
     ImportDispatch,
@@ -61,20 +66,18 @@ os.environ.setdefault("CONTROL_PLANE_COOKIE_SAMESITE", "lax")
 os.environ.setdefault("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
 os.environ.setdefault("CONTROL_PLANE_CORS_ORIGINS", '["http://testserver"]')
 
-from app.core.control_plane_settings import (  # noqa: E402
-    get_control_plane_runtime_settings,
-    require_control_plane_settings,
-)
 
-get_control_plane_runtime_settings.cache_clear()
-
-from app.control_plane_main import create_app  # noqa: E402
-from app.modules.platform_operators.dependencies import OperatorPrincipal, get_current_operator  # noqa: E402
+from app.runtime.control_plane.main import create_app  # noqa: E402
+from app.runtime.control_plane.deps import OperatorPrincipal, get_current_operator  # noqa: E402
 from app.modules.platform_operators.service import OperatorAuthenticationService  # noqa: E402
+from tests.support.control_plane import operator_policy
+from tests.support.runtime_resources import deliveries
+from app.platform.config.delivery import DeliveryConfig
+from app.runtime.customer_api.context import get_context
 
 
 app = create_app()
-control_settings = require_control_plane_settings()
+control_settings = operator_policy()
 
 
 def test_ops_query_and_retry_kind_contracts_cover_every_async_operation_kind() -> None:
@@ -163,7 +166,7 @@ def test_local_operator_identity_creates_and_resolves_opaque_session(
         password="a-long-operator-password",
         user_agent="test-agent",
         ip_address="198.51.100.10",
-        security_settings=require_control_plane_settings(),
+        security_settings=operator_policy(),
     )
     resolved_operator, resolved_identity, resolved_session = service.resolve_session(
         db, token=token
@@ -332,7 +335,9 @@ def test_ops_projects_domain_delivery_state(ops_session, status, retryable, expe
         )
     ops_session.add(row)
     ops_session.commit()
-    service = OpsAsyncOperationQueryService()
+    service = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     operation = service.get_operation(
         ops_session, kind=AsyncOperationKind.MAIL, operation_id=row.outbox_uuid
     )
@@ -374,7 +379,9 @@ def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None
     )
     ops_session.commit()
 
-    service = OpsAsyncOperationQueryService()
+    service = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     summary = service.summary(
         ops_session,
         kind=AsyncOperationKind.MAIL,
@@ -1212,7 +1219,9 @@ def test_filtered_pagination_reaches_matching_work_beyond_recent_batches(ops_ses
     )
     ops_session.add(target)
     ops_session.commit()
-    service = OpsAsyncOperationQueryService()
+    service = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     filters = dict(
         kind=AsyncOperationKind.MAIL,
         status=AsyncOperationStatus.RETRYING,
@@ -1240,7 +1249,6 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
     ops_session, model, status, kind, monkeypatch
 ):
     from app.core.exceptions import ValidationException
-    from app.modules.ops.command_service import OpsAsyncOperationCommandService
     from app.observability.async_operation_metrics import (
         _oldest_open_age_lines,
         _oldest_processing_age_lines,
@@ -1263,7 +1271,9 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
     )
     ops_session.add(row)
     ops_session.commit()
-    service = OpsAsyncOperationQueryService()
+    service = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     operation = service.get_operation(ops_session, kind=kind, operation_id=row.outbox_uuid)
     assert operation.status == AsyncOperationStatus.SUPERSEDED and operation.failure is None
     assert (
@@ -1274,11 +1284,11 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
         ("oldest_processing_age_seconds", _oldest_processing_age_lines),
         ("completed_duration_average_seconds", _completed_duration_average_lines),
     ]:
-        assert f'noteverse_async_operation_{metric}{{kind="{kind.value}"}} 0' in reader(ops_session)
-    with pytest.raises(ValidationException):
-        OpsAsyncOperationCommandService().retry_operation(
-            ops_session, kind=kind, operation_id=row.outbox_uuid
+        assert f'noteverse_async_operation_{metric}{{kind="{kind.value}"}} 0' in reader(
+            ops_session, config=MetricsConfig.model_validate(get_context().settings.model_dump())
         )
+    with pytest.raises(ValidationException):
+        app.state.ops_commands.retry_operation(ops_session, kind=kind, operation_id=row.outbox_uuid)
     assert row.status == status.SUPERSEDED
 
 
@@ -1344,7 +1354,9 @@ def test_erasure_ops_query_summary_and_audited_rearm_preserve_domain_lineage(
     )
     ops_session.add(row)
     ops_session.commit()
-    query = OpsAsyncOperationQueryService()
+    query = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     item = query.get_operation(ops_session, kind=kind, operation_id=identity)
     assert item.status == AsyncOperationStatus.FAILED and item.can_retry
     assert item.failure.stage == "cleanup" and not item.failure.retryable
@@ -1390,7 +1402,6 @@ def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_ses
     from app.db.models import StoredObjectRetirement
     from app.modules.media_storage.domain import StoredObjectRetirementStatus
     from app.observability.async_operation_metrics import async_operation_metrics_text
-    from app.modules.media_storage.retirement import retirement_delivery
     from app.core.exceptions import ValidationException
 
     row = StoredObjectRetirement(
@@ -1402,7 +1413,9 @@ def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_ses
     )
     ops_session.add(row)
     ops_session.commit()
-    query = OpsAsyncOperationQueryService()
+    query = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     result = query.list_operations(
         ops_session,
         limit=10,
@@ -1421,10 +1434,10 @@ def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_ses
     )
     assert (
         'noteverse_async_operations_by_status{kind="stored_object_retirement",status="cancelled"} 1'
-        in async_operation_metrics_text(ops_session)
+        in async_operation_metrics_text(ops_session, config=MetricsConfig())
     )
     with pytest.raises(ValidationException):
-        retirement_delivery.rearm_for_operator(ops_session, row.retirement_uuid)
+        deliveries().retirement.rearm_for_operator(ops_session, row.retirement_uuid)
 
 
 @pytest.mark.parametrize(
@@ -1437,14 +1450,12 @@ def test_erasure_ops_rejects_live_leases_and_completed_work(ops_session, kind):
         AccountDeletionStatus,
         StoredObjectRetirement,
     )
-    from app.modules.account.deletion_delivery import account_deletion_delivery
-    from app.modules.media_storage.retirement import retirement_delivery
     from app.core.exceptions import ValidationException
 
     if kind == AsyncOperationKind.ACCOUNT_DELETION:
         row = AccountDeletionOperation(user_id=1, user_id_snapshot=1)
         owner, identity, completed = (
-            account_deletion_delivery,
+            deliveries().account_deletion,
             row.operation_uuid,
             AccountDeletionStatus.COMPLETED,
         )
@@ -1453,7 +1464,7 @@ def test_erasure_ops_rejects_live_leases_and_completed_work(ops_session, kind):
             object_key="safe", byte_size=1, sha256="c" * 64, content_type="audio/wav"
         )
         owner, identity, completed = (
-            retirement_delivery,
+            deliveries().retirement,
             row.retirement_uuid,
             StoredObjectRetirementStatus.COMPLETED,
         )
@@ -1473,7 +1484,6 @@ def test_erasure_ops_rejects_live_leases_and_completed_work(ops_session, kind):
 
 def test_operator_rearm_rolls_back_when_audit_persistence_fails(ops_session):
     from app.db.models import AccountDeletionOperation, AccountDeletionStatus
-    from app.modules.ops.command_service import OpsAsyncOperationCommandService
     from app.modules.ops.audit_service import OpsAuditService
     from app.modules.durable_work.failure import DurableFailure, set_failure_facts
     from sqlalchemy.exc import IntegrityError
@@ -1487,7 +1497,7 @@ def test_operator_rearm_rolls_back_when_audit_persistence_fails(ops_session):
     ops_session.add(row)
     ops_session.commit()
     identity = row.operation_uuid
-    OpsAsyncOperationCommandService().retry_operation(
+    app.state.ops_commands.retry_operation(
         ops_session, kind=AsyncOperationKind.ACCOUNT_DELETION, operation_id=identity
     )
     with pytest.raises(IntegrityError):
@@ -1534,7 +1544,7 @@ def test_erasure_metrics_measure_total_duration_and_keep_stopped_failures_visibl
     )
     ops_session.add_all([done, stopped])
     ops_session.commit()
-    text = metrics.async_operation_metrics_text(ops_session)
+    text = metrics.async_operation_metrics_text(ops_session, config=MetricsConfig())
     assert (
         'noteverse_async_operation_completed_duration_average_seconds{kind="account_deletion"} 7200'
         in text
@@ -1598,7 +1608,7 @@ def test_media_resource_metrics_expose_unsettled_responsibility_without_locators
         )
     )
     ops_session.commit()
-    result = "\n".join(_media_resource_lines(ops_session))
+    result = "\n".join(_media_resource_lines(ops_session, config=MetricsConfig()))
     for kind in ("write_unknown", "upload_unknown", "upload_expired_uncleaned"):
         assert f'noteverse_media_resource_backlog{{kind="{kind}"}} 1' in result
     assert 'noteverse_media_resource_backlog{kind="take_processing_failed"} 0' in result

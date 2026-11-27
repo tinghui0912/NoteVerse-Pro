@@ -7,8 +7,7 @@ validated only; they are never silently repaired or overwritten.
 
 from __future__ import annotations
 
-from app.composition.media_resources import build_revision_writer
-from app.composition.storage_resources import build_object_write_coordinator
+
 from app.composition.storage_resources import storage_quota_service
 from uuid import UUID, uuid4, uuid5
 from datetime import timedelta
@@ -32,8 +31,7 @@ from app.modules.revisions.writer import (
 from app.composition.storage_resources import provision_storage_resources
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.db.session import SessionLocal
-from app.storage import object_storage
+from app.runtime.cli.resources import get_context
 
 
 INTEGRATION_EMAIL = "integration@example.com"
@@ -49,7 +47,7 @@ INTEGRATION_MUSICXML = b"""<?xml version="1.0" encoding="UTF-8"?>
 
 
 def seed_user() -> None:
-    with SessionLocal() as session:
+    with get_context().sessions() as session:
         result = session.execute(select(User).where(User.email == INTEGRATION_EMAIL))
         user = result.scalar_one_or_none()
         created_user = False
@@ -90,7 +88,7 @@ def seed_user() -> None:
                 )
             content = admit_musicxml_document(INTEGRATION_MUSICXML)
             storage_key = f"scores/{INTEGRATION_PRACTICE_SCORE_ID}/revisions/{INTEGRATION_PRACTICE_REVISION_ID}/score.musicxml"
-            if object_storage.exists(storage_key):
+            if get_context().resources.storage.exists(storage_key):
                 raise RuntimeError(
                     "Integration canonical object already exists; refusing overwrite"
                 )
@@ -104,10 +102,14 @@ def seed_user() -> None:
             )
             try:
                 session.commit()
-                stored = build_object_write_coordinator(object_storage).write_bytes(
-                    key=storage_key,
-                    content=content,
-                    content_type="application/vnd.recordare.musicxml+xml",
+                stored = (
+                    get_context()
+                    .resources.build_object_write_coordinator()
+                    .write_bytes(
+                        key=storage_key,
+                        content=content,
+                        content_type="application/vnd.recordare.musicxml+xml",
+                    )
                 )
                 score = Score(
                     score_uuid=INTEGRATION_PRACTICE_SCORE_ID,
@@ -124,7 +126,7 @@ def seed_user() -> None:
                     "1",
                     reservation.hold_id,
                 )
-                build_revision_writer().write(
+                get_context().resources.build_revision_writer().write(
                     session,
                     InitialRevisionWrite(
                         INTEGRATION_PRACTICE_SCORE_ID,

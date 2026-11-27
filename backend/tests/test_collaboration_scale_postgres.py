@@ -11,6 +11,8 @@ from app.modules.collaboration.membership_service import MembershipService
 from app.modules.media_storage.persistence import object_from_bytes
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
+from app.platform.config.application import InvitationConfig
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.mark.parametrize("collection", ["invites", "pending", "members"])
@@ -85,10 +87,14 @@ def test_collection_hydration_has_a_fixed_query_bound_for_one_and_one_hundred_ro
             event.listen(engine, "before_cursor_execute", observe)
             try:
                 if collection == "invites":
-                    page = InvitationService().list_invites(fresh, "collection", 1, limit=limit)
+                    page = InvitationService(
+                        config=InvitationConfig.model_validate(get_context().settings.model_dump())
+                    ).list_invites(fresh, "collection", 1, limit=limit)
                     assert all(item.terminal_actor.avatar_url for item in page.items)
                 elif collection == "pending":
-                    page = InvitationService().list_my_pending_invites(fresh, 2, limit=limit)
+                    page = InvitationService(
+                        config=InvitationConfig.model_validate(get_context().settings.model_dump())
+                    ).list_my_pending_invites(fresh, 2, limit=limit)
                     assert all(item.inviter.avatar_url for item in page.items)
                 else:
                     page = MembershipService().list_members(fresh, "collection", 1, limit=limit)

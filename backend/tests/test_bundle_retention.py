@@ -1,5 +1,8 @@
 """Bindings own Bundle lifetime; each representation retires independently."""
 
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+
 from app.storage.base import ObjectStorageOperationFailedError
 
 from tests.support.uploads import settled_upload_session
@@ -13,7 +16,6 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import select, delete
-from app.core.config import settings
 from app.db.models import (
     StoredObject,
     StoredObjectRetirement,
@@ -21,7 +23,7 @@ from app.db.models import (
     ScoreRevisionPracticeBinding,
     Upload,
 )
-from app.modules.practice.bundle.retention import practice_bundle_retention
+from app.modules.practice.bundle.retention import PracticeBundleRetention
 from app.modules.media_storage.retirement import retire_after_release
 from app.shared.time import utc_now
 from tests.support.take_fixtures import (
@@ -31,6 +33,9 @@ from tests.support.take_fixtures import (
     _canonical_bundle,
 )
 from tests.support.retirement import drain_retirements
+from app.runtime.customer_api.context import get_context
+
+settings = get_context().settings
 
 
 def test_bundle_gc_protects_each_representation_shared_elsewhere(test_env):
@@ -48,7 +53,9 @@ def test_bundle_gc_protects_each_representation_shared_elsewhere(test_env):
     )
     db.add(upload)
     db.commit()
-    due = practice_bundle_retention.retire_unowned(db, identity)
+    due = PracticeBundleRetention(
+        config=StoredObjectRetirementSettings.model_validate(get_context().settings.model_dump())
+    ).retire_unowned(db, identity)
     db.commit()
     assert db.get(PracticeBundleRecord, identity) is None
     assert len(due) == 1
@@ -78,9 +85,18 @@ def test_bindings_protect_bundle_and_detached_take_lineage_does_not(test_env):
     )
     manifest_id = take.manifest_id
     db.commit()
-    assert practice_bundle_retention.retire_unowned(db, identity) == []
+    assert (
+        PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ).retire_unowned(db, identity)
+        == []
+    )
     db.execute(delete(ScoreRevisionPracticeBinding))
-    due = practice_bundle_retention.retire_unowned(db, identity)
+    due = PracticeBundleRetention(
+        config=StoredObjectRetirementSettings.model_validate(get_context().settings.model_dump())
+    ).retire_unowned(db, identity)
     db.commit()
     assert len(due) == 2 and db.get(PracticeBundleRecord, identity) is None
     assert take.manifest_id == manifest_id
@@ -101,7 +117,14 @@ def test_stale_creation_lease_has_no_physical_authority(test_env):
     db.commit()
     identity = bundle.id
     assert bundle.prepared_musicxml_object_id is None and bundle.artifact_object_id is None
-    assert practice_bundle_retention.recover_stale_creating(db) == []
+    assert (
+        PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ).recover_stale_creating(db)
+        == []
+    )
     db.commit()
     assert db.get(PracticeBundleRecord, identity) is None
     assert db.scalar(select(StoredObject)) is None
@@ -113,10 +136,28 @@ def test_ready_bundle_gc_has_its_own_bounded_batch(test_env, monkeypatch):
     last_id = rows[-1].id
     db.commit()
     monkeypatch.setattr(settings, "PRACTICE_BUNDLE_GC_BATCH_SIZE", 2)
-    assert len(practice_bundle_retention.collect_unowned_ready(db)) == 4
+    assert (
+        len(
+            PracticeBundleRetention(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ).collect_unowned_ready(db)
+        )
+        == 4
+    )
     db.commit()
     assert [row.id for row in db.scalars(select(PracticeBundleRecord))] == [last_id]
-    assert len(practice_bundle_retention.collect_unowned_ready(db)) == 2
+    assert (
+        len(
+            PracticeBundleRetention(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ).collect_unowned_ready(db)
+        )
+        == 2
+    )
 
 
 def test_creation_write_failure_queues_both_representations_without_binding(test_env):

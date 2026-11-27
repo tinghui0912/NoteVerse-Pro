@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from app.storage import object_storage as _storage_provider
+
+from tests.support.runtime_resources import resources_for
+
 
 from app.composition import storage_resources as _resource_wiring
 
@@ -18,16 +20,20 @@ from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_current_user, get_db
-from app.core.config import settings
-from app.main import app, create_app
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
+from app.runtime.customer_api.main import app, create_app
 from app.core.middleware import normalize_origin
-from app.api.resource_dependencies import get_playback_delivery_service
+from app.runtime.customer_api.resources import get_playback_delivery_service
 from app.modules.media_storage.reads import StoredObjectDelivery
-from app.api.resource_dependencies import get_practice_bundle_service
-from app.api.resource_dependencies import get_upload_service
+from app.runtime.customer_api.resources import get_practice_bundle_service
+from app.runtime.customer_api.resources import get_upload_service
 from app.modules.uploads.repository import UploadRepository
 from app.modules.uploads.service import UploadService
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import storage as _storage_provider
+
+settings = get_context().settings
 
 
 @pytest.mark.parametrize(
@@ -53,7 +59,7 @@ def test_upload_delete_projects_resource_and_persistence_errors(upload_exists, s
         repository=repository,
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(_storage_provider),
+        uploads=resources_for(_storage_provider).build_upload_session_service(),
     )
     with TestClient(application, raise_server_exceptions=False) as client:
         response = client.delete("/api/v1/uploads/upload-requested")
@@ -129,7 +135,7 @@ def test_external_playback_returns_signed_media_access(client: TestClient) -> No
     target = StoredObjectDelivery(1, "playback/private.wav", 16, "audio/wav", "score.wav")
     service = SimpleNamespace(
         score_revision_delivery=Mock(return_value=target),
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        delivery=resources_for(storage).build_media_delivery_service(),
     )
     app.dependency_overrides[get_db] = lambda: Mock()
     app.dependency_overrides[get_playback_delivery_service] = lambda: service

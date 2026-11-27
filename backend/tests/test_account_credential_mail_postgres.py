@@ -1,7 +1,10 @@
 """Credential and source-mail lifecycle invariants on independent PostgreSQL sessions."""
 
+from app.runtime.worker.context import get_context as worker_context
+
+from tests.support.runtime_resources import resources_for
+
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 
 from concurrent.futures import ThreadPoolExecutor
@@ -30,11 +33,23 @@ from app.modules.auth.schemas import (
 )
 from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.schemas import InviteCreateRequest
-from app.modules.mail.outbox_service import mail_outbox_service, cancel_source_mail
+from app.modules.mail.outbox_service import cancel_source_mail
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.composition.mail_delivery import validate_mail_source
 from app.shared.time import utc_now
 from tests.test_account_deletion_postgres import account_database  # noqa: F401
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import deliveries
+from app.modules.auth.sessions_service import SessionService
+from app.platform.config.application import AccountEmailConfig
+from app.platform.config.application import CustomerAuthConfig
+from app.platform.config.application import InvitationConfig
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+from tests.support.runtime_resources import ignore_dispatch
+from app.platform.config.delivery import DeliveryConfig
+from tests.support.worker_context import inject_worker
+
+settings = get_context().settings
 
 
 @pytest.fixture
@@ -52,9 +67,12 @@ def credential_database(account_database):  # noqa: F811 - imported PostgreSQL f
 
 def issue_reset(engine):
     with Session(engine) as db:
-        PasswordResetService().request_password_reset(
-            db, ForgotPasswordRequest(email="closer@example.com", locale="en")
-        )
+        PasswordResetService(
+            config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
+            session_service=SessionService(
+                config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+            ),
+        ).request_password_reset(db, ForgotPasswordRequest(email="closer@example.com", locale="en"))
         row = db.scalar(
             select(MailOutbox)
             .where(MailOutbox.category == "password.reset.requested")
@@ -65,19 +83,28 @@ def issue_reset(engine):
 
 
 def close(db, password="secret123"):
-    AccountDeletionService().request_deletion(db, 1, current_password=password)
+    AccountDeletionService(
+        session_service=SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        )
+    ).request_deletion(db, 1, current_password=password)
 
 
 def reset(db, token):
-    PasswordResetService().reset_password(
-        db, ResetPasswordRequest(token=token, new_password="changed123", locale="en")
-    )
+    PasswordResetService(
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
+        session_service=SessionService(
+            config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+        ),
+    ).reset_password(db, ResetPasswordRequest(token=token, new_password="changed123", locale="en"))
 
 
 def test_closure_invalidates_auth_and_email_tokens_without_erasing_history(credential_database):
     token = issue_reset(credential_database)
     with Session(credential_database) as db:
-        EmailChangeService().request_email_change(
+        EmailChangeService(
+            config=AccountEmailConfig.model_validate(get_context().settings.model_dump())
+        ).request_email_change(
             db,
             db.get(User, 1),
             RequestEmailChangeRequest(
@@ -160,7 +187,11 @@ def test_closure_serializes_before_authentication_commands(credential_database, 
                     reset(db, token)
             elif command == "email_change":
                 with pytest.raises(ValidationException):
-                    EmailChangeService().request_email_change(
+                    EmailChangeService(
+                        config=AccountEmailConfig.model_validate(
+                            get_context().settings.model_dump()
+                        )
+                    ).request_email_change(
                         db,
                         db.get(User, 1),
                         RequestEmailChangeRequest(
@@ -168,7 +199,14 @@ def test_closure_serializes_before_authentication_commands(credential_database, 
                         ),
                     )
             else:
-                PasswordResetService().request_password_reset(
+                PasswordResetService(
+                    config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
+                    session_service=SessionService(
+                        config=CustomerAuthConfig.model_validate(
+                            get_context().settings.model_dump()
+                        )
+                    ),
+                ).request_password_reset(
                     db, ForgotPasswordRequest(email="closer@example.com", locale="en")
                 )
 
@@ -219,7 +257,9 @@ def invite(db, owner=1, recipient="recipient@example.com", score_uuid="mail-scor
     score = Score(score_uuid=score_uuid, owner_user_id=owner, display_title="Private score")
     db.add(score)
     db.flush()
-    created = InvitationService().create_invite(
+    created = InvitationService(
+        config=InvitationConfig.model_validate(get_context().settings.model_dump())
+    ).create_invite(
         db, score_uuid, owner, InviteCreateRequest(email=recipient, role=MembershipRole.VIEWER)
     )
     db.flush()
@@ -251,7 +291,9 @@ def test_score_tombstone_cancels_only_its_invitation_sources(credential_database
         uuid, foreign_uuid = mail.outbox_uuid, foreign.outbox_uuid
         db.commit()
         ScoreLifecycleService(
-            deletion_executor=_media_wiring.build_score_deletion_executor()
+            deletion_executor=resources_for().build_score_deletion_executor(),
+            config=ScoreDeletionDeliverySettings(),
+            dispatch_after_commit=ignore_dispatch,
         ).admit_deletions(db, [score.score_uuid], 1)
         db.commit()
     with Session(credential_database) as db:
@@ -276,7 +318,7 @@ def test_score_tombstone_cancels_only_its_invitation_sources(credential_database
             and foreign.recipient == "recipient@example.com"
         )
         assert not validate_mail_source(db, uuid)
-        assert mail_outbox_service.claim(db, uuid) is None
+        assert deliveries().mail.claim(db, uuid) is None
 
 
 def test_source_invalidation_rolls_back_with_score_tombstone(credential_database):
@@ -285,7 +327,9 @@ def test_source_invalidation_rolls_back_with_score_tombstone(credential_database
         uuid = mail.outbox_uuid
         db.commit()
         ScoreLifecycleService(
-            deletion_executor=_media_wiring.build_score_deletion_executor()
+            deletion_executor=resources_for().build_score_deletion_executor(),
+            config=ScoreDeletionDeliverySettings(),
+            dispatch_after_commit=ignore_dispatch,
         ).admit_deletions(db, [score.score_uuid], 1)
         db.rollback()
         assert db.get(Score, score.id).deleted_at is None
@@ -298,17 +342,17 @@ def test_claimed_payload_is_fenced_before_provider_send_and_stale_completion(cre
     with Session(credential_database) as db:
         row = db.scalar(select(MailOutbox))
         uuid = row.outbox_uuid
-        payload = mail_outbox_service.claim(db, uuid)
+        payload = deliveries().mail.claim(db, uuid)
         db.commit()
     with Session(credential_database) as db:
         close(db)
         db.commit()
     with Session(credential_database) as db:
         assert not validate_mail_source(db, uuid)
-        assert not mail_outbox_service.delivery_permitted(db, uuid, lease=payload.lease)
-        assert not mail_outbox_service.sent(db, uuid, "late-provider", lease=payload.lease)
+        assert not deliveries().mail.delivery_permitted(db, uuid, lease=payload.lease)
+        assert not deliveries().mail.sent(db, uuid, "late-provider", lease=payload.lease)
         with pytest.raises(ValidationException):
-            mail_outbox_service.rearm_for_operator(db, uuid)
+            deliveries().mail.rearm_for_operator(db, uuid)
         db.rollback()
         with pytest.raises(ValidationException):
             reset(db, token)
@@ -319,7 +363,9 @@ def test_invite_terminal_and_token_consumption_cancel_credential_mail(credential
         score, created, row = invite(db, recipient="survivor@example.com")
         uuid = row.outbox_uuid
         db.commit()
-        InvitationService().accept_invite(db, created.token, 2)
+        InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ).accept_invite(db, created.token, 2)
         db.commit()
         db.expire_all()
         assert (
@@ -357,7 +403,6 @@ def test_closure_anonymizes_old_recipient_contact_without_erasing_foreign_score(
 
 
 def test_expiry_and_cancelled_mail_retention(credential_database, monkeypatch):
-    from app.core.config import settings
 
     issue_reset(credential_database)
     with Session(credential_database) as db:
@@ -365,20 +410,22 @@ def test_expiry_and_cancelled_mail_retention(credential_database, monkeypatch):
         row.expires_at = utc_now() - timedelta(seconds=1)
         uuid = row.outbox_uuid
         db.commit()
-        assert mail_outbox_service.claim(db, uuid) is None
+        assert deliveries().mail.claim(db, uuid) is None
         db.commit()
         assert db.get(MailOutbox, row.id).status == MailOutboxStatus.EXPIRED
         assert row.text_body is None
         cancel_source_mail(db, MailSourceKind.AUTH_TOKEN, select(AuthToken.id))
         row.completed_at = utc_now() - timedelta(days=settings.MAIL_OUTBOX_RETENTION_DAYS + 1)
         db.commit()
-        assert mail_outbox_service.cleanup(db) == 1
+        assert deliveries().mail.cleanup(db) == 1
         db.commit()
 
 
 def test_email_change_token_cannot_change_closed_identity(credential_database):
     with Session(credential_database) as db:
-        EmailChangeService().request_email_change(
+        EmailChangeService(
+            config=AccountEmailConfig.model_validate(get_context().settings.model_dump())
+        ).request_email_change(
             db,
             db.get(User, 1),
             RequestEmailChangeRequest(
@@ -393,7 +440,9 @@ def test_email_change_token_cannot_change_closed_identity(credential_database):
         db.commit()
     with Session(credential_database) as db:
         with pytest.raises(ValidationException):
-            EmailChangeService().confirm_email_change(db, ConfirmEmailChangeRequest(token=token))
+            EmailChangeService(
+                config=AccountEmailConfig.model_validate(get_context().settings.model_dump())
+            ).confirm_email_change(db, ConfirmEmailChangeRequest(token=token))
         db.rollback()
         assert db.get(User, 1).email == "closer@example.com"
         assert (
@@ -418,7 +467,7 @@ def test_real_mail_worker_never_sends_invalid_source(
     with Session(credential_database) as db:
         uuid = db.scalar(select(MailOutbox.outbox_uuid))
     factory = sessionmaker(credential_database)
-    monkeypatch.setattr(worker, "SessionLocal", factory)
+    inject_worker(monkeypatch, worker, sessions=factory)
     provider = Mock(return_value="provider")
     monkeypatch.setattr(worker, "send_email", provider)
     if close_at_handoff:
@@ -465,7 +514,7 @@ def test_mail_worker_detects_source_admitted_after_closure_scan(credential_datab
         db.add(row)
         db.commit()
         uuid = row.outbox_uuid
-    monkeypatch.setattr(worker, "SessionLocal", sessionmaker(credential_database))
+    inject_worker(monkeypatch, worker, sessions=sessionmaker(credential_database))
     provider = Mock()
     monkeypatch.setattr(worker, "send_email", provider)
     assert worker.execute_mail_outbox_task(None, uuid)["status"] == "ignored"
@@ -482,9 +531,13 @@ def test_invite_terminal_command_cancels_mail_atomically(credential_database, ou
         uuid = row.outbox_uuid
         db.commit()
         if outcome == "revoke":
-            InvitationService().revoke_invite(db, "mail-score", created.invite_id, 1)
+            InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            ).revoke_invite(db, "mail-score", created.invite_id, 1)
         else:
-            InvitationService().decline_pending_invite(db, created.invite_id, 2)
+            InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            ).decline_pending_invite(db, created.invite_id, 2)
         db.commit()
         db.expire_all()
         row = db.scalar(select(MailOutbox).where(MailOutbox.outbox_uuid == uuid))
@@ -517,7 +570,6 @@ def test_active_mail_requires_valid_complete_source_identity(credential_database
 
 
 def test_cancelled_mail_is_terminal_in_ops_and_retention(credential_database):
-    from app.core.config import settings
     from app.modules.ops.query_service import OpsAsyncOperationQueryService
     from app.modules.ops.schemas import AsyncOperationKind, AsyncOperationStatus
 
@@ -526,7 +578,9 @@ def test_cancelled_mail_is_terminal_in_ops_and_retention(credential_database):
         close(db)
         db.commit()
         row = db.scalar(select(MailOutbox))
-        query = OpsAsyncOperationQueryService()
+        query = OpsAsyncOperationQueryService(
+            config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+        )
         view = query.get_operation(db, kind=AsyncOperationKind.MAIL, operation_id=row.outbox_uuid)
         assert view.status == AsyncOperationStatus.CANCELLED and not view.can_retry
         assert (
@@ -539,7 +593,7 @@ def test_cancelled_mail_is_terminal_in_ops_and_retention(credential_database):
         )
         row.completed_at = utc_now() - timedelta(days=settings.MAIL_OUTBOX_RETENTION_DAYS + 1)
         db.commit()
-        assert mail_outbox_service.cleanup(db) == 1
+        assert deliveries().mail.cleanup(db) == 1
         db.commit()
         assert db.scalar(select(func.count()).select_from(MailOutbox)) == 0
 
@@ -576,7 +630,8 @@ def test_registration_mail_follows_replacement_verification_and_ttl(credential_d
     )
     with Session(credential_database) as db:
         service = EmailVerificationService(
-            provision_storage=_resource_wiring.provision_storage_resources
+            provision_storage=_resource_wiring.provision_storage_resources,
+            config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
         )
         service.register(db, registration)
         first = db.scalar(select(MailOutbox))
@@ -635,7 +690,12 @@ def test_credential_mutation_fence_coexists_with_existing_resource_key_share(
         if command == "lock":
             assert lock_credential_user(credential, 1).id == 1
         else:
-            PasswordResetService().request_password_reset(
+            PasswordResetService(
+                config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
+                session_service=SessionService(
+                    config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+                ),
+            ).request_password_reset(
                 credential, ForgotPasswordRequest(email="closer@example.com", locale="en")
             )
         credential.rollback()
@@ -654,7 +714,9 @@ def test_batch_score_tombstones_cancel_complete_invitation_set(credential_databa
         assert (
             len(
                 ScoreLifecycleService(
-                    deletion_executor=_media_wiring.build_score_deletion_executor()
+                    deletion_executor=resources_for().build_score_deletion_executor(),
+                    config=ScoreDeletionDeliverySettings(),
+                    dispatch_after_commit=ignore_dispatch,
                 ).admit_deletions(db, ["owned-mail-2", "owned-mail-1"], 1)
             )
             == 2

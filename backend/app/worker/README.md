@@ -4,8 +4,9 @@ The Worker package is split by runtime responsibility. Keep these boundaries
 small and explicit so Celery task names stay stable while business execution can
 evolve independently.
 
-Application use cases and workers share the synchronous SQLAlchemy engine and
-SessionLocal factory in `app.db.session`. Each workflow explicitly commits its
+Worker composition owns a synchronous SQLAlchemy engine and SessionFactory in
+`app.runtime.worker.context`. Platform factories construct these resources from
+explicit process configuration. Each workflow explicitly commits its
 claim, semantic outcome or recovery phase; Session creation only opens and closes
 resources. ObjectWrite retains explicit PREPARED and WRITTEN durability phases.
 Workers and database-backed HTTP use cases use synchronous ObjectStorage. HTTP
@@ -18,12 +19,11 @@ namespace. Adopted object deletion remains retirement-owned.
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `tasks.py`                         | Celery task registration, stable task names, task decorator options, and one-line delegation to execution handlers.                                                                                                         | Database work, business workflows, retry/failure transitions, model/render/playback execution, or scheduler scan callbacks. |
 | `execution/`                       | The actual task execution workflows after Celery has invoked a task. This includes claim/run/complete/fail handling, attempt tracing, task-specific status logging, periodic dispatch recovery, and periodic cleanup scans. | Publishing a new Celery task for later delivery.                                                                            |
-| `../modules/revisions/render_dispatch.py`, `../modules/playback/dispatch.py`, `../modules/revisions/metadata_dispatch.py` | Domain-owned API/Beat render, playback and metadata broker relays.                                                                                                                                                                        | Task execution.                                                                                                             |
-| `dispatch/`                        | Durable dispatch from database-backed pending work into Celery, including producer tracing and release-on-dispatch-failure handling.                                                                                        | Running the target task's business workflow.                                                                                |
+| `../composition/dispatch/`                        | Durable dispatch from database-backed pending work into Celery, including producer tracing and release-on-dispatch-failure handling.                                                                                        | Running the target task's business workflow.                                                                                |
 | `task_runtime.py`                  | Shared task runtime helpers: task context binding, operation log binding, attempt tracing, scheduler lock coordination, and scheduler observability.                                                                        | Task-specific business logic or dispatch routing.                                                                           |
 | `../task_queue/schedule.py`        | The mapping from recurring maintenance jobs to Celery task names and intervals.                                                                                                                                             | Runtime option policy or scan callback implementation.                                                                      |
 | `../task_queue/options.py`         | Celery process behavior policy such as serializers, acknowledgement semantics, deadlines, worker lifecycle limits, broker/backend timeouts, and Beat schedule wiring.                                                       | Business task registration or environment-file ownership.                                                                   |
-| `../task_queue/config.py`          | Celery application assembly, optional task-module import, Beat state-file path, and Celery framework signal registration.                                                                                                   | Task execution logic or task route examples for removed tasks.                                                              |
+| `../runtime/worker/main.py`, `../runtime/beat/main.py` | Separate Celery composition roots, task registration, schedule paths and framework signals. | Business task execution. |
 
 Revision transactions commit canonical snapshots and outboxes before immediate best-effort
 dispatch through the shared revision producer. Beat relays missed deliveries and recovers
@@ -96,19 +96,18 @@ External work retains domain-owned outboxes and DurableDeliveryLifecycle.
 
 - `tasks.py` may import from `execution/`, but `execution/` must not import from
   `tasks.py`.
-- `dispatch/` sends Celery tasks by their stable task names. It must not import
+- `app.composition.dispatch` sends Celery tasks by their stable task names. It must not import
   execution handlers directly.
 - Shared producer-span, Celery `send_task`, success/failure logging, and
   release-on-failure behavior belongs in `../task_queue/producer.py`; dispatch modules
   should keep only flow-specific claim/mark details.
-- `execution/maintenance_dispatch.py` may import dispatch functions inside scan
-  callbacks to avoid creating import-time cycles with Celery app assembly.
+- `execution/maintenance_dispatch.py` receives configured dispatch services from
+  the Worker process context.
 - Shared cross-task mechanics belong in `task_runtime.py`; if a helper needs a
   domain service, it probably belongs in a task-specific execution module.
 - New task names must be added to `tasks.py` and, if recurring, to
-  `../task_queue/schedule.py`. Existing task names are compatibility contracts with
-  queued messages and Beat schedules, so rename them only with an explicit
-  migration plan.
+  `../task_queue/schedule.py`. Task names identify
+  queued messages and Beat schedules.
 
 ## Adding a new Worker flow
 
@@ -116,7 +115,7 @@ External work retains domain-owned outboxes and DurableDeliveryLifecycle.
 2. Add the Celery task registration in `tasks.py` and delegate to the execution
    function.
 3. If the task is dispatched from durable database state, add the producer under
-   `dispatch/`.
+   `app.composition.dispatch`.
 4. If the task is periodic, add the schedule entry in `../task_queue/schedule.py` and the
    scan callback in `execution/maintenance_dispatch.py` when the job recovers
    and publishes durable pending work, or in `execution/maintenance_cleanup.py`

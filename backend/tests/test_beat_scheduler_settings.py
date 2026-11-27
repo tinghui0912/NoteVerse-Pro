@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.beat_scheduler import BeatSchedulerSettings
+from app.platform.config.beat_scheduler import BeatSchedulerSettings
 
 
 def test_beat_scheduler_settings_accept_postgresql_leader_contract() -> None:

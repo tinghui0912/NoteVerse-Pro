@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import xml.etree.ElementTree as ET
 from typing import TypedDict
 
-from app.core.config import settings
 from app.core.exceptions import ExternalServiceException
 from app.core.logger import logger
 from app.shared.error_codes import CustomerErrorCode
@@ -21,14 +21,16 @@ class PianoplayerFingeringEngine:
     def __init__(
         self,
         *,
+        work_root: str,
         runner: Callable[..., object] | None = None,
     ) -> None:
+        self.work_root = work_root
         self._runner = runner
 
     def generate(self, score_id: str, xml_content: str, hand_size: str = "M") -> FingeringResult:
         try:
             runner = self._runner or self._load_runner()
-            work_root = Path(settings.WORK_ROOT) / "fingering"
+            work_root = Path(self.work_root) / "fingering"
             work_root.mkdir(parents=True, exist_ok=True)
             with TemporaryDirectory(prefix="generation-", dir=work_root) as work_dir:
                 input_path = Path(work_dir) / "input.musicxml"

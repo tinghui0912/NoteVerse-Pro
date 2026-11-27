@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+
 import argparse
 import getpass
 import sys
 
 from app.db.models import OperatorRole
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
 from app.modules.platform_operators.service import operator_authentication_service
 
 
@@ -25,7 +27,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def create_operator(args: argparse.Namespace, password: str) -> str:
-    with SessionLocal() as db:
+    with build_session_factory(build_engine(DatabaseCommandSettings()))() as db:
         operator = operator_authentication_service.create_local_operator(
             db,
             username=args.username,

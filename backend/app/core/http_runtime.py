@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 from collections.abc import Iterable
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,13 +22,14 @@ def normalized_cors_origins(origins: Iterable[object]) -> list[str]:
 def install_http_runtime(
     app: HttpApplication,
     *,
+    trusted_proxy_cidrs: tuple[str, ...],
     csrf_settings: CookieCsrfSettings | None = None,
     cors_origins: list[str] | None = None,
     error_response_factory: ErrorResponseFactory,
     error_codes: HttpRuntimeErrorCodes,
 ) -> None:
     """Install common cross-cutting HTTP behavior without choosing app policy."""
-    app.add_middleware(LoggingMiddleware)
+    app.add_middleware(LoggingMiddleware, trusted_proxy_cidrs=trusted_proxy_cidrs)
     if csrf_settings is not None:
         app.add_middleware(
             CsrfProtectionMiddleware,
@@ -46,4 +48,4 @@ def install_http_runtime(
     register_exception_handlers(
         app, error_response_factory=error_response_factory, error_codes=error_codes
     )
-    configure_api_tracing(app)
+    configure_api_tracing(app, app.state.settings)

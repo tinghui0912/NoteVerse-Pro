@@ -1,22 +1,20 @@
 """Attempt-fenced, transactional Score graph deletion."""
 
-from app.composition.media_resources import build_score_deletion_executor
-
-from app.db.session import SessionLocal
-from app.modules.scores.deletion_delivery import score_deletion_delivery, StaleScoreDeletionAttempt
+from app.modules.scores.deletion_delivery import StaleScoreDeletionAttempt
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,
     start_attempt_trace,
     operation_logger,
 )
+from app.runtime.worker.context import get_context
 
 
 def execute_score_deletion_task(task, operation_uuid: str) -> dict[str, object]:
     bind_task_context(task)
     try:
-        with SessionLocal() as db:
-            lease = score_deletion_delivery.claim(db, operation_uuid)
+        with get_context().sessions() as db:
+            lease = get_context().deliveries.score_deletion.claim(db, operation_uuid)
             db.commit()
         if lease is None:
             return {"status": "ignored", "operation_uuid": operation_uuid}
@@ -29,8 +27,10 @@ def execute_score_deletion_task(task, operation_uuid: str) -> dict[str, object]:
                 traceparent=lease.traceparent,
                 tracestate=lease.tracestate,
             ):
-                with SessionLocal() as db:
-                    result = build_score_deletion_executor().execute(db, lease)
+                with get_context().sessions() as db:
+                    result = (
+                        get_context().resources.build_score_deletion_executor().execute(db, lease)
+                    )
                     db.commit()
             return {
                 "status": "completed",
@@ -47,8 +47,8 @@ def execute_score_deletion_task(task, operation_uuid: str) -> dict[str, object]:
                 resource_id=lease.score_uuid,
                 attempt=lease.attempt,
             ).opt(exception=True).error("score_deletion.failed")
-            with SessionLocal() as db:
-                score_deletion_delivery.fail(db, lease, str(error))
+            with get_context().sessions() as db:
+                get_context().deliveries.score_deletion.fail(db, lease, str(error))
                 db.commit()
             return {"status": "failed", "operation_uuid": operation_uuid}
     finally:

@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.exceptions import ConflictException, ResourceNotFoundException
 from app.core.async_trace_context import get_async_trace_context
-from app.core.request_correlation import get_request_id
+from app.platform.correlation import get_request_id
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,

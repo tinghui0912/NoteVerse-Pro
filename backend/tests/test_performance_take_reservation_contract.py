@@ -4,7 +4,7 @@ import inspect
 
 from app.db.models.performance_take import PerformanceTake
 from app.db.models.performance_take_upload_reservation import PerformanceTakeUploadReservation
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
 from app.modules.performance_takes.finalization import PerformanceTakeFinalizationService
 

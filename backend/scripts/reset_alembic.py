@@ -1,8 +1,10 @@
 from sqlalchemy import text
-from app.db.session import engine
+from app.platform.db.engine import build_engine
+from app.runtime.cli.settings import DatabaseCommandSettings
 
 
 def reset_alembic():
+    engine = build_engine(DatabaseCommandSettings())
     with engine.begin() as conn:
         try:
             conn.execute(text("DROP TABLE alembic_version"))

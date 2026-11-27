@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+
+from app.platform.config.delivery import OpsDeliveryConfig
+
 from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -49,8 +52,11 @@ def read_projected_operation(row) -> AsyncOperationRead:
 
 
 class OpsAsyncOperationQueryService:
-    def __init__(self, summary_query: AsyncOperationSummaryQuery | None = None) -> None:
-        self.summary_query = summary_query or AsyncOperationSummaryQuery()
+    def __init__(
+        self, config: OpsDeliveryConfig, summary_query: AsyncOperationSummaryQuery | None = None
+    ) -> None:
+        self.config = config
+        self.summary_query = summary_query or AsyncOperationSummaryQuery(config)
 
     def list_operations(
         self,
@@ -68,7 +74,7 @@ class OpsAsyncOperationQueryService:
         filters = AsyncOperationFilters(
             status, failure_class, resource_type, created_after, updated_before
         )
-        projection = operation_projection()
+        projection = operation_projection(self.config)
         c = projection.c
         rows = (
             db.execute(
@@ -93,7 +99,7 @@ class OpsAsyncOperationQueryService:
     def get_operation(
         self, db: Session, *, kind: AsyncOperationKind, operation_id: str
     ) -> AsyncOperationRead:
-        projection = operation_projection()
+        projection = operation_projection(self.config)
         row = (
             db.execute(
                 select(projection).where(
@@ -127,6 +133,3 @@ class OpsAsyncOperationQueryService:
                 status, failure_class, resource_type, created_after, updated_before
             ),
         )
-
-
-ops_async_operation_query_service = OpsAsyncOperationQueryService()

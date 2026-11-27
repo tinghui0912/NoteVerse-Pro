@@ -11,7 +11,6 @@ from .base import (
     ObjectStorageUnavailableError,
     ObjectStorageOperationFailedError,
 )
-from .factory import object_storage, get_object_storage
 from .async_reader import AsyncObjectReader
 
 __all__ = [
@@ -25,6 +24,4 @@ __all__ = [
     "ObjectNotFoundError",
     "ObjectStorageUnavailableError",
     "ObjectStorageOperationFailedError",
-    "object_storage",
-    "get_object_storage",
 ]

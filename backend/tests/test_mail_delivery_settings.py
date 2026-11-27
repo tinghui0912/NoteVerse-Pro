@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.mail_delivery import MailDeliverySettings
+from app.platform.config.mail_delivery import MailDeliverySettings
 
 
 def test_mail_delivery_settings_accept_default_policy() -> None:

@@ -8,7 +8,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.db.models import (
     MailOutbox,
     Notification,
@@ -18,7 +19,7 @@ from app.db.models import (
     User,
 )
 from app.db.models.score_access import InviteTerminalOutcome
-from app.main import create_app
+from app.runtime.customer_api.main import create_app
 from app.modules.collaboration.invitation_service import InvitationService
 from tests.test_collaboration_parent_lifecycle_postgres import parent_graph as parent_graph
 

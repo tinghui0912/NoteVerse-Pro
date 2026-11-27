@@ -11,7 +11,7 @@ from alembic import command
 from sqlalchemy import select, text, func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_command_db
+from app.platform.db.dependencies import get_command_db
 from app.core.exceptions import ValidationException
 from app.db.models import User, ScoreInvite, ScoreMembership
 from app.db.models.score_access import MembershipRole, InviteTerminalOutcome
@@ -21,6 +21,8 @@ from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.test_score_revision_services import add_active_score_with_head_revision
+from app.platform.config.application import InvitationConfig
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.mark.parametrize(
@@ -88,7 +90,9 @@ def test_invite_terminal_commands_serialize_on_postgres_row(
                 )
             setup.commit()
             invite_id = invite.id
-        service = InvitationService()
+        service = InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        )
 
         def actor_command(db, action):
             if action == "accept":
@@ -215,7 +219,9 @@ def test_invite_outcome_and_notification_share_one_transaction(monkeypatch, acti
             )
             db.commit()
         with Session(engine) as db:
-            service = InvitationService()
+            service = InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            )
             if boundary != "success":
                 if boundary == "commit":
                     target, name, original = db, "commit", db.flush

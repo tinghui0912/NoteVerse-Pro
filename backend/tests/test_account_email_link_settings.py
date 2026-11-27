@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.account_email_link import AccountEmailLinkSettings
+from app.platform.config.account_email_link import AccountEmailLinkSettings
 
 
 def test_account_email_link_settings_accept_default_lifetimes() -> None:

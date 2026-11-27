@@ -1,3 +1,4 @@
+from tests.support.runtime_resources import resources_for
 from tests.support.uploads import complete_image_upload
 from tests.support.uploads import settled_upload_session
 from app.composition import storage_resources as _resource_wiring
@@ -34,6 +35,10 @@ from tests.test_score_revision_services import (
     add_active_score_with_head_revision,
     MUSICXML_1,
 )
+from app.platform.config.import_dispatch import ImportDispatchSettings
+from app.platform.config.storage import MediaStoragePolicyConfig
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import deliveries
 
 
 def test_upload_commands_preserve_independent_objects_and_other_domains(score_service_session):
@@ -72,7 +77,7 @@ def test_upload_commands_preserve_independent_objects_and_other_domains(score_se
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
     put = Mock(wraps=storage.put_bytes)
     storage.put_bytes = put
@@ -118,8 +123,9 @@ def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_servic
 
     user = db.get(User, 1)
     service = AvatarService(
-        writes=_resource_wiring.build_object_write_coordinator(storage),
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        delivery=resources_for(storage).build_media_delivery_service(),
+        config=MediaStoragePolicyConfig.model_validate(get_context().settings.model_dump()),
     )
     put = Mock(wraps=storage.put_bytes)
     storage.put_bytes = put
@@ -155,7 +161,7 @@ def test_avatar_reference_and_profile_use_immutable_processed_bytes(score_servic
         == second_url
     )
     assert UserRead.model_validate(user).avatar_url == second_url
-    from app.modules.account.router import read_avatar
+    from app.runtime.customer_api.routers.account.router import read_avatar
 
     signed = Mock(side_effect=["https://delivery.example/one", "https://delivery.example/two"])
     storage.download_url = signed
@@ -203,8 +209,10 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     worker = ImportExecutionRecorder(usage=_resource_wiring.storage_usage_service)
 
     def item(key, content):
-        written = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=key, content=content, content_type="application/xml"
+        written = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(key=key, content=content, content_type="application/xml")
         )
         return dict(
             write_intent_uuid=written.intent_uuid,
@@ -249,7 +257,7 @@ def test_import_artifact_replacement_uses_complete_immutable_object_facts(
     assert storage.exists(first_key) is cleanup_fails
     delivery = ImportJobService(
         usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        delivery=resources_for(storage).build_media_delivery_service(),
     ).artifact_delivery(db, job.job_uuid, current.artifact_uuid, 1)
     assert delivery.filename == "score.xml" and delivery.media_type == "application/xml"
     assert storage.read_bytes(delivery.storage_key) == b"second"
@@ -261,8 +269,9 @@ def test_avatar_retirement_failure_cannot_revert_new_reference(score_service_ses
 
     user = db.get(User, 1)
     service = AvatarService(
-        writes=_resource_wiring.build_object_write_coordinator(storage),
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        delivery=resources_for(storage).build_media_delivery_service(),
+        config=MediaStoragePolicyConfig.model_validate(get_context().settings.model_dump()),
     )
 
     def picture(color):
@@ -311,8 +320,9 @@ def test_avatar_post_commit_refresh_failure_preserves_committed_bytes(
     monkeypatch.setattr(storage, "delete", delete)
     with pytest.raises(RuntimeError, match="refresh failed"):
         AvatarService(
-            writes=_resource_wiring.build_object_write_coordinator(storage),
-            delivery=_resource_wiring.build_media_delivery_service(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            delivery=resources_for(storage).build_media_delivery_service(),
+            config=MediaStoragePolicyConfig.model_validate(get_context().settings.model_dump()),
         ).replace_user_avatar(adapter, user, file_bytes=output.getvalue(), filename="new.png")
     monkeypatch.setattr(db, "refresh", original_refresh)
     db.refresh(user)
@@ -331,7 +341,7 @@ def test_upload_release_succeeds_while_score_source_retains_exact_object(
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
     response = complete_image_upload(
         service,
@@ -420,14 +430,18 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
     if kind == "render":
         service = ScoreRevisionRenderService(
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            delivery=deliveries().render,
+            work_root=get_context().settings.WORK_ROOT,
         )
         model, category = ScoreRenderAsset, StorageUsageCategory.DERIVED_RENDER
 
         def records(**kwargs):
             key = f"scores/replace/render/{uuid4()}.svg"
-            written = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-                key=key, content=b"<svg />", content_type="image/svg+xml"
+            written = (
+                resources_for(storage)
+                .build_object_write_coordinator()
+                .write_bytes(key=key, content=b"<svg />", content_type="image/svg+xml")
             )
             return [
                 dict(
@@ -469,7 +483,8 @@ def test_derived_replacement_commits_new_asset_and_old_retirement_atomically(
         service = PlaybackGenerationService(
             renderer=renderer,
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            delivery=deliveries().playback,
         )
         model, category = ScorePlaybackAsset, StorageUsageCategory.DERIVED_AUDIO
 
@@ -550,7 +565,7 @@ def test_orphan_scan_retirement_failure_rolls_back_only_that_owner(
     monkeypatch.setattr(maintenance, "retire_after_release", queue)
     assert (
         ImportJobMaintenanceService(
-            usage=_resource_wiring.storage_usage_service
+            usage=_resource_wiring.storage_usage_service, config=ImportDispatchSettings()
         ).cleanup_orphan_uploads(db)
         == 1
     )

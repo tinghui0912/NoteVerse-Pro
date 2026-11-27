@@ -14,7 +14,6 @@ import pytest
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
 
-from app.core.config import settings
 from app.db.models import (
     MailOutbox,
     PlaybackOutbox,
@@ -27,6 +26,13 @@ from app.db.models import (
 from app.modules.import_jobs.domain import ImportJobState
 from app.modules.revisions.domain import RevisionOrigin
 from app.modules.revisions.presentation_demand import RevisionPresentationDemand
+from app.runtime.customer_api.context import get_context
+
+from app.platform.config.revision_render_delivery import RevisionRenderDeliverySettings
+from app.platform.config.playback_delivery import PlaybackDeliverySettings
+from app.platform.config.mail_delivery import MailDeliverySettings
+
+settings = get_context().settings
 
 NOW = datetime(2026, 11, 6, 12, tzinfo=UTC)
 CASES = [
@@ -80,7 +86,13 @@ def delivery(postgres_engine, request, monkeypatch):
         ("PROCESSING_TIMEOUT_SECONDS", 1200),
     ]:
         monkeypatch.setattr(settings, f"{prefix}_{suffix}", value)
-    service = getattr(module, service_name)()
+    service = getattr(module, service_name)(
+        config={
+            "ScoreRevisionRenderDelivery": RevisionRenderDeliverySettings,
+            "PlaybackOutboxService": PlaybackDeliverySettings,
+            "MailOutboxService": MailDeliverySettings,
+        }[service_name].model_validate(settings.model_dump())
+    )
     if model in (ScoreRevisionRenderOutbox, PlaybackOutbox):
         # Exercise lifecycle persistence after a successful domain payload admission.
         from app.modules.revisions.render_target import ScoreRevisionRenderTarget
@@ -144,7 +156,7 @@ def delivery(postgres_engine, request, monkeypatch):
         row = model(outbox_uuid="delivery", next_attempt_at=NOW, **fields)
         db.add(row)
         db.commit()
-        yield db, service, row, module._delivery_lifecycle().statuses, clock
+        yield db, service, row, module._delivery_lifecycle(config=service.config).statuses, clock
     engine.dispose()
 
 

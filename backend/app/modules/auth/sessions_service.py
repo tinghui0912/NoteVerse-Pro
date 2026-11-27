@@ -1,5 +1,7 @@
 """Authenticated session management."""
 
+from app.platform.config.application import CustomerAuthConfig
+
 import hashlib
 import secrets
 from datetime import timedelta
@@ -8,7 +10,6 @@ from sqlmodel import col, select
 from sqlalchemy.orm import Session
 
 from app.core import security
-from app.core.config import settings
 from app.core.exceptions import AuthenticationException, ResourceNotFoundException
 from app.db.model_utils import require_persisted_id
 from app.db.models.auth import RefreshToken
@@ -20,6 +21,9 @@ from app.shared.time import utc_now
 
 class SessionService:
     """Owns refresh-token lifecycle and session rotation."""
+
+    def __init__(self, *, config: CustomerAuthConfig) -> None:
+        self.config = config
 
     def _hash_token(self, token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -41,7 +45,8 @@ class SessionService:
     ) -> tuple[str, str, RefreshToken]:
         access_token = security.create_access_token(
             user_id,
-            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+            secret_key=self.config.SECRET_KEY,
+            expires_delta=timedelta(minutes=self.config.ACCESS_TOKEN_EXPIRE_MINUTES),
         )
         refresh_token = self._new_refresh_token()
         record = RefreshToken(
@@ -50,7 +55,7 @@ class SessionService:
             device_id=device_id,
             user_agent=user_agent,
             ip_address=ip_address,
-            expires_at=utc_now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+            expires_at=utc_now() + timedelta(days=self.config.REFRESH_TOKEN_EXPIRE_DAYS),
         )
         db.add(record)
         db.flush()

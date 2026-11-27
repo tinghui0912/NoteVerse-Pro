@@ -10,6 +10,10 @@ from app.storage.base import ObjectNotFoundError
 from app.storage.s3_compatible import ClientError
 from app.storage.s3_compatible import S3CompatibleObjectStorage
 from tests.support.object_storage import InMemoryObjectStorage
+from app.runtime.customer_api.context import get_context
+from app.platform.config.storage import ObjectStorageConfig
+
+settings = get_context().settings
 
 
 class ObjectResponse(BytesIO):
@@ -59,7 +63,9 @@ class ObjectClient:
 def storage(request):
     if request.param == "object-map":
         return InMemoryObjectStorage()
-    adapter = S3CompatibleObjectStorage()
+    adapter = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     adapter._client = ObjectClient()
     adapter._mutation_client = adapter._client
     return adapter
@@ -101,11 +107,12 @@ def test_object_storage_capability_contract(storage):
 
 
 def test_concrete_adapter_issues_signed_upload_and_download(monkeypatch):
-    from app.core.config import settings
 
     monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", "https://signed.storage.example")
     monkeypatch.setattr(settings, "S3_FORCE_PATH_STYLE", True)
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     target = storage.generate_put_upload_url(
         "test/object", content_type="audio/webm", content_length=2
     )
@@ -128,14 +135,15 @@ def test_concrete_adapter_issues_signed_upload_and_download(monkeypatch):
     reason="Dedicated object-store test service is not configured",
 )
 def test_real_object_store_capabilities_and_direct_upload(monkeypatch):
-    from app.core.config import settings
 
     for field in ("ENDPOINT_URL", "BUCKET", "ACCESS_KEY_ID", "SECRET_ACCESS_KEY"):
         monkeypatch.setattr(
             settings, "S3_" + field, os.environ["NOTEVERSE_TEST_OBJECT_STORAGE_" + field]
         )
     monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", None)
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     prefix = "contract-tests/" + uuid4().hex + "/"
     key, data = prefix + "/direct", b"browser direct upload bytes"
     with isolated_provider_namespace(storage, prefix):
@@ -165,7 +173,6 @@ def test_real_object_store_capabilities_and_direct_upload(monkeypatch):
     reason="Dedicated object-store test service is not configured",
 )
 def test_real_object_store_signed_lengths_and_multipart_lifecycle(monkeypatch):
-    from app.core.config import settings
     from app.storage.base import ObjectNotFoundError
 
     for field in ("ENDPOINT_URL", "BUCKET", "ACCESS_KEY_ID", "SECRET_ACCESS_KEY"):
@@ -173,7 +180,9 @@ def test_real_object_store_signed_lengths_and_multipart_lifecycle(monkeypatch):
             settings, "S3_" + field, os.environ["NOTEVERSE_TEST_OBJECT_STORAGE_" + field]
         )
     monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", None)
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     prefix = "contract-tests/" + uuid4().hex + "/"
     key, rejected = prefix + "/multipart", prefix + "/length"
     with isolated_provider_namespace(storage, prefix):
