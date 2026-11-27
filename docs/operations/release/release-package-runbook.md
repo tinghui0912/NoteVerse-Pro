@@ -141,7 +141,7 @@ Apply through the repository release prepare script:
 ```powershell
 .\scripts\minikube_app_release_prepare.ps1 `
   -RenderedOverlay build/k8s-release/staging `
-  -BackendSecretEnvFile backend\.env.docker `
+  -RuntimeSecretDirectory C:\secure\noteverse-staging `
   -Apply `
   -Wait `
   -ScaleWorkerToZero `
@@ -164,12 +164,12 @@ would allow new application Pods to begin competing for node I/O before the
 schema gate has completed. GitOps uses the equivalent Argo CD `PreSync`
 migration hook: a failed migration blocks ordinary workload synchronization.
 
-When `-BackendSecretEnvFile` is used, the prepare script filters the env file
-to the required credential keys before creating `Secret/noteverse-backend-secret`.
-The rendered ConfigMaps remain the source of truth for public/runtime settings
-such as `FRONTEND_BASE_URL`, `BACKEND_CORS_ORIGINS`, `LOG_FORMAT`, S3 bucket
-names, and model paths. This prevents a local `.env.docker` file from
-accidentally overriding the release package's production-shaped configuration.
+The prepare script validates each runtime credential file against its actual
+Settings contract before creating a Secret. Files are named `migrator.env`,
+`customer_api.env`, `control_plane.env`, `worker.env`, `beat.env` and
+`observability.env`. Public configuration belongs to the corresponding runtime
+ConfigMap. The [database provisioning contract](../../architecture/runtime/database-role-ownership.md)
+requires roles and schema ownership before the migration Job starts.
 
 ## Production Package
 

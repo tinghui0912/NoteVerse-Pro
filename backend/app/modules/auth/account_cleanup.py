@@ -1,31 +1,8 @@
-"""Bounded erasure of a closed principal's authentication credentials."""
+"""Bounded credential erasure through closed-account database authority."""
 
-from sqlalchemy import delete, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from app.db.models.auth import AuthToken, RefreshToken
 
 
 def erase_authentication_history(db: Session, user_id: int, *, limit: int) -> bool:
-    ids = list(
-        db.scalars(
-            select(AuthToken.id)
-            .where(AuthToken.user_id == user_id)
-            .order_by(AuthToken.id)
-            .limit(limit)
-        )
-    )
-    if ids:
-        db.execute(delete(AuthToken).where(AuthToken.id.in_(ids)))
-        return True
-    ids = list(
-        db.scalars(
-            select(RefreshToken.id)
-            .where(RefreshToken.user_id == user_id)
-            .order_by(RefreshToken.id)
-            .limit(limit)
-        )
-    )
-    if ids:
-        db.execute(delete(RefreshToken).where(RefreshToken.id.in_(ids)))
-        return True
-    return False
+    return bool(db.scalar(select(func.nv_erase_closed_authentication_history(user_id, limit))))

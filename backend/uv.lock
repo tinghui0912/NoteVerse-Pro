@@ -1131,6 +1131,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "python-multipart" },
+    { name = "pyyaml" },
     { name = "redis" },
     { name = "ruff" },
     { name = "sqlmodel" },
@@ -1197,6 +1198,7 @@ quality = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "python-multipart" },
+    { name = "pyyaml" },
     { name = "redis" },
     { name = "ruff" },
     { name = "sqlmodel" },
@@ -1210,6 +1212,7 @@ quality-tools = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 render = [
@@ -1370,6 +1373,7 @@ dev = [
     { name = "pytest-asyncio", specifier = "==1.4.0" },
     { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "python-multipart", specifier = "==0.0.32" },
+    { name = "pyyaml", specifier = "==6.0.2" },
     { name = "redis", specifier = "==7.4.0" },
     { name = "ruff", specifier = "==0.17.1" },
     { name = "sqlmodel", specifier = "==0.0.48" },
@@ -1430,6 +1434,7 @@ quality = [
     { name = "pytest-asyncio", specifier = "==1.4.0" },
     { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "python-multipart", specifier = "==0.0.32" },
+    { name = "pyyaml", specifier = "==6.0.2" },
     { name = "redis", specifier = "==7.4.0" },
     { name = "ruff", specifier = "==0.17.1" },
     { name = "sqlmodel", specifier = "==0.0.48" },
@@ -1443,6 +1448,7 @@ quality-tools = [
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = "==1.4.0" },
     { name = "pytest-cov", specifier = "==7.1.0" },
+    { name = "pyyaml", specifier = "==6.0.2" },
     { name = "ruff", specifier = "==0.17.1" },
 ]
 render = [

@@ -1,7 +1,7 @@
 param(
     [string] $AppNamespace = "noteverse-staging",
     [string] $RenderedOverlay = "build/k8s-release/minikube",
-    [string] $BackendSecretEnvFile = "",
+    [string] $RuntimeSecretDirectory = "",
     [string] $DockerConfigPath = (Join-Path $env:USERPROFILE ".docker\config.json"),
     [string] $RegistryServer = "ghcr.io",
     [string] $RegistryUsername = "",
@@ -9,7 +9,6 @@ param(
     [switch] $CreateRegistrySecretFromDockerConfig,
     [switch] $CreateRegistrySecretFromDockerCredentialStore,
     [switch] $CreateRegistrySecretFromToken,
-    [switch] $SkipBackendSecret,
     [switch] $SkipRegistrySecret,
     [switch] $SkipWorkerWait,
     [switch] $SkipModelCacheWait,
@@ -20,18 +19,6 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-
-$RequiredBackendSecretKeys = @(
-    "SECRET_KEY",
-    "DATABASE_URL",
-    "SCHEDULER_LOCK_DATABASE_URL",
-    "REDIS_URL",
-    "CELERY_BROKER_URL",
-    "CELERY_RESULT_BACKEND",
-    "S3_ACCESS_KEY_ID",
-    "S3_SECRET_ACCESS_KEY",
-    "RESEND_API_KEY"
-)
 
 function Invoke-Checked {
     param(
@@ -73,96 +60,6 @@ function Test-CommandAvailable {
 
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
         throw "$Name is required but was not found on PATH."
-    }
-}
-
-function Get-EnvFileKeys {
-    param([string] $Path)
-
-    $keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-    Get-Content $Path | ForEach-Object {
-        $line = $_.Trim()
-        if ($line.Length -eq 0 -or $line.StartsWith("#")) {
-            return
-        }
-
-        $index = $line.IndexOf("=")
-        if ($index -le 0) {
-            return
-        }
-
-        [void] $keys.Add($line.Substring(0, $index).Trim())
-    }
-    return $keys
-}
-
-function Assert-EnvFileContainsRequiredKeys {
-    param([string] $Path)
-
-    if (-not (Test-Path $Path)) {
-        throw "Backend Secret env file does not exist: $Path"
-    }
-
-    $keys = Get-EnvFileKeys $Path
-    $missing = $RequiredBackendSecretKeys | Where-Object { -not $keys.Contains($_) }
-    if ($missing.Count -gt 0) {
-        throw "Backend Secret env file is missing required keys: $($missing -join ', ')"
-    }
-}
-
-function New-FilteredEnvFile {
-    param(
-        [string] $Path,
-        [string[]] $AllowedKeys
-    )
-
-    $allowed = [System.Collections.Generic.HashSet[string]]::new(
-        [System.StringComparer]::Ordinal
-    )
-    $AllowedKeys | ForEach-Object { [void] $allowed.Add($_) }
-
-    $tempFile = [System.IO.Path]::GetTempFileName()
-    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-    $lines = [System.Collections.Generic.List[string]]::new()
-
-    Get-Content $Path | ForEach-Object {
-        $line = $_.Trim()
-        if ($line.Length -eq 0 -or $line.StartsWith("#")) {
-            return
-        }
-
-        $index = $line.IndexOf("=")
-        if ($index -le 0) {
-            return
-        }
-
-        $key = $line.Substring(0, $index).Trim()
-        if ($allowed.Contains($key)) {
-            $lines.Add($_)
-        }
-    }
-
-    [System.IO.File]::WriteAllLines($tempFile, $lines, $utf8NoBom)
-    return $tempFile
-}
-
-function Assert-ClusterSecretContainsRequiredKeys {
-    param(
-        [string] $Namespace,
-        [string] $Name,
-        [string[]] $RequiredKeys
-    )
-
-    $json = kubectl -n $Namespace get secret $Name -o json 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Secret/$Name does not exist in namespace $Namespace. Pass -BackendSecretEnvFile or create it before running this script."
-    }
-
-    $secret = $json | ConvertFrom-Json
-    $data = $secret.data
-    $missing = $RequiredKeys | Where-Object { -not ($data.PSObject.Properties.Name -contains $_) }
-    if ($missing.Count -gt 0) {
-        throw "Secret/$Name is missing required keys: $($missing -join ', ')"
     }
 }
 
@@ -330,25 +227,26 @@ if (-not $SkipRegistrySecret) {
     }
 }
 
-if (-not $SkipBackendSecret) {
-    if (-not [string]::IsNullOrWhiteSpace($BackendSecretEnvFile)) {
-        Assert-EnvFileContainsRequiredKeys $BackendSecretEnvFile
-        $filteredBackendSecretEnvFile = New-FilteredEnvFile `
-            -Path $BackendSecretEnvFile `
-            -AllowedKeys $RequiredBackendSecretKeys
-        try {
-            Invoke-Checked "secret:backend" {
-                kubectl -n $AppNamespace create secret generic noteverse-backend-secret `
-                    --from-env-file=$filteredBackendSecretEnvFile `
-                    --dry-run=client -o yaml | kubectl apply -f -
-            }
-        } finally {
-            [System.IO.File]::Delete($filteredBackendSecretEnvFile)
+$runtimeContracts = Get-Content (Join-Path $PSScriptRoot "../backend/docs/contracts/runtime-deployment.json") -Raw | ConvertFrom-Json
+foreach ($entry in $runtimeContracts.PSObject.Properties) {
+    $runtime = $entry.Name
+    $contract = $entry.Value
+    if ($null -eq $contract.database_role) { continue }
+    $secretName = $contract.secret_name
+    if (-not [string]::IsNullOrWhiteSpace($RuntimeSecretDirectory)) {
+        $credentialFile = Join-Path $RuntimeSecretDirectory "$runtime.env"
+        Invoke-Checked "secret:validate:$runtime" {
+            python scripts/validate_runtime_secrets.py --runtime $runtime --env-file $credentialFile
         }
-    } else {
-        Invoke-Checked "secret:backend-exists" {
-            Assert-ClusterSecretContainsRequiredKeys $AppNamespace "noteverse-backend-secret" $RequiredBackendSecretKeys
+        Invoke-Checked "secret:apply:$runtime" {
+            kubectl -n $AppNamespace create secret generic $secretName `
+                --from-env-file=$credentialFile --dry-run=client -o yaml | kubectl apply -f -
         }
+    }
+    Invoke-Checked "secret:check:$runtime" {
+        $secretJson = kubectl -n $AppNamespace get secret $secretName -o json
+        if ($LASTEXITCODE -ne 0) { throw "Runtime credential Secret is missing." }
+        $secretJson | python scripts/validate_runtime_secrets.py --runtime $runtime --stdin-secret
     }
 }
 

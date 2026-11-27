@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.modules.account.resource_users import resource_user_query
+
 
 from app.platform.config.application import InvitationConfig
 
@@ -77,7 +79,7 @@ class InvitationService:
         access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id, lock_score=True
         )
-        owner = db.get(User, access.score.owner_user_id)
+        owner = db.scalar(resource_user_query().where(User.id == access.score.owner_user_id))
         if owner is None:
             raise ResourceNotFoundException("user", code=CustomerErrorCode.USER_NOT_FOUND)
         if request.email == owner.email.lower():

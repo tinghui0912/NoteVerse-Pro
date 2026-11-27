@@ -76,17 +76,16 @@ Strict mode must fail when any deployment placeholder remains:
 
 ## 2. Secrets
 
-Required backend Secret keys:
-
-- `SECRET_KEY`
-- `DATABASE_URL`
-- `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session pooling only)
-- `REDIS_URL`
-- `CELERY_BROKER_URL`
-- `CELERY_RESULT_BACKEND`
-- `S3_ACCESS_KEY_ID`
-- `S3_SECRET_ACCESS_KEY`
-- mail provider key if outbound mail is enabled
+Verify the six runtime Secret names and exact key sets against
+[Settings Ownership](../../architecture/runtime/settings-ownership.md).
+Every workload references only its own keys; no Secret uses `envFrom` or an
+unvalidated volume bundle. Worker and Beat scheduler-lock URLs use their own
+PostgreSQL roles and direct PostgreSQL or session pooling. Migrator receives
+only its database URL. Exporter has only a read-only database credential.
+Control Plane receives no customer authentication, S3 or mail key. Model
+preparation has an optional separate `HF_TOKEN` credential, and PaddleOCR
+receives no secrets. Verify database ownership, explicit grants and denied
+credential access using the [role contract](../../architecture/runtime/database-role-ownership.md).
 
 Rules:
 

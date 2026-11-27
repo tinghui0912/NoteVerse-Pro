@@ -1,6 +1,7 @@
 """A notification page resolves all actors in one query."""
 
-from sqlalchemy import select
+from app.modules.account.resource_users import resource_user_query
+
 from sqlalchemy.orm import Session, joinedload
 from pydantic import TypeAdapter
 from app.db.models import Notification, NotificationKind, User
@@ -17,7 +18,9 @@ class NotificationReadModel:
             {
                 row.id: row
                 for row in db.scalars(
-                    select(User).options(joinedload(User.avatar_object)).where(User.id.in_(ids))
+                    resource_user_query()
+                    .options(joinedload(User.avatar_object))
+                    .where(User.id.in_(ids))
                 )
             }
             if ids

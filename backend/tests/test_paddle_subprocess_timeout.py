@@ -272,3 +272,31 @@ def test_text_classifier_excludes_title_metadata_labels() -> None:
     )
 
     assert result["title"] is None
+
+
+def test_ocr_subprocess_receives_no_runtime_credentials(monkeypatch):
+    credential_keys = (
+        "DATABASE_URL",
+        "SCHEDULER_LOCK_DATABASE_URL",
+        "REDIS_URL",
+        "CELERY_BROKER_URL",
+        "CELERY_RESULT_BACKEND",
+        "SECRET_KEY",
+        "S3_ACCESS_KEY_ID",
+        "S3_SECRET_ACCESS_KEY",
+        "RESEND_API_KEY",
+        "HF_TOKEN",
+    )
+    for key in credential_keys:
+        monkeypatch.setenv(key, "private-runtime-value")
+    completed = subprocess.CompletedProcess(
+        args=["python"], returncode=0, stdout='{"success":true,"result":[]}', stderr=""
+    )
+    with patch("app.processing.engines.ocr.paddle.subprocess.run", return_value=completed) as run:
+        result = run_ocr_subprocess(
+            __file__, config=WorkerModelEngineSettings(LEGATO_REPO_PATH="/opt/noteverse/legato")
+        )
+    assert result["success"] is True
+    environment = run.call_args.kwargs["env"]
+    assert set(credential_keys).isdisjoint(environment)
+    assert environment.get("PATH") == os.environ.get("PATH")

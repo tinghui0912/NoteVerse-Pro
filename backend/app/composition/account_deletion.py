@@ -162,7 +162,6 @@ class AccountDeletionExecutor:
             or erase_revision_actor_links(db, user_id, limit=limit)
             or erase_playback_requester_links(db, user_id, limit=limit)
             or erase_authentication_history(db, user_id, limit=limit)
-            or AccountDeletionRepository().erase_security_history(db, user_id, limit=limit)
             or erase_account_activities(db, user_id, limit=limit)
             or erase_recipient_replay(db, user_id, limit=limit)
             or storage_usage_service.erase_empty_account_history(db, user_id, limit=limit)

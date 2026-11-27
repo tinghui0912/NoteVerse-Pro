@@ -28,16 +28,15 @@ spec:
           ports:
             - name: http
               containerPort: 8000
-          env:
-            - name: PORT
-              value: "8000"
-            - name: OTEL_SERVICE_NAME
-              value: noteverse-observability-exporter
           envFrom:
             - configMapRef:
-                name: noteverse-backend-config
-            - secretRef:
-                name: noteverse-backend-secret
+                name: noteverse-observability-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-observability-secret
+                  key: DATABASE_URL
           readinessProbe:
             httpGet:
               path: /health/ready

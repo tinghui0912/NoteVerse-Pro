@@ -60,7 +60,7 @@ The application runtime Secrets must already exist in the cluster. The GitOps
 directory references Secrets by name and does not store Secret values:
 
 ```powershell
-kubectl -n noteverse-staging get secret noteverse-backend-secret
+kubectl -n noteverse-staging get secret noteverse-migrator-secret noteverse-customer-api-secret noteverse-control-plane-secret noteverse-worker-secret noteverse-beat-secret noteverse-observability-secret
 kubectl -n noteverse-staging get secret noteverse-registry-credentials
 kubectl -n noteverse-staging get secret cloudflare-api-token-secret
 ```

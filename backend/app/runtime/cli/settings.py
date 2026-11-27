@@ -1,3 +1,4 @@
+from pydantic import SecretStr
 from app.platform.config.revision_metadata_delivery import RevisionMetadataDeliverySettings
 from app.platform.config.worker_model_engine import WorkerModelEngineSettings
 from app.platform.config.playback import PlaybackSettings
@@ -19,4 +20,5 @@ class MetadataCommandSettings(DatabaseConfig, RevisionMetadataDeliverySettings, 
 
 
 class AssetCommandSettings(WorkerModelEngineSettings, PlaybackSettings, BaseSettings):
+    HF_TOKEN: SecretStr | None = None
     model_config = SettingsConfigDict(case_sensitive=True, extra="ignore")

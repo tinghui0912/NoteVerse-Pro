@@ -1,195 +1,157 @@
-"""Validate Kubernetes env-file ownership boundaries.
-
-This guard prevents runtime-specific configuration from drifting back into the
-shared backend ConfigMap. It intentionally checks only clear ownership
-boundaries; ambiguous product policy remains a review decision instead of a
-script-enforced taxonomy.
-"""
+#!/usr/bin/env python3
+"""Validate rendered workloads against the generated settings/credential contract."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+import subprocess
 from pathlib import Path
 
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+CONTRACT_PATH = REPO_ROOT / "backend/docs/contracts/runtime-deployment.json"
+TARGETS = (
+    "deploy/application/overlays/staging",
+    "deploy/application/overlays/production",
+    "deploy/gitops/environments/staging",
+)
 
-BACKEND_CONFIG_FILES = (
-    Path("deploy/application/overlays/staging/backend-config.env"),
-    Path("deploy/application/overlays/production/backend-config.env"),
-    Path("deploy/gitops/environments/staging/backend-config.env"),
-)
-WORKER_CONFIG_FILES = (
-    Path("deploy/application/overlays/staging/backend-worker-config.env"),
-    Path("deploy/application/overlays/production/backend-worker-config.env"),
-    Path("deploy/gitops/environments/staging/backend-worker-config.env"),
-)
-WORKER_OWNED_KEYS = frozenset(
-    {
-        "CELERY_WORKER_CONCURRENCY",
-        "PADDLEOCR_TIMEOUT_SECONDS",
-        "MODEL_ROOT",
-        "PLAYBACK_SOUNDFONT_PATH",
-        "HF_HOME",
-        "HF_HUB_OFFLINE",
-        "TRANSFORMERS_OFFLINE",
-        "PADDLEOCR_MODEL_ROOT",
-        "PADDLEOCR_DETECTION_MODEL_DIR",
-        "PADDLEOCR_RECOGNITION_MODEL_DIR",
-        "PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR",
-        "LEGATO_REPO_PATH",
-        "LEGATO_PYTHON",
-        "LEGATO_DEVICE",
-        "LEGATO_FP16",
-        "LEGATO_BEAM_SIZE",
-        "LEGATO_BATCH_SIZE",
-        "LEGATO_TIMEOUT_SECONDS",
+
+def load_contract() -> dict:
+    return json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+
+
+def validate_documents(
+    documents: list[dict], *, require_workloads: bool = True, require_configuration: bool = True
+) -> list[str]:
+    contracts = load_contract()
+    configmaps = {
+        d["metadata"]["name"]: d.get("data", {}) for d in documents if d.get("kind") == "ConfigMap"
     }
-)
-KUSTOMIZATION_CONFIG_REFERENCES = {
-    Path("deploy/application/overlays/staging/kustomization.yaml"): (
-        "backend-worker-config.env",
-    ),
-    Path("deploy/application/overlays/production/kustomization.yaml"): (
-        "backend-worker-config.env",
-    ),
-    Path("deploy/gitops/environments/staging/kustomization.yaml"): (
-        "backend-worker-config.env",
-    ),
-}
-MODEL_CACHE_AGENT_MANIFESTS = (
-    Path("deploy/application/base/model-cache-agent-daemonset.yaml"),
-    Path("deploy/gitops/environments/staging/base/model-cache-agent-daemonset.yaml"),
-)
-MODEL_CACHE_AGENT_REQUIRED_CONFIGMAPS = (
-    "noteverse-backend-worker-config",
-)
-
-
-@dataclass(frozen=True, slots=True)
-class Finding:
-    path: str
-    line: int
-    rule: str
-    text: str
-
-
-def repo_path(path: Path) -> Path:
-    return path if path.is_absolute() else REPO_ROOT / path
-
-
-def parse_env_file(path: Path) -> dict[str, int]:
-    env_path = repo_path(path)
-    keys: dict[str, int] = {}
-    for line_number, raw_line in enumerate(env_path.read_text(encoding="utf-8").splitlines(), start=1):
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
+    secrets = {
+        d["metadata"]["name"]: set(d.get("data", {})) | set(d.get("stringData", {}))
+        for d in documents
+        if d.get("kind") == "Secret"
+    }
+    problems = []
+    names = [c["secret_name"] for c in contracts.values() if c["secret_name"]]
+    if len(set(names)) != len(names):
+        problems.append("Runtime credential identities must be distinct")
+    found = set()
+    for document in documents:
+        kind = document.get("kind")
+        if kind not in {"Deployment", "StatefulSet", "Job", "CronJob", "DaemonSet"}:
             continue
-        if "=" not in line:
-            continue
-        key = line.split("=", 1)[0].strip()
-        keys[key] = line_number
-    return keys
-
-
-def validate_required_files(paths: tuple[Path, ...]) -> list[Finding]:
-    findings: list[Finding] = []
-    for path in paths:
-        if not repo_path(path).is_file():
-            findings.append(Finding(path.as_posix(), 1, "required-file", "missing env file"))
-    return findings
-
-
-def validate_shared_backend_config() -> list[Finding]:
-    findings: list[Finding] = []
-    forbidden_keys = WORKER_OWNED_KEYS
-    for path in BACKEND_CONFIG_FILES:
-        if not repo_path(path).is_file():
-            continue
-        keys = parse_env_file(path)
-        for key in sorted(forbidden_keys & keys.keys()):
-            findings.append(
-                Finding(
-                    path.as_posix(),
-                    keys[key],
-                    "runtime-specific-key-in-shared-config",
-                    f"{key} belongs in a role-specific env file",
+        workload = document["metadata"]["name"]
+        entry = next(
+            ((name, c) for name, c in contracts.items() if c["workload"] == workload), None
+        )
+        pod = (
+            document["spec"]["jobTemplate"]["spec"]["template"]["spec"]
+            if kind == "CronJob"
+            else document["spec"]["template"]["spec"]
+        )
+        credential_volumes = {
+            volume["name"]
+            for volume in pod.get("volumes", [])
+            if "secret" in volume
+            or any("secret" in source for source in volume.get("projected", {}).get("sources", []))
+        }
+        for container in pod.get("containers", []) + pod.get("initContainers", []):
+            if any(
+                mount["name"] in credential_volumes for mount in container.get("volumeMounts", [])
+            ):
+                problems.append(
+                    f"{workload}/{container['name']}: credential volume bundles are not permitted"
                 )
-            )
-    return findings
-
-
-def validate_role_config_files(paths: tuple[Path, ...], required_keys: frozenset[str], role: str) -> list[Finding]:
-    findings: list[Finding] = []
-    for path in paths:
-        if not repo_path(path).is_file():
-            continue
-        keys = parse_env_file(path)
-        missing = sorted(required_keys - keys.keys())
-        for key in missing:
-            findings.append(Finding(path.as_posix(), 1, f"{role}-required-key", f"missing {key}"))
-    return findings
-
-
-def validate_kustomization_references() -> list[Finding]:
-    findings: list[Finding] = []
-    for path, required_references in KUSTOMIZATION_CONFIG_REFERENCES.items():
-        kustomization_path = repo_path(path)
-        if not kustomization_path.is_file():
-            findings.append(Finding(path.as_posix(), 1, "required-file", "missing kustomization"))
-            continue
-        text = kustomization_path.read_text(encoding="utf-8")
-        for reference in required_references:
-            if reference not in text:
-                findings.append(
-                    Finding(
-                        path.as_posix(),
-                        1,
-                        "role-configmap-reference",
-                        f"missing configMapGenerator env reference: {reference}",
+            references = [
+                (e.get("valueFrom", {}).get("secretKeyRef"), e.get("name"))
+                for e in container.get("env", [])
+            ]
+            references = [(ref, key) for ref, key in references if ref]
+            imports = container.get("envFrom", [])
+            if entry is None or container["name"] != entry[1]["container"]:
+                if references or any("secretRef" in imported for imported in imports):
+                    problems.append(
+                        f"{workload}/{container['name']}: unexpected runtime credential mount"
                     )
-                )
-    return findings
+                continue
+            role, contract = entry
+            found.add(role)
+            fields, secret_keys = set(contract["fields"]), set(contract["secret_keys"])
+            available = set()
+            for imported in imports:
+                if "secretRef" in imported:
+                    problems.append(f"{role}: secret envFrom is not permitted")
+                    continue
+                config_name = imported.get("configMapRef", {}).get("name")
+                if config_name != contract["config_name"]:
+                    problems.append(f"{role}: configuration belongs to another runtime")
+                    continue
+                values = configmaps.get(config_name)
+                if values is None:
+                    if require_configuration:
+                        problems.append(f"{role}: ConfigMap is missing")
+                    continue
+                available.update(values)
+                invalid = (set(values) - fields) | (set(values) & secret_keys)
+                if invalid:
+                    problems.append(f"{role}: invalid public config keys {sorted(invalid)}")
+            actual_keys = set()
+            for ref, key in references:
+                if (
+                    ref["name"] != contract["secret_name"]
+                    or key not in secret_keys
+                    or ref["key"] != key
+                ):
+                    problems.append(f"{role}: invalid credential reference for {key}")
+                actual_keys.add(key)
+            if actual_keys != secret_keys:
+                problems.append(f"{role}: credential keys do not match settings contract")
+            for value in container.get("env", []):
+                available.add(value["name"])
+                if value["name"] not in fields:
+                    problems.append(f"{role}: unknown environment key {value['name']}")
+                if value["name"] in secret_keys and "value" in value:
+                    problems.append(f"{role}: credential literal is not permitted")
+            missing = set(contract["required_fields"]) - available
+            if missing and require_configuration:
+                problems.append(f"{role}: missing required settings {sorted(missing)}")
+            declared = secrets.get(contract["secret_name"])
+            if declared is not None and declared != secret_keys:
+                problems.append(f"{role}: declared Secret contains missing or extra keys")
+    if require_workloads:
+        required = {name for name, c in contracts.items() if c["workload"]}
+        if found != required:
+            problems.append(f"Missing workload settings contracts: {sorted(required - found)}")
+    return problems
 
 
-def validate_model_cache_agent_configmaps() -> list[Finding]:
-    findings: list[Finding] = []
-    for path in MODEL_CACHE_AGENT_MANIFESTS:
-        manifest_path = repo_path(path)
-        if not manifest_path.is_file():
-            findings.append(Finding(path.as_posix(), 1, "required-file", "missing model-cache-agent manifest"))
-            continue
-        text = manifest_path.read_text(encoding="utf-8")
-        for configmap_name in MODEL_CACHE_AGENT_REQUIRED_CONFIGMAPS:
-            if configmap_name not in text:
-                findings.append(
-                    Finding(
-                        path.as_posix(),
-                        1,
-                        "model-cache-agent-configmap",
-                        f"missing envFrom ConfigMap: {configmap_name}",
-                    )
-                )
-    return findings
-
-
-def print_findings(findings: list[Finding]) -> None:
-    for finding in findings:
-        print(f"{finding.path}:{finding.line}: {finding.rule}: {finding.text}")
+def validate_rendered(
+    rendered: str, *, require_workloads: bool = True, require_configuration: bool = True
+) -> list[str]:
+    return validate_documents(
+        [d for d in yaml.safe_load_all(rendered) if d],
+        require_workloads=require_workloads,
+        require_configuration=require_configuration,
+    )
 
 
 def main() -> int:
-    findings: list[Finding] = []
-    findings.extend(validate_required_files(BACKEND_CONFIG_FILES + WORKER_CONFIG_FILES))
-    findings.extend(validate_shared_backend_config())
-    findings.extend(validate_role_config_files(WORKER_CONFIG_FILES, WORKER_OWNED_KEYS, "worker"))
-    findings.extend(validate_kustomization_references())
-    findings.extend(validate_model_cache_agent_configmaps())
-
-    if findings:
-        print_findings(findings)
+    problems = []
+    for target in TARGETS:
+        rendered = subprocess.run(
+            ["kubectl", "kustomize", str(REPO_ROOT / target)],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        problems.extend(f"{target}: {message}" for message in validate_rendered(rendered))
+    if problems:
+        print("\n".join(problems))
         return 1
-    print("Kubernetes env-file ownership check passed.")
+    print("Runtime Settings, ConfigMaps and Secret references match their isolated contracts.")
     return 0
 
 

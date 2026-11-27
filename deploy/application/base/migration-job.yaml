@@ -27,8 +27,9 @@ spec:
           image: noteverse-backend-api:replace-me
           args:
             - migrate
-          envFrom:
-            - configMapRef:
-                name: noteverse-backend-config
-            - secretRef:
-                name: noteverse-backend-secret
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-migrator-secret
+                  key: DATABASE_URL

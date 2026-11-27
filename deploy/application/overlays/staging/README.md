@@ -12,17 +12,11 @@ kubectl kustomize deploy/application/overlays/staging
 
 Required objects supplied outside this overlay:
 
-- `Secret/noteverse-backend-secret`
-  - `SECRET_KEY`
-  - `DATABASE_URL`
-  - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session pooling only)
-  - `REDIS_URL`
-  - `CELERY_BROKER_URL`
-  - `CELERY_RESULT_BACKEND`
-  - `S3_ACCESS_KEY_ID`
-  - `S3_SECRET_ACCESS_KEY`
-  - `RESEND_API_KEY` if mail is enabled
-  - `HF_TOKEN` when gated Hugging Face model repositories are enabled
+- Six runtime Secrets: `noteverse-migrator-secret`, `noteverse-customer-api-secret`,
+  `noteverse-control-plane-secret`, `noteverse-worker-secret`, `noteverse-beat-secret`,
+  `noteverse-observability-secret`; exact keys follow
+  [runtime ownership](../../../../docs/architecture/runtime/settings-ownership.md).
+- Optional `noteverse-model-assets-secret` with `HF_TOKEN` only for gated model downloads.
 - `ClusterIssuer/letsencrypt-production-dns01` or another production-equivalent
   cert-manager issuer capable of issuing `Secret/noteverse-staging-tls`
 - GPU worker node labels on nodes that may run worker pods:
@@ -53,9 +47,8 @@ the Cloudflare token or DNS zone permissions are new, then switch the overlay
 back to the production issuer for browser-trusted TLS rehearsal.
 
 The checked-in staging ConfigMaps use repository test OSS bucket settings for
-production-shaped S3 storage and split backend runtime values into shared,
-Worker, and Control Plane ownership files. Keep credentials in
-`Secret/noteverse-backend-secret`; do not commit access keys.
+production-shaped S3 storage and give Customer API, Worker, Beat, Control Plane, exporter and model preparation
+separate ConfigMaps. Credentials belong to the matching runtime Secret; do not commit access keys.
 
 The overlay intentionally does not generate Secrets. Credentials should come
 from the cluster secret management path, not from repository files.

@@ -39,9 +39,33 @@ spec:
             - beat
           envFrom:
             - configMapRef:
-                name: noteverse-backend-config
-            - secretRef:
-                name: noteverse-backend-secret
+                name: noteverse-beat-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: DATABASE_URL
+            - name: SCHEDULER_LOCK_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: SCHEDULER_LOCK_DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: REDIS_URL
+            - name: CELERY_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: CELERY_BROKER_URL
+            - name: CELERY_RESULT_BACKEND
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: CELERY_RESULT_BACKEND
           resources:
             requests:
               cpu: 100m

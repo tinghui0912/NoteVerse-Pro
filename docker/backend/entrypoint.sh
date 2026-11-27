@@ -49,7 +49,8 @@ case "${1:-api}" in
     exec python scripts/check_runtime.py "$@"
     ;;
   migrate)
-    exec alembic upgrade head
+    alembic upgrade head
+    exec python scripts/provision_database.py grants
     ;;
   bash)
     exec /bin/bash

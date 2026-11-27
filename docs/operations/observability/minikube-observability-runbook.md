@@ -235,7 +235,10 @@ kubectl -n observability create secret generic observability-s3 `
 `TEMPO_S3_ENDPOINT` is a hostname only, for example
 `oss-cn-shenzhen.aliyuncs.com`; Tempo's S3 client rejects a URL with
 `https://`. Prefer `scripts/minikube_create_observability_s3_secret.ps1`, which
+requires an explicit `-EnvFile C:\secure\observability-storage.env` and
 derives the correct Loki URL and Tempo hostname forms from `S3_ENDPOINT_URL`.
+Use dedicated observability bucket credentials; the application exporter uses
+only its own read-only database Secret.
 
 ## Validate Values Before Installing
 

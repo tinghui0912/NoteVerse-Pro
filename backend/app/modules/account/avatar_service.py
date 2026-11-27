@@ -1,5 +1,7 @@
 """Avatar service under the account module boundary."""
 
+from app.modules.account.resource_users import resource_user_query
+
 from app.platform.config.storage import MediaStoragePolicyConfig
 
 from app.modules.media_storage.delivery import MediaDeliveryService
@@ -11,7 +13,6 @@ import io
 import warnings
 from typing import BinaryIO
 from uuid import uuid4
-from sqlalchemy import select
 
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
@@ -138,7 +139,7 @@ class AvatarService:
         db.add(user)
         user = (
             db.execute(
-                select(User)
+                resource_user_query()
                 .where(User.id == user_id, User.is_active.is_(True), User.deleted_at.is_(None))
                 .with_for_update()
                 .execution_options(populate_existing=True)
@@ -162,7 +163,7 @@ class AvatarService:
 
     def clear_user_avatar(self, db: Session, user: User) -> bool:
         user = db.scalar(
-            select(User)
+            resource_user_query()
             .where(User.id == user.id)
             .with_for_update()
             .execution_options(populate_existing=True)

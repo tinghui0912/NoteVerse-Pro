@@ -32,18 +32,27 @@ images:
     newTag: staging-replace-me
 
 configMapGenerator:
-  - name: noteverse-backend-config
+  - name: noteverse-beat-config
     envs:
-      - backend-config.env
-  - name: noteverse-backend-worker-config
-    envs:
-      - backend-worker-config.env
-  - name: noteverse-customer-web-config
-    envs:
-      - customer-web-config.env
+      - beat-config.env
   - name: noteverse-control-plane-config
     envs:
       - control-plane-config.env
+  - name: noteverse-customer-api-config
+    envs:
+      - customer-api-config.env
+  - name: noteverse-model-assets-config
+    envs:
+      - model-assets-config.env
+  - name: noteverse-observability-config
+    envs:
+      - observability-config.env
+  - name: noteverse-worker-config
+    envs:
+      - worker-config.env
+  - name: noteverse-customer-web-config
+    envs:
+      - customer-web-config.env
 
 generatorOptions:
   disableNameSuffixHash: true

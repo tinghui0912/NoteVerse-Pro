@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$composeFile = Join-Path $repoRoot "docker-compose.backend-dev.yml"
+$composeFile = Join-Path $repoRoot "docker-compose.backend-quality.yml"
 
 function Invoke-Quality {
     param([string] $Name, [string] $Command)
@@ -26,6 +26,7 @@ switch ($Check) {
         Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
         Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --check"
         Invoke-Quality "realtime-contract" "python /repo/scripts/generate_realtime_contract.py --check"
+        Invoke-Quality "runtime-deployment-contract" "python scripts/export_runtime_contract.py --check"
         Invoke-Quality "openapi-customer" "python scripts/export_openapi.py customer-api --check"
         Invoke-Quality "openapi-control-plane" "python scripts/export_openapi.py control-plane-api --check"
     }
@@ -67,6 +68,7 @@ switch ($Check) {
         Invoke-Quality "ruff" "python -m ruff check app tests scripts"
         Invoke-Quality "mypy" "python -m mypy --config-file pyproject.toml"
         Invoke-Quality "mypy-model-layer" "python -m mypy --config-file mypy-model-layer.ini"
+        Invoke-Quality "runtime-deployment-contract" "python scripts/export_runtime_contract.py --check"
         Invoke-Quality "openapi-customer" "python scripts/export_openapi.py customer-api --check"
         Invoke-Quality "openapi-control-plane" "python scripts/export_openapi.py control-plane-api --check"
         Invoke-Quality "pytest" "python -m pytest tests -q"

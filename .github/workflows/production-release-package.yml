@@ -49,6 +49,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install manifest validation dependencies
+        run: python -m pip install -r scripts/requirements-manifests.txt
+
       - name: Install kubectl
         run: |
           KUBECTL_VERSION="$(curl -L -s https://dl.k8s.io/release/stable.txt)"

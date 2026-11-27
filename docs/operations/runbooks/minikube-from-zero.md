@@ -245,7 +245,7 @@ minikube range into production.
 Create the bucket if needed:
 
 ```powershell
-python scripts/ensure_s3_bucket.py --env-file backend/.env.docker --create
+python scripts/ensure_s3_bucket.py --env-file backend/.env.docker.customer-api --create
 ```
 
 Create separate S3-compatible buckets for observability. Do not share the
@@ -309,7 +309,7 @@ credential into a portable image-pull Secret.
 .\scripts\minikube_app_release_prepare.ps1 `
   -RenderedOverlay build/k8s-release/minikube `
   -CreateRegistrySecretFromDockerCredentialStore `
-  -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
+  -RuntimeSecretDirectory C:\secure\noteverse-staging
 ```
 
 If Docker Desktop is not logged in, use an explicit fine-grained GHCR token
@@ -322,29 +322,23 @@ $env:GHCR_TOKEN = "<github-token-with-read-packages>"
   -RenderedOverlay build/k8s-release/minikube `
   -CreateRegistrySecretFromToken `
   -RegistryUsername "<github-username>" `
-  -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
+  -RuntimeSecretDirectory C:\secure\noteverse-staging
 ```
 
-The backend secret env file must stay outside the repository and contain the
-full required key set: `DATABASE_URL`,
-`SCHEDULER_LOCK_DATABASE_URL`, Redis URLs, S3 keys, cookie secrets, mail API
-key, and optional Hugging Face token. `SCHEDULER_LOCK_DATABASE_URL` must point
-to direct PostgreSQL (or a PgBouncer session-pooling endpoint), never a
-transaction-pooling endpoint, because the Beat leader holds a session advisory
-lock for its full lifetime.
+`RuntimeSecretDirectory` stays outside the repository and contains six separate
+credential files: `migrator.env`, `customer_api.env`, `control_plane.env`,
+`worker.env`, `beat.env` and `observability.env`. Exact keys and PostgreSQL login
+roles follow the [ownership contract](../../architecture/runtime/settings-ownership.md).
+The prepare script validates exact keys; it rejects extra fields instead of
+filtering them. Public URLs, origins, log policy, S3 bucket names and model paths
+come from each runtime's rendered ConfigMap. Worker and Beat scheduler-lock
+URLs must use their own roles with direct PostgreSQL or session pooling, never
+transaction pooling.
 
-`minikube_app_release_prepare.ps1` treats this file as a credential source only:
-it filters the file down to the required Secret keys before writing
-`Secret/noteverse-backend-secret`. Runtime/public configuration such as
-`FRONTEND_BASE_URL`, `BACKEND_CORS_ORIGINS`, `LOG_FORMAT`, S3 bucket names, and
-model paths must come from the rendered release overlay ConfigMaps. Do not put
-those values in the backend Secret or they can override the production-shaped
-release configuration at Pod startup.
-
-`HF_TOKEN` is required for model-cache/worker bootstrap when private or gated
-model repositories are involved. It is not required for the temporary
-`-ScaleWorkerToZero -SkipModelCacheWait` application deployment path where the
-GPU worker runs outside Kubernetes.
+Model-cache preparation optionally reads `HF_TOKEN` from the separate
+`noteverse-model-assets-secret`. No database, application storage or mail
+credentials enter that init container. Create this auxiliary Secret only when
+the model repositories require it.
 
 Create the observability S3 Secret in the `observability` namespace before
 installing Loki or Tempo:
@@ -366,7 +360,8 @@ kubectl -n observability create secret generic observability-s3 `
 ```
 
 For the supported, less error-prone path, use
-`scripts/minikube_create_observability_s3_secret.ps1`. Loki receives the full
+`scripts/minikube_create_observability_s3_secret.ps1 -EnvFile C:\secure\observability-storage.env`
+with dedicated bucket credentials. Loki receives the full
 endpoint URL, while Tempo must receive the endpoint hostname without
 `https://`.
 

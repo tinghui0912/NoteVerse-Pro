@@ -21,17 +21,11 @@ python scripts/check_k8s_application_manifests.py \
 
 Required objects supplied outside this overlay:
 
-- `Secret/noteverse-backend-secret`
-  - `SECRET_KEY`
-  - `DATABASE_URL`
-  - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or a dedicated PgBouncer session-pooling endpoint)
-  - `REDIS_URL`
-  - `CELERY_BROKER_URL`
-  - `CELERY_RESULT_BACKEND`
-  - `S3_ACCESS_KEY_ID`
-  - `S3_SECRET_ACCESS_KEY`
-  - `RESEND_API_KEY` if mail is enabled
-  - `HF_TOKEN` when gated Hugging Face model repositories are enabled
+- Six runtime Secrets: `noteverse-migrator-secret`, `noteverse-customer-api-secret`,
+  `noteverse-control-plane-secret`, `noteverse-worker-secret`, `noteverse-beat-secret`,
+  `noteverse-observability-secret`; exact keys follow
+  [runtime ownership](../../../../docs/architecture/runtime/settings-ownership.md).
+- Optional `noteverse-model-assets-secret` with `HF_TOKEN` only for gated model downloads.
 - `ClusterIssuer/letsencrypt-production-dns01` or another cert-manager issuer
   capable of issuing `Secret/noteverse-production-tls`
 - node labels/tolerations for GPU worker scheduling:

@@ -109,7 +109,10 @@ def test_protocol_source_requires_strict_json(document, tmp_path):
 
 
 def test_policy_templates_describe_deployment_policy_and_topology():
-    allowed = {
+    from app.runtime.deployment import DEPLOYMENTS
+
+    contract = DEPLOYMENTS["control_plane"]
+    policy = {
         name for name in ControlPlaneSettings.model_fields if name.startswith("CONTROL_PLANE_")
     }
     for relative in [
@@ -123,7 +126,11 @@ def test_policy_templates_describe_deployment_policy_and_topology():
             for line in (ROOT / relative).read_text().splitlines()
             if line and not line.startswith("#")
         }
-        assert keys == allowed
+        assert policy <= keys <= set(ControlPlaneSettings.model_fields)
+        if relative.startswith("deploy/"):
+            assert keys.isdisjoint(contract.secret_keys)
+        else:
+            assert set(contract.secret_keys) <= keys
     keys = {
         line.split("=", 1)[0]
         for line in (ROOT / "apps/platform-admin/.env.docker.example").read_text().splitlines()

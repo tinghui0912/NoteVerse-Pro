@@ -37,11 +37,53 @@ URLs and resource policy; they do not redefine protocol identities.
 
 Database factories use synchronous SQLAlchemy/psycopg sessions with UTC, bounded
 pools and stale-connection checks. Scheduler advisory locks use their dedicated
-PostgreSQL connection policy. Per-process database roles and Secret distribution
-remain a separate security implementation responsibility.
+PostgreSQL connection policy. Database roles and Secret distribution follow the explicit contracts below.
 
 The import-direction and settings-schema tests in
 `backend/tests/architecture/test_runtime_boundaries.py` enforce isolation without
 skipping unavailable external services. PostgreSQL tests verify transaction behavior.
 See [Runtime Dependency Ownership](runtime-dependency-ownership.md) and
 [ADR 0010](../../adr/0010-security-and-runtime-foundation.md).
+
+## Deployment credentials
+
+`backend/app/runtime/deployment.py` binds every deployed process to its Settings
+schema, exact Secret keys, ConfigMap and PostgreSQL role. The generated
+`backend/docs/contracts/runtime-deployment.json` is checked against that source.
+Kubernetes and release-package validators consume the generated contract.
+Workloads reference individual Secret keys; each ConfigMap contains only fields
+accepted by that process's Settings and never credential fields.
+
+| Process | PostgreSQL role | Secret | Exact keys |
+| --- | --- | --- | --- |
+| beat | nv_beat | noteverse-beat-secret | `DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` |
+| control_plane | nv_control_plane | noteverse-control-plane-secret | `DATABASE_URL`, `REDIS_URL` |
+| customer_api | nv_customer_api | noteverse-customer-api-secret | `DATABASE_URL`, `SECRET_KEY`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
+| migrator | nv_migrator | noteverse-migrator-secret | `DATABASE_URL` |
+| model_assets | none | noteverse-model-assets-secret | `HF_TOKEN` |
+| observability | nv_observability | noteverse-observability-secret | `DATABASE_URL` |
+| paddle_ocr | none | none |  |
+| worker | nv_worker | noteverse-worker-secret | `DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `RESEND_API_KEY` |
+
+The six database runtimes have distinct login passwords. Worker and Beat use their
+own role for scheduler-lock connections. Model preparation has no database role;
+its optional `HF_TOKEN` is an auxiliary model-download credential. PaddleOCR uses
+only local model paths and receives no Secrets. Its subprocess launcher passes
+only explicit operating-system/runtime library variables and model paths; it
+does not inherit the Worker credential environment. Registry image-pull, TLS and
+Loki/Tempo object-storage credentials have infrastructure ownership and do not
+enter application process environments.
+
+Control Plane requires no customer signing key, object-storage credentials or mail
+transport key: Ops retries update durable delivery records, and the Worker sends
+mail. Beat and Exporter require no object-storage, mail or authentication keys.
+The migrator receives only `DATABASE_URL` and runs as a short-lived Job.
+
+Each local Docker process uses `backend/.env.docker.<runtime>` created from its
+matching `.example`. Kubernetes credential-only examples live in
+`backend/db/secret-templates/`. `scripts/validate_runtime_secrets.py` checks exact
+keys and database usernames without displaying values. The release preparation
+script validates the six runtime Secrets before applying workloads.
+
+See [Database Role Ownership](database-role-ownership.md) for table/column grants,
+bootstrap, migration and administrative command identities.

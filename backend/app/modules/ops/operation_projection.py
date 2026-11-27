@@ -41,8 +41,7 @@ def _delivery_projection(
         can_retry = and_(
             can_retry,
             or_(c.expires_at.is_(None), c.expires_at > utc_now()),
-            c.text_body.is_not(None),
-            c.text_body != "",
+            func.nv_mail_has_payload(c.outbox_uuid),
         )
     return select(
         can_retry.label("can_retry"),

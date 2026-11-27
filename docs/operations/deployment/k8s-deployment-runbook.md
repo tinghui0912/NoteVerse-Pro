@@ -172,11 +172,11 @@ kubectl create namespace noteverse-production
 
 Create required external resources before applying manifests:
 
-- PostgreSQL database and user;
+- PostgreSQL database, migrator schema owner and five isolated runtime logins;
 - Redis instance;
 - object storage bucket;
 - registry pull Secret for private GHCR images;
-- backend Secret;
+- six runtime Secrets from the Settings ownership contract;
 - Envoy Gateway exposed through `Service/type=LoadBalancer`;
 - cert-manager issuer or an external certificate automation path;
 - model-capable node labels and node-local model cache;
@@ -185,19 +185,12 @@ Create required external resources before applying manifests:
 Naming and ownership details are defined in
 `docs/operations/deployment/k8s-secrets-and-storage-template.md`.
 
-Required backend Secret keys:
-
-```text
-SECRET_KEY
-DATABASE_URL
-SCHEDULER_LOCK_DATABASE_URL
-REDIS_URL
-CELERY_BROKER_URL
-CELERY_RESULT_BACKEND
-S3_ACCESS_KEY_ID
-S3_SECRET_ACCESS_KEY
-RESEND_API_KEY
-```
+Runtime Secret identities and exact keys follow
+[Settings Ownership](../../architecture/runtime/settings-ownership.md).
+Provision roles and schema ownership through the
+[Database Role Contract](../../architecture/runtime/database-role-ownership.md)
+before running the migration Job. Validate every Secret with
+`scripts/validate_runtime_secrets.py`; migrator receives only `DATABASE_URL`.
 
 Required image pull Secret:
 
@@ -219,8 +212,8 @@ kubectl -n noteverse-production get pods -l app.kubernetes.io/component=model-ca
 The `model-cache-agent` DaemonSet uses the backend runtime image and runs
 `backend/scripts/prepare_model_assets.py --check-scope assets`. Worker pods
 mount the same node-local cache read-only. API pods do not need this cache. If
-the selected Hugging Face model repositories are gated, the backend Secret must
-include `HF_TOKEN`. Missing or unauthorized model access should fail the
+the selected Hugging Face model repositories are gated, the separate
+`noteverse-model-assets-secret` supplies `HF_TOKEN` only. Missing or unauthorized model access should fail the
 DaemonSet; do not start worker traffic against a partial model cache.
 
 Render manifests before applying:

@@ -37,20 +37,12 @@ spec:
             - assets
           envFrom:
             - configMapRef:
-                name: noteverse-backend-config
-            - configMapRef:
-                name: noteverse-backend-worker-config
-            - secretRef:
-                name: noteverse-backend-secret
+                name: noteverse-model-assets-config
           env:
-            - name: HF_HUB_OFFLINE
-              value: "false"
-            - name: TRANSFORMERS_OFFLINE
-              value: "false"
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: noteverse-backend-secret
+                  name: noteverse-model-assets-secret
                   key: HF_TOKEN
                   optional: true
           volumeMounts:

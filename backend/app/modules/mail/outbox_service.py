@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from uuid import uuid4
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.sql import Select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 from sqlmodel import col
 
 from app.core.async_trace_context import get_async_trace_context
@@ -306,7 +306,25 @@ class MailOutboxService:
     def rearm_for_operator(self, db: Session, operation_id: str) -> str:
         from app.core.exceptions import ResourceNotFoundException, ValidationException
 
-        outbox = self._get(db, operation_id)
+        outbox = db.execute(
+            select(MailOutbox)
+            .options(
+                *(
+                    defer(getattr(MailOutbox, field), raiseload=True)
+                    for field in (
+                        "recipient",
+                        "subject",
+                        "text_body",
+                        "html_body",
+                        "dedupe_key",
+                        "provider_message_id",
+                    )
+                )
+            )
+            .where(MailOutbox.outbox_uuid == operation_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one_or_none()
         if outbox is None:
             raise ResourceNotFoundException("async_operation", operation_id)
         now = utc_now()
@@ -316,7 +334,7 @@ class MailOutboxService:
             or (outbox.expires_at is not None and outbox.expires_at <= now)
         ):
             raise ValidationException(field="status", details={"status": outbox.status.value})
-        if not outbox.text_body:
+        if not db.scalar(select(func.nv_mail_has_payload(operation_id))):
             raise ValidationException(field="body", details={"reason": "mail_body_unavailable"})
         previous = outbox.status.value
         _delivery_lifecycle(config=self.config).rearm(outbox, now=now)

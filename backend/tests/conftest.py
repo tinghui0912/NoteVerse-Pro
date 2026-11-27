@@ -2,6 +2,10 @@ from __future__ import annotations
 
 
 from collections.abc import Iterator
+from sqlalchemy import event
+from sqlmodel import SQLModel
+from app.platform.db.authorization import install_security_functions
+
 
 import pytest
 from fastapi.testclient import TestClient
@@ -60,3 +64,9 @@ def postgres_engine(monkeypatch):
     with postgres_schema_database(monkeypatch) as (engine, _):
         SQLModel.metadata.create_all(engine)
         yield engine
+
+
+@event.listens_for(SQLModel.metadata, "after_create")
+def install_database_security_objects(metadata, connection, **kwargs):
+    if connection.dialect.name == "postgresql":
+        install_security_functions(connection)

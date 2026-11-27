@@ -95,7 +95,26 @@ def run_ocr_subprocess(
         _WORKER_MODULE,
         os.path.abspath(image_path),
     ]
-    env = os.environ.copy()
+    environment_keys = (
+        "PATH",
+        "PYTHONPATH",
+        "HOME",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "SYSTEMROOT",
+        "WINDIR",
+        "LD_LIBRARY_PATH",
+        "CUDA_VISIBLE_DEVICES",
+        "NVIDIA_VISIBLE_DEVICES",
+        "NVIDIA_DRIVER_CAPABILITIES",
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "FLAGS_use_mkldnn",
+        "LANG",
+        "LC_ALL",
+    )
+    env = {name: os.environ[name] for name in environment_keys if name in os.environ}
     worker_settings = config
     for name in _PADDLEOCR_ENV_NAMES:
         value = getattr(worker_settings, name, None)

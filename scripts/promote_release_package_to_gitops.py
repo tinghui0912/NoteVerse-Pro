@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Promote a rendered release package into GitOps desired state.
 
 The input is an environment directory from a release package, for example:
@@ -20,13 +21,15 @@ import json
 import shutil
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GITOPS_ENV_ROOT = REPO_ROOT / "deploy" / "gitops" / "environments"
 ALLOWED_FILES = {
     "README.md",
-    "backend-config.env",
-    "backend-worker-config.env",
+    "customer-api-config.env",
+    "worker-config.env",
+    "beat-config.env",
+    "observability-config.env",
+    "model-assets-config.env",
     "control-plane-config.env",
     "customer-web-config.env",
     "gateway.yaml",
@@ -39,7 +42,10 @@ ALLOWED_FILES = {
 }
 ALLOWED_DIRECTORIES = {"base"}
 AUXILIARY_IMAGES = {
-    "busybox": ("busybox", "sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"),
+    "busybox": (
+        "busybox",
+        "sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662",
+    ),
 }
 
 
@@ -126,13 +132,13 @@ def rewrite_kustomization(output: Path) -> None:
     for image_name, (new_name, digest) in AUXILIARY_IMAGES.items():
         if f"  - name: {image_name}\n" not in text:
             auxiliary_block = (
-                f"  - name: {image_name}\n"
-                f"    newName: {new_name}\n"
-                f"    digest: {digest}\n"
+                f"  - name: {image_name}\n    newName: {new_name}\n    digest: {digest}\n"
             )
             marker = "\nconfigMapGenerator:"
             if marker not in text:
-                raise RuntimeError("failed to find configMapGenerator marker for auxiliary image insertion")
+                raise RuntimeError(
+                    "failed to find configMapGenerator marker for auxiliary image insertion"
+                )
             text = text.replace(marker, f"\n{auxiliary_block}{marker}", 1)
     kustomization_path.write_text(text, encoding="utf-8")
 

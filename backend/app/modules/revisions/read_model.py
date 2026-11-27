@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from app.modules.account.resource_users import resource_user_query
 from app.modules.account.avatar_presentation import avatar_url_for_user
 
 from sqlalchemy import select, func
@@ -68,7 +70,7 @@ class RevisionReadModel:
             {
                 row.id: row
                 for row in db.scalars(
-                    select(User)
+                    resource_user_query()
                     .options(joinedload(User.avatar_object))
                     .where(User.id.in_(actor_ids))
                 )

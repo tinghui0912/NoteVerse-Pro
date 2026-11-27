@@ -69,7 +69,7 @@ submit an import job, and read its queued status.
 The stack uses a `noteverse-integration-<run UUID>` Compose project and removes
 its own containers and named volumes on completion. It never uses the development
 database, synchronous database, scheduler-lock database, or Redis URLs from
-`backend/.env.docker`; all are overridden to isolated Compose services. Durable uploads use the real S3-compatible development bucket injected through
+the individual `backend/.env.docker.<runtime>` files; all are overridden to isolated Compose services. Durable uploads use the real S3-compatible development bucket injected through
 the ignored local environment file. Unit/CI storage is InMemoryObjectStorage.
 Worker scratch remains disposable. The seeded email and password exist only in
 the disposable test database and are not application credentials.
@@ -273,3 +273,8 @@ The guard checks explicit locations and work-tracking filename suffixes; it
 does not lint prose or ban valid protocol, package, database-migration or runtime
 lifecycle terminology. Current references belong in the documented category;
 implementation outcomes belong in focused GitHub Issues.
+
+Backend quality uses `docker-compose.backend-quality.yml` with explicit test-only
+configuration and its dedicated PostgreSQL service. It requires no development
+credential files or cloud access. Runtime development uses the separate
+`docker-compose.backend-dev.yml` process environment files.

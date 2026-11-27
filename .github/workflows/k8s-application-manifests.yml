@@ -4,20 +4,24 @@ on:
   push:
     branches: [main]
     paths:
+      - "backend/docs/contracts/runtime-deployment.json"
+      - "scripts/check_k8s_config_ownership.py"
+      - "scripts/requirements-manifests.txt"
       - "deploy/application/**"
       - "deploy/gitops/**"
       - "scripts/check_k8s_application_manifests.py"
-      - "scripts/check_k8s_config_ownership.py"
       - "scripts/check_gitops_manifests.py"
       - "scripts/promote_release_package_to_gitops.py"
       - "scripts/render_k8s_release_overlay.py"
       - ".github/workflows/k8s-application-manifests.yml"
   pull_request:
     paths:
+      - "backend/docs/contracts/runtime-deployment.json"
+      - "scripts/check_k8s_config_ownership.py"
+      - "scripts/requirements-manifests.txt"
       - "deploy/application/**"
       - "deploy/gitops/**"
       - "scripts/check_k8s_application_manifests.py"
-      - "scripts/check_k8s_config_ownership.py"
       - "scripts/check_gitops_manifests.py"
       - "scripts/promote_release_package_to_gitops.py"
       - "scripts/render_k8s_release_overlay.py"
@@ -39,6 +43,9 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
+
+      - name: Install manifest validation dependencies
+        run: python -m pip install -r scripts/requirements-manifests.txt
 
       - name: Install kubectl
         run: |

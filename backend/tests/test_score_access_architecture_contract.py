@@ -60,6 +60,7 @@ def test_guest_preview_dependencies_own_presentation_authorization_and_demand_pr
 ):
     allowed_contexts = {
         "guest_previews",
+        "account",
         "score_access",
         "score_assets",
         "playback",
@@ -76,6 +77,14 @@ def test_guest_preview_dependencies_own_presentation_authorization_and_demand_pr
             and node.module.startswith("app.modules.")
         }
         assert contexts <= allowed_contexts, (path.name, contexts)
+        account_dependencies = {
+            node.module
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.startswith("app.modules.account.")
+        }
+        assert account_dependencies <= {"app.modules.account.resource_users"}
         revision_dependencies = {
             node.module
             for node in ast.walk(tree)

@@ -1,6 +1,6 @@
 """Scoped environment contract for this process."""
 
-from pydantic import model_validator
+from pydantic import model_validator, Field
 from typing import Self
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -58,6 +58,8 @@ class WorkerSettings(
     PlaybackSettings,
     BaseSettings,
 ):
+    CELERY_WORKER_CONCURRENCY: int = Field(default=1, gt=0)
+
     model_config = SettingsConfigDict(case_sensitive=True, extra="ignore", frozen=False)
 
     @model_validator(mode="after")
