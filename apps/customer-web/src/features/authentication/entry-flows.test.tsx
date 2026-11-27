@@ -38,6 +38,7 @@ let client: QueryClient;
 let tokenSequence = 0;
 beforeEach(() => {
   vi.resetAllMocks(); fake.locale = 'en'; fake.params = '';
+  window.history.replaceState(null, '', '/');
   fake.profile.mockRejectedValue(new ApiError(401, 'token_invalid_expired'));
   fake.api.verifyEmail.mockResolvedValue(undefined);
   fake.createSource.mockReturnValue(fake.source);
@@ -53,12 +54,12 @@ it.each(['/invite/token?accept=1', 'https://evil.example', '/' + String.fromChar
   render(<LoginPage />, {wrapper});
   await waitFor(() => expect(screen.getByLabelText('session')).toHaveTextContent('anonymous'));
   await userEvent.type(screen.getByLabelText('emailLabel'), 'a@example.com');
-  await userEvent.type(screen.getByLabelText('passwordLabel'), 'password');
+  await userEvent.type(screen.getByLabelText('passwordLabel'), 'valid-password');
   await userEvent.click(screen.getByRole('button', {name: 'loginButton'}));
   await waitFor(() => expect(fake.push).toHaveBeenCalledWith(returnUrl.startsWith('/invite') ? returnUrl : '/library'));
   expect(screen.getByLabelText('session')).toHaveTextContent('authenticated:a@example.com');
   expect(fake.profile).toHaveBeenCalledOnce();
-  expect(fake.api.login).toHaveBeenCalledWith('a@example.com', 'password');
+  expect(fake.api.login).toHaveBeenCalledWith('a@example.com', 'valid-password');
   expect(fake.createSource).toHaveBeenCalledOnce();
 });
 
@@ -77,20 +78,19 @@ it('shows a localized login business failure without establishing a session or n
 it('initiates registration with locale/name fallback and waits for verification without authenticating', async () => {
   render(<RegisterPage />, {wrapper});
   await userEvent.type(screen.getByLabelText('emailLabel'), 'member@example.com');
-  await userEvent.type(screen.getByLabelText('passwordLabel'), 'password');
+  await userEvent.type(screen.getByLabelText('passwordLabel'), 'valid-password');
   fireEvent.submit(screen.getByLabelText('emailLabel').closest('form')!);
   expect(await screen.findByRole('heading', {name: 'verifyEmailSentTitle'})).toBeVisible();
-  expect(fake.api.register).toHaveBeenCalledWith({email: 'member@example.com', password: 'password', display_name: 'member', locale: 'en'});
+  expect(fake.api.register).toHaveBeenCalledWith({email: 'member@example.com', password: 'valid-password', display_name: 'member', locale: 'en'});
   expect(screen.getByLabelText('session')).toHaveTextContent('anonymous');
 });
 
 it('verifies the current token once across StrictMode/remounts and still requires login', async () => {
-  fake.params = `token=verification-${++tokenSequence}`;
+  window.history.replaceState(null, '', `/auth/verify-email#token=verification-${++tokenSequence}`);
   const view = render(<StrictMode><VerifyEmailPage /></StrictMode>, {wrapper});
   expect(await screen.findByRole('heading', {name: 'emailVerifiedTitle'})).toBeVisible();
-  view.unmount();
-  render(<VerifyEmailPage />, {wrapper});
-  expect(await screen.findByRole('heading', {name: 'emailVerifiedTitle'})).toBeVisible();
+  view.rerender(<StrictMode><VerifyEmailPage /></StrictMode>);
+  expect(window.location.hash).toBe('');
   expect(fake.api.verifyEmail).toHaveBeenCalledOnce();
   expect(screen.getByRole('link', {name: 'loginButton'})).toHaveAttribute('href', '/auth/login');
   expect(screen.getByLabelText('session')).toHaveTextContent('anonymous');
@@ -106,35 +106,47 @@ it.each(['known@example.com', 'unknown@example.com'])('projects the same recover
 });
 
 it.each([true, false])('clears principal/private server state after password reset (authenticated=%s)', async (authenticated) => {
-  fake.params = 'token=reset-token';
+  window.history.replaceState(null, '', '/auth/reset-password#token=reset-token');
   if (authenticated) fake.profile.mockResolvedValue({user: principal});
   const view = render(<ResetPasswordPage />, {wrapper});
   await waitFor(() => expect(screen.getByLabelText('session')).toHaveTextContent(authenticated ? 'authenticated' : 'anonymous'));
+  if (authenticated) await waitFor(() => expect(fake.createSource).toHaveBeenCalledOnce());
   const privateKeys = [libraryQueryKeys.folders(), notificationQueryKeys.list(), collaborationQueryKeys.myInvites(), scoreQueryKeys.detail('score'), accountQueryKeys.security(), accountQueryKeys.sessions(), storageUsageQueryKeys.current(), queryKeys.performanceTakes.list()];
   for (const key of privateKeys) client.setQueryData(key, {private: 'A'});
-  await userEvent.type(screen.getByLabelText('newPasswordLabel'), 'new-password');
-  await userEvent.type(screen.getByLabelText('confirmPasswordLabel'), 'new-password');
+  await userEvent.type(await screen.findByLabelText('newPasswordLabel'), 'new-password-123');
+  await userEvent.type(screen.getByLabelText('confirmPasswordLabel'), 'new-password-123');
   fireEvent.submit(screen.getByLabelText('newPasswordLabel').closest('form')!);
   await waitFor(() => expect(fake.push).toHaveBeenCalledWith('/auth/login?reset=success'));
-  expect(fake.api.resetPassword).toHaveBeenCalledWith('new-password', 'reset-token', 'en');
+  expect(fake.api.resetPassword).toHaveBeenCalledWith('new-password-123', 'reset-token', 'en');
   expect(screen.getByLabelText('session')).toHaveTextContent('anonymous');
   expect(privateKeys.every(key => !client.getQueryState(key))).toBe(true);
-  if (authenticated) expect(fake.source.close).toHaveBeenCalledOnce();
+  if (authenticated) await waitFor(() => expect(fake.source.close).toHaveBeenCalledOnce());
   view.rerender(<LoginPage />);
   await act(async () => undefined);
   expect(fake.replace).not.toHaveBeenCalledWith('/library');
 });
 
-it('does not submit a missing reset token', () => {
+it('does not submit a missing reset token', async () => {
   render(<ResetPasswordPage />, {wrapper});
-  expect(screen.getByText('resetLinkInvalid')).toBeVisible();
+  expect(await screen.findByText('resetLinkInvalid')).toBeVisible();
+  expect(fake.api.resetPassword).not.toHaveBeenCalled();
+});
+
+it.each([
+  {Page: VerifyEmailPage, path: 'verify-email', error: 'verifyEmailLinkInvalid'},
+  {Page: ResetPasswordPage, path: 'reset-password', error: 'resetLinkInvalid'},
+])('requires a fragment for $path even when a query token is present', async ({Page, path, error}) => {
+  window.history.replaceState(null, '', `/auth/${path}?token=query-only`);
+  render(<StrictMode><Page /></StrictMode>, {wrapper});
+  expect(await screen.findByText(error)).toBeVisible();
+  expect(fake.api.verifyEmail).not.toHaveBeenCalled();
   expect(fake.api.resetPassword).not.toHaveBeenCalled();
 });
 
 it.each(['short', 'mismatch'] as const)('rejects %s reset input locally', async (kind) => {
-  fake.params = 'token=reset-token';
+  window.history.replaceState(null, '', '/auth/reset-password#token=reset-token');
   render(<ResetPasswordPage />, {wrapper});
-  await userEvent.type(screen.getByLabelText('newPasswordLabel'), kind === 'short' ? '12345' : 'password');
+  await userEvent.type(await screen.findByLabelText('newPasswordLabel'), kind === 'short' ? '12345' : 'valid-password');
   await userEvent.type(screen.getByLabelText('confirmPasswordLabel'), kind === 'short' ? '12345' : 'different');
   fireEvent.submit(screen.getByLabelText('newPasswordLabel').closest('form')!);
   expect(screen.getByText(kind === 'short' ? 'validation.passwordTooShort' : 'validation.passwordsDoNotMatch')).toBeVisible();
@@ -143,7 +155,7 @@ it.each(['short', 'mismatch'] as const)('rejects %s reset input locally', async 
 
 it.each(['missing', 'expired'] as const)('presents %s registration verification without authenticating', async (kind) => {
   if (kind === 'expired') {
-    fake.params = `token=expired-${++tokenSequence}`;
+    window.history.replaceState(null, '', `/auth/verify-email#token=expired-${++tokenSequence}`);
     fake.api.verifyEmail.mockRejectedValue(new ApiError(400, 'token_invalid_expired'));
   }
   render(<VerifyEmailPage />, {wrapper});

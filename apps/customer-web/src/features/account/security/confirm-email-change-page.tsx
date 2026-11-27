@@ -1,8 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useFragmentToken } from '@/features/authentication/fragment-token';
 
 import { AuthCard } from '@/components/auth/auth-card';
 import { InlineLoading } from '@/components/loading';
@@ -18,29 +18,15 @@ import { translateErrorCode } from '@/lib/i18n/error-message';
 
 type ConfirmState = 'confirming' | 'success' | 'error';
 
-const confirmationRequests = new Map<string, Promise<void>>();
-
-function confirmEmailChangeOnce(token: string) {
-  const existingRequest = confirmationRequests.get(token);
-  if (existingRequest) return existingRequest;
-
-  const request = accountSecurityApi.confirmEmailChange(token).then(() => undefined).catch((error) => {
-    confirmationRequests.delete(token);
-    throw error;
-  });
-  confirmationRequests.set(token, request);
-  return request;
-}
-
 export default function ConfirmEmailChangePage() {
   const client = useQueryClient();
   const { refreshPrincipal, isLoading: principalLoading } = useAuthentication();
   const t = useTranslations('auth');
   const tErrors = useTranslations('errors');
-  const searchParams = useSearchParams();
-  const token = searchParams.get('token') ?? '';
-  const [state, setState] = useState<ConfirmState>(token ? 'confirming' : 'error');
-  const [error, setError] = useState(token ? '' : t('emailChangeLinkInvalid'));
+  const token = useFragmentToken();
+  const request = useRef<Promise<unknown> | null>(null);
+  const [state, setState] = useState<ConfirmState>('confirming');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // Finish bootstrap before the post-confirm refresh so an earlier profile read
@@ -48,7 +34,8 @@ export default function ConfirmEmailChangePage() {
     if (!token || principalLoading) return;
 
     let isMounted = true;
-    confirmEmailChangeOnce(token)
+    request.current ??= accountSecurityApi.confirmEmailChange(token);
+    request.current
       .then(async () => {
         if (!isMounted) return;
         // Confirmation is authoritative; projection refresh failures cannot undo it.
@@ -78,7 +65,7 @@ export default function ConfirmEmailChangePage() {
     };
   }, [t, tErrors, token, client, refreshPrincipal, principalLoading]);
 
-  if (state === 'confirming') {
+  if (token === null || (token && state === 'confirming')) {
     return (
       <AuthCard title={t('confirmingEmailChangeTitle')} subtitle={t('confirmingEmailChangeSubtitle')}>
         <div className="flex justify-center py-6 text-orange-600">
@@ -99,7 +86,7 @@ export default function ConfirmEmailChangePage() {
   }
 
   return (
-    <AuthCard title={t('emailChangeFailedTitle')} subtitle={error}>
+    <AuthCard title={t('emailChangeFailedTitle')} subtitle={error || t('emailChangeLinkInvalid')}>
       <Button asChild size="lg" className="w-full bg-orange-500 font-semibold text-white hover:bg-orange-600">
         <Link href="/settings/security">{t('backToSecurity')}</Link>
       </Button>

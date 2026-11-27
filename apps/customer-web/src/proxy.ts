@@ -1,7 +1,7 @@
 import createMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
-import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from './generated/browser-protocol';
+import { AUTH_COOKIE_NAME, SECURE_AUTH_COOKIE_NAME } from './generated/browser-protocol';
 
 const intlMiddleware = createMiddleware(routing);
 const PROTECTED_PATH_PREFIXES = [
@@ -38,7 +38,7 @@ export default function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const { locale, path } = stripLocale(pathname);
   const hasSession =
-    request.cookies.has(AUTH_COOKIE_NAME) || request.cookies.has(REFRESH_COOKIE_NAME);
+    request.cookies.has(AUTH_COOKIE_NAME) || request.cookies.has(SECURE_AUTH_COOKIE_NAME);
 
   if (isProtectedPath(path) && !hasSession) {
     const loginUrl = request.nextUrl.clone();

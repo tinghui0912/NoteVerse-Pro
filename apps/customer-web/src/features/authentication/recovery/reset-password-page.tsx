@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 import { AuthCard } from '@/components/auth/auth-card';
 import { InlineLoading } from '@/components/loading';
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/routing';
+import { useFragmentToken } from '../fragment-token';
+import { passwordPolicyError } from '../password-policy';
 import { authenticationApi } from '../api';
 import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { ApiError } from '@/lib/http/customer-browser-transport';
@@ -20,9 +22,8 @@ export default function ResetPasswordPage() {
   const tErrors = useTranslations('errors');
   const locale = useLocale();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { clearPrincipal } = useAuthentication();
-  const token = searchParams.get('token') ?? '';
+  const token = useFragmentToken();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -33,22 +34,18 @@ export default function ResetPasswordPage() {
     event.preventDefault();
     setError('');
 
-    if (!canReset) {
+    if (!token) {
       setError(t('resetLinkInvalid'));
       return;
     }
 
-    if (!password) {
-      setError(t('validation.passwordEmpty'));
+    const policyError = passwordPolicyError(password);
+    if (policyError) {
+      setError(t(`validation.${policyError}`));
       return;
     }
 
-    if (password.length < 6) {
-      setError(t('validation.passwordTooShort'));
-      return;
-    }
-
-    if (password !== confirmPassword) {
+    if (password.normalize('NFC') !== confirmPassword.normalize('NFC')) {
       setError(t('validation.passwordsDoNotMatch'));
       return;
     }
@@ -56,7 +53,7 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      await authenticationApi.resetPassword(password, token, locale === 'en' ? 'en' : 'zh');
+      await authenticationApi.resetPassword(password.normalize('NFC'), token, locale === 'en' ? 'en' : 'zh');
       clearPrincipal();
       router.push('/auth/login?reset=success');
     } catch (err) {
@@ -69,6 +66,8 @@ export default function ResetPasswordPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (token === null) return <AuthCard title={t('setNewPasswordTitle')}><InlineLoading /></AuthCard>;
 
   return (
     <AuthCard title={t('setNewPasswordTitle')} subtitle={t('setNewPasswordSubtitle')}>

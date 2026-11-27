@@ -7,6 +7,7 @@ import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { passwordPolicyError } from '@/features/authentication/password-policy';
 import { useChangePassword } from '@/features/account/security/queries';
 import { useToast } from '@/hooks/use-toast';
 import { userFacingErrorMessage } from '@/lib/i18n/error-message';
@@ -33,7 +34,7 @@ export function PasswordSettingsForm({
   const handleUpdatePassword = (event: FormEvent) => {
     event.preventDefault();
 
-    if (newPassword !== confirmPassword) {
+    if (newPassword.normalize('NFC') !== confirmPassword.normalize('NFC')) {
       toast({
         title: t('passwordMismatchTitle'),
         description: t('passwordMismatch'),
@@ -42,17 +43,18 @@ export function PasswordSettingsForm({
       return;
     }
 
-    if (newPassword.length < 6) {
+    const policyError = passwordPolicyError(newPassword);
+    if (policyError) {
       toast({
-        title: t('passwordTooShortTitle'),
-        description: tAuth('validation.passwordTooShort'),
+        title: t('passwordFailed'),
+        description: tAuth(`validation.${policyError}`),
         variant: 'destructive',
       });
       return;
     }
 
     passwordMutation.mutate(
-      { currentPassword, newPassword, locale: locale === 'en' ? 'en' : 'zh' },
+      { currentPassword: currentPassword.normalize('NFC'), newPassword: newPassword.normalize('NFC'), locale: locale === 'en' ? 'en' : 'zh' },
       {
         onSuccess: () => {
           toast({

@@ -27,8 +27,8 @@ async function login(page: import('@playwright/test').Page): Promise<string> {
   await page.goto('/en/auth/login');
 
   const loginResponse = await page.request.post('/api/v1/auth/login', {
-    form: {
-      username: integrationUser.email,
+    data: {
+      email: integrationUser.email,
       password: integrationUser.password,
     },
   });

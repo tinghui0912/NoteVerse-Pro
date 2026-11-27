@@ -43,7 +43,7 @@
   "quota_check_unavailable": "暂时无法确认存储空间，请稍后再试。",
   "current_password_required": "请输入当前密码。",
   "current_password_wrong": "当前密码错误。",
-  "password_too_short": "密码长度至少需要 6 个字符。",
+  "password_too_short": "密码长度须为 12–128 个字符。",
   "no_avatar": "当前没有可删除的头像。",
   "avatar_process_failed": "头像处理失败，请更换图片后重试。",
   "file_type_not_allowed": "文件类型不受支持。",

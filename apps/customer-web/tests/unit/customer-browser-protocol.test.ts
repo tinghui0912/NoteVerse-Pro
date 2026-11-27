@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { NextRequest } from 'next/server';
 import { afterEach, expect, it, vi } from 'vitest';
-import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, CUSTOMER_API_PREFIX } from '@/generated/browser-protocol';
+import { AUTH_COOKIE_NAME, SECURE_AUTH_COOKIE_NAME, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, CUSTOMER_API_PREFIX } from '@/generated/browser-protocol';
 import { customerRoutes } from '@/generated/customer-routes';
 import { guestPageUrl, realtimeEventsUrl } from '@/lib/api/native-resource-urls';
 import { scoreThumbnailUrl } from '@/features/scores/core/detail/thumbnail';
@@ -22,8 +22,8 @@ for (const [url, methods] of Object.entries(spec.paths)) {
 }
 
 it('shares canonical browser identity with Backend and Next proxy', () => {
-  expect({ api_prefix: CUSTOMER_API_PREFIX, auth_cookie_name: AUTH_COOKIE_NAME, refresh_cookie_name: REFRESH_COOKIE_NAME, csrf_cookie_name: CSRF_COOKIE_NAME, csrf_header_name: CSRF_HEADER_NAME }).toEqual(source);
-  for (const name of [source.auth_cookie_name, source.refresh_cookie_name]) {
+  expect({ api_prefix: CUSTOMER_API_PREFIX, auth_cookie_name: AUTH_COOKIE_NAME, secure_auth_cookie_name: SECURE_AUTH_COOKIE_NAME, csrf_cookie_name: CSRF_COOKIE_NAME, csrf_header_name: CSRF_HEADER_NAME }).toEqual(source);
+  for (const name of [source.auth_cookie_name, source.secure_auth_cookie_name]) {
     const response = proxy(new NextRequest('https://customer.test/en/library', { headers: { cookie: `${name}=session-value` } }));
     expect(response.status).toBe(200);
   }

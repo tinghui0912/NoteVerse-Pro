@@ -16,7 +16,7 @@ import type { RegisterRequest } from '@/generated/api';
 async function login(email: string, password: string) {
   return responseBody(authLogin({
     ...customerTransport.public, body: {
-      username: email,
+      email,
       password: password,
     }
   }));

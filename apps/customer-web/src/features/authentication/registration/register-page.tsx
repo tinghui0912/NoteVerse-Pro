@@ -9,6 +9,7 @@ import { InlineLoading } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { passwordPolicyError } from '../password-policy';
 import { authenticationApi } from '../api';
 import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { Link } from '@/i18n/routing';
@@ -54,19 +55,16 @@ export default function RegisterPage() {
       setEmailError(t('validation.emailInvalid'));
       return;
     }
-    if (!password) {
-      setPasswordError(t('validation.passwordEmpty'));
-      return;
-    }
-    if (password.length < 6) {
-      setPasswordError(t('validation.passwordTooShort'));
+    const policyError = passwordPolicyError(password);
+    if (policyError) {
+      setPasswordError(t(`validation.${policyError}`));
       return;
     }
 
     setIsSubmitting(true);
     try {
       await authenticationApi.register({
-        email, password, display_name: displayName || email.split('@')[0],
+        email, password: password.normalize('NFC'), display_name: displayName || email.split('@')[0],
         locale: locale === 'en' ? 'en' : 'zh',
       });
       setIsSubmitted(true);

@@ -14,7 +14,7 @@ import {
 import { applyRealtimeCacheChange, serverStateResyncRequired } from '@/lib/cache-effects/realtime';
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuthentication();
+  const { isAuthenticated, isLoading, refreshPrincipal } = useAuthentication();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -23,6 +23,18 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     }
 
     const source = createRealtimeEventSource();
+    let checkingSession = false;
+    let active = true;
+    source.addEventListener('error', () => {
+      if (checkingSession || !active) return;
+      checkingSession = true;
+      // EventSource does not expose HTTP status; a profile probe resolves session authority.
+      void refreshPrincipal().then(valid => {
+        if (valid === false && active) source.close();
+      }, () => {
+        // Transient failures retain native EventSource reconnect and cursor behavior.
+      }).finally(() => { checkingSession = false; });
+    });
 
     const listener = (message: MessageEvent<string>) => {
       const change = parseRealtimeChange(message.data);
@@ -39,9 +51,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      active = false;
       source.close();
     };
-  }, [isAuthenticated, isLoading, queryClient]);
+  }, [isAuthenticated, isLoading, queryClient, refreshPrincipal]);
 
   return children;
 }

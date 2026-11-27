@@ -15,7 +15,7 @@ export function useAccountSessions() {
 export function useRevokeSession() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (sessionId: number) => accountSessionsApi.revokeSession(sessionId),
+    mutationFn: (sessionId: string) => accountSessionsApi.revokeSession(sessionId),
     onSuccess: () => accountSessionsChanged(client),
   });
 }

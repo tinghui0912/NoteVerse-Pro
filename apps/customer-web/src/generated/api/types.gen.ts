@@ -93,36 +93,6 @@ export type BodyAccountAvatarUpload = {
 };
 
 /**
- * Body_authLogin
- */
-export type BodyAuthLogin = {
-    /**
-     * Client Id
-     */
-    client_id?: string | null;
-    /**
-     * Client Secret
-     */
-    client_secret?: string | null;
-    /**
-     * Grant Type
-     */
-    grant_type?: string | null;
-    /**
-     * Password
-     */
-    password: string;
-    /**
-     * Scope
-     */
-    scope?: string;
-    /**
-     * Username
-     */
-    username: string;
-};
-
-/**
  * ChangePasswordRequest
  */
 export type ChangePasswordRequest = {
@@ -953,6 +923,20 @@ export type LivenessRead = {
      * Status
      */
     status: 'ok';
+};
+
+/**
+ * LoginRequest
+ */
+export type LoginRequest = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Password
+     */
+    password: string;
 };
 
 /**
@@ -2821,21 +2805,21 @@ export type SecurityRead = {
  */
 export type SessionSummary = {
     /**
+     * Absolute Expires At
+     */
+    absolute_expires_at: string;
+    /**
      * Created At
      */
     created_at: string;
     /**
-     * Device Id
-     */
-    device_id?: string | null;
-    /**
-     * Expires At
-     */
-    expires_at: string;
-    /**
      * Id
      */
-    id: number;
+    id: string;
+    /**
+     * Idle Expires At
+     */
+    idle_expires_at: string;
     /**
      * Ip Address
      */
@@ -2845,9 +2829,9 @@ export type SessionSummary = {
      */
     is_current?: boolean;
     /**
-     * Last Used At
+     * Last Seen At
      */
-    last_used_at?: string | null;
+    last_seen_at: string;
     /**
      * User Agent
      */
@@ -3292,7 +3276,7 @@ export type AuthEmailVerifyResponses = {
 export type AuthEmailVerifyResponse = AuthEmailVerifyResponses[keyof AuthEmailVerifyResponses];
 
 export type AuthLoginData = {
-    body: BodyAuthLogin;
+    body: LoginRequest;
     path?: never;
     query?: never;
     url: '/api/v1/auth/login';
@@ -3406,35 +3390,6 @@ export type AuthPasswordResetResponses = {
 };
 
 export type AuthPasswordResetResponse = AuthPasswordResetResponses[keyof AuthPasswordResetResponses];
-
-export type AuthRefreshData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/refresh';
-};
-
-export type AuthRefreshErrors = {
-    /**
-     * Request or application validation failure.
-     */
-    422: ApiErrorResponse;
-    /**
-     * Application failure.
-     */
-    default: ApiErrorResponse;
-};
-
-export type AuthRefreshError = AuthRefreshErrors[keyof AuthRefreshErrors];
-
-export type AuthRefreshResponses = {
-    /**
-     * Successful Response
-     */
-    204: void;
-};
-
-export type AuthRefreshResponse = AuthRefreshResponses[keyof AuthRefreshResponses];
 
 export type AuthRegisterData = {
     body: RegisterRequest;
@@ -4814,7 +4769,7 @@ export type AccountSessionRevokeData = {
         /**
          * Session Id
          */
-        session_id: number;
+        session_id: string;
     };
     query?: never;
     url: '/api/v1/me/sessions/{session_id}';

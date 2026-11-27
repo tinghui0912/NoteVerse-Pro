@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { RealtimeProvider } from '@/components/providers/realtime-provider';
 import { applyRealtimeCacheChange, serverStateResyncRequired } from '@/lib/cache-effects/realtime';
 const transport = vi.hoisted(() => ({
-  auth: { isAuthenticated: true, isLoading: false },
+  auth: { isAuthenticated: true, isLoading: false, refreshPrincipal: vi.fn() },
   source: { addEventListener: vi.fn(), close: vi.fn() }, create: vi.fn(),
 }));
 vi.mock('@/features/authentication/session/authentication-context', () => ({ useAuthentication: () => transport.auth }));
@@ -13,6 +13,7 @@ vi.mock('@/lib/realtime/event-source', () => ({ createRealtimeEventSource: trans
 vi.mock('@/lib/cache-effects/realtime', () => ({ applyRealtimeCacheChange: vi.fn(), serverStateResyncRequired: vi.fn() }));
 beforeEach(() => {
   vi.clearAllMocks(); Object.assign(transport.auth, { isAuthenticated: true, isLoading: false });
+  transport.auth.refreshPrincipal.mockResolvedValue(true);
   transport.create.mockReturnValue(transport.source);
 });
 afterEach(cleanup);
@@ -51,7 +52,7 @@ it('delegates malformed change, invalid checkpoint and resync controls without r
   expect(serverStateResyncRequired).toHaveBeenCalledTimes(4);
   expect(serverStateResyncRequired).toHaveBeenLastCalledWith(client); expect(applyRealtimeCacheChange).not.toHaveBeenCalled();
   view.rerender(element()); expect(transport.create).toHaveBeenCalledOnce(); expect(transport.source.close).not.toHaveBeenCalled();
-  expect(transport.source.addEventListener.mock.calls.map(([kind]) => kind)).toEqual(['checkpoint', 'change', 'resync-required']);
+  expect(transport.source.addEventListener.mock.calls.map(([kind]) => kind)).toEqual(['error', 'checkpoint', 'change', 'resync-required']);
   view.unmount(); expect(transport.source.close).toHaveBeenCalledOnce();
 });
 it.each([{ isAuthenticated: false, isLoading: false }, { isAuthenticated: true, isLoading: true }])(
@@ -60,3 +61,24 @@ it.each([{ isAuthenticated: false, isLoading: false }, { isAuthenticated: true, 
     expect(transport.create).not.toHaveBeenCalled(); view.unmount(); expect(transport.source.close).not.toHaveBeenCalled();
   },
 );
+
+it('closes a revoked session after an EventSource error and a failed authority probe', async () => {
+  transport.auth.refreshPrincipal.mockResolvedValue(false);
+  const {send, view, element} = setup();
+  await act(async () => { send('error', {}); });
+  expect(transport.auth.refreshPrincipal).toHaveBeenCalledOnce();
+  expect(transport.source.close).toHaveBeenCalledOnce();
+  Object.assign(transport.auth, {isAuthenticated: false});
+  view.rerender(element());
+  expect(transport.create).toHaveBeenCalledOnce();
+});
+
+it.each(['active', 'offline', 'superseded'] as const)('retains native reconnect and cursor behavior for %s', async state => {
+  if (state === 'offline') transport.auth.refreshPrincipal.mockRejectedValue(new Error('offline'));
+  if (state === 'superseded') transport.auth.refreshPrincipal.mockResolvedValue(undefined);
+  const {send} = setup();
+  await act(async () => { send('error', {}); });
+  expect(transport.auth.refreshPrincipal).toHaveBeenCalledOnce();
+  expect(transport.source.close).not.toHaveBeenCalled();
+  expect(transport.create).toHaveBeenCalledOnce();
+});

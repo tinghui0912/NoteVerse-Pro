@@ -49,7 +49,7 @@ for (const loggedIn of [false, true]) {
     ).toEqual([]);
     expect(
       requests.filter(
-        (request) => /^(POST|PUT|PATCH|DELETE) /.test(request) && !request.includes('/auth/refresh')
+        (request) => /^(POST|PUT|PATCH|DELETE) /.test(request)
       )
     ).toEqual([]);
   });

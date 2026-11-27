@@ -507,7 +507,7 @@ class CustomerBrowserProtocolWorkflowTests(unittest.TestCase):
         self.assertNotIn('        if:', block)
         self.assertLess(customer.index(block), customer.index('      - name: Verify reusable PR Quality proof'))
         backend = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
-        self.assertIn('python scripts/generate_customer_browser_protocol.py --check', backend)
+        self.assertIn('python scripts/generate_customer_browser_protocol.py --target backend --check', backend)
 
 
 class RecordingMediaWorkflowTests(unittest.TestCase):

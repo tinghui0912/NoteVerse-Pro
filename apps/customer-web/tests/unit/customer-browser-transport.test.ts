@@ -2,7 +2,6 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   authLogin,
   authLogout,
-  authRefresh,
   accountAvatarUpload,
   guestPreviewGet,
   importJobArtifactDownload,
@@ -19,6 +18,7 @@ import {
 } from '@/lib/http/customer-browser-transport';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/generated/browser-protocol';
 import { reportClientError } from '@/lib/observability';
+import { subscribeToSessionInvalidation } from '@/lib/http/session-invalidation';
 
 vi.mock('@/lib/observability', () => ({ reportClientError: vi.fn() }));
 const success = () => Response.json({});
@@ -44,6 +44,67 @@ function transport(send: typeof fetch, onUnauthorized = vi.fn()) {
 }
 const requestAt = (send: ReturnType<typeof vi.fn<typeof fetch>>, index = 0) =>
   send.mock.calls[index][0] as Request;
+
+it('sends JSON login and consumes the principal response', async () => {
+  const principal = {id: 1, email: 'a@example.com', display_name: 'A', is_active: true};
+  const send = vi.fn<typeof fetch>(async () => Response.json(principal));
+  const result = await authLogin({...transport(send).public, body: {email: principal.email, password: 'correct-password'}});
+  expect(result.data).toEqual(principal);
+  expect(requestAt(send).headers.get('Content-Type')).toBe('application/json');
+  expect(await requestAt(send).json()).toEqual({email: principal.email, password: 'correct-password'});
+  expect(send).toHaveBeenCalledOnce();
+});
+
+it('publishes unauthorized state once per failed request without resending it', async () => {
+  const invalidated = vi.fn();
+  const stop = subscribeToSessionInvalidation(invalidated);
+  const send = vi.fn<typeof fetch>(async () => unauthorized());
+  const redirect = vi.fn();
+  try {
+    await expect(scoresGet({...transport(send, redirect).authenticated, path: {score_id: 'score'}}))
+      .rejects.toBeInstanceOf(ApiError);
+    expect(send).toHaveBeenCalledOnce();
+    expect(invalidated).toHaveBeenCalledOnce();
+    expect(redirect).toHaveBeenCalledOnce();
+  } finally { stop(); }
+});
+
+it.each(['public', 'silent'] as const)('keeps expected %s unauthorized probes local', async profile => {
+  const invalidated = vi.fn();
+  const stop = subscribeToSessionInvalidation(invalidated);
+  const send = vi.fn<typeof fetch>(async () => unauthorized());
+  const redirect = vi.fn();
+  try {
+    await expect(scoresGet({...transport(send, redirect)[profile], path: {score_id: 'score'}})).rejects.toMatchObject({status: 401});
+    expect(send).toHaveBeenCalledOnce();
+    expect(redirect).not.toHaveBeenCalled();
+    expect(invalidated).not.toHaveBeenCalled();
+  } finally { stop(); }
+});
+
+it('sends an unsafe request without inventing a missing CSRF cookie', async () => {
+  doc.cookie = '';
+  const send = vi.fn<typeof fetch>(async () => new Response(null, {status: 403}));
+  await expect(scoreInvitesCreate({...transport(send).authenticated, path: {score_id: 'score'}, body: inviteBody})).rejects.toMatchObject({status: 403});
+  expect(send).toHaveBeenCalledOnce();
+  expect(requestAt(send).headers.has(CSRF_HEADER_NAME)).toBe(false);
+});
+
+it('acknowledges bodyless logout and deletion commands', async () => {
+  const send = vi.fn<typeof fetch>(async () => noContent());
+  const options = transport(send).authenticated;
+  await expect(responseComplete(authLogout(options))).resolves.toBeUndefined();
+  await expect(responseComplete(performanceTakeDelete({...options, path: {take_id: 'take'}}))).resolves.toBeUndefined();
+  expect(requestAt(send).body).toBeNull();
+  expect(requestAt(send).headers.get(CSRF_HEADER_NAME)).toBe('csrf-value');
+});
+
+it('propagates cancellation while the request is in flight', async () => {
+  const controller = new AbortController();
+  const send = vi.fn<typeof fetch>(async () => { controller.abort(); return success(); });
+  await expect(scoresGet({...transport(send).authenticated, path: {score_id: 'score'}, signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
+  expect(send).toHaveBeenCalledOnce();
+});
 
 it('uses generated paths, path escaping and opaque query serialization', async () => {
   const send = vi.fn<typeof fetch>(async () => success());
@@ -73,22 +134,6 @@ it('sends generated JSON with CSRF and cookie credentials', async () => {
   expect(request.headers.get(CSRF_HEADER_NAME)).toBe('csrf-value');
   expect(request.headers.get('Content-Type')).toBe('application/json');
   expect(await request.json()).toEqual(inviteBody);
-});
-
-it('uses generated OAuth form encoding without refreshing an auth-bootstrap request', async () => {
-  doc.cookie = '';
-  const send = vi.fn<typeof fetch>(async () => success());
-  await authLogin({
-    ...transport(send).public,
-    body: { username: 'a+b@example.test', password: 'x & y' },
-  });
-  const request = requestAt(send);
-  expect(request.headers.get('Content-Type')).toBe('application/x-www-form-urlencoded');
-  expect(Object.fromEntries(new URLSearchParams(await request.text()))).toEqual({
-    username: 'a+b@example.test',
-    password: 'x & y',
-  });
-  expect(send).toHaveBeenCalledTimes(1);
 });
 
 it('uses generated multipart encoding with a browser-supplied boundary', async () => {
@@ -127,102 +172,6 @@ it('gets binary and raw streaming responses from generated operations', async ()
   expect(await raw.response.text()).toBe('binary bytes');
 });
 
-it('bootstraps a missing CSRF cookie through generated refresh before the unsafe request', async () => {
-  doc.cookie = '';
-  const send = vi.fn<typeof fetch>(async (input) => {
-    const request = input as Request;
-    if (new URL(request.url).pathname.endsWith('/refresh')) {
-      doc.cookie = `${CSRF_COOKIE_NAME}=new-csrf`;
-      return noContent();
-    }
-    return success();
-  });
-  await scoreInvitesCreate({
-    ...transport(send).authenticated,
-    path: { score_id: 'score' },
-    body: inviteBody,
-  });
-  expect(send).toHaveBeenCalledTimes(2);
-  expect(new URL(requestAt(send).url).pathname).toBe('/api/v1/auth/refresh');
-  expect(requestAt(send, 1).headers.get(CSRF_HEADER_NAME)).toBe('new-csrf');
-});
-
-it.each(['json', 'form', 'multipart', 'bodyless'] as const)(
-  'replays the complete %s request body after one refresh',
-  async (kind) => {
-    const bodies: string[] = [];
-    const methods: string[] = [];
-    let originalCount = 0;
-    let refreshCount = 0;
-    const send = vi.fn<typeof fetch>(async (input) => {
-      const request = input as Request;
-      if (new URL(request.url).pathname === '/api/v1/auth/refresh') {
-        refreshCount++;
-        doc.cookie = `${CSRF_COOKIE_NAME}=rotated-csrf`;
-        return noContent();
-      }
-      bodies.push(await request.text());
-      methods.push(request.method);
-      return ++originalCount === 1 ? unauthorized() : success();
-    });
-    const options = transport(send).authenticated;
-    if (kind === 'json')
-      await scoreInvitesCreate({ ...options, path: { score_id: 's' }, body: inviteBody });
-    if (kind === 'form')
-      await authLogin({ ...options, body: { username: 'user', password: 'secret & value' } });
-    if (kind === 'multipart')
-      await accountAvatarUpload({ ...options, body: { file: new File(['contents'], 'a.xml') } });
-    if (kind === 'bodyless') await authLogout({ ...options });
-    expect(refreshCount).toBe(1);
-    expect(originalCount).toBe(2);
-    expect(bodies[1]).toBe(bodies[0]);
-    expect(methods[1]).toBe(methods[0]);
-    expect(requestAt(send, 2).headers.get(CSRF_HEADER_NAME)).toBe('rotated-csrf');
-  },
-);
-
-it('coalesces concurrent 401s including a delayed response into a single refresh', async () => {
-  let finishRefresh!: (response: Response) => void;
-  const refreshResponse = new Promise<Response>((resolve) => {
-    finishRefresh = resolve;
-  });
-  const counts = new Map<string, number>();
-  const send = vi.fn<typeof fetch>(async (input) => {
-    const path = new URL((input as Request).url).pathname;
-    if (path.endsWith('/refresh')) return refreshResponse;
-    const count = (counts.get(path) ?? 0) + 1;
-    counts.set(path, count);
-    return count === 1 ? unauthorized() : success();
-  });
-  const clients = transport(send);
-  const first = scoresGet({ ...clients.authenticated, path: { score_id: 'a' } });
-  const second = scoresGet({ ...clients.authenticated, path: { score_id: 'b' } });
-  await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(3));
-  finishRefresh(noContent());
-  await Promise.all([first, second]);
-  expect(
-    send.mock.calls.filter(([input]) =>
-      new URL((input as Request).url).pathname.endsWith('/refresh'),
-    ),
-  ).toHaveLength(1);
-});
-
-it('stops after a failed refresh and redirects an authenticated final 401 once', async () => {
-  const send = vi.fn<typeof fetch>(async () => unauthorized());
-  const redirect = vi.fn();
-  await expect(
-    scoresGet({ ...transport(send, redirect).authenticated, path: { score_id: 's' } }),
-  ).rejects.toBeInstanceOf(ApiError);
-  expect(send).toHaveBeenCalledTimes(2);
-  expect(redirect).toHaveBeenCalledTimes(1);
-});
-
-it('does not recursively refresh the refresh operation', async () => {
-  const send = vi.fn<typeof fetch>(async () => unauthorized());
-  await expect(authRefresh({ ...transport(send).public })).rejects.toMatchObject({ status: 401 });
-  expect(send).toHaveBeenCalledTimes(1);
-});
-
 it.each(['public', 'silent'] as const)('never redirects a %s operation', async (profile) => {
   const send = vi.fn<typeof fetch>(async () => unauthorized());
   const redirect = vi.fn();
@@ -230,17 +179,7 @@ it.each(['public', 'silent'] as const)('never redirects a %s operation', async (
     scoresGet({ ...transport(send, redirect)[profile], path: { score_id: 's' } }),
   ).rejects.toMatchObject({ status: 401 });
   expect(redirect).not.toHaveBeenCalled();
-  expect(send).toHaveBeenCalledTimes(profile === 'public' ? 1 : 2);
-});
-
-it('does not loop after a successful refresh followed by another 401', async () => {
-  const send = vi.fn<typeof fetch>(async (input) =>
-    new URL((input as Request).url).pathname.endsWith('/refresh') ? success() : unauthorized(),
-  );
-  await expect(
-    scoresGet({ ...transport(send).authenticated, path: { score_id: 's' } }),
-  ).rejects.toMatchObject({ status: 401 });
-  expect(send).toHaveBeenCalledTimes(3);
+  expect(send).toHaveBeenCalledTimes(1);
 });
 
 it('propagates an already aborted caller signal without a network request', async () => {
@@ -255,52 +194,6 @@ it('propagates an already aborted caller signal without a network request', asyn
     }),
   ).rejects.toMatchObject({ name: 'AbortError' });
   expect(send).not.toHaveBeenCalled();
-});
-
-it('abandons a caller aborted during shared refresh without replaying it', async () => {
-  let finishRefresh!: (response: Response) => void;
-  const refreshResponse = new Promise<Response>((resolve) => {
-    finishRefresh = resolve;
-  });
-  const send = vi.fn<typeof fetch>(async (input) =>
-    new URL((input as Request).url).pathname.endsWith('/refresh')
-      ? refreshResponse
-      : unauthorized(),
-  );
-  const controller = new AbortController();
-  const request = scoresGet({
-    ...transport(send).authenticated,
-    path: { score_id: 's' },
-    signal: controller.signal,
-  });
-  const failed = expect(request).rejects.toMatchObject({ name: 'AbortError' });
-  await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2));
-  controller.abort();
-  await failed;
-  finishRefresh(noContent());
-  await Promise.resolve();
-  expect(send).toHaveBeenCalledTimes(2);
-});
-
-it('propagates cancellation while the retried request is in flight', async () => {
-  const controller = new AbortController();
-  let attempts = 0;
-  const send = vi.fn<typeof fetch>(async (input) => {
-    const request = input as Request;
-    if (new URL(request.url).pathname.endsWith('/refresh')) return success();
-    if (++attempts === 1) return unauthorized();
-    controller.abort();
-    request.signal.throwIfAborted();
-    return success();
-  });
-  await expect(
-    scoresGet({
-      ...transport(send).authenticated,
-      path: { score_id: 's' },
-      signal: controller.signal,
-    }),
-  ).rejects.toMatchObject({ name: 'AbortError' });
-  expect(attempts).toBe(2);
 });
 
 it.each([400, 401, 403, 404, 409, 422, 500, 503])(
@@ -365,34 +258,6 @@ it('reports network failures while redacting Guest Preview bearer material', asy
   });
 });
 
-it('reuses the completed refresh when a concurrent original 401 arrives later', async () => {
-  let releaseLate!: (response: Response) => void;
-  const late = new Promise<Response>((resolve) => {
-    releaseLate = resolve;
-  });
-  let a = 0,
-    b = 0,
-    refreshes = 0;
-  const send = vi.fn<typeof fetch>(async (input) => {
-    const path = new URL((input as Request).url).pathname;
-    if (path.endsWith('/refresh')) {
-      refreshes++;
-      return success();
-    }
-    if (path.endsWith('/a')) return ++a === 1 ? unauthorized() : success();
-    return ++b === 1 ? late : success();
-  });
-  const clients = transport(send);
-  const first = scoresGet({ ...clients.authenticated, path: { score_id: 'a' } });
-  const second = scoresGet({ ...clients.authenticated, path: { score_id: 'b' } });
-  await first;
-  releaseLate(unauthorized());
-  await second;
-  expect(refreshes).toBe(1);
-  expect(a).toBe(2);
-  expect(b).toBe(2);
-});
-
 it('uses the normal browser login redirect after the final authenticated 401', async () => {
   const location = {
     origin: 'http://browser.test',
@@ -408,45 +273,6 @@ it('uses the normal browser login redirect after the final authenticated 401', a
     scoresGet({ ...clients.authenticated, path: { score_id: 's' } }),
   ).rejects.toMatchObject({ status: 401 });
   expect(location.href).toContain('/en/auth/login');
-});
-
-it('reuses a bootstrap refresh for a single retry when the first unsafe request returns 401', async () => {
-  doc.cookie = '';
-  let requests = 0,
-    refreshes = 0;
-  const send = vi.fn<typeof fetch>(async (input) => {
-    if (new URL((input as Request).url).pathname.endsWith('/refresh')) {
-      refreshes++;
-      doc.cookie = `${CSRF_COOKIE_NAME}=new-csrf`;
-      return success();
-    }
-    return ++requests === 1 ? unauthorized() : success();
-  });
-  await scoreInvitesCreate({
-    ...transport(send).authenticated,
-    path: { score_id: 's' },
-    body: inviteBody,
-  });
-  expect(refreshes).toBe(1);
-  expect(requests).toBe(2);
-});
-
-it('acknowledges generated bodyless auth and delete commands without fabricating a body', async () => {
-  const send = vi.fn<typeof fetch>(async () => noContent());
-  const clients = transport(send);
-  await expect(
-    responseComplete(
-      authLogin({ ...clients.public, body: { username: 'owner', password: 'secret' } }),
-    ),
-  ).resolves.toBeUndefined();
-  await expect(responseComplete(authRefresh({ ...clients.public }))).resolves.toBeUndefined();
-  await expect(responseComplete(authLogout({ ...clients.authenticated }))).resolves.toBeUndefined();
-  await expect(
-    responseComplete(
-      performanceTakeDelete({ ...clients.authenticated, path: { take_id: 'take' } }),
-    ),
-  ).resolves.toBeUndefined();
-  expect(send).toHaveBeenCalledTimes(4);
 });
 
 it.each([400, 503])('rejects unknown codes as noncanonical at HTTP %s', async (status) => {

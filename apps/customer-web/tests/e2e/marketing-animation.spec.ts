@@ -3,9 +3,6 @@ import { expect, test } from '@playwright/test';
 test.use({ viewport: { width: 1280, height: 720 } });
 
 test('marketing features reveal on viewport entry and remain revealed after scrolling away', async ({ page }) => {
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
-  );
   await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
   );

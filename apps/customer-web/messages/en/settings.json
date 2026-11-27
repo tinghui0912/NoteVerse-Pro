@@ -16,7 +16,7 @@
   },
   "password": {
     "heading": "Password",
-    "description": "Change your password regularly to keep your account and music assets protected.",
+    "description": "Use a non-blank password of 12–128 characters.",
     "save": "Update password"
   },
   "security": {
@@ -53,12 +53,10 @@
     "loadFailed": "Unable to load devices.",
     "unknownDevice": "Unknown device",
     "unknown": "Unknown",
-    "never": "Never",
     "current": "Current device",
     "ip": "IP",
     "created": "Signed in",
     "lastUsed": "Last used",
-    "expires": "Expires",
     "revoke": "Revoke",
     "currentAction": "Current device",
     "revokeOthers": "Revoke other devices",
@@ -67,7 +65,9 @@
     "revokedOthersTitle": "Other devices revoked",
     "revokedOthersDesc": "All other login sessions have been revoked.",
     "actionFailed": "Action failed",
-    "actionFailedDesc": "Unable to update device sessions."
+    "actionFailedDesc": "Unable to update device sessions.",
+    "idleExpires": "Idle expiry",
+    "absoluteExpires": "Absolute expiry"
   },
   "currentPassword": "Current password",
   "newPassword": "New password",
@@ -83,7 +83,6 @@
   "profileFailedDesc": "Unable to update profile",
   "passwordMismatchTitle": "Password mismatch",
   "passwordMismatch": "New password and confirmation do not match",
-  "passwordTooShortTitle": "Password too short",
   "passwordSuccess": "Password updated successfully",
   "passwordUpdated": "Your password has been updated",
   "passwordFailed": "Update failed",

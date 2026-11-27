@@ -43,7 +43,7 @@
   "quota_check_unavailable": "Storage space could not be checked right now. Please try again later.",
   "current_password_required": "Please enter your current password.",
   "current_password_wrong": "The current password is incorrect.",
-  "password_too_short": "Password must be at least 6 characters.",
+  "password_too_short": "Password must contain 12–128 characters.",
   "no_avatar": "There is no avatar to delete.",
   "avatar_process_failed": "Avatar processing failed. Please try another image.",
   "file_type_not_allowed": "This file type is not supported.",

@@ -1,10 +1,11 @@
 'use client';
 
-import { authRefresh, type CustomerErrorCode, type ApiErrorResponse } from '@/generated/api';
+import { type CustomerErrorCode, type ApiErrorResponse } from '@/generated/api';
 import { createClient, type RequestResult } from '@/generated/api/client';
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from '@/generated/browser-protocol';
 import { isCustomerErrorCode } from '@/lib/i18n/customer-error-codes';
 import { getCurrentLoginHref } from '@/features/authentication/return-url';
+import { invalidateSession } from './session-invalidation';
 import { reportClientError } from '@/lib/observability';
 
 export class ApiError extends Error {
@@ -55,20 +56,6 @@ function safePath(url: string): string {
   return new URL(url).pathname.replace(/(\/guest-previews\/)[^/]+/, '$1[redacted]');
 }
 
-async function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-  signal.throwIfAborted();
-  let onAbort: () => void = () => undefined;
-  const aborted = new Promise<never>((_, reject) => {
-    onAbort = () => reject(signal.reason);
-    signal.addEventListener('abort', onAbort, { once: true });
-  });
-  try {
-    return await Promise.race([promise, aborted]);
-  } finally {
-    signal.removeEventListener('abort', onAbort);
-  }
-}
-
 /** Policy profiles contain no Customer operation method, path or encoding. */
 export function createCustomerBrowserTransport(
   options: {
@@ -82,31 +69,7 @@ export function createCustomerBrowserTransport(
     (typeof window === 'undefined' ? 'http://localhost' : window.location.origin);
   const send = options.fetch ?? ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
   const onUnauthorized = options.onUnauthorized ?? redirectToLogin;
-  let refreshSequence = 0;
-  let refreshAttempt: { sequence: number; pending: boolean; promise: Promise<boolean> } | undefined;
-
-  function refresh(afterSequence?: number): Promise<boolean> {
-    if (
-      refreshAttempt &&
-      (refreshAttempt.pending ||
-        (afterSequence !== undefined && refreshAttempt.sequence > afterSequence))
-    ) {
-      return refreshAttempt.promise;
-    }
-    const attempt = { sequence: ++refreshSequence, pending: true, promise: Promise.resolve(false) };
-    refreshAttempt = attempt;
-    attempt.promise = authRefresh({ client: refreshClient, throwOnError: true })
-      .then(
-        () => true,
-        () => false,
-      )
-      .finally(() => {
-        attempt.pending = false;
-      });
-    return attempt.promise;
-  }
-
-  function makeClient(policy: { refresh: boolean; redirect: boolean }) {
+  function makeClient(authenticated: boolean) {
     const client = createClient({
       baseUrl,
       credentials: 'include',
@@ -114,19 +77,9 @@ export function createCustomerBrowserTransport(
         const request = new Request(input, { ...init, credentials: 'include' });
         const signal = request.signal;
         signal.throwIfAborted();
-        const startedAtSequence = refreshSequence;
         const unsafe = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(request.method);
-        if (policy.refresh && unsafe && !cookie(CSRF_COOKIE_NAME)) {
-          await abortable(refresh(), signal);
-        }
-        signal.throwIfAborted();
-        const injectCsrf = (target: Request) => {
-          const csrf = cookie(CSRF_COOKIE_NAME);
-          if (unsafe && csrf) target.headers.set(CSRF_HEADER_NAME, csrf);
-        };
-        injectCsrf(request);
-        // Keep a pristine replay before fetch consumes JSON, form or multipart bytes.
-        const replay = policy.refresh ? request.clone() : undefined;
+        const csrf = cookie(CSRF_COOKIE_NAME);
+        if (unsafe && csrf) request.headers.set(CSRF_HEADER_NAME, csrf);
         const observedSend = async (outgoing: Request) => {
           signal.throwIfAborted();
           try {
@@ -142,22 +95,13 @@ export function createCustomerBrowserTransport(
             throw error;
           }
         };
-        try {
-          let response = await observedSend(request);
-          if (response.status === 401 && policy.refresh) {
-            const refreshed = await abortable(refresh(startedAtSequence), signal);
-            signal.throwIfAborted();
-            if (refreshed && replay) {
-              injectCsrf(replay);
-              response = await observedSend(replay);
-            }
-          }
-          signal.throwIfAborted();
-          if (response.status === 401 && policy.redirect) onUnauthorized();
-          return response;
-        } finally {
-          if (replay?.body && !replay.bodyUsed) void replay.body.cancel().catch(() => undefined);
+        const response = await observedSend(request);
+        signal.throwIfAborted();
+        if (response.status === 401 && authenticated) {
+          invalidateSession();
+          onUnauthorized();
         }
+        return response;
       },
     });
     client.interceptors.error.use((error, response) => {
@@ -176,17 +120,10 @@ export function createCustomerBrowserTransport(
     return client;
   }
 
-  const refreshClient = makeClient({ refresh: false, redirect: false });
   return {
-    authenticated: {
-      client: makeClient({ refresh: true, redirect: true }),
-      throwOnError: true,
-    } as const,
-    public: {
-      client: makeClient({ refresh: false, redirect: false }),
-      throwOnError: true,
-    } as const,
-    silent: { client: makeClient({ refresh: true, redirect: false }), throwOnError: true } as const,
+    authenticated: { client: makeClient(true), throwOnError: true } as const,
+    public: { client: makeClient(false), throwOnError: true } as const,
+    silent: { client: makeClient(false), throwOnError: true } as const,
   };
 }
 
