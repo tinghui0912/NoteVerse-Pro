@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from app.platform.document_admission.musicxml import parse_musicxml, read_musicxml_file
 import xml.etree.ElementTree as ET
 from typing import TypedDict
 
@@ -40,7 +41,7 @@ class PianoplayerFingeringEngine:
                     str(input_path), outputfile=str(output_path), quiet=True, hand_size=hand_size
                 )
                 return {
-                    "xml_content": output_path.read_text(encoding="utf-8"),
+                    "xml_content": read_musicxml_file(output_path).decode("utf-8"),
                     "hand_size": hand_size,
                 }
         except ImportError as exc:
@@ -68,7 +69,7 @@ class PianoplayerFingeringEngine:
 
 
 def strip_existing_fingerings(xml_content: str) -> str:
-    root = ET.fromstring(xml_content)
+    root = parse_musicxml(xml_content)
     parent_map = {child: parent for parent in root.iter() for child in parent}
 
     for fingering in list(root.iter()):

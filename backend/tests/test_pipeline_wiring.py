@@ -164,8 +164,9 @@ def test_verovio_render_engine_writes_svg_pages() -> None:
                 self.options = options
                 captured_options.update(options)
 
-            def loadFile(self, path):
-                self.path = path
+            def loadData(self, content):
+                assert content == "<score-partwise />"
+                self.content = content
                 return True
 
             def getPageCount(self):

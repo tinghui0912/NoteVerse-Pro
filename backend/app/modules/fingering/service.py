@@ -53,10 +53,9 @@ class FingeringService:
         self._access_policy.authorize_score(db, score_uuid, ScoreAction.EDIT, user_id=user_id)
 
     async def generate(self, score_uuid: str, request: FingeringRequest) -> FingeringResultRead:
-        content = request.content.encode("utf-8")
+        content = admit_musicxml_document(request.content)
         if len(content) > self.config.FINGERING_MAX_CONTENT_BYTES:
             raise ValidationException(CustomerErrorCode.REVISION_CONTENT_INVALID, field="content")
-        content = admit_musicxml_document(content)
 
         try:
             generated = await self._execution.run(
@@ -74,9 +73,7 @@ class FingeringService:
         if not isinstance(generated_content, str):
             self._raise_invalid_engine_result(score_uuid)
         try:
-            generated_content = admit_musicxml_document(generated_content.encode("utf-8")).decode(
-                "utf-8"
-            )
+            generated_content = admit_musicxml_document(generated_content).decode("utf-8")
         except ValidationException:
             self._raise_invalid_engine_result(score_uuid)
         return FingeringResultRead(content=generated_content)

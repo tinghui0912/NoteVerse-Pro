@@ -6,6 +6,7 @@ from enum import StrEnum
 class CustomerErrorCode(StrEnum):
     INTERNAL_ERROR = "internal_error"
     VALIDATION_ERROR = "validation_error"
+    PAYLOAD_TOO_LARGE = "payload_too_large"
     RESOURCE_NOT_FOUND = "resource_not_found"
     RESOURCE_ALREADY_EXISTS = "resource_already_exists"
     BUSINESS_RULE_VIOLATION = "business_rule_violation"

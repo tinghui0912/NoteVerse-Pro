@@ -142,8 +142,7 @@ class ImportReviewService:
                 {"job_id": job_uuid, "state": job.state.value},
             )
 
-        content = request.content.encode("utf-8")
-        content = admit_musicxml_document(content)
+        content = admit_musicxml_document(request.content)
         content_hash = hashlib.sha256(content).hexdigest()
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
@@ -289,8 +288,7 @@ class ImportReviewService:
                 {"job_id": job_uuid, "state": job.state.value},
             )
 
-        content = request.content.encode("utf-8")
-        content = admit_musicxml_document(content)
+        content = admit_musicxml_document(request.content)
         job_id = require_persisted_id(job.id, entity="import job")
         artifact = (
             db.execute(

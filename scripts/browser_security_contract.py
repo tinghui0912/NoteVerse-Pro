@@ -78,4 +78,37 @@ def validate_browser_documents(documents: list[dict]) -> list[str]:
         annotations = doc.get("metadata", {}).get("annotations", {})
         if any("content-security-policy" in str(value).lower() for value in annotations.values()):
             errors.append("Gateway annotations cannot emit or overwrite document CSP")
+    limits = {"noteverse-web": "32Mi", "noteverse-platform-admin": "512Ki"}
+    for route in (doc for doc in documents if doc.get("kind") == "HTTPRoute"):
+        name = route.get("metadata", {}).get("name")
+        if name not in limits:
+            continue
+        policies = [
+            doc
+            for doc in documents
+            if doc.get("kind") == "BackendTrafficPolicy"
+            and any(
+                ref.get("kind") == "HTTPRoute" and ref.get("name") == name
+                for ref in doc.get("spec", {}).get("targetRefs", [])
+            )
+        ]
+        expected_target = {"group": "gateway.networking.k8s.io", "kind": "HTTPRoute", "name": name}
+        valid = len(policies) == 1
+        if valid:
+            policy = policies[0]
+            references = [
+                ref
+                for ref in policy["spec"]["targetRefs"]
+                if ref.get("kind") == "HTTPRoute" and ref.get("name") == name
+            ]
+            valid = (
+                all(ref == expected_target for ref in references)
+                and policy.get("metadata", {}).get("namespace")
+                == route.get("metadata", {}).get("namespace")
+                and policy["spec"].get("requestBuffer") == {"limit": limits[name]}
+            )
+        if not valid:
+            errors.append(
+                f"{name}: gateway request body limit must be {limits[name]} on the entire route"
+            )
     return errors

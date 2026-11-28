@@ -83,6 +83,7 @@ def create_app() -> HttpApplication:
         trusted_proxy_hops=settings.TRUSTED_PROXY_HOPS,
         error_codes=HttpRuntimeErrorCodes(
             validation_error=ControlPlaneErrorCode.VALIDATION_ERROR,
+            payload_too_large=ControlPlaneErrorCode.PAYLOAD_TOO_LARGE,
             auth_failed=ControlPlaneErrorCode.AUTH_FAILED,
             unauthorized=ControlPlaneErrorCode.UNAUTHORIZED,
             resource_not_found=ControlPlaneErrorCode.RESOURCE_NOT_FOUND,

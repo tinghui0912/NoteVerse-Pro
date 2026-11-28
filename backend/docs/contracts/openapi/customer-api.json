@@ -206,6 +206,7 @@
         "enum": [
           "internal_error",
           "validation_error",
+          "payload_too_large",
           "resource_not_found",
           "resource_already_exists",
           "business_rule_violation",
@@ -319,6 +320,7 @@
       "FingeringRequest": {
         "properties": {
           "content": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Content",
             "type": "string"
@@ -2388,6 +2390,7 @@
       "PerformancePlanRequest": {
         "properties": {
           "musicxml": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Musicxml",
             "type": "string"
@@ -3966,6 +3969,7 @@
         "additionalProperties": false,
         "properties": {
           "content": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Content",
             "type": "string"
@@ -4037,6 +4041,7 @@
         "additionalProperties": false,
         "properties": {
           "content": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Content",
             "type": "string"
@@ -4160,6 +4165,7 @@
         "additionalProperties": false,
         "properties": {
           "content": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Content",
             "type": "string"

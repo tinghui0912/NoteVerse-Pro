@@ -3,6 +3,7 @@ import type { CustomerErrorCode } from '@/generated/api';
 export const CUSTOMER_ERROR_MESSAGE_KEYS = {
   internal_error: 'internal_error',
   validation_error: 'validation_error',
+  payload_too_large: 'payload_too_large',
   resource_not_found: 'resource_not_found',
   resource_already_exists: 'resource_already_exists',
   business_rule_violation: 'business_rule_violation',

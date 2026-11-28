@@ -105,6 +105,7 @@ export function requestErrorMessage(error: unknown): string {
       rate_limit_exceeded: "Too many attempts. Wait before trying again.",
       rate_limit_unavailable:
         "Sign-in protection is temporarily unavailable. Try again shortly.",
+      payload_too_large: "The request is too large.",
       request_origin_invalid: "The request origin is not allowed.",
       unknown_error: "The request could not be completed.",
       internal_error: "The service is temporarily unavailable.",

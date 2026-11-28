@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 import re
+from app.platform.document_admission.musicxml import parse_musicxml, DocumentAdmissionError
 import xml.etree.ElementTree as ET
 
 from .musicxml_tempo import MusicXMLTempoError, parse_tempo_directive, put_written_tempo_fact
@@ -190,8 +191,12 @@ class CanonicalScoreSemanticModel:
 
 def parse_score_semantics(content: bytes | str) -> CanonicalScoreSemanticModel:
     try:
-        root = ET.fromstring(content)
-    except (ET.ParseError, UnicodeError) as error:
+        root = parse_musicxml(content)
+    except DocumentAdmissionError as error:
+        if error.status_code == 413:
+            raise
+        raise MusicXMLSemanticError("invalid_xml") from error
+    except UnicodeError as error:
         raise MusicXMLSemanticError("invalid_xml") from error
     if _name(root) != "score-partwise":
         raise MusicXMLSemanticError("unsupported_root")

@@ -250,7 +250,7 @@ def test_admitted_read_failures_have_safe_http_and_internal_diagnostics(
     from app.runtime.customer_api.main import create_app
     from app.modules.media_storage import reads
 
-    storage = Mock(read_bytes=Mock(side_effect=error))
+    storage = Mock(iter_bytes=Mock(side_effect=error))
     target = StoredObjectReadTarget(7, "private-key", 10, "application/xml")
     log = Mock()
     monkeypatch.setattr(reads, "logger", log)
@@ -333,7 +333,7 @@ def test_worker_time_limit_propagates_as_execution_control():
     from celery.exceptions import SoftTimeLimitExceeded
 
     error = SoftTimeLimitExceeded()
-    storage = Mock(read_bytes=Mock(side_effect=error))
+    storage = Mock(iter_bytes=Mock(side_effect=error))
     with pytest.raises(SoftTimeLimitExceeded) as raised:
         read_admitted_bytes(storage, StoredObjectReadTarget(1, "key", 10, "application/xml"))
     assert raised.value is error

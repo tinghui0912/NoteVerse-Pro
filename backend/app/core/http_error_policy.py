@@ -10,6 +10,7 @@ ErrorResponseFactory = Callable[[StrEnum, str], dict[str, object]]
 @dataclass(frozen=True)
 class HttpRuntimeErrorCodes:
     validation_error: StrEnum
+    payload_too_large: StrEnum
     auth_failed: StrEnum
     unauthorized: StrEnum
     resource_not_found: StrEnum

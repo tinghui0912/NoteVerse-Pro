@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+from app.platform.document_admission.musicxml import DocumentAdmissionError
 from app.modules.practice.score.piano_key import PracticeScoreInvalidError
 
 from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
@@ -19,7 +19,7 @@ class PracticeBundleCompiler:
             prepared = prepare_musicxml_ids_for_practice(canonical_musicxml.decode("utf-8")).encode(
                 "utf-8"
             )
-        except (ET.ParseError, UnicodeError) as cause:
+        except (DocumentAdmissionError, UnicodeError) as cause:
             raise PracticeScoreInvalidError("Invalid Practice MusicXML.") from cause
         compiled = compile_practice_score(prepared)
         timeline = practice_timeline_from_compiled(compiled)

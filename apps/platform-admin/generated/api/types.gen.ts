@@ -142,7 +142,7 @@ export type ChallengePurpose = 'ENROLLMENT_REQUIRED' | 'VERIFICATION_REQUIRED';
 /**
  * ControlPlaneErrorCode
  */
-export type ControlPlaneErrorCode = 'validation_error' | 'token_invalid_expired' | 'invalid_credentials' | 'no_access' | 'unsupported_media_type' | 'rate_limit_exceeded' | 'rate_limit_unavailable' | 'request_origin_invalid' | 'resource_not_found' | 'auth_failed' | 'unauthorized' | 'unknown_error' | 'internal_error';
+export type ControlPlaneErrorCode = 'validation_error' | 'payload_too_large' | 'token_invalid_expired' | 'invalid_credentials' | 'no_access' | 'unsupported_media_type' | 'rate_limit_exceeded' | 'rate_limit_unavailable' | 'request_origin_invalid' | 'resource_not_found' | 'auth_failed' | 'unauthorized' | 'unknown_error' | 'internal_error';
 
 /**
  * ControlPlaneErrorResponse

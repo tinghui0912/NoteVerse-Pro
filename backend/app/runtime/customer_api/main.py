@@ -1,5 +1,6 @@
 """FastAPI application entrypoint."""
 
+from app.platform.security.body_limit import PathBodyLimitRule
 from app.core.http_application import HttpApplication
 from app.core.http_error_policy import HttpRuntimeErrorCodes
 
@@ -79,6 +80,7 @@ def create_app() -> HttpApplication:
         trusted_proxy_hops=settings.TRUSTED_PROXY_HOPS,
         error_codes=HttpRuntimeErrorCodes(
             validation_error=CustomerErrorCode.VALIDATION_ERROR,
+            payload_too_large=CustomerErrorCode.PAYLOAD_TOO_LARGE,
             auth_failed=CustomerErrorCode.AUTH_FAILED,
             unauthorized=CustomerErrorCode.UNAUTHORIZED,
             resource_not_found=CustomerErrorCode.RESOURCE_NOT_FOUND,
@@ -88,6 +90,16 @@ def create_app() -> HttpApplication:
             rate_limit_exceeded=CustomerErrorCode.RATE_LIMIT_EXCEEDED,
             rate_limit_unavailable=CustomerErrorCode.RATE_LIMIT_UNAVAILABLE,
             request_origin_invalid=CustomerErrorCode.REQUEST_ORIGIN_INVALID,
+        ),
+        default_max_body_bytes=2 * 1024 * 1024,
+        body_path_limits=(
+            PathBodyLimitRule(f"{CUSTOMER_API_PREFIX}/me/avatar", 6 * 1024 * 1024),
+            PathBodyLimitRule(r"/api/v1/scores/[^/]+/revisions", 32 * 1024 * 1024, "regex"),
+            PathBodyLimitRule(r"/api/v1/scores/[^/]+/fingering", 32 * 1024 * 1024, "regex"),
+            PathBodyLimitRule(
+                r"/api/v1/import-jobs/[^/]+/review(?:/confirm)?", 32 * 1024 * 1024, "regex"
+            ),
+            PathBodyLimitRule(f"{CUSTOMER_API_PREFIX}/playback/performance-plan", 32 * 1024 * 1024),
         ),
         error_response_factory=error_response,
         allowed_origins=frozenset(_cors_origins(settings)),

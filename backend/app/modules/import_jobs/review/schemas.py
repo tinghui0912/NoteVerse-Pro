@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from app.shared.time import Instant
 
+from app.platform.document_admission.musicxml import MUSICXML_LIMITS
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.import_jobs.domain import ImportJobState
@@ -39,7 +41,7 @@ class ImportJobReviewRead(ApiModel):
 class ReviewConfirmRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=MUSICXML_LIMITS.max_bytes)
     display_title: str | None = Field(default=None, min_length=1, max_length=255)
     genres: Genres | None = None
 
@@ -51,4 +53,4 @@ class ReviewConfirmRead(ApiModel):
 class ReviewUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=MUSICXML_LIMITS.max_bytes)

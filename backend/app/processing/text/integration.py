@@ -1,5 +1,6 @@
 """Integrate OCR-classified text into a MusicXML document."""
 
+from app.platform.document_admission.musicxml import parse_musicxml_file
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import List, Optional, TypedDict
@@ -70,7 +71,7 @@ class TextIntegrationEngine:
                 ).warning("Text integration payload has invalid type")
                 text_info = _empty_classified_texts()
 
-            tree = ET.parse(musicxml_path)
+            tree = parse_musicxml_file(musicxml_path)
             root = tree.getroot()
             texts = text_info.get("other_texts", [])
 

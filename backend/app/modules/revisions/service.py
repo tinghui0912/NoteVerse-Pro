@@ -76,7 +76,7 @@ class RevisionService:
         access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.EDIT, user_id=user_id
         )
-        content = admit_musicxml_document(request.content.encode("utf-8"))
+        content = admit_musicxml_document(request.content)
         return self._append(
             db,
             score_uuid,

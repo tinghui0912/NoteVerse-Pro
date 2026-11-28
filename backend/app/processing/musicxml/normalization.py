@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from app.platform.document_admission.musicxml import parse_musicxml_file
 import xml.etree.ElementTree as ET
 
 
@@ -16,7 +17,7 @@ def normalize_initial_musicxml_clefs(xml_path: str | Path) -> None:
     """
 
     path = Path(xml_path)
-    tree = ET.parse(path)
+    tree = parse_musicxml_file(path)
     root = tree.getroot()
     first_measure = root.find("./part/measure")
     if first_measure is None:
@@ -27,9 +28,7 @@ def normalize_initial_musicxml_clefs(xml_path: str | Path) -> None:
         opening_attributes = ET.Element("attributes")
         first_measure.insert(0, opening_attributes)
 
-    opening_clef_numbers = {
-        clef.get("number", "1") for clef in opening_attributes.findall("clef")
-    }
+    opening_clef_numbers = {clef.get("number", "1") for clef in opening_attributes.findall("clef")}
     changed = False
 
     for attributes in list(first_measure.findall("attributes"))[1:]:

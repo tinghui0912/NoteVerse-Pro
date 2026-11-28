@@ -39,4 +39,4 @@ def test_worker_materializes_admitted_inputs_without_metadata_probes(tmp_path, m
         [StoredObjectReadTarget(1, "blobs/input.png", 5, "image/png")]
     )
     assert paths == [str(destination)] and destination.read_bytes() == b"input"
-    storage.iter_bytes.assert_called_once_with("blobs/input.png")
+    storage.iter_bytes.assert_called_once_with("blobs/input.png", chunk_size=64 * 1024)

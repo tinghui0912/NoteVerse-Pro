@@ -24,7 +24,7 @@ def bundle_service_for_notation(content: bytes):
         ),
         repository=Mock(read_bound=Mock(return_value=None)),
         writes=resources_for(
-            Mock(read_bytes=Mock(return_value=content))
+            Mock(iter_bytes=Mock(side_effect=lambda *args, **kwargs: iter([content])))
         ).build_object_write_coordinator(),
         retention=PracticeBundleRetention(
             config=StoredObjectRetirementSettings.model_validate(

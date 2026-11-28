@@ -9,6 +9,7 @@ and transpose inspection supplies only facts absent from the canonical model.
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
+from app.platform.document_admission.musicxml import parse_musicxml
 import xml.etree.ElementTree as ET
 
 from app.score_semantics.musicxml_score import CanonicalScoreSemanticModel
@@ -480,7 +481,7 @@ def validate_verovio_written_realization(
         raise VerovioWrittenRealizationError(_R.MICROTONAL_KEY)
     if any(note.is_grace for note in model.notes):
         raise VerovioWrittenRealizationError(_R.GRACE)
-    root = ET.fromstring(admitted)
+    root = parse_musicxml(admitted)
     if _name(root) != "score-partwise" or root.get("version") not in _SOURCE_VERSIONS:
         raise VerovioWrittenRealizationError(_R.PROFILE)
     namespace = root.tag.removesuffix("score-partwise")

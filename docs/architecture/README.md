@@ -65,6 +65,8 @@ accepted current decisions and their rationale.
 
 ## Security Boundaries
 
+- [Document Admission and Ingress Limits](document-admission-and-ingress-limits.md)
+
 - [Consumer Sessions](consumer-sessions.md)
 
 - [Control-Plane Identity](../security/control-plane-identity-contract.md)

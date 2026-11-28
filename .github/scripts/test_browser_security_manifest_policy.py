@@ -12,19 +12,21 @@ from browser_security_contract import storage_origins, validate_browser_document
 
 
 class BrowserSecurityManifestTests(unittest.TestCase):
-    def gateways(self):
+    def gateway_sets(self):
         return [
-            doc
+            [doc for doc in yaml.safe_load_all(path.read_text(encoding="utf-8")) if doc]
             for path in (ROOT / "deploy").rglob("gateway.yaml")
-            for doc in yaml.safe_load_all(path.read_text(encoding="utf-8"))
-            if doc
         ]
+
+    def gateways(self):
+        return [doc for documents in self.gateway_sets() for doc in documents]
 
     def test_every_public_gateway_rule_sets_exact_hsts(self):
         documents = self.gateways()
         routes = [doc for doc in documents if doc.get("kind") == "HTTPRoute"]
         self.assertGreaterEqual(len(routes), 6)
-        self.assertEqual(validate_browser_documents(documents), [])
+        for group in self.gateway_sets():
+            self.assertEqual(validate_browser_documents(group), [])
         gateways = [doc for doc in documents if doc.get("kind") == "Gateway"]
         for gateway in gateways:
             self.assertTrue(
@@ -112,6 +114,44 @@ class BrowserSecurityManifestTests(unittest.TestCase):
                 storage_origins(value)
         self.assertEqual(
             storage_origins("https://cdn.test,https://cdn.test/"), ("https://cdn.test",)
+        )
+
+    def test_gateway_body_limits_are_finite_and_align_with_api_envelopes(self):
+        for documents in self.gateway_sets():
+            self.assertEqual(validate_browser_documents(documents), [])
+            policies = [d for d in documents if d.get("kind") == "BackendTrafficPolicy"]
+            self.assertEqual(len(policies), 2)
+            for policy in policies:
+                candidate = copy.deepcopy(documents)
+                altered = next(d for d in candidate if d == policy)
+                altered["spec"]["requestBuffer"]["limit"] = "1Mi"
+                self.assertTrue(validate_browser_documents(candidate))
+            missing = [d for d in documents if d.get("kind") != "BackendTrafficPolicy"]
+            self.assertTrue(validate_browser_documents(missing))
+
+    def test_body_limits_cannot_be_scoped_away_or_replaced_with_buffer_only_mode(self):
+        for documents in self.gateway_sets():
+            for mutation in ("scope", "group", "namespace", "mode"):
+                candidate = copy.deepcopy(documents)
+                policy = next(d for d in candidate if d.get("kind") == "BackendTrafficPolicy")
+                if mutation == "mode":
+                    policy["spec"]["requestBuffer"]["mode"] = "LimitOnly"
+                elif mutation == "namespace":
+                    policy["metadata"]["namespace"] = "different"
+                elif mutation == "group":
+                    policy["spec"]["targetRefs"][0]["group"] = "different.example"
+                else:
+                    policy["spec"]["targetRefs"][0]["sectionName"] = "one-rule"
+                self.assertTrue(validate_browser_documents(candidate))
+
+    def test_platform_bootstrap_provisions_the_body_policy_crd(self):
+        bootstrap = (ROOT / "scripts/minikube_platform_bootstrap.ps1").read_text(encoding="utf-8")
+        self.assertIn("gateway-crds-helm", bootstrap)
+        self.assertIn("--set crds.gatewayAPI.enabled=false", bootstrap)
+        self.assertIn("--set crds.envoyGateway.enabled=true", bootstrap)
+        self.assertLess(
+            bootstrap.index('Invoke-Checked "envoy-gateway:crds"'),
+            bootstrap.index('Invoke-WithRetry "envoy-gateway:install"'),
         )
 
     def test_release_calls_explicitly_pass_public_origins(self):

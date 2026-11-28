@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 import re
+from app.platform.document_admission.musicxml import parse_musicxml
 import xml.etree.ElementTree as ET
 
 
@@ -13,7 +14,7 @@ XML_ID_BODY = re.compile(r"[A-Za-z0-9_.-]")
 
 
 def prepare_musicxml_ids_for_practice(xml: str) -> str:
-    root = ET.fromstring(xml)
+    root = parse_musicxml(xml)
     used_ids: set[str] = set()
     changed = False
 

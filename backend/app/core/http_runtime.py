@@ -11,6 +11,7 @@ from app.core.http_application import HttpApplication
 from app.core.exception_handlers import register_exception_handlers
 from app.core.http_error_policy import ErrorResponseFactory, HttpRuntimeErrorCodes
 from app.core.middleware import LoggingMiddleware
+from app.platform.security.body_limit import RequestBodyLimit, PathBodyLimitRule
 from app.platform.security.origin_guard import BrowserOriginGuard, normalize_origin
 from fastapi import Request
 from starlette.responses import JSONResponse
@@ -34,6 +35,8 @@ def install_http_runtime(
     cors_origins: list[str] | None = None,
     error_response_factory: ErrorResponseFactory,
     error_codes: HttpRuntimeErrorCodes,
+    default_max_body_bytes: int = 512 * 1024,
+    body_path_limits: tuple[PathBodyLimitRule, ...] = (),
 ) -> None:
     """Install common cross-cutting HTTP behavior without choosing app policy."""
     app.add_middleware(
@@ -68,6 +71,20 @@ def install_http_runtime(
             allow_methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["Accept", "Content-Type", "X-Request-ID", "Traceparent", "Tracestate"],
         )
+
+    def body_rejection(scope: Scope, status: int) -> JSONResponse:
+        code = error_codes.payload_too_large if status == 413 else error_codes.validation_error
+        return JSONResponse(
+            status_code=status,
+            content=error_response_factory(code, request_correlation_id(Request(scope))),
+        )
+
+    app.add_middleware(
+        RequestBodyLimit,
+        default_max_bytes=default_max_body_bytes,
+        path_limits=body_path_limits,
+        error_response=body_rejection,
+    )
     register_exception_handlers(
         app, error_response_factory=error_response_factory, error_codes=error_codes
     )

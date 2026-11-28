@@ -100,12 +100,16 @@ def durable_row(bundle):
 
 def bundle_storage(bundle):
     return Mock(
-        read_bytes=Mock(
-            side_effect=lambda key: {
-                "prepared.xml": bundle.prepared_musicxml.data,
-                "artifact.json": bundle.artifact.representation.data,
-                "canonical.xml": FIXTURE.read_bytes(),
-            }[key]
+        iter_bytes=Mock(
+            side_effect=lambda key, **kwargs: iter(
+                [
+                    {
+                        "prepared.xml": bundle.prepared_musicxml.data,
+                        "artifact.json": bundle.artifact.representation.data,
+                        "canonical.xml": FIXTURE.read_bytes(),
+                    }[key]
+                ]
+            )
         )
     )
 
@@ -157,7 +161,7 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
     assert read.artifact.artifactId == bundle.artifact.artifact_id
     compiler.compile.assert_not_called()
     assets.canonical_source.assert_not_called()
-    assert storage.read_bytes.call_count == 2
+    assert storage.iter_bytes.call_count == 2
     writer.ensure_binding.assert_not_called()
 
 
@@ -219,8 +223,8 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
     assert service.access_policy.authorize_revision.call_count == 2
     compiler.compile.assert_called_once_with(canonical_musicxml=FIXTURE.read_bytes())
     assets.canonical_source.assert_called_once()
-    storage.read_bytes.assert_any_call("canonical.xml")
-    assert storage.read_bytes.call_count == 3
+    storage.iter_bytes.assert_any_call("canonical.xml", chunk_size=64 * 1024)
+    assert storage.iter_bytes.call_count == 3
 
 
 def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
@@ -251,7 +255,7 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
             )
         ),
         writes=resources_for(
-            Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes()))
+            Mock(iter_bytes=Mock(side_effect=lambda *args, **kwargs: iter([FIXTURE.read_bytes()])))
         ).build_object_write_coordinator(),
         retention=PracticeBundleRetention(
             config=StoredObjectRetirementSettings.model_validate(
@@ -311,8 +315,8 @@ def test_content_verifier_rejects_durable_representation_corruption(corruption):
             object_key="artifact.json", content=data, content_type="application/json"
         )
         row.artifact_object.id = 2
-        storage.read_bytes.side_effect = lambda key: (
-            data if key == "artifact.json" else candidate.prepared_musicxml.data
+        storage.iter_bytes.side_effect = lambda key, **kwargs: iter(
+            [data if key == "artifact.json" else candidate.prepared_musicxml.data]
         )
     elif corruption == "artifact_id":
         row.artifact_id = "practice-score-artifact:0000000000000000"

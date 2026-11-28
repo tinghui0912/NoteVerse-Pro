@@ -1,5 +1,6 @@
 """Creation leases, representation writes and atomic Practice revision binding."""
 
+from app.platform.document_admission.musicxml import read_bounded_bytes
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 
 from .object_keys import practice_bundle_musicxml_object_key, practice_bundle_artifact_object_key
@@ -113,7 +114,13 @@ class PracticeBundleWriter:
                 )
             )
             for receipt, (_, representation) in zip(receipts, representations, strict=True):
-                if self.storage.read_bytes(receipt.object_key) != representation.data:
+                if (
+                    read_bounded_bytes(
+                        self.storage.iter_bytes(receipt.object_key, chunk_size=64 * 1024),
+                        max_bytes=len(representation.data),
+                    )
+                    != representation.data
+                ):
                     raise ValueError("Practice bundle storage read-back mismatch")
             return list(receipts)
         except Exception as error:

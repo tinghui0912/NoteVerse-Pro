@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 from starlette.exceptions import HTTPException
 
+from app.platform.document_admission.musicxml import DocumentAdmissionError, MUSICXML_LIMITS
 from app.core.exceptions import AppException
 from app.core.logger import logger
 from app.core.request_correlation import request_correlation_id
@@ -65,18 +66,26 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     codes: HttpRuntimeErrorCodes = request.app.state.http_error_codes
     errors = exc.errors()
+    oversized_document = any(
+        error.get("type") == "string_too_long"
+        and error.get("loc") in (("body", "content"), ("body", "musicxml"))
+        and error.get("ctx", {}).get("max_length") == MUSICXML_LIMITS.max_bytes
+        for error in errors
+    )
+    status = 413 if oversized_document else 422
+    code = codes.payload_too_large if oversized_document else codes.validation_error
     logger.bind(
         event="http.request_validation_failed",
-        public_code=codes.validation_error,
-        status_code=422,
+        public_code=code,
+        status_code=status,
         **_request_log_context(request),
         **_validation_error_summary(errors),
     ).warning("Request validation failed")
     return JSONResponse(
-        status_code=422,
+        status_code=status,
         content=_error_payload(
             request,
-            code=codes.validation_error,
+            code=code,
             request_id=request_correlation_id(request),
         ),
     )
@@ -134,6 +143,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         403: codes.unauthorized,
         404: codes.resource_not_found,
         422: codes.validation_error,
+        413: codes.payload_too_large,
         415: codes.unsupported_media_type,
         429: codes.rate_limit_exceeded,
     }.get(
@@ -159,6 +169,22 @@ async def rate_limit_exception_handler(
     )
 
 
+async def document_admission_exception_handler(
+    request: Request, exc: DocumentAdmissionError
+) -> JSONResponse:
+    codes: HttpRuntimeErrorCodes = request.app.state.http_error_codes
+    code = codes.payload_too_large if exc.status_code == 413 else codes.validation_error
+    logger.bind(
+        event="document.admission_rejected",
+        reason=exc.reason.value,
+        **_request_log_context(request),
+    ).warning("Document admission rejected")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=_error_payload(request, code=code, request_id=request_correlation_id(request)),
+    )
+
+
 def register_exception_handlers(
     app: FastAPI,
     *,
@@ -169,6 +195,7 @@ def register_exception_handlers(
 
     app.state.error_response_factory = error_response_factory
     app.state.http_error_codes = error_codes
+    app.add_exception_handler(DocumentAdmissionError, document_admission_exception_handler)
     app.add_exception_handler(RateLimitHttpException, rate_limit_exception_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(AppException, app_exception_handler)

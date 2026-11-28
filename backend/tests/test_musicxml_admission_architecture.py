@@ -7,9 +7,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[1] / "app"
 
 
-def test_admission_depends_only_on_semantic_owners_and_public_error_mapping():
-    tree = ast.parse((ROOT / "processing/musicxml/admission.py").read_text())
+def test_score_admission_depends_on_bounded_xml_and_semantic_owners():
+    tree = ast.parse((ROOT / "processing/musicxml/admission.py").read_text(encoding="utf-8"))
     owned_dependencies = {
+        "app.platform.document_admission.musicxml",
         "app.score_semantics.musicxml_score",
         "app.score_semantics.musicxml_tempo",
         "app.core.exceptions",
@@ -35,7 +36,7 @@ def test_trusted_document_entry_points_share_the_admission_owner():
         ("modules/fingering/service.py", "FingeringService", "generate", 2),
     ]
     for path, class_name, method_name, calls in consumers:
-        tree = ast.parse((ROOT / path).read_text())
+        tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
         assert any(
             isinstance(n, ast.ImportFrom)
             and n.module == "app.processing.musicxml.admission"

@@ -48,6 +48,7 @@ def create_app() -> HttpApplication:
         error_response_factory=error_response,
         error_codes=HttpRuntimeErrorCodes(
             validation_error=CustomerErrorCode.VALIDATION_ERROR,
+            payload_too_large=CustomerErrorCode.PAYLOAD_TOO_LARGE,
             auth_failed=CustomerErrorCode.AUTH_FAILED,
             unauthorized=CustomerErrorCode.UNAUTHORIZED,
             resource_not_found=CustomerErrorCode.RESOURCE_NOT_FOUND,

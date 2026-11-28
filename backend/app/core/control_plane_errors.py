@@ -9,6 +9,7 @@ from app.shared.request_id import RequestId
 
 class ControlPlaneErrorCode(StrEnum):
     VALIDATION_ERROR = "validation_error"
+    PAYLOAD_TOO_LARGE = "payload_too_large"
     TOKEN_INVALID_EXPIRED = "token_invalid_expired"
     INVALID_CREDENTIALS = "invalid_credentials"
     NO_ACCESS = "no_access"

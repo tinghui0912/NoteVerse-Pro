@@ -1,7 +1,7 @@
 """Durable review-artifact writes and execution-lease-bound semantic adoption."""
 
 import hashlib
-from pathlib import Path
+from app.platform.document_admission.musicxml import read_musicxml_file
 from app.modules.import_jobs.domain import ImportArtifactKind
 from app.modules.import_jobs.artifact_records import (
     ImportJobStoredArtifactItem,
@@ -44,7 +44,7 @@ class ImportArtifactRecorder:
     ) -> ImportJobStoredArtifactItem:
         if not isinstance(kind, ImportArtifactKind):
             raise TypeError("Import artifact mutation requires ImportArtifactKind")
-        content = Path(abs_path).read_bytes()
+        content = read_musicxml_file(abs_path)
         key = review_musicxml_object_key(
             job_uuid=job_id, content_sha256=hashlib.sha256(content).hexdigest()
         )

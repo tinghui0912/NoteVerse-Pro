@@ -418,7 +418,7 @@ def test_import_worker_materializes_admitted_input_bytes(tmp_path, monkeypatch) 
     )
     assert service._resolve_input_paths([target]) == [str(destination)]
     assert destination.read_bytes() == b"input"
-    storage.iter_bytes.assert_called_once_with(target.storage_key)
+    storage.iter_bytes.assert_called_once_with(target.storage_key, chunk_size=64 * 1024)
 
 
 def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from app.platform.document_admission.musicxml import read_musicxml_file
 
 from app.shared.error_codes import CustomerErrorCode
 
@@ -64,7 +65,7 @@ class VerovioRenderEngine:
             os.makedirs(self.output_folder, exist_ok=True)
             toolkit = verovio.toolkit()
             toolkit.setOptions(self._options())
-            loaded = toolkit.loadFile(os.path.abspath(xml_path))
+            loaded = toolkit.loadData(read_musicxml_file(xml_path).decode("utf-8"))
             if loaded is False:
                 return {
                     "success": False,

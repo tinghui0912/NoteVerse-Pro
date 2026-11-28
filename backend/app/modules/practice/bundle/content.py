@@ -38,7 +38,11 @@ def read_verified_bundle(storage: ObjectStorage, row: PracticeBundleRecord) -> P
         "application/vnd.recordare.musicxml+xml",
     )
     data = PracticeBundleRepresentation(
-        read_admitted_bytes(storage, StoredObjectReadTarget.from_object(row.artifact_object)),
+        read_admitted_bytes(
+            storage,
+            StoredObjectReadTarget.from_object(row.artifact_object),
+            max_bytes=row.artifact_object.byte_size,
+        ),
         "application/json",
     )
     for representation, expected_sha, expected_size, reason in [

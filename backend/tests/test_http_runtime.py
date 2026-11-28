@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.http_runtime import install_http_runtime, normalized_cors_origins
 from app.core.middleware import LoggingMiddleware
+from app.platform.security.body_limit import RequestBodyLimit
 
 
 def test_normalized_cors_origins_strips_trailing_slashes() -> None:
@@ -14,7 +15,7 @@ def test_normalized_cors_origins_strips_trailing_slashes() -> None:
     ]
 
 
-def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatch) -> None:
+def test_install_http_runtime_installs_request_budget_and_logging(monkeypatch) -> None:
     registered_apps: list[HttpApplication] = []
     traced_apps: list[HttpApplication] = []
     monkeypatch.setattr(
@@ -29,7 +30,10 @@ def test_install_http_runtime_adds_only_requested_security_middleware(monkeypatc
 
     install_http_runtime(app, trusted_proxy_cidrs=(), **CUSTOMER_HTTP_ERRORS)
 
-    assert [middleware.cls for middleware in app.user_middleware] == [LoggingMiddleware]
+    assert [middleware.cls for middleware in app.user_middleware] == [
+        RequestBodyLimit,
+        LoggingMiddleware,
+    ]
     assert registered_apps == [app]
     assert traced_apps == [app]
 
@@ -49,9 +53,10 @@ def test_install_http_runtime_preserves_explicit_cors_policy(monkeypatch) -> Non
     )
 
     assert [middleware.cls for middleware in app.user_middleware] == [
+        RequestBodyLimit,
         CORSMiddleware,
         LoggingMiddleware,
     ]
-    cors_options = app.user_middleware[0].kwargs
+    cors_options = next(m.kwargs for m in app.user_middleware if m.cls is CORSMiddleware)
     assert cors_options["allow_origins"] == ["https://app.example"]
     assert cors_options["allow_credentials"] is False

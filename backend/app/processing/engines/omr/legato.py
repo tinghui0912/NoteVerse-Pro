@@ -10,6 +10,12 @@ from pathlib import Path
 import subprocess
 from typing import Callable
 import copy
+from app.platform.document_admission.musicxml import (
+    parse_musicxml_file,
+    MUSICXML_LIMITS,
+    DocumentAdmissionError,
+    AdmissionReason,
+)
 import xml.etree.ElementTree as ET
 
 from app.platform.config.worker_model_engine import WorkerModelEngineSettings
@@ -342,8 +348,11 @@ class LegatoOmrEngine:
         if not page_xml_paths:
             raise ValueError("No MusicXML pages to merge")
 
-        base_tree = ET.parse(page_xml_paths[0])
+        if sum(path.stat().st_size for path in page_xml_paths) > MUSICXML_LIMITS.max_bytes:
+            raise DocumentAdmissionError(AdmissionReason.SIZE_EXCEEDED)
+        base_tree = parse_musicxml_file(page_xml_paths[0])
         base_root = base_tree.getroot()
+        element_count = sum(1 for _ in base_root.iter())
         base_parts = self._collect_musicxml_parts(base_root)
         base_part_ids = list(base_parts.keys())
         if not base_part_ids:
@@ -354,7 +363,10 @@ class LegatoOmrEngine:
         }
 
         for page_index, page_xml_path in enumerate(page_xml_paths[1:], 2):
-            page_root = ET.parse(page_xml_path).getroot()
+            page_root = parse_musicxml_file(page_xml_path).getroot()
+            element_count += sum(1 for _ in page_root.iter())
+            if element_count > MUSICXML_LIMITS.max_elements:
+                raise DocumentAdmissionError(AdmissionReason.ELEMENT_COUNT_EXCEEDED)
             page_parts = self._collect_musicxml_parts(page_root)
             page_part_ids = list(page_parts.keys())
             if page_part_ids != base_part_ids:

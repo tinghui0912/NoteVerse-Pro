@@ -280,6 +280,7 @@ export const ChallengePurposeSchema = {
 export const ControlPlaneErrorCodeSchema = {
     enum: [
         'validation_error',
+        'payload_too_large',
         'token_invalid_expired',
         'invalid_credentials',
         'no_access',

@@ -1,5 +1,6 @@
 {
   "guest_preview_not_found": "This Guest Preview is unavailable.",
+  "payload_too_large": "The request or document is too large.",
   "validation_error": "The submitted information is invalid. Please check and try again.",
   "resource_not_found": "The resource does not exist or has been deleted.",
   "business_rule_violation": "This action cannot be completed in the current state.",

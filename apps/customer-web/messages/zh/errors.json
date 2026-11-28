@@ -1,5 +1,6 @@
 {
   "guest_preview_not_found": "此访客预览不可用。",
+  "payload_too_large": "请求或文档过大，请减小内容后重试。",
   "validation_error": "提交的信息有误，请检查后重试。",
   "resource_not_found": "资源不存在或已被删除。",
   "business_rule_violation": "当前状态下无法完成该操作。",
