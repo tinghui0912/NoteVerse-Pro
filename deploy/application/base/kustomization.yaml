@@ -6,8 +6,6 @@ resources:
   - backend-api-service.yaml
   - control-plane-deployment.yaml
   - control-plane-service.yaml
-  - observability-exporter-deployment.yaml
-  - observability-exporter-service.yaml
   - model-cache-agent-daemonset.yaml
   - backend-worker-deployment.yaml
   - backend-beat-deployment.yaml

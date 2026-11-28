@@ -1,16 +1,16 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: noteverse-observability-exporter
+  name: noteverse-control-plane
   labels:
     app.kubernetes.io/name: noteverse
     app.kubernetes.io/part-of: noteverse
-    app.kubernetes.io/component: observability-exporter
+    app.kubernetes.io/component: control-plane
 spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: noteverse
-      app.kubernetes.io/component: observability-exporter
+      app.kubernetes.io/component: control-plane
   endpoints:
     - port: http
       path: /metrics

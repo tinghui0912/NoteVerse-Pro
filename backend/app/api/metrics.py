@@ -12,10 +12,8 @@ from app.observability.async_operation_metrics import async_operation_metrics_te
 def create_metrics_router(*, include_database_metrics: bool) -> APIRouter:
     """Create the metrics endpoint for one independently scraped runtime.
 
-    Process metrics belong to every HTTP runtime. Durable business and scheduler
-    metrics describe shared PostgreSQL state, so only the dedicated
-    observability-exporter runtime projects them. Re-exporting them from API or
-    practice would duplicate time series and make scheduler alerts ambiguous.
+    Process metrics belong to every HTTP runtime. Control Plane projects durable
+    business and scheduler state from PostgreSQL through its internal scrape.
     """
 
     router = APIRouter(tags=["Metrics"])

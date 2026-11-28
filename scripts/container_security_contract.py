@@ -19,7 +19,6 @@ RUNTIMES = (
     "backend-beat",
     "customer-web",
     "platform-admin",
-    "observability-exporter",
     "migration",
     "model-cache-agent",
 )
@@ -48,11 +47,13 @@ EXTERNAL_SERVICES = {
             "control-plane",
             "backend-worker",
             "backend-beat",
-            "observability-exporter",
             "migration",
         ),
     ),
-    "redis_cidrs": (6379, ("backend-api", "control-plane", "backend-worker", "backend-beat")),
+    "redis_cidrs": (
+        6379,
+        ("backend-api", "control-plane", "backend-worker", "backend-beat"),
+    ),
     "s3_fqdns": (443, ("backend-api", "backend-worker")),
     "mail_fqdns": (443, ("backend-worker",)),
     "model_fqdns": (443, ("model-cache-agent",)),
@@ -130,7 +131,12 @@ def application_network_policies() -> list[dict]:
     )
     for runtime in RUNTIMES:
         ingress = []
-        if runtime in {"backend-api", "control-plane", "customer-web", "platform-admin"}:
+        if runtime in {
+            "backend-api",
+            "control-plane",
+            "customer-web",
+            "platform-admin",
+        }:
             ingress.append(
                 rule(
                     "fromEndpoints",
@@ -138,7 +144,7 @@ def application_network_policies() -> list[dict]:
                     3000 if runtime in {"customer-web", "platform-admin"} else 8000,
                 )
             )
-        if runtime in {"backend-api", "observability-exporter"}:
+        if runtime in {"backend-api", "control-plane"}:
             ingress.append(rule("fromEndpoints", prometheus, 8000))
         egress = [dns_rule()]
         for service, (port, runtimes) in EXTERNAL_SERVICES.items():
@@ -153,11 +159,19 @@ def application_network_policies() -> list[dict]:
                         port,
                     )
                 )
-        if runtime in {"backend-api", "control-plane", "backend-worker", "backend-beat"}:
+        if runtime in {
+            "backend-api",
+            "control-plane",
+            "backend-worker",
+            "backend-beat",
+        }:
             egress.append(rule("toEndpoints", collector, 4317))
         policies.append(
             network_policy(
-                "noteverse-" + runtime, {"matchLabels": {COMPONENT: runtime}}, ingress, egress
+                "noteverse-" + runtime,
+                {"matchLabels": {COMPONENT: runtime}},
+                ingress,
+                egress,
             )
         )
     return policies
@@ -178,7 +192,8 @@ def validate_fqdn(value: str) -> str:
     else:
         raise ValueError("IP literals are not FQDNs")
     if not re.fullmatch(
-        r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?", value
+        r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?",
+        value,
     ):
         raise ValueError("Exact FQDNs require valid labels without wildcard, scheme or path")
     if value.endswith((".local", ".internal", ".localhost")):
@@ -222,7 +237,10 @@ def external_network_policies(configuration: dict) -> list[dict]:
                 else {"toFQDNs": [{"matchName": n} for n in values]}
             )
             egress.append(
-                {**destination, "toPorts": [{"ports": [{"protocol": "TCP", "port": str(port)}]}]}
+                {
+                    **destination,
+                    "toPorts": [{"ports": [{"protocol": "TCP", "port": str(port)}]}],
+                }
             )
             if service.endswith("_fqdns"):
                 egress.append(dns_rule(values))
@@ -297,7 +315,10 @@ def validate_workloads(
                     errors.append(f"{name}: hostPort is forbidden")
                 for mount in container.get("volumeMounts", []):
                     if "hostPath" in volumes.get(mount["name"], {}) and not mount.get("readOnly"):
-                        if name not in {"noteverse-model-cache-agent", "noteverse-model-cache-sim"}:
+                        if name not in {
+                            "noteverse-model-cache-agent",
+                            "noteverse-model-cache-sim",
+                        }:
                             errors.append(
                                 f"{name}: writable host paths are restricted to model preparation"
                             )
@@ -453,9 +474,11 @@ def validate_dockerfiles(root: Path = ROOT) -> list[str]:
             ignore_path = root / ".dockerignore"
         if ignore_path.exists():
             patterns = set(ignore_path.read_text(encoding="utf-8").splitlines())
-            if not {"backend/.env*", "backend/db/secret-templates/*.env", "apps/**/.env*"}.issubset(
-                patterns
-            ):
+            if not {
+                "backend/.env*",
+                "backend/db/secret-templates/*.env",
+                "apps/**/.env*",
+            }.issubset(patterns):
                 errors.append(
                     f"{ignore_path.relative_to(root)}: local credential files must be excluded"
                 )

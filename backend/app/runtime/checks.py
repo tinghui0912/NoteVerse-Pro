@@ -174,7 +174,6 @@ ROLE_CHECK_NAMES: dict[RuntimeRole, tuple[str, ...]] = {
         "storage_quota_policy",
         "redis",
     ),
-    RuntimeRole.OBSERVABILITY_EXPORTER: ("settings", "database"),
     RuntimeRole.WORKER: (
         "settings",
         "worker_settings",
@@ -200,7 +199,6 @@ ROLE_CHECK_NAMES[RuntimeRole.ALL] = tuple(
             for role in (
                 RuntimeRole.API,
                 RuntimeRole.CONTROL_PLANE,
-                RuntimeRole.OBSERVABILITY_EXPORTER,
                 RuntimeRole.WORKER,
                 RuntimeRole.BEAT,
             )

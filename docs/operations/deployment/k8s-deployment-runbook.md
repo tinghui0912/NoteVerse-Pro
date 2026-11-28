@@ -177,7 +177,7 @@ Create required external resources before applying manifests:
 - Redis instance;
 - object storage bucket;
 - registry pull Secret for private GHCR images;
-- six runtime Secrets from the Settings ownership contract;
+- five runtime database Secrets from the Settings ownership contract;
 - Envoy Gateway exposed through `Service/type=LoadBalancer`;
 - cert-manager issuer or an external certificate automation path;
 - model-capable node labels and node-local model cache;

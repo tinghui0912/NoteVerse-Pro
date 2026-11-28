@@ -44,9 +44,6 @@ configMapGenerator:
   - name: noteverse-model-assets-config
     envs:
       - model-assets-config.env
-  - name: noteverse-observability-config
-    envs:
-      - observability-config.env
   - name: noteverse-worker-config
     envs:
       - worker-config.env

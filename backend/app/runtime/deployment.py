@@ -6,7 +6,6 @@ from app.runtime.customer_api.settings import CustomerApiSettings
 from app.runtime.control_plane.settings import ControlPlaneSettings
 from app.runtime.worker.settings import WorkerSettings
 from app.runtime.beat.settings import BeatSettings
-from app.runtime.observability.settings import ObservabilitySettings
 from app.runtime.migrations.settings import MigrationSettings
 from app.runtime.cli.settings import AssetCommandSettings
 from app.runtime.paddle_ocr.settings import PaddleOcrSettings
@@ -96,16 +95,6 @@ DEPLOYMENTS = {
         "beat-config.env",
         "noteverse-backend-beat",
         "beat",
-    ),
-    "observability": DeploymentContract(
-        ObservabilitySettings,
-        "nv_observability",
-        "noteverse-observability-secret",
-        ("DATABASE_URL",),
-        "noteverse-observability-config",
-        "observability-config.env",
-        "noteverse-observability-exporter",
-        "observability-exporter",
     ),
     "model_assets": DeploymentContract(
         AssetCommandSettings,

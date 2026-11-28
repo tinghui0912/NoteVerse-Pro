@@ -174,9 +174,6 @@ def materialize_base_images(base: Path, images: dict[str, str]) -> None:
         "control-plane-deployment.yaml": {
             "noteverse-backend-api:replace-me": images["backend_api"]
         },
-        "observability-exporter-deployment.yaml": {
-            "noteverse-backend-api:replace-me": images["backend_api"]
-        },
         "migration-job.yaml": {"noteverse-backend-api:replace-me": images["backend_api"]},
         "backend-beat-deployment.yaml": {
             "noteverse-backend-beat:replace-me": images["backend_beat"]

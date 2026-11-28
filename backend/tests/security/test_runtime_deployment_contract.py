@@ -49,7 +49,6 @@ def test_snapshot_matches_actual_settings_schemas():
         "nv_control_plane",
         "nv_worker",
         "nv_beat",
-        "nv_observability",
     }
     names = [c.secret_name for c in DEPLOYMENTS.values() if c.secret_name]
     assert len(names) == len(set(names))

@@ -46,7 +46,7 @@ Nested `include-group` entries compose responsibilities without copying roots.
 | `quality` | API, Beat, render, quality tools; no heavy Worker stack |
 | `dev` | Default developer environment; includes Quality |
 
-The API artifact ships customer API, control-plane API, observability exporter
+The API artifact ships customer API, control-plane API
 and migration entrypoints. Beat publishes named tasks and owns PostgreSQL
 advisory locking; it must not import Worker execution or acquire OCR/render/ML
 packages. Worker owns rendering and heavy OCR/ML execution.

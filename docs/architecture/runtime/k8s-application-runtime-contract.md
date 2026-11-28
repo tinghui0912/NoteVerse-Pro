@@ -197,7 +197,6 @@ ownership and are not process environment inputs.
 | Control Plane | `noteverse-control-plane-config` |
 | Worker | `noteverse-worker-config` |
 | Beat | `noteverse-beat-config` |
-| Exporter | `noteverse-observability-config` |
 | Model preparation | `noteverse-model-assets-config` |
 | Migrator | none |
 

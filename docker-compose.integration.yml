@@ -199,7 +199,6 @@ services:
       NV_CONTROL_PLANE_PASSWORD: ${NV_CONTROL_PLANE_PASSWORD:?Runtime database password is required}
       NV_WORKER_PASSWORD: ${NV_WORKER_PASSWORD:?Runtime database password is required}
       NV_BEAT_PASSWORD: ${NV_BEAT_PASSWORD:?Runtime database password is required}
-      NV_OBSERVABILITY_PASSWORD: ${NV_OBSERVABILITY_PASSWORD:?Runtime database password is required}
 volumes:
   integration_customer_web_node_modules: null
   integration_work: null

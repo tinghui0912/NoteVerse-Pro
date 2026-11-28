@@ -27,11 +27,6 @@ case "${1:-api}" in
     fi
     exec python -m uvicorn "${uvicorn_args[@]}"
     ;;
-  observability-exporter)
-    python scripts/check_runtime.py --role observability-exporter
-    uvicorn_args=(app.runtime.observability.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log --no-proxy-headers)
-    exec python -m uvicorn "${uvicorn_args[@]}"
-    ;;
   worker)
     python scripts/check_runtime.py --role worker
     exec python -m celery -A app.runtime.worker.main:celery_app worker \

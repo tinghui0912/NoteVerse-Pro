@@ -33,7 +33,8 @@ FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "local-dev-endpoint",
         re.compile(
-            r"\b(localhost|127\.0\.0\.1|192\.168\.|host\.docker\.internal)\b", re.IGNORECASE
+            r"\b(localhost|127\.0\.0\.1|192\.168\.|host\.docker\.internal)\b",
+            re.IGNORECASE,
         ),
     ),
     (
@@ -194,7 +195,8 @@ def validate_fluent_bit_values(target: Path) -> list[Finding]:
         )
 
     labels_line = next(
-        (line.strip() for line in text.splitlines() if line.strip().startswith("Labels ")), ""
+        (line.strip() for line in text.splitlines() if line.strip().startswith("Labels ")),
+        "",
     )
     if labels_line and "=" in labels_line:
         allowed_label_names = {"job", "namespace", "container"}
@@ -236,13 +238,13 @@ def main() -> int:
     findings.extend(validate_fluent_bit_values(args.target))
     findings.extend(validate_environment_object_storage(args.target))
     for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):
-        path = REPO_ROOT / base / "observability-exporter-deployment.yaml"
+        path = REPO_ROOT / base / "control-plane-deployment.yaml"
         for problem in validate_workloads(list(yaml.safe_load_all(path.read_text()))):
-            findings.append(add_file_finding(path, "exporter-container-security", problem))
+            findings.append(add_file_finding(path, "control-plane-container-security", problem))
         for problem in validate_rendered(
             path.read_text(), require_workloads=False, require_configuration=False
         ):
-            findings.append(add_file_finding(path, "exporter-settings-ownership", problem))
+            findings.append(add_file_finding(path, "control-plane-settings-ownership", problem))
 
     if findings:
         print_findings(findings)

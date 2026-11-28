@@ -77,7 +77,7 @@ Strict mode must fail when any deployment placeholder remains:
 
 ## 2. Secrets
 
-Verify the six runtime Secret names and exact key sets against
+Verify the five runtime database Secret names and exact key sets against
 [Settings Ownership](../../architecture/runtime/settings-ownership.md).
 Every workload references only its own keys; no Secret uses `envFrom` or an
 unvalidated volume bundle. Worker and Beat scheduler-lock URLs use their own
@@ -181,7 +181,7 @@ Verify:
 - Fluent Bit ships container stdout/stderr to Loki;
 - Loki labels stay low-cardinality;
 - Prometheus scrapes customer API process/HTTP metrics and the internal
-  `noteverse-observability-exporter` Service for durable scheduler and
+  `noteverse-control-plane` Service for durable scheduler and
   asynchronous-operation metrics;
 - Grafana has Prometheus, Loki, and Tempo datasources;
 - no backend pod depends on local log files;

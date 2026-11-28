@@ -1,441 +1,391 @@
 -- Application PostgreSQL grants. Apply after migrations as nv_migrator.
 -- No runtime owns schema objects or receives default privileges.
-REVOKE CREATE ON SCHEMA public FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE CREATE ON SCHEMA __APP_SCHEMA__ FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT USAGE ON SCHEMA __APP_SCHEMA__ TO nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+REVOKE CREATE ON SCHEMA __APP_SCHEMA__ FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+GRANT USAGE ON SCHEMA __APP_SCHEMA__ TO nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+-- Reset column ACLs from catalog facts; business columns need no grant checklist.
+DO $column_privileges$
+DECLARE target record;
+BEGIN
+  FOR target IN
+    SELECT format('%I.%I', n.nspname, c.relname) AS relation,
+           string_agg(format('%I', a.attname), ', ' ORDER BY a.attnum) AS columns
+      FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+      JOIN pg_catalog.pg_attribute a ON a.attrelid=c.oid
+     WHERE n.nspname=__APP_SCHEMA_LITERAL__ AND c.relkind IN ('r','p')
+       AND a.attnum>0 AND NOT a.attisdropped
+     GROUP BY n.nspname,c.relname
+  LOOP
+    EXECUTE format('REVOKE SELECT (%1$s), INSERT (%1$s), UPDATE (%1$s), REFERENCES (%1$s) ON TABLE %2$s FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat', target.columns, target.relation);
+  END LOOP;
+END
+$column_privileges$;
+
 -- TABLE execution_manifests
-REVOKE ALL ON TABLE __APP_SCHEMA__.execution_manifests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, sha256, manifest, created_at), INSERT (id, sha256, manifest, created_at), UPDATE (id, sha256, manifest, created_at), REFERENCES (id, sha256, manifest, created_at) ON TABLE __APP_SCHEMA__.execution_manifests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.execution_manifests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.execution_manifests TO nv_customer_api;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.execution_manifests TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.execution_manifests_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.execution_manifests_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.execution_manifests_id_seq TO nv_customer_api, nv_worker;
 -- TABLE mail_outbox
-REVOKE ALL ON TABLE __APP_SCHEMA__.mail_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, outbox_uuid, source_kind, source_id, category, dedupe_key, originating_request_id, traceparent, tracestate, recipient, subject, text_body, html_body, status, attempt_token, attempt_count, next_attempt_at, expires_at, dispatched_at, started_at, completed_at, provider_message_id, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), INSERT (id, outbox_uuid, source_kind, source_id, category, dedupe_key, originating_request_id, traceparent, tracestate, recipient, subject, text_body, html_body, status, attempt_token, attempt_count, next_attempt_at, expires_at, dispatched_at, started_at, completed_at, provider_message_id, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), UPDATE (id, outbox_uuid, source_kind, source_id, category, dedupe_key, originating_request_id, traceparent, tracestate, recipient, subject, text_body, html_body, status, attempt_token, attempt_count, next_attempt_at, expires_at, dispatched_at, started_at, completed_at, provider_message_id, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), REFERENCES (id, outbox_uuid, source_kind, source_id, category, dedupe_key, originating_request_id, traceparent, tracestate, recipient, subject, text_body, html_body, status, attempt_token, attempt_count, next_attempt_at, expires_at, dispatched_at, started_at, completed_at, provider_message_id, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at) ON TABLE __APP_SCHEMA__.mail_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.mail_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.mail_outbox TO nv_customer_api;
 GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.mail_outbox TO nv_worker;
 GRANT SELECT (id, outbox_uuid, source_kind, source_id, category, originating_request_id, traceparent, tracestate, status, attempt_token, attempt_count, next_attempt_at, expires_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), UPDATE (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) ON TABLE __APP_SCHEMA__.mail_outbox TO nv_control_plane;
-GRANT SELECT (attempt_count, category, completed_at, created_at, expires_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, originating_request_id, outbox_uuid, started_at, status, updated_at) ON TABLE __APP_SCHEMA__.mail_outbox TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.mail_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.mail_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.mail_outbox_id_seq TO nv_customer_api;
 -- TABLE object_write_intents
-REVOKE ALL ON TABLE __APP_SCHEMA__.object_write_intents FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, intent_uuid, object_key, byte_size, sha256, content_type, status, write_token, write_expires_at, written_at, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, created_at, updated_at), INSERT (id, intent_uuid, object_key, byte_size, sha256, content_type, status, write_token, write_expires_at, written_at, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, created_at, updated_at), UPDATE (id, intent_uuid, object_key, byte_size, sha256, content_type, status, write_token, write_expires_at, written_at, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, created_at, updated_at), REFERENCES (id, intent_uuid, object_key, byte_size, sha256, content_type, status, write_token, write_expires_at, written_at, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, created_at, updated_at) ON TABLE __APP_SCHEMA__.object_write_intents FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.object_write_intents FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.object_write_intents TO nv_customer_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.object_write_intents TO nv_worker;
-GRANT SELECT (created_at, status) ON TABLE __APP_SCHEMA__.object_write_intents TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.object_write_intents_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT ON TABLE __APP_SCHEMA__.object_write_intents TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.object_write_intents_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.object_write_intents_id_seq TO nv_customer_api, nv_worker;
 -- TABLE pending_registrations
-REVOKE ALL ON TABLE __APP_SCHEMA__.pending_registrations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, email, display_name, password_hash, token_hash, resend_count, attempt_count, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), INSERT (id, email, display_name, password_hash, token_hash, resend_count, attempt_count, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), UPDATE (id, email, display_name, password_hash, token_hash, resend_count, attempt_count, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), REFERENCES (id, email, display_name, password_hash, token_hash, resend_count, attempt_count, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at) ON TABLE __APP_SCHEMA__.pending_registrations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.pending_registrations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.pending_registrations TO nv_customer_api;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.pending_registrations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.pending_registrations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.pending_registrations_id_seq TO nv_customer_api;
 -- TABLE scheduler_heartbeats
-REVOKE ALL ON TABLE __APP_SCHEMA__.scheduler_heartbeats FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, job_key, last_started_at, last_success_at, last_failure_at, last_duration_ms, last_due_count, last_dispatched_count, total_duration_ms, total_due_count, total_dispatched_count, lock_acquired_count, lock_skipped_count, last_lock_skipped_at, success_count, failure_count, last_error, created_at, updated_at), INSERT (id, job_key, last_started_at, last_success_at, last_failure_at, last_duration_ms, last_due_count, last_dispatched_count, total_duration_ms, total_due_count, total_dispatched_count, lock_acquired_count, lock_skipped_count, last_lock_skipped_at, success_count, failure_count, last_error, created_at, updated_at), UPDATE (id, job_key, last_started_at, last_success_at, last_failure_at, last_duration_ms, last_due_count, last_dispatched_count, total_duration_ms, total_due_count, total_dispatched_count, lock_acquired_count, lock_skipped_count, last_lock_skipped_at, success_count, failure_count, last_error, created_at, updated_at), REFERENCES (id, job_key, last_started_at, last_success_at, last_failure_at, last_duration_ms, last_due_count, last_dispatched_count, total_duration_ms, total_due_count, total_dispatched_count, lock_acquired_count, lock_skipped_count, last_lock_skipped_at, success_count, failure_count, last_error, created_at, updated_at) ON TABLE __APP_SCHEMA__.scheduler_heartbeats FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.scheduler_heartbeats FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.scheduler_heartbeats TO nv_worker;
-GRANT SELECT (id, job_key, last_started_at, last_success_at, last_failure_at, last_duration_ms, last_due_count, last_dispatched_count, total_duration_ms, total_due_count, total_dispatched_count, lock_acquired_count, lock_skipped_count, last_lock_skipped_at, success_count, failure_count, last_error, created_at, updated_at) ON TABLE __APP_SCHEMA__.scheduler_heartbeats TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.scheduler_heartbeats_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT ON TABLE __APP_SCHEMA__.scheduler_heartbeats TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.scheduler_heartbeats_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.scheduler_heartbeats_id_seq TO nv_worker;
 -- TABLE scheduler_leader_statuses
-REVOKE ALL ON TABLE __APP_SCHEMA__.scheduler_leader_statuses FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (scheduler_name, last_acquired_at, last_heartbeat_at, last_standby_at, last_child_exit_at, acquired_count, standby_count, child_exit_count, last_error, created_at, updated_at), INSERT (scheduler_name, last_acquired_at, last_heartbeat_at, last_standby_at, last_child_exit_at, acquired_count, standby_count, child_exit_count, last_error, created_at, updated_at), UPDATE (scheduler_name, last_acquired_at, last_heartbeat_at, last_standby_at, last_child_exit_at, acquired_count, standby_count, child_exit_count, last_error, created_at, updated_at), REFERENCES (scheduler_name, last_acquired_at, last_heartbeat_at, last_standby_at, last_child_exit_at, acquired_count, standby_count, child_exit_count, last_error, created_at, updated_at) ON TABLE __APP_SCHEMA__.scheduler_leader_statuses FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.scheduler_leader_statuses FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.scheduler_leader_statuses TO nv_beat;
-GRANT SELECT (scheduler_name, last_acquired_at, last_heartbeat_at, last_standby_at, last_child_exit_at, acquired_count, standby_count, child_exit_count, last_error, created_at, updated_at) ON TABLE __APP_SCHEMA__.scheduler_leader_statuses TO nv_observability;
+GRANT SELECT ON TABLE __APP_SCHEMA__.scheduler_leader_statuses TO nv_control_plane;
 -- TABLE storage_plan_policies
-REVOKE ALL ON TABLE __APP_SCHEMA__.storage_plan_policies FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (plan_code, default_limit_bytes, created_at, updated_at), INSERT (plan_code, default_limit_bytes, created_at, updated_at), UPDATE (plan_code, default_limit_bytes, created_at, updated_at), REFERENCES (plan_code, default_limit_bytes, created_at, updated_at) ON TABLE __APP_SCHEMA__.storage_plan_policies FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.storage_plan_policies FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT ON TABLE __APP_SCHEMA__.storage_plan_policies TO nv_customer_api;
 GRANT SELECT ON TABLE __APP_SCHEMA__.storage_plan_policies TO nv_worker;
 GRANT SELECT ON TABLE __APP_SCHEMA__.storage_plan_policies TO nv_control_plane;
 -- TABLE stored_objects
-REVOKE ALL ON TABLE __APP_SCHEMA__.stored_objects FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, object_key, byte_size, sha256, provider_etag, transport_checksum_algorithm, transport_checksum, content_type, created_at), INSERT (id, object_key, byte_size, sha256, provider_etag, transport_checksum_algorithm, transport_checksum, content_type, created_at), UPDATE (id, object_key, byte_size, sha256, provider_etag, transport_checksum_algorithm, transport_checksum, content_type, created_at), REFERENCES (id, object_key, byte_size, sha256, provider_etag, transport_checksum_algorithm, transport_checksum, content_type, created_at) ON TABLE __APP_SCHEMA__.stored_objects FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT, UPDATE (sha256) ON TABLE __APP_SCHEMA__.stored_objects TO nv_customer_api;
-GRANT SELECT, INSERT, DELETE, UPDATE (sha256) ON TABLE __APP_SCHEMA__.stored_objects TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.stored_objects_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.stored_objects FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.stored_objects TO nv_customer_api;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.stored_objects TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.stored_objects_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.stored_objects_id_seq TO nv_customer_api, nv_worker;
 -- TABLE practice_bundles
-REVOKE ALL ON TABLE __APP_SCHEMA__.practice_bundles FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, bundle_id, artifact_id, artifact_schema_version, prepared_musicxml_object_id, artifact_object_id, status, creation_expires_at, created_at), INSERT (id, bundle_id, artifact_id, artifact_schema_version, prepared_musicxml_object_id, artifact_object_id, status, creation_expires_at, created_at), UPDATE (id, bundle_id, artifact_id, artifact_schema_version, prepared_musicxml_object_id, artifact_object_id, status, creation_expires_at, created_at), REFERENCES (id, bundle_id, artifact_id, artifact_schema_version, prepared_musicxml_object_id, artifact_object_id, status, creation_expires_at, created_at) ON TABLE __APP_SCHEMA__.practice_bundles FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.practice_bundles FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.practice_bundles TO nv_customer_api;
-GRANT SELECT, DELETE, UPDATE (creation_expires_at) ON TABLE __APP_SCHEMA__.practice_bundles TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.practice_bundles_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.practice_bundles TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.practice_bundles_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.practice_bundles_id_seq TO nv_customer_api;
 -- TABLE stored_object_retirements
-REVOKE ALL ON TABLE __APP_SCHEMA__.stored_object_retirements FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, retirement_uuid, stored_object_id, object_key, byte_size, sha256, provider_etag, transport_checksum_algorithm, transport_checksum, content_type, status, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, deletion_fenced_at, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, created_at, updated_at), INSERT (id, retirement_uuid, stored_object_id, object_key, byte_size, sha256, provider_etag, transport_checksum_algorithm, transport_checksum, content_type, status, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, deletion_fenced_at, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, created_at, updated_at), UPDATE (id, retirement_uuid, stored_object_id, object_key, byte_size, sha256, provider_etag, transport_checksum_algorithm, transport_checksum, content_type, status, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, deletion_fenced_at, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, created_at, updated_at), REFERENCES (id, retirement_uuid, stored_object_id, object_key, byte_size, sha256, provider_etag, transport_checksum_algorithm, transport_checksum, content_type, status, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, deletion_fenced_at, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, created_at, updated_at) ON TABLE __APP_SCHEMA__.stored_object_retirements FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.stored_object_retirements FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.stored_object_retirements TO nv_customer_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.stored_object_retirements TO nv_worker;
-GRANT SELECT, UPDATE (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) ON TABLE __APP_SCHEMA__.stored_object_retirements TO nv_control_plane;
-GRANT SELECT (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, retirement_uuid, started_at, status, updated_at) ON TABLE __APP_SCHEMA__.stored_object_retirements TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.stored_object_retirements_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.stored_object_retirements TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.stored_object_retirements_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.stored_object_retirements_id_seq TO nv_customer_api, nv_worker;
 -- TABLE users
-REVOKE ALL ON TABLE __APP_SCHEMA__.users FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, display_name, email, password_hash, is_active, deleted_at, email_verified_at, last_login, password_changed_at, avatar_object_id, created_at, updated_at), INSERT (id, display_name, email, password_hash, is_active, deleted_at, email_verified_at, last_login, password_changed_at, avatar_object_id, created_at, updated_at), UPDATE (id, display_name, email, password_hash, is_active, deleted_at, email_verified_at, last_login, password_changed_at, avatar_object_id, created_at, updated_at), REFERENCES (id, display_name, email, password_hash, is_active, deleted_at, email_verified_at, last_login, password_changed_at, avatar_object_id, created_at, updated_at) ON TABLE __APP_SCHEMA__.users FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.users FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.users TO nv_customer_api;
 GRANT SELECT (id, display_name, email, is_active, deleted_at, avatar_object_id, created_at, updated_at), UPDATE (avatar_object_id, updated_at) ON TABLE __APP_SCHEMA__.users TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.users_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.users_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.users_id_seq TO nv_customer_api;
 -- TABLE account_deletion_operations
-REVOKE ALL ON TABLE __APP_SCHEMA__.account_deletion_operations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, operation_uuid, user_id, user_id_snapshot, status, phase, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, created_at, updated_at), INSERT (id, operation_uuid, user_id, user_id_snapshot, status, phase, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, created_at, updated_at), UPDATE (id, operation_uuid, user_id, user_id_snapshot, status, phase, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, created_at, updated_at), REFERENCES (id, operation_uuid, user_id, user_id_snapshot, status, phase, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, created_at, updated_at) ON TABLE __APP_SCHEMA__.account_deletion_operations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.account_deletion_operations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.account_deletion_operations TO nv_customer_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.account_deletion_operations TO nv_worker;
-GRANT SELECT, UPDATE (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) ON TABLE __APP_SCHEMA__.account_deletion_operations TO nv_control_plane;
-GRANT SELECT (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, operation_uuid, phase, started_at, status, updated_at) ON TABLE __APP_SCHEMA__.account_deletion_operations TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.account_deletion_operations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.account_deletion_operations TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.account_deletion_operations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.account_deletion_operations_id_seq TO nv_customer_api, nv_worker;
 -- TABLE auth_tokens
-REVOKE ALL ON TABLE __APP_SCHEMA__.auth_tokens FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, user_id, purpose, token_hash, user_agent, ip_address, expires_at, used_at, created_at), INSERT (id, user_id, purpose, token_hash, user_agent, ip_address, expires_at, used_at, created_at), UPDATE (id, user_id, purpose, token_hash, user_agent, ip_address, expires_at, used_at, created_at), REFERENCES (id, user_id, purpose, token_hash, user_agent, ip_address, expires_at, used_at, created_at) ON TABLE __APP_SCHEMA__.auth_tokens FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.auth_tokens FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.auth_tokens TO nv_customer_api;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.auth_tokens_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.auth_tokens_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.auth_tokens_id_seq TO nv_customer_api;
 -- TABLE email_change_requests
-REVOKE ALL ON TABLE __APP_SCHEMA__.email_change_requests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, user_id, new_email, token_hash, locale, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), INSERT (id, user_id, new_email, token_hash, locale, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), UPDATE (id, user_id, new_email, token_hash, locale, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at), REFERENCES (id, user_id, new_email, token_hash, locale, user_agent, ip_address, expires_at, consumed_at, created_at, updated_at) ON TABLE __APP_SCHEMA__.email_change_requests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.email_change_requests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.email_change_requests TO nv_customer_api;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.email_change_requests_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.email_change_requests_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.email_change_requests_id_seq TO nv_customer_api;
 -- TABLE import_jobs
-REVOKE ALL ON TABLE __APP_SCHEMA__.import_jobs FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, job_uuid, user_id, state, progress, current_step, idempotency_key, submission_fingerprint, requested_options, execution_manifest_id, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, processing_started_at, processing_last_heartbeat_at, processing_finished_at, confirmed_at, created_at, updated_at), INSERT (id, job_uuid, user_id, state, progress, current_step, idempotency_key, submission_fingerprint, requested_options, execution_manifest_id, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, processing_started_at, processing_last_heartbeat_at, processing_finished_at, confirmed_at, created_at, updated_at), UPDATE (id, job_uuid, user_id, state, progress, current_step, idempotency_key, submission_fingerprint, requested_options, execution_manifest_id, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, processing_started_at, processing_last_heartbeat_at, processing_finished_at, confirmed_at, created_at, updated_at), REFERENCES (id, job_uuid, user_id, state, progress, current_step, idempotency_key, submission_fingerprint, requested_options, execution_manifest_id, failure_code, failure_stage, failure_classification, failure_retryable, failure_detail, processing_started_at, processing_last_heartbeat_at, processing_finished_at, confirmed_at, created_at, updated_at) ON TABLE __APP_SCHEMA__.import_jobs FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.import_jobs FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.import_jobs TO nv_customer_api;
 GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.import_jobs TO nv_worker;
-GRANT SELECT, UPDATE (state, progress, current_step, processing_started_at, processing_last_heartbeat_at, processing_finished_at, confirmed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) ON TABLE __APP_SCHEMA__.import_jobs TO nv_control_plane;
-GRANT SELECT (failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, id, job_uuid, processing_finished_at, processing_started_at, state, updated_at) ON TABLE __APP_SCHEMA__.import_jobs TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_jobs_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.import_jobs TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_jobs_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.import_jobs_id_seq TO nv_customer_api;
 -- TABLE notifications
-REVOKE ALL ON TABLE __APP_SCHEMA__.notifications FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, notification_uuid, recipient_user_id, actor_user_id, kind, dedupe_key, invite_id, score_id, revision_id, import_job_id, score_display_title_snapshot, import_display_title_snapshot, read_at, created_at), INSERT (id, notification_uuid, recipient_user_id, actor_user_id, kind, dedupe_key, invite_id, score_id, revision_id, import_job_id, score_display_title_snapshot, import_display_title_snapshot, read_at, created_at), UPDATE (id, notification_uuid, recipient_user_id, actor_user_id, kind, dedupe_key, invite_id, score_id, revision_id, import_job_id, score_display_title_snapshot, import_display_title_snapshot, read_at, created_at), REFERENCES (id, notification_uuid, recipient_user_id, actor_user_id, kind, dedupe_key, invite_id, score_id, revision_id, import_job_id, score_display_title_snapshot, import_display_title_snapshot, read_at, created_at) ON TABLE __APP_SCHEMA__.notifications FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.notifications FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.notifications TO nv_customer_api;
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.notifications TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.notifications_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.notifications_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.notifications_id_seq TO nv_customer_api, nv_worker;
 -- TABLE performance_take_manifests
-REVOKE ALL ON TABLE __APP_SCHEMA__.performance_take_manifests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, user_id, take_uuid, manifest_json, manifest_sha256, created_at), INSERT (id, user_id, take_uuid, manifest_json, manifest_sha256, created_at), UPDATE (id, user_id, take_uuid, manifest_json, manifest_sha256, created_at), REFERENCES (id, user_id, take_uuid, manifest_json, manifest_sha256, created_at) ON TABLE __APP_SCHEMA__.performance_take_manifests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.performance_take_manifests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.performance_take_manifests TO nv_customer_api;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.performance_take_manifests TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.performance_take_manifests_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.performance_take_manifests_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.performance_take_manifests_id_seq TO nv_customer_api;
 -- TABLE realtime_changes
-REVOKE ALL ON TABLE __APP_SCHEMA__.realtime_changes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, sequence, change_uuid, recipient_user_id, kind, notification_id, score_id, revision_id, import_job_id, created_at), INSERT (id, sequence, change_uuid, recipient_user_id, kind, notification_id, score_id, revision_id, import_job_id, created_at), UPDATE (id, sequence, change_uuid, recipient_user_id, kind, notification_id, score_id, revision_id, import_job_id, created_at), REFERENCES (id, sequence, change_uuid, recipient_user_id, kind, notification_id, score_id, revision_id, import_job_id, created_at) ON TABLE __APP_SCHEMA__.realtime_changes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.realtime_changes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.realtime_changes TO nv_customer_api;
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.realtime_changes TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.realtime_changes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.realtime_changes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.realtime_changes_id_seq TO nv_customer_api, nv_worker;
 -- TABLE realtime_stream_state
-REVOKE ALL ON TABLE __APP_SCHEMA__.realtime_stream_state FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (recipient_user_id, high_watermark_sequence, replay_floor_sequence, updated_at), INSERT (recipient_user_id, high_watermark_sequence, replay_floor_sequence, updated_at), UPDATE (recipient_user_id, high_watermark_sequence, replay_floor_sequence, updated_at), REFERENCES (recipient_user_id, high_watermark_sequence, replay_floor_sequence, updated_at) ON TABLE __APP_SCHEMA__.realtime_stream_state FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.realtime_stream_state FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.realtime_stream_state TO nv_customer_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.realtime_stream_state TO nv_worker;
 -- TABLE user_sessions
-REVOKE ALL ON TABLE __APP_SCHEMA__.user_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id,user_id,token_hash,created_at,last_seen_at,idle_expires_at,absolute_expires_at,revoked_at,revoked_reason,ip_address,user_agent), INSERT (id,user_id,token_hash,created_at,last_seen_at,idle_expires_at,absolute_expires_at,revoked_at,revoked_reason,ip_address,user_agent), UPDATE (id,user_id,token_hash,created_at,last_seen_at,idle_expires_at,absolute_expires_at,revoked_at,revoked_reason,ip_address,user_agent), REFERENCES (id,user_id,token_hash,created_at,last_seen_at,idle_expires_at,absolute_expires_at,revoked_at,revoked_reason,ip_address,user_agent) ON TABLE __APP_SCHEMA__.user_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.user_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.user_sessions TO nv_customer_api;
 -- TABLE score_library_folders
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_library_folders FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, folder_uuid, user_id, name, position, created_at, updated_at), INSERT (id, folder_uuid, user_id, name, position, created_at, updated_at), UPDATE (id, folder_uuid, user_id, name, position, created_at, updated_at), REFERENCES (id, folder_uuid, user_id, name, position, created_at, updated_at) ON TABLE __APP_SCHEMA__.score_library_folders FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_library_folders FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.score_library_folders TO nv_customer_api;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.score_library_folders TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_library_folders_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_library_folders_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_library_folders_id_seq TO nv_customer_api;
 -- TABLE storage_quota_holds
-REVOKE ALL ON TABLE __APP_SCHEMA__.storage_quota_holds FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, hold_uuid, user_id, command_key, category, bytes_held, status, expires_at, created_at, updated_at, consumed_at, released_at, expired_at), INSERT (id, hold_uuid, user_id, command_key, category, bytes_held, status, expires_at, created_at, updated_at, consumed_at, released_at, expired_at), UPDATE (id, hold_uuid, user_id, command_key, category, bytes_held, status, expires_at, created_at, updated_at, consumed_at, released_at, expired_at), REFERENCES (id, hold_uuid, user_id, command_key, category, bytes_held, status, expires_at, created_at, updated_at, consumed_at, released_at, expired_at) ON TABLE __APP_SCHEMA__.storage_quota_holds FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.storage_quota_holds FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.storage_quota_holds TO nv_customer_api;
 GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.storage_quota_holds TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.storage_quota_holds_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.storage_quota_holds_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.storage_quota_holds_id_seq TO nv_customer_api;
 -- TABLE storage_usage_accounts
-REVOKE ALL ON TABLE __APP_SCHEMA__.storage_usage_accounts FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (user_id, used_bytes, created_at, updated_at), INSERT (user_id, used_bytes, created_at, updated_at), UPDATE (user_id, used_bytes, created_at, updated_at), REFERENCES (user_id, used_bytes, created_at, updated_at) ON TABLE __APP_SCHEMA__.storage_usage_accounts FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.storage_usage_accounts FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.storage_usage_accounts TO nv_customer_api;
 GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.storage_usage_accounts TO nv_worker;
 -- TABLE storage_usage_counters
-REVOKE ALL ON TABLE __APP_SCHEMA__.storage_usage_counters FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, user_id, category, used_bytes, updated_at), INSERT (id, user_id, category, used_bytes, updated_at), UPDATE (id, user_id, category, used_bytes, updated_at), REFERENCES (id, user_id, category, used_bytes, updated_at) ON TABLE __APP_SCHEMA__.storage_usage_counters FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.storage_usage_counters FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.storage_usage_counters TO nv_customer_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.storage_usage_counters TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.storage_usage_counters_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.storage_usage_counters_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.storage_usage_counters_id_seq TO nv_customer_api, nv_worker;
 -- TABLE storage_usage_events
-REVOKE ALL ON TABLE __APP_SCHEMA__.storage_usage_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, user_id, category, delta_bytes, counts_toward_quota_snapshot, reason, object_type, object_id, storage_key, created_at), INSERT (id, user_id, category, delta_bytes, counts_toward_quota_snapshot, reason, object_type, object_id, storage_key, created_at), UPDATE (id, user_id, category, delta_bytes, counts_toward_quota_snapshot, reason, object_type, object_id, storage_key, created_at), REFERENCES (id, user_id, category, delta_bytes, counts_toward_quota_snapshot, reason, object_type, object_id, storage_key, created_at) ON TABLE __APP_SCHEMA__.storage_usage_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.storage_usage_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.storage_usage_events TO nv_customer_api;
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.storage_usage_events TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.storage_usage_events_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.storage_usage_events_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.storage_usage_events_id_seq TO nv_customer_api, nv_worker;
 -- TABLE upload_sessions
-REVOKE ALL ON TABLE __APP_SCHEMA__.upload_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, session_uuid, user_id, purpose, mode, status, generation, object_key, final_object_key, expected_byte_size, expected_content_type, part_bytes, provider_upload_id, provider_etag, transport_checksum_algorithm, transport_checksum, sha256, write_intent_uuid, operation_token, operation_kind, operation_unknown, failure_code, expires_at, capability_expires_at, completed_at, consumed_at, cleanup_completed_at, created_at, updated_at), INSERT (id, session_uuid, user_id, purpose, mode, status, generation, object_key, final_object_key, expected_byte_size, expected_content_type, part_bytes, provider_upload_id, provider_etag, transport_checksum_algorithm, transport_checksum, sha256, write_intent_uuid, operation_token, operation_kind, operation_unknown, failure_code, expires_at, capability_expires_at, completed_at, consumed_at, cleanup_completed_at, created_at, updated_at), UPDATE (id, session_uuid, user_id, purpose, mode, status, generation, object_key, final_object_key, expected_byte_size, expected_content_type, part_bytes, provider_upload_id, provider_etag, transport_checksum_algorithm, transport_checksum, sha256, write_intent_uuid, operation_token, operation_kind, operation_unknown, failure_code, expires_at, capability_expires_at, completed_at, consumed_at, cleanup_completed_at, created_at, updated_at), REFERENCES (id, session_uuid, user_id, purpose, mode, status, generation, object_key, final_object_key, expected_byte_size, expected_content_type, part_bytes, provider_upload_id, provider_etag, transport_checksum_algorithm, transport_checksum, sha256, write_intent_uuid, operation_token, operation_kind, operation_unknown, failure_code, expires_at, capability_expires_at, completed_at, consumed_at, cleanup_completed_at, created_at, updated_at) ON TABLE __APP_SCHEMA__.upload_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.upload_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.upload_sessions TO nv_customer_api;
 GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.upload_sessions TO nv_worker;
-GRANT SELECT (cleanup_completed_at, created_at, expires_at, mode, operation_unknown, status) ON TABLE __APP_SCHEMA__.upload_sessions TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.upload_sessions_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT ON TABLE __APP_SCHEMA__.upload_sessions TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.upload_sessions_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.upload_sessions_id_seq TO nv_customer_api;
 -- TABLE user_storage_entitlements
-REVOKE ALL ON TABLE __APP_SCHEMA__.user_storage_entitlements FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (user_id, plan_code, created_at, updated_at), INSERT (user_id, plan_code, created_at, updated_at), UPDATE (user_id, plan_code, created_at, updated_at), REFERENCES (user_id, plan_code, created_at, updated_at) ON TABLE __APP_SCHEMA__.user_storage_entitlements FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.user_storage_entitlements FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.user_storage_entitlements TO nv_customer_api;
-GRANT SELECT, UPDATE (updated_at) ON TABLE __APP_SCHEMA__.user_storage_entitlements TO nv_worker;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.user_storage_entitlements TO nv_worker;
 -- TABLE import_artifacts
-REVOKE ALL ON TABLE __APP_SCHEMA__.import_artifacts FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, artifact_uuid, job_id, kind, stored_object_id, filename, page_number, created_at), INSERT (id, artifact_uuid, job_id, kind, stored_object_id, filename, page_number, created_at), UPDATE (id, artifact_uuid, job_id, kind, stored_object_id, filename, page_number, created_at), REFERENCES (id, artifact_uuid, job_id, kind, stored_object_id, filename, page_number, created_at) ON TABLE __APP_SCHEMA__.import_artifacts FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.import_artifacts FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.import_artifacts TO nv_customer_api;
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.import_artifacts TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_artifacts_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_artifacts_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.import_artifacts_id_seq TO nv_worker;
 -- TABLE import_dispatches
-REVOKE ALL ON TABLE __APP_SCHEMA__.import_dispatches FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, dispatch_uuid, job_id, originating_request_id, traceparent, tracestate, status, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, attempt_token, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), INSERT (id, dispatch_uuid, job_id, originating_request_id, traceparent, tracestate, status, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, attempt_token, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), UPDATE (id, dispatch_uuid, job_id, originating_request_id, traceparent, tracestate, status, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, attempt_token, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), REFERENCES (id, dispatch_uuid, job_id, originating_request_id, traceparent, tracestate, status, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, attempt_token, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at) ON TABLE __APP_SCHEMA__.import_dispatches FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.import_dispatches FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.import_dispatches TO nv_customer_api;
 GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.import_dispatches TO nv_worker;
-GRANT SELECT, UPDATE (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) ON TABLE __APP_SCHEMA__.import_dispatches TO nv_control_plane;
-GRANT SELECT (attempt_count, completed_at, created_at, dispatch_uuid, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, job_id, next_attempt_at, originating_request_id, started_at, status, updated_at) ON TABLE __APP_SCHEMA__.import_dispatches TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_dispatches_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.import_dispatches TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_dispatches_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.import_dispatches_id_seq TO nv_customer_api;
 -- TABLE import_job_steps
-REVOKE ALL ON TABLE __APP_SCHEMA__.import_job_steps FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, job_id, name, status, start_time, end_time, step_order), INSERT (id, job_id, name, status, start_time, end_time, step_order), UPDATE (id, job_id, name, status, start_time, end_time, step_order), REFERENCES (id, job_id, name, status, start_time, end_time, step_order) ON TABLE __APP_SCHEMA__.import_job_steps FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.import_job_steps FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.import_job_steps TO nv_customer_api;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.import_job_steps TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_job_steps_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.import_job_steps TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_job_steps_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.import_job_steps_id_seq TO nv_worker;
-GRANT SELECT (job_id), DELETE ON TABLE __APP_SCHEMA__.import_job_steps TO nv_control_plane;
 -- TABLE performance_take_upload_reservations
-REVOKE ALL ON TABLE __APP_SCHEMA__.performance_take_upload_reservations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, reservation_uuid, upload_session_id, user_id, manifest_id, client_request_id, quota_hold_id, expires_at, finalizing_token, finalizing_expires_at, status, created_at, updated_at), INSERT (id, reservation_uuid, upload_session_id, user_id, manifest_id, client_request_id, quota_hold_id, expires_at, finalizing_token, finalizing_expires_at, status, created_at, updated_at), UPDATE (id, reservation_uuid, upload_session_id, user_id, manifest_id, client_request_id, quota_hold_id, expires_at, finalizing_token, finalizing_expires_at, status, created_at, updated_at), REFERENCES (id, reservation_uuid, upload_session_id, user_id, manifest_id, client_request_id, quota_hold_id, expires_at, finalizing_token, finalizing_expires_at, status, created_at, updated_at) ON TABLE __APP_SCHEMA__.performance_take_upload_reservations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.performance_take_upload_reservations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.performance_take_upload_reservations TO nv_customer_api;
 GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.performance_take_upload_reservations TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.performance_take_upload_reservations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.performance_take_upload_reservations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.performance_take_upload_reservations_id_seq TO nv_customer_api;
 -- TABLE scores
-REVOKE ALL ON TABLE __APP_SCHEMA__.scores FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, score_uuid, owner_user_id, display_title, genres, head_revision_id, created_from_import_job_id, metadata_version, deleted_at, created_at, updated_at), INSERT (id, score_uuid, owner_user_id, display_title, genres, head_revision_id, created_from_import_job_id, metadata_version, deleted_at, created_at, updated_at), UPDATE (id, score_uuid, owner_user_id, display_title, genres, head_revision_id, created_from_import_job_id, metadata_version, deleted_at, created_at, updated_at), REFERENCES (id, score_uuid, owner_user_id, display_title, genres, head_revision_id, created_from_import_job_id, metadata_version, deleted_at, created_at, updated_at) ON TABLE __APP_SCHEMA__.scores FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.scores FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.scores TO nv_customer_api;
-GRANT SELECT, DELETE, UPDATE (head_revision_id, deleted_at, updated_at) ON TABLE __APP_SCHEMA__.scores TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.scores_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.scores TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.scores_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.scores_id_seq TO nv_customer_api;
 -- TABLE uploads
-REVOKE ALL ON TABLE __APP_SCHEMA__.uploads FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, upload_uuid, upload_session_id, stored_object_id, original_filename, uploader_user_id, created_at, updated_at), INSERT (id, upload_uuid, upload_session_id, stored_object_id, original_filename, uploader_user_id, created_at, updated_at), UPDATE (id, upload_uuid, upload_session_id, stored_object_id, original_filename, uploader_user_id, created_at, updated_at), REFERENCES (id, upload_uuid, upload_session_id, stored_object_id, original_filename, uploader_user_id, created_at, updated_at) ON TABLE __APP_SCHEMA__.uploads FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT, DELETE, UPDATE (updated_at) ON TABLE __APP_SCHEMA__.uploads TO nv_customer_api;
+REVOKE ALL ON TABLE __APP_SCHEMA__.uploads FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.uploads TO nv_customer_api;
 GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.uploads TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.uploads_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.uploads_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.uploads_id_seq TO nv_customer_api;
 -- TABLE guest_preview_credentials
-REVOKE ALL ON TABLE __APP_SCHEMA__.guest_preview_credentials FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, score_id, token_hash, issued_at), INSERT (id, score_id, token_hash, issued_at), UPDATE (id, score_id, token_hash, issued_at), REFERENCES (id, score_id, token_hash, issued_at) ON TABLE __APP_SCHEMA__.guest_preview_credentials FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.guest_preview_credentials FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.guest_preview_credentials TO nv_customer_api;
-GRANT SELECT, DELETE, UPDATE (issued_at) ON TABLE __APP_SCHEMA__.guest_preview_credentials TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.guest_preview_credentials_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.guest_preview_credentials TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.guest_preview_credentials_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.guest_preview_credentials_id_seq TO nv_customer_api;
 -- TABLE import_job_uploads
-REVOKE ALL ON TABLE __APP_SCHEMA__.import_job_uploads FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, job_id, upload_id, page_number, sort_order), INSERT (id, job_id, upload_id, page_number, sort_order), UPDATE (id, job_id, upload_id, page_number, sort_order), REFERENCES (id, job_id, upload_id, page_number, sort_order) ON TABLE __APP_SCHEMA__.import_job_uploads FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.import_job_uploads FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.import_job_uploads TO nv_customer_api;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.import_job_uploads TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_job_uploads_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.import_job_uploads_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.import_job_uploads_id_seq TO nv_customer_api;
 -- TABLE performance_takes
-REVOKE ALL ON TABLE __APP_SCHEMA__.performance_takes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, media_status, manifest_id, owner_user_id, linked_score_id, recording_object_id, created_at, updated_at), INSERT (id, media_status, manifest_id, owner_user_id, linked_score_id, recording_object_id, created_at, updated_at), UPDATE (id, media_status, manifest_id, owner_user_id, linked_score_id, recording_object_id, created_at, updated_at), REFERENCES (id, media_status, manifest_id, owner_user_id, linked_score_id, recording_object_id, created_at, updated_at) ON TABLE __APP_SCHEMA__.performance_takes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT, DELETE, UPDATE (updated_at) ON TABLE __APP_SCHEMA__.performance_takes TO nv_customer_api;
-GRANT SELECT, DELETE, UPDATE (media_status, updated_at) ON TABLE __APP_SCHEMA__.performance_takes TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.performance_takes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.performance_takes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.performance_takes TO nv_customer_api;
+GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.performance_takes TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.performance_takes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.performance_takes_id_seq TO nv_customer_api;
 -- TABLE score_deletion_operations
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_deletion_operations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, operation_uuid, score_id, score_uuid, owner_user_id, originating_request_id, traceparent, tracestate, status, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, attempt_token, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), INSERT (id, operation_uuid, score_id, score_uuid, owner_user_id, originating_request_id, traceparent, tracestate, status, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, attempt_token, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), UPDATE (id, operation_uuid, score_id, score_uuid, owner_user_id, originating_request_id, traceparent, tracestate, status, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, attempt_token, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), REFERENCES (id, operation_uuid, score_id, score_uuid, owner_user_id, originating_request_id, traceparent, tracestate, status, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, attempt_token, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at) ON TABLE __APP_SCHEMA__.score_deletion_operations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_deletion_operations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.score_deletion_operations TO nv_customer_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.score_deletion_operations TO nv_worker;
-GRANT SELECT, UPDATE (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) ON TABLE __APP_SCHEMA__.score_deletion_operations TO nv_control_plane;
-GRANT SELECT (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, operation_uuid, originating_request_id, score_uuid, started_at, status, updated_at) ON TABLE __APP_SCHEMA__.score_deletion_operations TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_deletion_operations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.score_deletion_operations TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_deletion_operations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_deletion_operations_id_seq TO nv_customer_api, nv_worker;
 -- TABLE score_input_assets
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_input_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, asset_uuid, score_id, upload_id, purpose, page_number, sort_order, created_at), INSERT (id, asset_uuid, score_id, upload_id, purpose, page_number, sort_order, created_at), UPDATE (id, asset_uuid, score_id, upload_id, purpose, page_number, sort_order, created_at), REFERENCES (id, asset_uuid, score_id, upload_id, purpose, page_number, sort_order, created_at) ON TABLE __APP_SCHEMA__.score_input_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_input_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.score_input_assets TO nv_customer_api;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.score_input_assets TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_input_assets_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_input_assets_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_input_assets_id_seq TO nv_customer_api;
 -- TABLE score_invites
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_invites FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, invite_uuid, score_id, token_hash, email, role, terminal_outcome, created_by_user_id, terminal_actor_user_id, created_at, expires_at, terminal_at), INSERT (id, invite_uuid, score_id, token_hash, email, role, terminal_outcome, created_by_user_id, terminal_actor_user_id, created_at, expires_at, terminal_at), UPDATE (id, invite_uuid, score_id, token_hash, email, role, terminal_outcome, created_by_user_id, terminal_actor_user_id, created_at, expires_at, terminal_at), REFERENCES (id, invite_uuid, score_id, token_hash, email, role, terminal_outcome, created_by_user_id, terminal_actor_user_id, created_at, expires_at, terminal_at) ON TABLE __APP_SCHEMA__.score_invites FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_invites FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.score_invites TO nv_customer_api;
-GRANT SELECT, UPDATE (email, token_hash, terminal_outcome, terminal_at, terminal_actor_user_id, created_by_user_id) ON TABLE __APP_SCHEMA__.score_invites TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_invites_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.score_invites TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_invites_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_invites_id_seq TO nv_customer_api;
 -- TABLE score_library_organizations
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_library_organizations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, user_id, score_id, folder_id, is_favorite, created_at, updated_at), INSERT (id, user_id, score_id, folder_id, is_favorite, created_at, updated_at), UPDATE (id, user_id, score_id, folder_id, is_favorite, created_at, updated_at), REFERENCES (id, user_id, score_id, folder_id, is_favorite, created_at, updated_at) ON TABLE __APP_SCHEMA__.score_library_organizations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_library_organizations FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.score_library_organizations TO nv_customer_api;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.score_library_organizations TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_library_organizations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_library_organizations_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_library_organizations_id_seq TO nv_customer_api;
 -- TABLE score_memberships
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_memberships FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, score_id, user_id, role, created_by_user_id, created_at, revoked_at), INSERT (id, score_id, user_id, role, created_by_user_id, created_at, revoked_at), UPDATE (id, score_id, user_id, role, created_by_user_id, created_at, revoked_at), REFERENCES (id, score_id, user_id, role, created_by_user_id, created_at, revoked_at) ON TABLE __APP_SCHEMA__.score_memberships FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_memberships FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.score_memberships TO nv_customer_api;
-GRANT SELECT, DELETE, UPDATE (created_by_user_id) ON TABLE __APP_SCHEMA__.score_memberships TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_memberships_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.score_memberships TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_memberships_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_memberships_id_seq TO nv_customer_api;
 -- TABLE score_revisions
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_revisions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, revision_uuid, score_id, revision_number, content_hash, idempotency_key, origin, created_by_user_id, created_at), INSERT (id, revision_uuid, score_id, revision_number, content_hash, idempotency_key, origin, created_by_user_id, created_at), UPDATE (id, revision_uuid, score_id, revision_number, content_hash, idempotency_key, origin, created_by_user_id, created_at), REFERENCES (id, revision_uuid, score_id, revision_number, content_hash, idempotency_key, origin, created_by_user_id, created_at) ON TABLE __APP_SCHEMA__.score_revisions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_revisions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.score_revisions TO nv_customer_api;
-GRANT SELECT, UPDATE (created_by_user_id) ON TABLE __APP_SCHEMA__.score_revisions TO nv_worker;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.score_revisions TO nv_worker;
 GRANT SELECT ON TABLE __APP_SCHEMA__.score_revisions TO nv_control_plane;
-GRANT SELECT (id, revision_uuid) ON TABLE __APP_SCHEMA__.score_revisions TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revisions_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revisions_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_revisions_id_seq TO nv_customer_api;
 -- TABLE upload_creation_requests
-REVOKE ALL ON TABLE __APP_SCHEMA__.upload_creation_requests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, upload_session_id, user_id, client_request_id, original_filename, request_fingerprint, quota_hold_id, upload_id, completed_at, created_at, updated_at), INSERT (id, upload_session_id, user_id, client_request_id, original_filename, request_fingerprint, quota_hold_id, upload_id, completed_at, created_at, updated_at), UPDATE (id, upload_session_id, user_id, client_request_id, original_filename, request_fingerprint, quota_hold_id, upload_id, completed_at, created_at, updated_at), REFERENCES (id, upload_session_id, user_id, client_request_id, original_filename, request_fingerprint, quota_hold_id, upload_id, completed_at, created_at, updated_at) ON TABLE __APP_SCHEMA__.upload_creation_requests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.upload_creation_requests FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.upload_creation_requests TO nv_customer_api;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.upload_creation_requests TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.upload_creation_requests_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.upload_creation_requests_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.upload_creation_requests_id_seq TO nv_customer_api;
 -- TABLE playback_outbox
-REVOKE ALL ON TABLE __APP_SCHEMA__.playback_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, outbox_uuid, score_id, revision_id, requested_by_user_id, originating_request_id, traceparent, tracestate, source_fingerprint, asset_kind, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), INSERT (id, outbox_uuid, score_id, revision_id, requested_by_user_id, originating_request_id, traceparent, tracestate, source_fingerprint, asset_kind, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), UPDATE (id, outbox_uuid, score_id, revision_id, requested_by_user_id, originating_request_id, traceparent, tracestate, source_fingerprint, asset_kind, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), REFERENCES (id, outbox_uuid, score_id, revision_id, requested_by_user_id, originating_request_id, traceparent, tracestate, source_fingerprint, asset_kind, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at) ON TABLE __APP_SCHEMA__.playback_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.playback_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.playback_outbox TO nv_customer_api;
 GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.playback_outbox TO nv_worker;
-GRANT SELECT, UPDATE (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) ON TABLE __APP_SCHEMA__.playback_outbox TO nv_control_plane;
-GRANT SELECT (asset_kind, attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, originating_request_id, outbox_uuid, started_at, status, updated_at) ON TABLE __APP_SCHEMA__.playback_outbox TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.playback_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.playback_outbox TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.playback_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.playback_outbox_id_seq TO nv_customer_api;
 -- TABLE practice_activities
-REVOKE ALL ON TABLE __APP_SCHEMA__.practice_activities FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, activity_uuid, user_id, revision_id, client_session_id, bundle_id, mode, input_source, scope_kind, scope_start_tick, scope_terminal_tick, completed_at), INSERT (id, activity_uuid, user_id, revision_id, client_session_id, bundle_id, mode, input_source, scope_kind, scope_start_tick, scope_terminal_tick, completed_at), UPDATE (id, activity_uuid, user_id, revision_id, client_session_id, bundle_id, mode, input_source, scope_kind, scope_start_tick, scope_terminal_tick, completed_at), REFERENCES (id, activity_uuid, user_id, revision_id, client_session_id, bundle_id, mode, input_source, scope_kind, scope_start_tick, scope_terminal_tick, completed_at) ON TABLE __APP_SCHEMA__.practice_activities FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.practice_activities FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.practice_activities TO nv_customer_api;
 GRANT SELECT, DELETE ON TABLE __APP_SCHEMA__.practice_activities TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.practice_activities_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.practice_activities_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.practice_activities_id_seq TO nv_customer_api;
 -- TABLE revision_metadata_outbox
-REVOKE ALL ON TABLE __APP_SCHEMA__.revision_metadata_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, outbox_uuid, revision_id, source_fingerprint, originating_request_id, traceparent, tracestate, status, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, created_at, updated_at), INSERT (id, outbox_uuid, revision_id, source_fingerprint, originating_request_id, traceparent, tracestate, status, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, created_at, updated_at), UPDATE (id, outbox_uuid, revision_id, source_fingerprint, originating_request_id, traceparent, tracestate, status, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, created_at, updated_at), REFERENCES (id, outbox_uuid, revision_id, source_fingerprint, originating_request_id, traceparent, tracestate, status, attempt_count, attempt_token, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, created_at, updated_at) ON TABLE __APP_SCHEMA__.revision_metadata_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.revision_metadata_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.revision_metadata_outbox TO nv_customer_api;
 GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.revision_metadata_outbox TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.revision_metadata_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.revision_metadata_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.revision_metadata_outbox_id_seq TO nv_customer_api;
 -- TABLE score_playback_assets
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_playback_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, asset_uuid, revision_id, kind, stored_object_id, filename, execution_manifest_id, duration_ms, source_fingerprint, generator, generator_version, created_at), INSERT (id, asset_uuid, revision_id, kind, stored_object_id, filename, execution_manifest_id, duration_ms, source_fingerprint, generator, generator_version, created_at), UPDATE (id, asset_uuid, revision_id, kind, stored_object_id, filename, execution_manifest_id, duration_ms, source_fingerprint, generator, generator_version, created_at), REFERENCES (id, asset_uuid, revision_id, kind, stored_object_id, filename, execution_manifest_id, duration_ms, source_fingerprint, generator, generator_version, created_at) ON TABLE __APP_SCHEMA__.score_playback_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_playback_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT ON TABLE __APP_SCHEMA__.score_playback_assets TO nv_customer_api;
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.score_playback_assets TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_playback_assets_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_playback_assets_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_playback_assets_id_seq TO nv_worker;
 -- TABLE score_render_assets
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_render_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, asset_uuid, revision_id, kind, stored_object_id, filename, execution_manifest_id, page_number, render_profile, generator, generator_version, created_at), INSERT (id, asset_uuid, revision_id, kind, stored_object_id, filename, execution_manifest_id, page_number, render_profile, generator, generator_version, created_at), UPDATE (id, asset_uuid, revision_id, kind, stored_object_id, filename, execution_manifest_id, page_number, render_profile, generator, generator_version, created_at), REFERENCES (id, asset_uuid, revision_id, kind, stored_object_id, filename, execution_manifest_id, page_number, render_profile, generator, generator_version, created_at) ON TABLE __APP_SCHEMA__.score_render_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_render_assets FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT ON TABLE __APP_SCHEMA__.score_render_assets TO nv_customer_api;
 GRANT SELECT, INSERT, DELETE ON TABLE __APP_SCHEMA__.score_render_assets TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_render_assets_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_render_assets_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_render_assets_id_seq TO nv_worker;
 -- TABLE score_revision_events
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, event_uuid, score_id, revision_id, target_revision_id, actor_user_id, type, note, created_at), INSERT (id, event_uuid, score_id, revision_id, target_revision_id, actor_user_id, type, note, created_at), UPDATE (id, event_uuid, score_id, revision_id, target_revision_id, actor_user_id, type, note, created_at), REFERENCES (id, event_uuid, score_id, revision_id, target_revision_id, actor_user_id, type, note, created_at) ON TABLE __APP_SCHEMA__.score_revision_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.score_revision_events TO nv_customer_api;
-GRANT SELECT, UPDATE (actor_user_id) ON TABLE __APP_SCHEMA__.score_revision_events TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revision_events_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.score_revision_events TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revision_events_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_revision_events_id_seq TO nv_customer_api;
 -- TABLE score_revision_metadata
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_metadata FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (revision_id, status, notation_title, measure_count, part_count, primary_key_fifths, primary_mode, key_signature_events, time_signature_events, tempo_events, extractor_version, error_code, computed_at), INSERT (revision_id, status, notation_title, measure_count, part_count, primary_key_fifths, primary_mode, key_signature_events, time_signature_events, tempo_events, extractor_version, error_code, computed_at), UPDATE (revision_id, status, notation_title, measure_count, part_count, primary_key_fifths, primary_mode, key_signature_events, time_signature_events, tempo_events, extractor_version, error_code, computed_at), REFERENCES (revision_id, status, notation_title, measure_count, part_count, primary_key_fifths, primary_mode, key_signature_events, time_signature_events, tempo_events, extractor_version, error_code, computed_at) ON TABLE __APP_SCHEMA__.score_revision_metadata FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_metadata FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.score_revision_metadata TO nv_customer_api;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.score_revision_metadata TO nv_worker;
 -- TABLE score_revision_notes
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_notes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, score_id, revision_id, author_user_id, note, created_at, updated_at), INSERT (id, score_id, revision_id, author_user_id, note, created_at, updated_at), UPDATE (id, score_id, revision_id, author_user_id, note, created_at, updated_at), REFERENCES (id, score_id, revision_id, author_user_id, note, created_at, updated_at) ON TABLE __APP_SCHEMA__.score_revision_notes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_notes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.score_revision_notes TO nv_customer_api;
-GRANT SELECT, UPDATE (author_user_id, updated_at) ON TABLE __APP_SCHEMA__.score_revision_notes TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revision_notes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.score_revision_notes TO nv_worker;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revision_notes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_revision_notes_id_seq TO nv_customer_api;
 -- TABLE score_revision_practice_bindings
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_practice_bindings FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (revision_id, bundle_id, created_at), INSERT (revision_id, bundle_id, created_at), UPDATE (revision_id, bundle_id, created_at), REFERENCES (revision_id, bundle_id, created_at) ON TABLE __APP_SCHEMA__.score_revision_practice_bindings FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT SELECT, INSERT, UPDATE (created_at) ON TABLE __APP_SCHEMA__.score_revision_practice_bindings TO nv_customer_api;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_practice_bindings FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.score_revision_practice_bindings TO nv_customer_api;
 GRANT SELECT ON TABLE __APP_SCHEMA__.score_revision_practice_bindings TO nv_worker;
 -- TABLE score_revision_render_outbox
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_render_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, outbox_uuid, score_id, revision_id, source_fingerprint, requested_by_user_id, originating_request_id, traceparent, tracestate, render_profile, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), INSERT (id, outbox_uuid, score_id, revision_id, source_fingerprint, requested_by_user_id, originating_request_id, traceparent, tracestate, render_profile, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), UPDATE (id, outbox_uuid, score_id, revision_id, source_fingerprint, requested_by_user_id, originating_request_id, traceparent, tracestate, render_profile, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), REFERENCES (id, outbox_uuid, score_id, revision_id, source_fingerprint, requested_by_user_id, originating_request_id, traceparent, tracestate, render_profile, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at) ON TABLE __APP_SCHEMA__.score_revision_render_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_render_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.score_revision_render_outbox TO nv_customer_api;
 GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.score_revision_render_outbox TO nv_worker;
-GRANT SELECT, UPDATE (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) ON TABLE __APP_SCHEMA__.score_revision_render_outbox TO nv_control_plane;
-GRANT SELECT (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, originating_request_id, outbox_uuid, revision_id, started_at, status, updated_at) ON TABLE __APP_SCHEMA__.score_revision_render_outbox TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revision_render_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.score_revision_render_outbox TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revision_render_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_revision_render_outbox_id_seq TO nv_customer_api;
 -- TABLE score_revision_sources
-REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_sources FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, source_uuid, revision_id, format, stored_object_id, filename, generator, generator_version, created_at), INSERT (id, source_uuid, revision_id, format, stored_object_id, filename, generator, generator_version, created_at), UPDATE (id, source_uuid, revision_id, format, stored_object_id, filename, generator, generator_version, created_at), REFERENCES (id, source_uuid, revision_id, format, stored_object_id, filename, generator, generator_version, created_at) ON TABLE __APP_SCHEMA__.score_revision_sources FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.score_revision_sources FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.score_revision_sources TO nv_customer_api;
 GRANT SELECT ON TABLE __APP_SCHEMA__.score_revision_sources TO nv_worker;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revision_sources_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.score_revision_sources_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.score_revision_sources_id_seq TO nv_customer_api;
 -- TABLE take_processing_outbox
-REVOKE ALL ON TABLE __APP_SCHEMA__.take_processing_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, operation_uuid, take_id, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), INSERT (id, operation_uuid, take_id, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), UPDATE (id, operation_uuid, take_id, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), REFERENCES (id, operation_uuid, take_id, status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at) ON TABLE __APP_SCHEMA__.take_processing_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.take_processing_outbox FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.take_processing_outbox TO nv_customer_api;
 GRANT SELECT, UPDATE ON TABLE __APP_SCHEMA__.take_processing_outbox TO nv_worker;
-GRANT SELECT (created_at, started_at, status) ON TABLE __APP_SCHEMA__.take_processing_outbox TO nv_observability;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.take_processing_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+GRANT SELECT ON TABLE __APP_SCHEMA__.take_processing_outbox TO nv_control_plane;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.take_processing_outbox_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.take_processing_outbox_id_seq TO nv_customer_api;
 -- TABLE operators
-REVOKE ALL ON TABLE __APP_SCHEMA__.operators FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, operator_uuid, email, display_name, password_hash, role, status, totp_secret_encrypted, totp_enabled_at, totp_last_used_step, created_at, updated_at), INSERT (id, operator_uuid, email, display_name, password_hash, role, status, totp_secret_encrypted, totp_enabled_at, totp_last_used_step, created_at, updated_at), UPDATE (id, operator_uuid, email, display_name, password_hash, role, status, totp_secret_encrypted, totp_enabled_at, totp_last_used_step, created_at, updated_at), REFERENCES (id, operator_uuid, email, display_name, password_hash, role, status, totp_secret_encrypted, totp_enabled_at, totp_last_used_step, created_at, updated_at) ON TABLE __APP_SCHEMA__.operators FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.operators FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.operators TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operators_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operators_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operators_id_seq TO nv_control_plane;
 -- TABLE operator_sessions
-REVOKE ALL ON TABLE __APP_SCHEMA__.operator_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, session_uuid, operator_id, token_hash, ip_address, user_agent, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at), INSERT (id, session_uuid, operator_id, token_hash, ip_address, user_agent, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at), UPDATE (id, session_uuid, operator_id, token_hash, ip_address, user_agent, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at), REFERENCES (id, session_uuid, operator_id, token_hash, ip_address, user_agent, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at) ON TABLE __APP_SCHEMA__.operator_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.operator_sessions FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE ON TABLE __APP_SCHEMA__.operator_sessions TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_sessions_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_sessions_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_sessions_id_seq TO nv_control_plane;
 -- TABLE operator_mfa_challenges
-REVOKE ALL ON TABLE __APP_SCHEMA__.operator_mfa_challenges FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, challenge_uuid, operator_id, token_hash, purpose, pending_secret_encrypted, attempt_count, created_at, expires_at, consumed_at), INSERT (id, challenge_uuid, operator_id, token_hash, purpose, pending_secret_encrypted, attempt_count, created_at, expires_at, consumed_at), UPDATE (id, challenge_uuid, operator_id, token_hash, purpose, pending_secret_encrypted, attempt_count, created_at, expires_at, consumed_at), REFERENCES (id, challenge_uuid, operator_id, token_hash, purpose, pending_secret_encrypted, attempt_count, created_at, expires_at, consumed_at) ON TABLE __APP_SCHEMA__.operator_mfa_challenges FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.operator_mfa_challenges FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.operator_mfa_challenges TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_mfa_challenges_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_mfa_challenges_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_mfa_challenges_id_seq TO nv_control_plane;
 -- TABLE operator_recovery_codes
-REVOKE ALL ON TABLE __APP_SCHEMA__.operator_recovery_codes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, operator_id, code_hash, created_at, consumed_at), INSERT (id, operator_id, code_hash, created_at, consumed_at), UPDATE (id, operator_id, code_hash, created_at, consumed_at), REFERENCES (id, operator_id, code_hash, created_at, consumed_at) ON TABLE __APP_SCHEMA__.operator_recovery_codes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.operator_recovery_codes FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE __APP_SCHEMA__.operator_recovery_codes TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_recovery_codes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.operator_recovery_codes_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.operator_recovery_codes_id_seq TO nv_control_plane;
 -- TABLE ops_audit_events
-REVOKE ALL ON TABLE __APP_SCHEMA__.ops_audit_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE SELECT (id, event_uuid, actor_operator_id, action, target_type, target_id, outcome, error_code, reason, request_id, user_agent, ip_address, previous_state, new_state, metadata_json, created_at), INSERT (id, event_uuid, actor_operator_id, action, target_type, target_id, outcome, error_code, reason, request_id, user_agent, ip_address, previous_state, new_state, metadata_json, created_at), UPDATE (id, event_uuid, actor_operator_id, action, target_type, target_id, outcome, error_code, reason, request_id, user_agent, ip_address, previous_state, new_state, metadata_json, created_at), REFERENCES (id, event_uuid, actor_operator_id, action, target_type, target_id, outcome, error_code, reason, request_id, user_agent, ip_address, previous_state, new_state, metadata_json, created_at) ON TABLE __APP_SCHEMA__.ops_audit_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON TABLE __APP_SCHEMA__.ops_audit_events FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT SELECT, INSERT ON TABLE __APP_SCHEMA__.ops_audit_events TO nv_control_plane;
-REVOKE ALL ON SEQUENCE __APP_SCHEMA__.ops_audit_events_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON SEQUENCE __APP_SCHEMA__.ops_audit_events_id_seq FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT USAGE ON SEQUENCE __APP_SCHEMA__.ops_audit_events_id_seq TO nv_control_plane;
-ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE ALL ON TABLES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE ALL ON SEQUENCES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator IN SCHEMA __APP_SCHEMA__ REVOKE ALL ON TABLES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator IN SCHEMA __APP_SCHEMA__ REVOKE ALL ON SEQUENCES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator IN SCHEMA __APP_SCHEMA__ REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_authentication_mail_source_active(text,bigint) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE ALL ON TABLES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE ALL ON SEQUENCES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator IN SCHEMA __APP_SCHEMA__ REVOKE ALL ON TABLES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator IN SCHEMA __APP_SCHEMA__ REVOKE ALL ON SEQUENCES FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+ALTER DEFAULT PRIVILEGES FOR ROLE nv_migrator IN SCHEMA __APP_SCHEMA__ REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_authentication_mail_source_active(text,bigint) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_authentication_mail_source_active(text,bigint) TO nv_worker;
-REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_mail_has_payload(text) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
-GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_mail_has_payload(text) TO nv_observability, nv_control_plane;
-REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_erase_closed_authentication_history(bigint,integer) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_mail_has_payload(text) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
+GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_mail_has_payload(text) TO nv_control_plane;
+REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_erase_closed_authentication_history(bigint,integer) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_erase_closed_authentication_history(bigint,integer) TO nv_worker;
-REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_erase_closed_identity(bigint) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_erase_closed_identity(bigint) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_erase_closed_identity(bigint) TO nv_worker;
-REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_customer_directory(integer,integer) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_customer_directory(integer,integer) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_customer_directory(integer,integer) TO nv_control_plane;
-REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_set_customer_active(bigint,bigint,boolean) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat, nv_observability;
+REVOKE ALL ON FUNCTION __APP_SCHEMA__.nv_set_customer_active(bigint,bigint,boolean) FROM PUBLIC, nv_customer_api, nv_worker, nv_control_plane, nv_beat;
 GRANT EXECUTE ON FUNCTION __APP_SCHEMA__.nv_set_customer_active(bigint,bigint,boolean) TO nv_control_plane;

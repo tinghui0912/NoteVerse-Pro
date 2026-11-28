@@ -111,12 +111,3 @@ services:
     command: migrate
     profiles: [tools]
     restart: "no"
-
-  observability:
-    <<: *backend-common
-    image: noteverse-backend-api:dev
-    env_file:
-      - path: backend/.env.docker.observability
-        required: true
-    command: observability-exporter
-    profiles: [observability]

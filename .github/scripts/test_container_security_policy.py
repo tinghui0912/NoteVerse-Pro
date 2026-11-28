@@ -2,6 +2,7 @@
 
 import copy
 import importlib.util
+import re
 from pathlib import Path
 import sys
 import tempfile
@@ -55,7 +56,13 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
         self.assertEqual(validate_workloads(documents), [])
 
     def test_pod_security_fields_are_required_individually(self):
-        for key in ("runAsNonRoot", "runAsUser", "runAsGroup", "fsGroup", "seccompProfile"):
+        for key in (
+            "runAsNonRoot",
+            "runAsUser",
+            "runAsGroup",
+            "fsGroup",
+            "seccompProfile",
+        ):
             docs = self.fixture()
             del docs[0]["spec"]["template"]["spec"]["securityContext"][key]
             self.assertTrue(validate_workloads(docs), key)
@@ -184,6 +191,107 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
             admin["spec"]["rules"][0]["backendRefs"][0]["name"] = "noteverse-platform-admin"
             self.assertTrue(validate_browser_documents(docs))
 
+    def test_control_plane_metrics_cannot_be_published_or_rewritten_by_gateway(self):
+        for path in (ROOT / "deploy").rglob("gateway.yaml"):
+            original = [d for d in yaml.safe_load_all(path.read_text()) if d]
+            for mutation in ("direct", "rewrite", "extra_route"):
+                docs = copy.deepcopy(original)
+                admin = next(
+                    d
+                    for d in docs
+                    if d.get("kind") == "HTTPRoute"
+                    and d["metadata"]["name"] == "noteverse-platform-admin"
+                )
+                rule = copy.deepcopy(admin["spec"]["rules"][0])
+                if mutation == "rewrite":
+                    rule["filters"].append(
+                        {
+                            "type": "URLRewrite",
+                            "urlRewrite": {
+                                "path": {
+                                    "type": "ReplaceFullPath",
+                                    "replaceFullPath": "/metrics",
+                                }
+                            },
+                        }
+                    )
+                else:
+                    rule["matches"] = [{"path": {"type": "PathPrefix", "value": "/metrics"}}]
+                if mutation == "extra_route":
+                    docs.append(
+                        {
+                            "kind": "HTTPRoute",
+                            "metadata": {"name": "metrics"},
+                            "spec": {"rules": [rule]},
+                        }
+                    )
+                else:
+                    admin["spec"]["rules"].append(rule)
+                self.assertTrue(validate_browser_documents(docs), mutation)
+
+    def test_application_workload_and_scrape_inventory_is_explicit(self):
+        for base in (
+            "deploy/application/base",
+            "deploy/gitops/environments/staging/base",
+        ):
+            documents = [
+                d
+                for path in (ROOT / base).glob("*.yaml")
+                for d in yaml.safe_load_all(path.read_text())
+                if d
+            ]
+            actual = {d["metadata"]["name"] for d in documents if d.get("kind") == "Deployment"}
+            self.assertEqual(
+                actual,
+                {
+                    "noteverse-backend-api",
+                    "noteverse-control-plane",
+                    "noteverse-backend-worker",
+                    "noteverse-backend-beat",
+                    "noteverse-customer-web",
+                    "noteverse-platform-admin",
+                },
+            )
+        monitor_path = ROOT / "deploy/application/monitoring/prometheus-operator"
+        monitors = [
+            yaml.safe_load(path.read_text()) for path in monitor_path.glob("*servicemonitor.yaml")
+        ]
+        self.assertEqual(
+            {d["metadata"]["name"] for d in monitors},
+            {"noteverse-backend-api", "noteverse-control-plane"},
+        )
+        for monitor in monitors:
+            self.assertEqual(monitor["spec"]["endpoints"][0]["path"], "/metrics")
+            self.assertEqual(monitor["spec"]["endpoints"][0]["port"], "http")
+
+    def test_local_runtime_launchers_match_the_application_roles(self):
+        compose = yaml.safe_load((ROOT / "docker-compose.backend-dev.yml").read_text())
+        self.assertEqual(
+            set(compose["services"]), {"api", "control", "worker", "worker-deps", "beat", "migrate"}
+        )
+        entrypoint = (ROOT / "docker/backend/entrypoint.sh").read_text()
+        self.assertEqual(
+            set(re.findall(r"^  ([a-z_-]+)\)", entrypoint, re.M)),
+            {"api", "control", "worker", "beat", "check", "migrate", "bash"},
+        )
+        integration = yaml.safe_load((ROOT / "docker-compose.integration.yml").read_text())
+        passwords = {
+            key
+            for service in integration["services"].values()
+            for key in service.get("environment", {})
+            if key.startswith("NV_") and key.endswith("_PASSWORD")
+        }
+        self.assertEqual(
+            passwords,
+            {
+                "NV_MIGRATOR_PASSWORD",
+                "NV_CUSTOMER_API_PASSWORD",
+                "NV_CONTROL_PLANE_PASSWORD",
+                "NV_WORKER_PASSWORD",
+                "NV_BEAT_PASSWORD",
+            },
+        )
+
     def test_gateway_hop_count_is_exact(self):
         for value in ("0", "2", None):
             docs = self.fixture() + [
@@ -254,7 +362,9 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
             )
             self.assertEqual(
                 validate_workloads(
-                    docs, api_token_workloads=API_CLIENTS, host_namespace_workloads=HOST_OBSERVERS
+                    docs,
+                    api_token_workloads=API_CLIENTS,
+                    host_namespace_workloads=HOST_OBSERVERS,
                 ),
                 [],
             )
@@ -291,13 +401,21 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                     self.assertIn("--security-opt no-new-privileges", line)
 
     def test_application_policy_files_enforce_non_negotiable_runtime_boundaries(self):
-        for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):
+        for base in (
+            "deploy/application/base",
+            "deploy/gitops/environments/staging/base",
+        ):
             docs = list(yaml.safe_load_all((ROOT / base / "network-policies.yaml").read_text()))
             by_name = {d["metadata"]["name"]: d["spec"] for d in docs}
             self.assertEqual(by_name["noteverse-default-deny"]["endpointSelector"], {})
             self.assertEqual(by_name["noteverse-default-deny"]["ingress"], [])
             self.assertEqual(by_name["noteverse-default-deny"]["egress"], [])
-            for runtime in ("backend-worker", "backend-beat", "migration", "model-cache-agent"):
+            for runtime in (
+                "backend-worker",
+                "backend-beat",
+                "migration",
+                "model-cache-agent",
+            ):
                 self.assertEqual(by_name["noteverse-" + runtime]["ingress"], [])
             for runtime in ("customer-web", "platform-admin"):
                 self.assertEqual(
@@ -309,7 +427,12 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                     },
                     {"53"},
                 )
-            for runtime in ("control-plane", "backend-api", "backend-worker", "backend-beat"):
+            for runtime in (
+                "control-plane",
+                "backend-api",
+                "backend-worker",
+                "backend-beat",
+            ):
                 for rule in by_name["noteverse-" + runtime]["egress"]:
                     for target in rule["toEndpoints"]:
                         self.assertIn("k8s:io.kubernetes.pod.namespace", target["matchLabels"])
@@ -317,7 +440,7 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                             "app.kubernetes.io/component",
                             target.get("matchLabels", {}),
                         )
-            for runtime in ("control-plane", "backend-beat", "migration", "observability-exporter"):
+            for runtime in ("control-plane", "backend-beat", "migration"):
                 self.assertNotIn(
                     443,
                     {
@@ -329,13 +452,18 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                 )
 
     def test_image_contexts_exclude_local_runtime_credentials(self):
-        paths = [ROOT / ".dockerignore", *(ROOT / "docker/backend").glob("*.dockerignore")]
+        paths = [
+            ROOT / ".dockerignore",
+            *(ROOT / "docker/backend").glob("*.dockerignore"),
+        ]
         for path in paths:
             patterns = set(path.read_text().splitlines())
             self.assertTrue(
-                {"backend/.env*", "backend/db/secret-templates/*.env", "apps/**/.env*"}.issubset(
-                    patterns
-                ),
+                {
+                    "backend/.env*",
+                    "backend/db/secret-templates/*.env",
+                    "apps/**/.env*",
+                }.issubset(patterns),
                 path,
             )
 
@@ -390,7 +518,8 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
         self.assertTrue(values["grafana"]["rbac"]["namespaced"])
         self.assertEqual(values["grafana"]["sidecar"]["dashboards"]["resource"], "configmap")
         self.assertEqual(
-            values["grafana"]["sidecar"]["dashboards"]["searchNamespace"], "observability"
+            values["grafana"]["sidecar"]["dashboards"]["searchNamespace"],
+            "observability",
         )
 
     def test_grafana_role_contains_only_namespaced_configmap_reads(self):
@@ -399,13 +528,21 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
             "metadata": {"name": "kube-prometheus-stack-grafana"},
             "spec": {
                 "template": {
-                    "spec": {"containers": [{"name": "grafana-sc-dashboard"}, {"name": "grafana"}]}
+                    "spec": {
+                        "containers": [
+                            {"name": "grafana-sc-dashboard"},
+                            {"name": "grafana"},
+                        ]
+                    }
                 }
             },
         }
         role = {
             "kind": "Role",
-            "metadata": {"name": "kube-prometheus-stack-grafana", "namespace": "observability"},
+            "metadata": {
+                "name": "kube-prometheus-stack-grafana",
+                "namespace": "observability",
+            },
             "rules": [
                 {
                     "apiGroups": [""],
@@ -417,7 +554,13 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
         result = harden([deployment, role])
         self.assertEqual(
             result[1]["rules"],
-            [{"apiGroups": [""], "resources": ["configmaps"], "verbs": ["get", "watch", "list"]}],
+            [
+                {
+                    "apiGroups": [""],
+                    "resources": ["configmaps"],
+                    "verbs": ["get", "watch", "list"],
+                }
+            ],
         )
         with self.assertRaises(ValueError):
             harden(
@@ -431,8 +574,14 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
             )
 
     def test_frontend_writable_cache_matches_runtime_capabilities(self):
-        for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):
-            for runtime, expected in (("customer-web", True), ("platform-admin", False)):
+        for base in (
+            "deploy/application/base",
+            "deploy/gitops/environments/staging/base",
+        ):
+            for runtime, expected in (
+                ("customer-web", True),
+                ("platform-admin", False),
+            ):
                 pod = yaml.safe_load((ROOT / base / (runtime + "-deployment.yaml")).read_text())[
                     "spec"
                 ]["template"]["spec"]

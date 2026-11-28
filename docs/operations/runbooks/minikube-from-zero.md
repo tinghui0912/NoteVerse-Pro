@@ -425,7 +425,7 @@ The script applies the release in deterministic phases:
 
 This prevents a new workload set from starting against an unverified schema.
 It waits for migration and every active HTTP/scheduler workload: backend API,
-Beat, frontend, Control Plane, Platform Admin, and the observability exporter.
+Beat, Customer Web, Control Plane and Platform Admin.
 Deployments intentionally configured with zero replicas are reported as skipped.
 It still skips the Kubernetes GPU worker/model-cache path.
 

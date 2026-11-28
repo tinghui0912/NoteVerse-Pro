@@ -107,6 +107,14 @@ spec:
     - ports:
       - protocol: TCP
         port: '8000'
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: prometheus
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '8000'
   egress:
   - toEndpoints:
     - matchLabels:
@@ -337,52 +345,6 @@ spec:
         - matchName: svc.cluster.local
         - matchPattern: '**.svc.cluster.local'
         - matchPattern: '**.cluster.local'
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: noteverse-observability-exporter
-spec:
-  endpointSelector:
-    matchLabels:
-      app.kubernetes.io/component: observability-exporter
-  enableDefaultDeny:
-    ingress: true
-    egress: true
-  ingress:
-  - fromEndpoints:
-    - matchLabels:
-        k8s:io.kubernetes.pod.namespace: observability
-        k8s:app.kubernetes.io/name: prometheus
-    toPorts:
-    - ports:
-      - protocol: TCP
-        port: '8000'
-  egress:
-  - toEndpoints:
-    - matchLabels:
-        k8s:io.kubernetes.pod.namespace: kube-system
-        k8s:k8s-app: kube-dns
-    toPorts:
-    - ports:
-      - port: '53'
-        protocol: TCP
-      - port: '53'
-        protocol: UDP
-      rules:
-        dns:
-        - matchName: cluster.local
-        - matchName: svc.cluster.local
-        - matchPattern: '**.svc.cluster.local'
-        - matchPattern: '**.cluster.local'
-  - toEndpoints:
-    - matchLabels:
-        k8s:io.kubernetes.pod.namespace: noteverse-data
-        k8s:app.kubernetes.io/name: postgresql
-    toPorts:
-    - ports:
-      - protocol: TCP
-        port: '5432'
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy

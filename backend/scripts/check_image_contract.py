@@ -114,7 +114,6 @@ def run_contract(role: str) -> list[str]:
         for module in (
             "app.runtime.customer_api.main",
             "app.runtime.control_plane.main",
-            "app.runtime.observability.main",
         ):
             require_import(module, "app")
             evidence.append(f"{module}:app import passed (lifespan not started)")

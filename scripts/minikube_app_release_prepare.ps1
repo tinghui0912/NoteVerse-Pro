@@ -306,7 +306,6 @@ if ($Apply) {
             Wait-ForActiveDeployment -DeploymentName "noteverse-customer-web" -TimeoutSeconds $WaitTimeoutSeconds
             Wait-ForActiveDeployment -DeploymentName "noteverse-control-plane" -TimeoutSeconds $WaitTimeoutSeconds
             Wait-ForActiveDeployment -DeploymentName "noteverse-platform-admin" -TimeoutSeconds $WaitTimeoutSeconds
-            Wait-ForActiveDeployment -DeploymentName "noteverse-observability-exporter" -TimeoutSeconds $WaitTimeoutSeconds
             if (-not $SkipModelCacheWait) {
                 Invoke-Checked "rollout:model-cache-agent" {
                     kubectl -n $AppNamespace rollout status ds/noteverse-model-cache-agent --timeout=7200s

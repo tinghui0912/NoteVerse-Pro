@@ -24,7 +24,6 @@ The Legato source and Python environment remain read-only.
 | Beat | 64 MiB | Schedule/work root 64 MiB |
 | Customer Web | 64 MiB | `/app/.next/cache`, 128 MiB |
 | Platform Admin | 64 MiB | None |
-| Observability Exporter | 32 MiB | None |
 | Migrator | 32 MiB | None |
 | Model cache preparation | 2 GiB | Explicit node-local model directory |
 | Model cache simulation | 32 MiB | Explicit node-local simulation directory |
@@ -70,10 +69,9 @@ DNS proxy visibility and packet enforcement require cluster acceptance.
 | --- | --- | --- |
 | Customer Web / Platform Admin | Envoy proxy TCP 3000 | DNS only |
 | Customer API | Envoy TCP 8000; Prometheus TCP 8000 | PostgreSQL 5432; Redis 6379; object storage 443; DNS; OTLP 4317 |
-| Control Plane | Envoy TCP 8000 | PostgreSQL 5432; Redis 6379; DNS; OTLP 4317 |
+| Control Plane | Envoy TCP 8000; Prometheus TCP 8000 | PostgreSQL 5432; Redis 6379; DNS; OTLP 4317 |
 | Worker | None | PostgreSQL 5432; Redis 6379; object storage 443; mail 443; DNS; OTLP 4317 |
 | Beat | None | PostgreSQL 5432; Redis 6379; DNS; OTLP 4317 |
-| Observability Exporter | Prometheus TCP 8000 | PostgreSQL 5432; DNS |
 | Migrator | None | PostgreSQL 5432; DNS |
 | Model cache Pod | None | Model assets 443; DNS |
 
@@ -98,7 +96,7 @@ Each environment owns `external-egress.json` with these exact fields:
 
 | JSON field | Release environment input | Authority |
 | --- | --- | --- |
-| `postgresql_cidrs` | `POSTGRESQL_EGRESS_CIDRS` | Private PostgreSQL TCP 5432, six DB runtimes |
+| `postgresql_cidrs` | `POSTGRESQL_EGRESS_CIDRS` | Private PostgreSQL TCP 5432, five DB runtimes |
 | `redis_cidrs` | `REDIS_EGRESS_CIDRS` | Private Redis TCP 6379, API/Control Plane/Worker/Beat |
 | `s3_fqdns` | `S3_EGRESS_FQDNS` | Exact object-storage hosts, API and Worker TCP 443 |
 | `mail_fqdns` | `MAIL_EGRESS_FQDNS` | Exact mail API hosts, Worker TCP 443 |
@@ -115,7 +113,7 @@ wildcards, protocols, paths, ports, IP literals, malformed labels, trailing dots
 uppercase/non-normalized values and local/cluster names. Database/Redis CIDRs
 must be canonical RFC1918 IPv4 or IPv6 ULA subnets; public, metadata, loopback and
 wildcard networks are rejected. Cluster-local database selectors remain usable.
-The six zero-public-internet roles have no external FQDN/HTTPS allowance.
+The five zero-public-internet roles have no external FQDN/HTTPS allowance.
 
 All application DNS permits only kube-dns in kube-system, TCP/UDP 53, with
 `rules.dns` so queries pass through Cilium's L7 proxy. The base DNS rule permits
@@ -229,3 +227,9 @@ compatibility. CNI enforcement, Envoy client IP behavior, GPU/OCR model executio
 real object storage, Practice hardware and production volumes remain separate
 live-environment acceptance checks. Dependency security upgrades have their own
 change scope.
+
+Control Plane owns the internal durable metrics scrape alongside its process metrics.
+Prometheus selects the Control Plane Service directly; Gateway rules expose only
+`/api` and preserve the path. PostgreSQL infrastructure metrics belong to standard
+`postgres_exporter` operated by the database infrastructure owner, not Python
+application collectors or an application database role.

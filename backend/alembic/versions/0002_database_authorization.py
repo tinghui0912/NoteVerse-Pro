@@ -1,4 +1,4 @@
-"""Runtime authorization interfaces for credentials, directory and account lifecycle."""
+"""Bounded credential interfaces for customer, control-plane and worker roles."""
 
 from alembic import op
 from app.platform.db.authorization import install_security_functions

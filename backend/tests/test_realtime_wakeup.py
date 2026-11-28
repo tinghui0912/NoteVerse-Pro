@@ -156,7 +156,7 @@ async def test_only_api_lifespan_owns_the_process_hub(monkeypatch):
     hub = SimpleNamespace(start=AsyncMock(), stop=AsyncMock())
     monkeypatch.setattr(wakeup, "RealtimeWakeupHub", lambda **kwargs: hub)
     monkeypatch.setattr(lifespan, "ensure_runtime_directories", lambda *args: None)
-    for role in [RuntimeRole.API, RuntimeRole.CONTROL_PLANE, RuntimeRole.OBSERVABILITY_EXPORTER]:
+    for role in [RuntimeRole.API, RuntimeRole.CONTROL_PLANE]:
         async with create_app_lifespan(role)(
             SimpleNamespace(
                 state=SimpleNamespace(settings=get_context().settings, engine=get_context().engine)

@@ -1,191 +1,169 @@
 # Database Role and Secret Ownership
 
-## Ownership and provisioning
+## Five-role runtime authority
 
-`backend/db/grants.sql` is the explicit table, column, sequence and function
-allowlist. Every ORM table has a reviewed `-- TABLE` entry. No runtime inherits
-privileges on newly created tables. A long-running runtime cannot own the
-database. All application tables and the schema belong to `nv_migrator`; persistent
-services never use that role. Roles are LOGIN, NOINHERIT, NOSUPERUSER, NOCREATEDB,
-NOCREATEROLE, NOREPLICATION and NOBYPASSRLS, with no role memberships.
-`PUBLIC` has no schema CREATE, database CREATE/TEMPORARY or application table
-access. Runtime roles have no DDL authority. PostgreSQL row locks require SELECT and UPDATE on at least one
-column, so retention and reference-lock paths have narrow UPDATE columns even
-when they do not modify a row. Each environment uses independent
-credentials, managed outside Git.
+Four long-lived backend deployments use distinct login roles and Secrets:
+Customer API (`nv_customer_api`), Control Plane (`nv_control_plane`), Worker
+(`nv_worker`) and Beat (`nv_beat`). The short-lived migration Job uses
+`nv_migrator`, which owns the application schema, tables, sequences and functions.
+Long-lived roles cannot own the database, inherit another role or execute DDL.
 
-Provision in this order:
+Roles are LOGIN, NOINHERIT, NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOREPLICATION
+and NOBYPASSRLS. `PUBLIC` has no schema CREATE, database CREATE/TEMPORARY or
+application table authority. Global and schema default privileges grant no
+runtime access to new tables, sequences or functions.
 
-1. A database administrator creates the database and supplies
-   `NOTEVERSE_DB_ADMIN_URL` plus six distinct passwords in
-   `NV_MIGRATOR_PASSWORD`, `NV_CUSTOMER_API_PASSWORD`, `NV_CONTROL_PLANE_PASSWORD`,
-   `NV_WORKER_PASSWORD`, `NV_BEAT_PASSWORD` and `NV_OBSERVABILITY_PASSWORD`.
-2. Run `python scripts/provision_database.py bootstrap --schema public` from
-   `backend/`. This idempotently creates/validates the roles, rotates supplied
-   passwords and assigns an empty application schema to `nv_migrator`. It refuses
-   an occupied schema owned by another role or unsafe role attributes/memberships.
-   Use a fresh development database, or an administrator-reviewed ownership
-   procedure; the helper never discards application data.
-   The administrator connection is provisioning-only, never a runtime Secret.
-3. Set `DATABASE_URL` to the `nv_migrator` connection, run `alembic upgrade head`,
-   then `python scripts/provision_database.py grants --schema public`.
-   The container `migrate` command runs both steps. Apply grants after each schema
-   change; newly added tables receive no runtime permissions by default.
-4. Populate the six runtime Secrets using credential-only templates and validate
-   them with `scripts/validate_runtime_secrets.py`. Use only the matching role in
-   each runtime DB URL and scheduler-lock URL.
+## Three privilege tiers
 
-The provisioning helper does not print passwords or SQL on failure. PostgreSQL
-server diagnostics require administrator access; production log policies must
-protect database statements and credential provisioning operations.
+1. Runtime authority determines which domain tables and operations each process
+   can use. Beat has S/I/U only on `scheduler_leader_statuses`.
+2. Ordinary business tables use explicit table-level S/I/U/D grants. A new
+   non-sensitive column inherits only those reviewed operations; it needs no
+   column checklist. Every new table requires a `-- TABLE` decision in
+   `backend/db/grants.sql`, checked against ORM metadata.
+3. Credential-bearing records retain strict boundaries. Cross-domain access to
+   `users` is column- or function-scoped; customer sessions and operator identity
+   records remain exclusive. Operator audit is append-only. Authentication-mail
+   payloads are a credential-delivery boundary, not a general operational outbox
+   projection.
 
-`ALTER DEFAULT PRIVILEGES` revokes implicit table, sequence and function rights
-at both global and schema scope. Schema CREATE and database CREATE/TEMPORARY
-are revoked from both PUBLIC and the five long-running runtime roles.
-Explicit per-table/column revocation precedes grants, so applying the contract
-repeatedly removes excess permissions. All application objects must be owned by
-`nv_migrator`. SQL functions use schema-qualified references, a fixed
-`search_path=pg_catalog`, owner execution and explicit EXECUTE grants.
+The SQL file is the executable authority. Before granting access it revokes
+ordinary table authority and clears column ACLs from catalog facts. Reapplication
+removes excess column privileges without copying business column names into the
+contract. Sequences receive USAGE only where generated IDs are inserted.
 
-## Runtime privileges
+### Credential and audit boundaries
 
-S/I/U/D mean SELECT/INSERT/UPDATE/DELETE. Column-scoped entries name the exact
-columns. Sequence USAGE belongs only to roles inserting generated IDs.
-Migrator owns all reviewed schema objects. The SQL file remains the executable
-authority; tests compare it with ORM metadata and exercise actual login roles.
+- `users`: Customer API owns S/I/U. Worker can SELECT only `id`, `display_name`,
+  `email`, `is_active`, `deleted_at`, `avatar_object_id`, `created_at`, `updated_at`,
+  and UPDATE only `avatar_object_id`, `updated_at`. Control Plane uses a bounded
+  customer-directory function and a super-admin-checked status function. Worker,
+  Control Plane and Beat cannot read `password_hash` or newly added identity columns.
+- `user_sessions`, `auth_tokens`, `email_change_requests` and
+  `pending_registrations` belong to Customer API. Other runtimes cannot directly
+  inspect customer credential/token/session tables.
+- The actual operator table is `operators`. It, `operator_sessions`,
+  `operator_mfa_challenges` and `operator_recovery_codes` are Control Plane-only.
+- `ops_audit_events`: Control Plane receives only SELECT/INSERT. No long-lived
+  role receives UPDATE/DELETE; Customer API, Worker and Beat receive no access.
+- `mail_outbox`: Worker reads credential-bearing payloads for delivery. Control
+  Plane can read only the explicit operation/status projection and update retry
+  state; it cannot read recipient, subject, text/HTML payloads or retarget the
+  source identity. A bounded boolean function exposes payload presence only.
 
-| Table | Customer API | Worker | Control Plane | Beat | Exporter |
-| --- | --- | --- | --- | --- | --- |
-| `execution_manifests` | S, I | S, I | — | — | — |
-| `mail_outbox` | S, I, U | S, U, D | S (id, outbox_uuid, source_kind, source_id, category, originating_request_id, traceparent, tracestate, status, attempt_token, attempt_count, next_attempt_at, expires_at, dispatched_at, started_at, completed_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable, created_at, updated_at), U (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (attempt_count, category, completed_at, created_at, expires_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, originating_request_id, outbox_uuid, started_at, status, updated_at) |
-| `object_write_intents` | S, I, U | S, I, U | — | — | S (created_at, status) |
-| `operators` | — | — | S, I, U | — | — |
-| `pending_registrations` | S, I, U, D | — | — | — | — |
-| `scheduler_heartbeats` | — | S, I, U | — | — | S (id, job_key, last_started_at, last_success_at, last_failure_at, last_duration_ms, last_due_count, last_dispatched_count, total_duration_ms, total_due_count, total_dispatched_count, lock_acquired_count, lock_skipped_count, last_lock_skipped_at, success_count, failure_count, last_error, created_at, updated_at) |
-| `scheduler_leader_statuses` | — | — | — | S, I, U | S (scheduler_name, last_acquired_at, last_heartbeat_at, last_standby_at, last_child_exit_at, acquired_count, standby_count, child_exit_count, last_error, created_at, updated_at) |
-| `storage_plan_policies` | S | S | S | — | — |
-| `stored_objects` | S, I, U (sha256) | S, I, D, U (sha256) | — | — | — |
-| `ops_audit_events` | — | — | S, I | — | — |
-| `practice_bundles` | S, I, U, D | S, D, U (creation_expires_at) | — | — | — |
-| `stored_object_retirements` | S, I, U | S, I, U | S, U (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, retirement_uuid, started_at, status, updated_at) |
-| `users` | S, I, U | S (id, display_name, email, is_active, deleted_at, avatar_object_id, created_at, updated_at), U (avatar_object_id, updated_at) | — | — | — |
-| `account_deletion_operations` | S, I, U | S, I, U | S, U (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, operation_uuid, phase, started_at, status, updated_at) |
-| `auth_tokens` | S, I, U | — | — | — | — |
-| `email_change_requests` | S, I, U | — | — | — | — |
-| `import_jobs` | S, I, U, D | S, U, D | S, U (state, progress, current_step, processing_started_at, processing_last_heartbeat_at, processing_finished_at, confirmed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, id, job_uuid, processing_finished_at, processing_started_at, state, updated_at) |
-| `notifications` | S, I, U | S, I, D | — | — | — |
-| `operator_sessions` | — | — | S, I, U | — | — |
-| `operator_mfa_challenges` | — | — | S, I, U, D | — | — |
-| `operator_recovery_codes` | — | — | S, I, U, D | — | — |
-| `performance_take_manifests` | S, I | S, D | — | — | — |
-| `realtime_changes` | S, I | S, I, D | — | — | — |
-| `realtime_stream_state` | S, I, U, D | S, I, U | — | — | — |
-| `user_sessions` | S, I, U | — | — | — | — |
-| `score_library_folders` | S, I, U, D | S, D | — | — | — |
-| `storage_quota_holds` | S, I, U | S, U, D | — | — | — |
-| `storage_usage_accounts` | S, I, U | S, U | — | — | — |
-| `storage_usage_counters` | S, I, U | S, I, U | — | — | — |
-| `storage_usage_events` | S, I | S, I, D | — | — | — |
-| `upload_sessions` | S, I, U | S, U, D | — | — | S (cleanup_completed_at, created_at, expires_at, mode, operation_unknown, status) |
-| `user_storage_entitlements` | S, I, U | S, U (updated_at) | — | — | — |
-| `import_artifacts` | S, D | S, I, D | — | — | — |
-| `import_dispatches` | S, I, U | S, U | S, U (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (attempt_count, completed_at, created_at, dispatch_uuid, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, job_id, next_attempt_at, originating_request_id, started_at, status, updated_at) |
-| `import_job_steps` | S, D | S, I, U, D | S (job_id), D | — | — |
-| `performance_take_upload_reservations` | S, I, U, D | S, U, D | — | — | — |
-| `scores` | S, I, U | S, D, U (head_revision_id, deleted_at, updated_at) | — | — | — |
-| `uploads` | S, I, D, U (updated_at) | S, U, D | — | — | — |
-| `guest_preview_credentials` | S, I, U, D | S, D, U (issued_at) | — | — | — |
-| `import_job_uploads` | S, I, D | S, D | — | — | — |
-| `performance_takes` | S, I, D, U (updated_at) | S, D, U (media_status, updated_at) | — | — | — |
-| `score_deletion_operations` | S, I, U | S, I, U | S, U (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, operation_uuid, originating_request_id, score_uuid, started_at, status, updated_at) |
-| `score_input_assets` | S, I, D | S, D | — | — | — |
-| `score_invites` | S, I, U | S, U (email, token_hash, terminal_outcome, terminal_at, terminal_actor_user_id, created_by_user_id) | — | — | — |
-| `score_library_organizations` | S, I, U, D | S, D | — | — | — |
-| `score_memberships` | S, I, U | S, D, U (created_by_user_id) | — | — | — |
-| `score_revisions` | S, I | S, U (created_by_user_id) | S | — | S (id, revision_uuid) |
-| `upload_creation_requests` | S, I, U | S, D | — | — | — |
-| `playback_outbox` | S, I, U | S, U | S, U (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (asset_kind, attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, originating_request_id, outbox_uuid, started_at, status, updated_at) |
-| `practice_activities` | S, I | S, D | — | — | — |
-| `revision_metadata_outbox` | S, I, U | S, U | — | — | — |
-| `score_playback_assets` | S | S, I, D | — | — | — |
-| `score_render_assets` | S | S, I, D | — | — | — |
-| `score_revision_events` | S, I | S, U (actor_user_id) | — | — | — |
-| `score_revision_metadata` | S, I, U, D | S, I, U | — | — | — |
-| `score_revision_notes` | S, I, U, D | S, U (author_user_id, updated_at) | — | — | — |
-| `score_revision_practice_bindings` | S, I, U (created_at) | S | — | — | — |
-| `score_revision_render_outbox` | S, I, U | S, U | S, U (status, attempt_token, attempt_count, next_attempt_at, dispatched_at, started_at, completed_at, updated_at, failure_detail, failure_code, failure_stage, failure_classification, failure_retryable) | — | S (attempt_count, completed_at, created_at, failure_classification, failure_code, failure_detail, failure_retryable, failure_stage, next_attempt_at, originating_request_id, outbox_uuid, revision_id, started_at, status, updated_at) |
-| `score_revision_sources` | S, I | S | — | — | — |
-| `take_processing_outbox` | S, I, U | S, U | — | — | S (created_at, started_at, status) |
+### Bounded functions
 
-## Credential and audit boundaries
+All functions use schema-qualified objects, `SECURITY DEFINER`,
+`search_path=pg_catalog` and explicit EXECUTE grants:
 
-Customer API cannot access operator identities, password credentials, sessions or
-Ops audit records. Control Plane cannot access customer User rows, credentials,
-registration, opaque sessions or email-change requests. Its audit rights are
-SELECT and INSERT only; its resource writes are limited to delivery recovery
-columns. Import recovery also deletes `import_job_steps` by `job_id` through the
-existing domain reset. It cannot rewrite retirement fences or resource identity.
+- Worker: `nv_authentication_mail_source_active` returns source eligibility;
+  `nv_erase_closed_authentication_history` erases bounded token/session batches;
+  `nv_erase_closed_identity` deletes only an authorized closed identity. Erasure
+  requires a closed user and active FINALIZE operation.
+- Control Plane: `nv_customer_directory` returns bounded non-credential metadata;
+  `nv_set_customer_active` verifies an active MFA-enrolled SUPER_ADMIN and expires
+  customer sessions on disable; `nv_mail_has_payload` returns only a boolean.
 
-Worker can read only credential-free User columns and update avatar attribution.
-`resource_user_query()` uses ORM load-only plus raiseload so accidental password
-access fails. Worker has no direct customer authentication-table access, operator
-or audit access. Beat touches only `scheduler_leader_statuses`: periodic task
-publication uses the broker; maintenance execution belongs to Worker. Exporter
-can select only columns needed by its real metric queries and has no write,
-sequence, credential, session, payload or object-key access.
+Ordinary business-table operations need no privileged function wrapper.
 
-## Guarded database functions
+## Exact table operations
 
-| Function | Execute roles | Effect |
-| --- | --- | --- |
-| `nv_authentication_mail_source_active(text,bigint)` | Worker | Returns source liveness only; credential rows and hashes never leave the function |
-| `nv_mail_has_payload(text)` | Control Plane, Exporter | Returns a boolean for retry admission without exposing recipient, subject, credential links or body |
-| `nv_erase_closed_authentication_history(bigint,integer)` | Worker | Bounded deletion of AuthToken, UserSession and EmailChangeRequest history for a locked, inactive tombstoned User in a PROCESSING/FINALIZE deletion operation |
-| `nv_erase_closed_identity(bigint)` | Worker | Deletes only an inactive tombstoned User with PROCESSING/FINALIZE operation authority; existing FKs remain enforced |
+S/I/U/D mean SELECT/INSERT/UPDATE/DELETE. `[columns]` means the explicit sensitive
+projection in SQL. Migrator owns every reviewed object.
 
-These functions express narrow capabilities instead of granting the Worker token
-reads or arbitrary User deletion. Account erasure keeps its current phases,
-transactions, quotas and inventory checks. The executor validates business
-completion before final identity erasure. Worker remains trusted to execute domain
-cleanup; the SQL boundary does not validate external task delivery authorization.
-Migration installs functions; downgrade drops them before schema teardown. Runtime
-grants are provisioning state, not ORM metadata.
+| Table | Customer API | Control Plane | Worker | Beat |
+| --- | --- | --- | --- | --- |
+| `execution_manifests` | S, I | — | S, I | — |
+| `mail_outbox` | S, I, U | S [columns], U [columns] | S, U, D | — |
+| `object_write_intents` | S, I, U | S | S, I, U | — |
+| `pending_registrations` | S, I, U, D | — | — | — |
+| `scheduler_heartbeats` | — | S | S, I, U | — |
+| `scheduler_leader_statuses` | — | S | — | S, I, U |
+| `storage_plan_policies` | S | S | S | — |
+| `stored_objects` | S, I, U | — | S, I, U, D | — |
+| `practice_bundles` | S, I, U, D | — | S, U, D | — |
+| `stored_object_retirements` | S, I, U | S, U | S, I, U | — |
+| `users` | S, I, U | — | S [columns], U [columns] | — |
+| `account_deletion_operations` | S, I, U | S, U | S, I, U | — |
+| `auth_tokens` | S, I, U | — | — | — |
+| `email_change_requests` | S, I, U | — | — | — |
+| `import_jobs` | S, I, U, D | S, U | S, U, D | — |
+| `notifications` | S, I, U | — | S, I, D | — |
+| `performance_take_manifests` | S, I | — | S, D | — |
+| `realtime_changes` | S, I | — | S, I, D | — |
+| `realtime_stream_state` | S, I, U, D | — | S, I, U | — |
+| `user_sessions` | S, I, U | — | — | — |
+| `score_library_folders` | S, I, U, D | — | S, D | — |
+| `storage_quota_holds` | S, I, U | — | S, U, D | — |
+| `storage_usage_accounts` | S, I, U | — | S, U | — |
+| `storage_usage_counters` | S, I, U | — | S, I, U | — |
+| `storage_usage_events` | S, I | — | S, I, D | — |
+| `upload_sessions` | S, I, U | S | S, U, D | — |
+| `user_storage_entitlements` | S, I, U | — | S, U | — |
+| `import_artifacts` | S, D | — | S, I, D | — |
+| `import_dispatches` | S, I, U | S, U | S, U | — |
+| `import_job_steps` | S, D | S, D | S, I, U, D | — |
+| `performance_take_upload_reservations` | S, I, U, D | — | S, U, D | — |
+| `scores` | S, I, U | — | S, U, D | — |
+| `uploads` | S, I, U, D | — | S, U, D | — |
+| `guest_preview_credentials` | S, I, U, D | — | S, U, D | — |
+| `import_job_uploads` | S, I, D | — | S, D | — |
+| `performance_takes` | S, I, U, D | — | S, U, D | — |
+| `score_deletion_operations` | S, I, U | S, U | S, I, U | — |
+| `score_input_assets` | S, I, D | — | S, D | — |
+| `score_invites` | S, I, U | — | S, U | — |
+| `score_library_organizations` | S, I, U, D | — | S, D | — |
+| `score_memberships` | S, I, U | — | S, U, D | — |
+| `score_revisions` | S, I | S | S, U | — |
+| `upload_creation_requests` | S, I, U | — | S, D | — |
+| `playback_outbox` | S, I, U | S, U | S, U | — |
+| `practice_activities` | S, I | — | S, D | — |
+| `revision_metadata_outbox` | S, I, U | — | S, U | — |
+| `score_playback_assets` | S | — | S, I, D | — |
+| `score_render_assets` | S | — | S, I, D | — |
+| `score_revision_events` | S, I | — | S, U | — |
+| `score_revision_metadata` | S, I, U, D | — | S, I, U | — |
+| `score_revision_notes` | S, I, U, D | — | S, U | — |
+| `score_revision_practice_bindings` | S, I, U | — | S | — |
+| `score_revision_render_outbox` | S, I, U | S, U | S, U | — |
+| `score_revision_sources` | S, I | — | S | — |
+| `take_processing_outbox` | S, I, U | S | S, U | — |
+| `operators` | — | S, I, U | — | — |
+| `operator_sessions` | — | S, I, U | — | — |
+| `operator_mfa_challenges` | — | S, I, U, D | — | — |
+| `operator_recovery_codes` | — | S, I, U, D | — | — |
+| `ops_audit_events` | — | S, I | — | — |
 
-## Administrative commands
+## Provisioning and process credentials
 
-Every CLI receives an explicit `DATABASE_URL`; none discovers an administrator URL.
-`create_operator.py` uses `nv_control_plane`. `seed_integration_user.py` uses
-`nv_customer_api`. `rebuild_score_metadata.py` and `reconcile_storage_usage.py` use
-`nv_worker`. Alembic and destructive development `reset_alembic.py` use
-`nv_migrator` and must not run as application services. `prepare_model_assets.py`
-uses no database or application credentials. Provisioning alone uses the explicit
-administrator URL. Local test fixtures use their dedicated test-database owner for
-schema setup; role-isolation tests log in as each actual role, rather than relying
-on an administrator connection with simulated permissions.
+1. A database administrator supplies `NOTEVERSE_DB_ADMIN_URL` and five distinct
+   passwords: `NV_MIGRATOR_PASSWORD`, `NV_CUSTOMER_API_PASSWORD`,
+   `NV_CONTROL_PLANE_PASSWORD`, `NV_WORKER_PASSWORD`, `NV_BEAT_PASSWORD`.
+2. From `backend/`, run `python scripts/provision_database.py bootstrap --schema public`.
+   The helper validates role attributes/memberships and schema ownership. It
+   refuses an occupied schema owned by another role and never discards data.
+3. Set `DATABASE_URL` to `nv_migrator`, run `alembic upgrade head`, then
+   `python scripts/provision_database.py grants --schema public`. The container
+   migrate command performs both. New tables have no automatic runtime authority.
+4. Populate the five runtime database Secrets from `backend/db/secret-templates/`
+   and run `scripts/validate_runtime_secrets.py`. Worker/Beat scheduler-lock URLs
+   use their own role. Secrets and Settings share the
+   [settings ownership contract](settings-ownership.md).
 
-## Verification and deployment boundary
+CLI bootstrap/operator commands use the explicit Control Plane DB URL; resource
+seed/metadata commands use Customer API; reconciliation/cleanup commands use
+Worker. Administrative provisioning and migrations are not persistent services.
+The helper does not print credentials or SQL diagnostics on failure.
 
-`tests/security/test_db_role_isolation.py` provisions an isolated schema on real
-PostgreSQL 17.11, migrates as `nv_migrator`, applies the allowlist twice and exercises
-both legitimate operations and `InsufficientPrivilege` denials. Metadata drift,
-DDL, column leakage, append-only audit, guarded erasure and default privileges
-are checked. `tests/security/test_runtime_deployment_contract.py` validates the
-generated Settings schema, Secret references and credential templates. Application,
-GitOps, exporter and release-package validators enforce the same contract.
+## Internal metrics and infrastructure
 
-Kubernetes manifests define exact references; credentials must be provisioned by
-the environment administrator or secret-management system. Database passwords,
-cloud IAM policy, actual cluster Secret rotation and operator MFA delivery
-are outside this contract's runtime implementation.
+Control Plane's internal `/metrics` runs under `nv_control_plane` and projects
+bounded operation counts, ages, durations, scheduler state and storage cleanup
+backlogs. Its SELECT authority covers the exact metric source tables above.
+Prometheus reaches TCP 8000 inside the cluster; Gateway routing preserves `/api`
+and cannot forward or rewrite requests to `/metrics`.
 
-See [Settings Ownership](settings-ownership.md).
-
-Control Plane customer metadata access is restricted to
-`nv_customer_directory(integer,integer)` and
-`nv_set_customer_active(bigint,bigint,boolean)`. The latter requires an active,
-MFA-enrolled SUPER_ADMIN, locks the User and expires customer session idle
-deadlines on suspension. Neither function returns credential material or grants
-direct table access. Operator challenge/recovery/session tables have no grants to
-other runtimes. Audit SELECT/INSERT permits append-only events in the mutation
-transaction; UPDATE/DELETE remain denied. See
-[Control Plane Authentication](../control-plane-auth.md).
+PostgreSQL connections, locks, bloat and replication belong to standard
+`postgres_exporter`, operated by database infrastructure with separate
+infrastructure credentials. The five application roles do not receive
+`pg_monitor` or administrative observation rights.

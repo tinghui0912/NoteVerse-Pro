@@ -8,11 +8,10 @@ and observability blocks. Domain constructors receive explicit policy values.
 | Process | Settings | Entrypoint | Inputs |
 | --- | --- | --- | --- |
 | Customer API | `CustomerApiSettings` | `app.runtime.customer_api.main:app` | DB, Redis/dispatch, object storage, observability, customer opaque session/origin/abuse policy, public links, resource policies, fingering |
-| Control Plane | `ControlPlaneSettings` | `app.runtime.control_plane.main:app` | DB, Redis connection, observability, operator MFA encryption key, cookie/origin/abuse policy, Ops delivery policies |
+| Control Plane | `ControlPlaneSettings` | `app.runtime.control_plane.main:app` | DB, Redis connection, observability, operator MFA encryption key, cookie/origin/abuse policy, Ops delivery and durable metrics policies |
 | Worker | `WorkerSettings` | `app.runtime.worker.main:celery_app` | DB, Redis/dispatch, object storage, mail transport, observability, processing/work directories, delivery/retention/scheduler policies |
 | Beat | `BeatSettings` | `app.runtime.beat.main:celery_app` | DB, Redis, observability, schedule/reliability and scheduler-lock policies |
 | Beat supervisor | `BeatSettings` | `python -m app.runtime.beat.leader` | Beat configuration and dedicated scheduler-lock connection |
-| Observability exporter | `ObservabilitySettings` | `app.runtime.observability.main:app` | DB, observability and read-only metric policies |
 | PaddleOCR subprocess | `PaddleOcrSettings` | `python -m app.runtime.paddle_ocr.main` | Three local OCR model paths; JSON stdout/argv execution protocol, no DB, broker or identity configuration |
 | Alembic | `MigrationSettings` | `alembic/env.py` | DB only |
 | Administrative DB commands | `DatabaseCommandSettings` | `scripts/create_operator.py`, `reconcile_storage_usage.py`, `reset_alembic.py` | DB only |
@@ -68,11 +67,10 @@ accepted by that process's Settings and never credential fields.
 | customer_api | nv_customer_api | noteverse-customer-api-secret | `DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
 | migrator | nv_migrator | noteverse-migrator-secret | `DATABASE_URL` |
 | model_assets | none | noteverse-model-assets-secret | `HF_TOKEN` |
-| observability | nv_observability | noteverse-observability-secret | `DATABASE_URL` |
 | paddle_ocr | none | none |  |
 | worker | nv_worker | noteverse-worker-secret | `DATABASE_URL`, `SCHEDULER_LOCK_DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `RESEND_API_KEY` |
 
-The six database runtimes have distinct login passwords. Worker and Beat use their
+The five database runtimes have distinct login passwords. Worker and Beat use their
 own role for scheduler-lock connections. Model preparation has no database role;
 its optional `HF_TOKEN` is an auxiliary model-download credential. PaddleOCR uses
 only local model paths and receives no Secrets. Its subprocess launcher passes
@@ -83,14 +81,14 @@ enter application process environments.
 
 Control Plane requires no customer authentication credential, object-storage credentials or mail
 transport key: Ops retries update durable delivery records, and the Worker sends
-mail. Beat and Exporter require no object-storage, mail or authentication keys.
+mail. Beat requires no object-storage, mail or authentication keys.
 The migrator receives only `DATABASE_URL` and runs as a short-lived Job.
 
 Each local Docker process uses `backend/.env.docker.<runtime>` created from its
 matching `.example`. Kubernetes credential-only examples live in
 `backend/db/secret-templates/`. `scripts/validate_runtime_secrets.py` checks exact
 keys and database usernames without displaying values. The release preparation
-script validates the six runtime Secrets before applying workloads.
+script validates the five runtime database Secrets before applying workloads.
 
 See [Database Role Ownership](database-role-ownership.md) for table/column grants,
 bootstrap, migration and administrative command identities.
@@ -111,3 +109,9 @@ gateway hop and site-owned trusted peer CIDRs; local HTTP defaults to zero hops.
 These are public ConfigMap inputs, not new Secrets. The existing per-runtime
 Redis URLs remain isolated. See [Browser Request Security](../browser-request-security.md)
 for the exact endpoint, media-type, rate and client-IP contracts.
+
+Four long-lived backend deployments own Customer API, Control Plane, Worker and Beat.
+The migrator is a short-lived Job. Their five database roles and Secrets are distinct.
+Control Plane alone projects durable application/scheduler/storage metrics on internal
+`/metrics`; Prometheus reaches it directly on TCP 8000. The gateway forwards only
+`/api` without rewriting the path and never publishes the scrape endpoint.

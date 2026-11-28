@@ -8,9 +8,7 @@ import sys
 import pytest
 
 
-@pytest.mark.parametrize(
-    "role", ["customer_api", "control_plane", "worker", "beat", "observability", "paddle_ocr"]
-)
+@pytest.mark.parametrize("role", ["customer_api", "control_plane", "worker", "beat", "paddle_ocr"])
 def test_runtime_import_needs_only_its_own_configuration(role, tmp_path):
     env = {
         key: value
@@ -78,8 +76,7 @@ def test_runtime_import_needs_only_its_own_configuration(role, tmp_path):
         "control_plane": ("customer_api",),
         "worker": ("customer_api", "control_plane"),
         "beat": ("customer_api", "control_plane", "worker"),
-        "observability": ("customer_api", "control_plane"),
-        "paddle_ocr": ("customer_api", "control_plane", "worker", "beat", "observability"),
+        "paddle_ocr": ("customer_api", "control_plane", "worker", "beat"),
     }[role]
     code = f"""
 import importlib

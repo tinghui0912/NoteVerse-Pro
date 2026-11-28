@@ -40,7 +40,6 @@ defines grants, provisioning and guarded erasure functions.
 | Control Plane | `noteverse-control-plane-secret` |
 | Worker | `noteverse-worker-secret` |
 | Beat | `noteverse-beat-secret` |
-| Exporter | `noteverse-observability-secret` |
 
 Each workload references individual keys from its own Secret. Public settings
 come from its own ConfigMap. Secret env files contain exactly the keys in

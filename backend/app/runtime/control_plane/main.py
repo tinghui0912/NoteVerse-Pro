@@ -99,7 +99,11 @@ def create_app() -> HttpApplication:
         error_response_factory=control_plane_error_response,
     )
     app.include_router(control_plane_router)
-    install_process_endpoints(app, health_operation_ids=("healthLive", "healthReady"))
+    install_process_endpoints(
+        app,
+        include_database_metrics=True,
+        health_operation_ids=("healthLive", "healthReady"),
+    )
     return app
 
 

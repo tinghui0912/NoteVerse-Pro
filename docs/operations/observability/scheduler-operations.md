@@ -7,7 +7,7 @@ scans are separate operations. None supplies an exactly-once guarantee.
 
 `backend/app/modules/scheduler_lock` owns lock acquisition and connection
 lifetime. `scheduler_observability` records heartbeat/run statistics. The
-internal observability exporter presents database-backed operational metrics;
+Control Plane internal `/metrics` presents database-backed operational metrics;
 its scrape must not be substituted with a customer or browser-local Practice
 runtime.
 

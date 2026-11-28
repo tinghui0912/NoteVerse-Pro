@@ -43,6 +43,24 @@ def storage_origins(value: str) -> tuple[str, ...]:
 def validate_browser_documents(documents: list[dict]) -> list[str]:
     errors = []
     for doc in documents:
+        if doc.get("kind") == "HTTPRoute":
+            for rule in doc.get("spec", {}).get("rules", []):
+                for backend in rule.get("backendRefs", []):
+                    if backend.get("name") != "noteverse-control-plane":
+                        continue
+                    if (
+                        doc.get("metadata", {}).get("name") != "noteverse-platform-admin"
+                        or rule.get("matches")
+                        != [{"path": {"type": "PathPrefix", "value": "/api"}}]
+                        or backend.get("filters")
+                        or any(
+                            item.get("type") != "ResponseHeaderModifier"
+                            for item in rule.get("filters", [])
+                        )
+                    ):
+                        errors.append(
+                            "Control Plane gateway traffic must preserve /api; metrics are internal"
+                        )
         if doc.get("kind") == "HTTPRoute" and doc.get("metadata", {}).get("name") in BROWSER_ROUTES:
             name = doc["metadata"]["name"]
             if not doc.get("spec", {}).get("rules"):
@@ -128,7 +146,11 @@ def validate_browser_documents(documents: list[dict]) -> list[str]:
                 for ref in doc.get("spec", {}).get("targetRefs", [])
             )
         ]
-        expected_target = {"group": "gateway.networking.k8s.io", "kind": "HTTPRoute", "name": name}
+        expected_target = {
+            "group": "gateway.networking.k8s.io",
+            "kind": "HTTPRoute",
+            "name": name,
+        }
         valid = len(policies) == 1
         if valid:
             policy = policies[0]

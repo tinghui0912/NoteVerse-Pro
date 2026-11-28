@@ -92,7 +92,6 @@ def test_api_checks_all_shipped_composition_roots_without_starting_them(monkeypa
         for name in (
             "app.runtime.customer_api.main",
             "app.runtime.control_plane.main",
-            "app.runtime.observability.main",
         )
     ]
     migration.assert_called_once_with()

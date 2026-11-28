@@ -44,11 +44,6 @@ def checks_for_role(role: RuntimeRole) -> RuntimeChecks:
             broker_url=beat.settings.CELERY_BROKER_URL,
             work_root=beat.settings.WORK_ROOT,
         )
-    if role is RuntimeRole.OBSERVABILITY_EXPORTER:
-        from app.runtime.observability.context import get_context as get_observability_context
-
-        observability = get_observability_context()
-        return RuntimeChecks(observability.engine)
     raise ValueError("Select a concrete runtime role")
 
 

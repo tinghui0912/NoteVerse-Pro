@@ -55,8 +55,8 @@ def test_scheduler_leader_metrics_read_dedicated_orm_entity() -> None:
     assert "noteverse_scheduler_leader_child_exits_total 1" in lines
 
 
-def test_exporter_metrics_endpoint_exposes_durable_projection(
-    exporter_client: TestClient,
+def test_control_plane_metrics_endpoint_exposes_durable_projection(
+    control_plane_client: TestClient,
     monkeypatch,
 ) -> None:
     def durable_metrics(_db: object, *, config: MetricsConfig) -> str:
@@ -64,7 +64,7 @@ def test_exporter_metrics_endpoint_exposes_durable_projection(
 
     monkeypatch.setattr("app.api.metrics.async_operation_metrics_text", durable_metrics)
 
-    response = exporter_client.get("/metrics")
+    response = control_plane_client.get("/metrics")
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")

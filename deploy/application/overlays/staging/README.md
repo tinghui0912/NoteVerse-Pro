@@ -12,9 +12,8 @@ kubectl kustomize deploy/application/overlays/staging
 
 Required objects supplied outside this overlay:
 
-- Six runtime Secrets: `noteverse-migrator-secret`, `noteverse-customer-api-secret`,
-  `noteverse-control-plane-secret`, `noteverse-worker-secret`, `noteverse-beat-secret`,
-  `noteverse-observability-secret`; exact keys follow
+- Five runtime database Secrets: `noteverse-migrator-secret`, `noteverse-customer-api-secret`,
+  `noteverse-control-plane-secret`, `noteverse-worker-secret`, `noteverse-beat-secret`; exact keys follow
   [runtime ownership](../../../../docs/architecture/runtime/settings-ownership.md).
 - Optional `noteverse-model-assets-secret` with `HF_TOKEN` only for gated model downloads.
 - `ClusterIssuer/letsencrypt-production-dns01` or another production-equivalent

@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: noteverse-control-plane
   labels:
+    app.kubernetes.io/name: noteverse
     app.kubernetes.io/component: control-plane
 spec:
   selector:

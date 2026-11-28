@@ -31,13 +31,6 @@ def test_control_plane_runtime_checks_require_independent_identity_configuration
     )
 
 
-def test_observability_exporter_checks_only_its_database_dependency() -> None:
-    assert ROLE_CHECK_NAMES[RuntimeRole.OBSERVABILITY_EXPORTER] == (
-        "settings",
-        "database",
-    )
-
-
 def test_worker_runtime_checks_cover_worker_owned_dependencies() -> None:
     checks = ROLE_CHECK_NAMES[RuntimeRole.WORKER]
 
@@ -69,7 +62,6 @@ def test_all_runtime_checks_are_a_deduplicated_union() -> None:
     for role in (
         RuntimeRole.API,
         RuntimeRole.CONTROL_PLANE,
-        RuntimeRole.OBSERVABILITY_EXPORTER,
         RuntimeRole.WORKER,
         RuntimeRole.BEAT,
     ):

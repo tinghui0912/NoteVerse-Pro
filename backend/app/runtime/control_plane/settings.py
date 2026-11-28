@@ -9,12 +9,12 @@ from app.platform.config.service_identity import ServiceIdentitySettings
 from app.platform.config.trusted_proxy import TrustedProxySettings
 from app.platform.config.browser_abuse import OperatorRateLimitSettings
 from app.platform.security.origin_guard import normalize_origin
-from app.platform.config.delivery import OpsDeliveryConfig
+from app.observability.async_operation_metrics import MetricsConfig
 from app.platform.config.operator_session import OperatorSessionConfig
 
 
 class ControlPlaneSettings(
-    OpsDeliveryConfig,
+    MetricsConfig,
     DatabaseConfig,
     RedisConfig,
     ObservabilityConfig,

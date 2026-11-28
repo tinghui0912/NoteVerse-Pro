@@ -31,7 +31,7 @@ flowchart TD
   M --> P
 ```
 
-`app/runtime/customer_api`, `control_plane`, `worker`, `beat`, `observability` and `paddle_ocr`
+`app/runtime/customer_api`, `control_plane`, `worker`, `beat` and `paddle_ocr`
 own their settings, resource construction and process entrypoints. Alembic and
 administrative commands own explicit settings compositions too. Customer and
 Control Plane composition roots do not import each other. Worker and Beat do not
@@ -107,3 +107,16 @@ allowlists with L7 DNS proxy inspection; private PostgreSQL/Redis CIDRs remain
 explicit and default-empty. Runtime authority, release inputs, offline pinned
 CRD schema validation and live-cluster qualification are defined in the
 [container/network contract](../architecture/runtime/container-and-network-hardening.md).
+
+## Runtime and database authority
+
+Customer API, Control Plane, Worker and Beat are the four long-lived backend
+deployments. A short-lived migrator Job owns schema changes. Each has one distinct
+database role and Secret. Ordinary business tables use explicit per-runtime
+table-level DML; credential-bearing tables retain column/function boundaries and
+operator audit is append-only. New tables require an explicit grant decision.
+
+Control Plane exposes durable application and scheduler metrics only through its
+internal `/metrics` endpoint. Prometheus ingress is restricted to TCP 8000 by
+Cilium. Gateway routing preserves `/api` and never forwards the internal scrape.
+Standard database-owned `postgres_exporter` owns PostgreSQL infrastructure metrics.

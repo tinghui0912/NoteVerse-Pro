@@ -9,7 +9,6 @@ from app.runtime.worker.settings import WorkerSettings
 from app.runtime.beat.settings import BeatSettings
 from app.runtime.customer_api.settings import CustomerApiSettings
 from app.runtime.control_plane.settings import ControlPlaneSettings
-from app.runtime.observability.settings import ObservabilitySettings
 from app.runtime.migrations.settings import MigrationSettings
 from app.runtime.paddle_ocr.settings import PaddleOcrSettings
 
@@ -103,10 +102,7 @@ def test_http_settings_are_independent():
     )
 
 
-def test_exporter_and_migrations_need_no_identity_credentials():
-    for model in (ObservabilitySettings, MigrationSettings):
-        assert "SECRET_KEY" not in model.model_fields
-        assert not any(name.startswith(("AUTH_", "CONTROL_PLANE_")) for name in model.model_fields)
+def test_migration_settings_contain_only_database_credentials():
     assert set(MigrationSettings.model_fields) == {"DATABASE_URL"}
 
 
@@ -129,7 +125,6 @@ def test_browser_admission_settings_belong_only_to_http_runtimes():
     for model in (
         WorkerSettings,
         BeatSettings,
-        ObservabilitySettings,
         MigrationSettings,
         PaddleOcrSettings,
     ):

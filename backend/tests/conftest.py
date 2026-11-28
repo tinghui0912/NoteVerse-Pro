@@ -38,8 +38,8 @@ def client() -> Iterator[TestClient]:
 
 
 @pytest.fixture(scope="session")
-def exporter_client() -> Iterator[TestClient]:
-    from app.runtime.observability.main import app
+def control_plane_client() -> Iterator[TestClient]:
+    from app.runtime.control_plane.main import app
 
     with TestClient(app) as test_client:
         yield test_client

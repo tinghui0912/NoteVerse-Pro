@@ -34,12 +34,40 @@ class CiliumPolicyTests(unittest.TestCase):
         self.assertEqual(spec["egress"], [])
         self.assertEqual(spec["enableDefaultDeny"], {"ingress": True, "egress": True})
         self.assertEqual(
-            spec["egressDeny"], [{"toCIDR": ["169.254.169.254/32", "100.100.100.200/32"]}]
+            spec["egressDeny"],
+            [{"toCIDR": ["169.254.169.254/32", "100.100.100.200/32"]}],
         )
         for field in ("enableDefaultDeny", "egressDeny"):
             docs = application_network_policies()
             del docs[0]["spec"][field]
             self.assertTrue(validate_application_documents(docs))
+
+    def test_control_plane_scrape_is_prometheus_only_on_tcp_8000(self):
+        policy = next(
+            p
+            for p in application_network_policies()
+            if p["metadata"]["name"] == "noteverse-control-plane"
+        )
+        rules = policy["spec"]["ingress"]
+        self.assertEqual(len(rules), 2)
+        monitoring = [
+            r
+            for r in rules
+            if r["fromEndpoints"][0]["matchLabels"]["k8s:io.kubernetes.pod.namespace"]
+            == "observability"
+        ]
+        self.assertEqual(len(monitoring), 1)
+        self.assertEqual(
+            monitoring[0]["fromEndpoints"][0]["matchLabels"]["k8s:app.kubernetes.io/name"],
+            "prometheus",
+        )
+        self.assertEqual(
+            monitoring[0]["toPorts"], [{"ports": [{"protocol": "TCP", "port": "8000"}]}]
+        )
+        policies = application_network_policies()
+        control = next(p for p in policies if p["metadata"]["name"] == "noteverse-control-plane")
+        control["spec"]["ingress"][1]["toPorts"][0]["ports"][0]["port"] = "9090"
+        self.assertTrue(validate_application_documents(policies))
 
     def test_no_empty_allow_all_or_l4_dns_bypass(self):
         for policy in application_network_policies():
@@ -60,7 +88,8 @@ class CiliumPolicyTests(unittest.TestCase):
         }
         policies = external_network_policies(config)
         self.assertEqual(
-            validate_application_documents(application_network_policies() + policies), []
+            validate_application_documents(application_network_policies() + policies),
+            [],
         )
         roles = set()
         for policy in policies:
@@ -75,7 +104,8 @@ class CiliumPolicyTests(unittest.TestCase):
                 for fqdn in rule["toFQDNs"]:
                     self.assertIn(fqdn, dns)
                     self.assertEqual(
-                        dns, [{"matchName": entry["matchName"]} for entry in rule["toFQDNs"]]
+                        dns,
+                        [{"matchName": entry["matchName"]} for entry in rule["toFQDNs"]],
                     )
         self.assertEqual(roles, {"backend-api", "backend-worker", "model-cache-agent"})
         internal = application_network_policies()[1]["spec"]["egress"][0]["toPorts"][0]["rules"][
@@ -121,7 +151,10 @@ class CiliumPolicyTests(unittest.TestCase):
                 "127.0.0.1/32",
                 "10.1.2.3/24",
             ):
-                with self.subTest(field=field, cidr=cidr), self.assertRaises(ValueError):
+                with (
+                    self.subTest(field=field, cidr=cidr),
+                    self.assertRaises(ValueError),
+                ):
                     external_network_policies({**self.configuration(), field: [cidr]})
             external_network_policies(
                 {**self.configuration(), field: ["10.24.0.0/24", "fd01::/64"]}
@@ -143,7 +176,7 @@ class CiliumPolicyTests(unittest.TestCase):
     def test_official_schema_rejects_invalid_ports_types_and_unknown_fields(self):
         original = application_network_policies()[1]
         printable = copy.deepcopy(original)
-        printable["spec"]["log"] = {"value": "dns-策略"}
+        printable["spec"]["log"] = {"value": "dns-绛栫暐"}
         self.assertEqual(validate_cilium_documents([printable]), [])
         for mutation in ("port", "protocol", "unknown", "selector", "log"):
             document = copy.deepcopy(original)
@@ -160,7 +193,11 @@ class CiliumPolicyTests(unittest.TestCase):
             self.assertTrue(validate_cilium_documents([document]), mutation)
 
     def test_mixed_policy_types_and_additive_cilium_rules_are_denied(self):
-        for kind in ("NetworkPolicy", "CiliumNetworkPolicy", "CiliumClusterwideNetworkPolicy"):
+        for kind in (
+            "NetworkPolicy",
+            "CiliumNetworkPolicy",
+            "CiliumClusterwideNetworkPolicy",
+        ):
             extra = {
                 "kind": kind,
                 "metadata": {"name": "allow-other"},
@@ -171,7 +208,10 @@ class CiliumPolicyTests(unittest.TestCase):
             )
 
     def test_checked_in_policies_are_schema_valid_and_match_the_contract(self):
-        for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):
+        for base in (
+            "deploy/application/base",
+            "deploy/gitops/environments/staging/base",
+        ):
             docs = list(yaml.safe_load_all((ROOT / base / "network-policies.yaml").read_text()))
             self.assertEqual(validate_application_documents(docs), [])
         for path in (ROOT / "deploy").rglob("external-egress.json"):
@@ -228,7 +268,10 @@ class CiliumPolicyTests(unittest.TestCase):
     def test_manifest_contract_can_import_skip_counter_without_pytest(self):
         code = "import runpy; runpy.run_path('.github/scripts/backend_security_regression.py', run_name='contract')"
         subprocess.run(
-            [sys.executable, "-S", "-c", code], cwd=ROOT, check=True, capture_output=True
+            [sys.executable, "-S", "-c", code],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
         )
 
     def test_backend_quality_has_explicit_non_secret_s3_settings(self):
@@ -238,7 +281,12 @@ class CiliumPolicyTests(unittest.TestCase):
         write = next(
             s["run"] for s in job["steps"] if s["name"] == "Write backend quality environment"
         )
-        for name in ("S3_ENDPOINT_URL", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"):
+        for name in (
+            "S3_ENDPOINT_URL",
+            "S3_BUCKET",
+            "S3_ACCESS_KEY_ID",
+            "S3_SECRET_ACCESS_KEY",
+        ):
             self.assertTrue(job["env"][name])
             self.assertIn(f"{name}=${name}", write)
 

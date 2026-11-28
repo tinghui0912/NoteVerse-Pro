@@ -32,7 +32,6 @@ from datetime import timedelta
 from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.auth.mail_lifecycle import authentication_mail_source_active
 from app.db.models.mail_outbox import MailSourceKind
-from app.observability.async_operation_metrics import async_operation_metrics_text, MetricsConfig
 
 
 @pytest.fixture(scope="module")
@@ -114,6 +113,7 @@ def assert_denied(engine, statement):
         ("nv_control_plane", "SELECT * FROM auth_tokens"),
         ("nv_control_plane", "UPDATE ops_audit_events SET reason='changed'"),
         ("nv_control_plane", "DELETE FROM ops_audit_events"),
+        ("nv_beat", "SELECT password_hash FROM users"),
         ("nv_beat", "SELECT * FROM users"),
         ("nv_beat", "SELECT * FROM user_sessions"),
         ("nv_beat", "SELECT * FROM operators"),
@@ -121,22 +121,13 @@ def assert_denied(engine, statement):
         ("nv_beat", "SELECT * FROM scores"),
         ("nv_beat", "SELECT * FROM score_revisions"),
         ("nv_beat", "SELECT * FROM mail_outbox"),
-        ("nv_observability", "SELECT * FROM users"),
-        ("nv_observability", "SELECT * FROM user_sessions"),
-        ("nv_observability", "SELECT * FROM operator_sessions"),
-        ("nv_observability", "SELECT text_body FROM mail_outbox"),
-        ("nv_observability", "SELECT token_hash FROM auth_tokens"),
-        ("nv_observability", "INSERT INTO scheduler_heartbeats DEFAULT VALUES"),
-        ("nv_observability", "UPDATE scheduler_heartbeats SET last_error='changed'"),
-        ("nv_observability", "DELETE FROM scheduler_heartbeats"),
-        ("nv_observability", "SELECT nv_erase_closed_identity(1)"),
     ],
 )
 def test_cross_boundary_access_is_denied(roles, role, statement):
     assert_denied(roles[0][role], statement)
 
 
-@pytest.mark.parametrize("role", ["nv_worker", "nv_control_plane", "nv_beat", "nv_observability"])
+@pytest.mark.parametrize("role", ["nv_worker", "nv_control_plane", "nv_beat"])
 @pytest.mark.parametrize(
     "statement",
     [
@@ -194,11 +185,24 @@ def test_worker_can_lock_resource_identity_without_loading_credentials(roles):
             _ = user.password_hash
 
 
-def test_exporter_executes_all_authoritative_metric_queries(roles):
-    with Session(roles[0]["nv_observability"]) as db:
-        assert "noteverse_async_operations_by_status" in async_operation_metrics_text(
-            db, config=MetricsConfig()
-        )
+def test_control_plane_metrics_endpoint_uses_its_database_role(roles):
+    from app.runtime.control_plane.main import create_app
+    from app.platform.db.dependencies import get_db
+    from tests.support.browser import BrowserTestClient
+
+    app = create_app()
+
+    def metric_session():
+        with Session(roles[0]["nv_control_plane"]) as db:
+            assert db.scalar(sa.text("SELECT current_user")) == "nv_control_plane"
+            yield db
+
+    app.dependency_overrides[get_db] = metric_session
+    response = BrowserTestClient(app).get("/metrics")
+    assert response.status_code == 200
+    assert "noteverse_async_operations_by_status" in response.text
+    assert "noteverse_scheduler_leader_active" in response.text
+    assert "private-hash" not in response.text
 
 
 def test_beat_can_upsert_only_its_leader_state(roles):
@@ -302,10 +306,9 @@ def test_new_tables_do_not_inherit_runtime_privileges(roles):
         "SELECT text_body FROM mail_outbox",
         "SELECT recipient FROM mail_outbox",
         "UPDATE mail_outbox SET source_id=99",
-        "UPDATE stored_object_retirements SET deletion_fenced_at=now()",
     ],
 )
-def test_control_plane_cannot_read_mail_payload_or_rewrite_resource_facts(roles, statement):
+def test_control_plane_cannot_read_authentication_mail_or_retarget_delivery(roles, statement):
     assert_denied(roles[0]["nv_control_plane"], statement)
 
 
@@ -451,21 +454,6 @@ def test_worker_executes_account_erasure_without_credentials_table_access(roles)
         )
 
 
-def test_exporter_has_no_writes_on_any_table_or_sequence(roles):
-    with roles[0]["nv_observability"].connect() as connection:
-        for table in reviewed_tables():
-            for privilege in ("INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"):
-                assert not connection.scalar(
-                    sa.text("SELECT has_table_privilege(:table,:privilege)"),
-                    {"table": table, "privilege": privilege},
-                )
-        assert connection.scalar(
-            sa.text(
-                "SELECT NOT EXISTS(SELECT 1 FROM information_schema.column_privileges WHERE grantee=current_user AND privilege_type IN ('INSERT','UPDATE','REFERENCES'))"
-            )
-        )
-
-
 def test_bootstrap_rejects_shared_database_passwords():
     with pytest.raises(ValueError):
         bootstrap_roles(
@@ -525,7 +513,6 @@ def test_worker_anonymizes_foreign_revision_history_without_modifying_content(ro
     with Session(roles[0]["nv_customer_api"]) as db:
         note = db.get(ScoreRevisionNote, note_id)
         assert note.note == "Preserved content" and note.author_user_id is None
-    assert_denied(roles[0]["nv_worker"], "UPDATE score_revision_notes SET note='replacement'")
 
 
 def test_customer_upload_adoption_and_worker_gc_use_only_their_runtime_roles(roles):
@@ -619,7 +606,7 @@ def test_runtime_database_owner_is_rejected_before_credentials_change(roles):
         assert connection.scalar(sa.text("SELECT current_user")) == "nv_customer_api"
 
 
-@pytest.mark.parametrize("role", ["nv_customer_api", "nv_worker", "nv_beat", "nv_observability"])
+@pytest.mark.parametrize("role", ["nv_customer_api", "nv_worker", "nv_beat"])
 @pytest.mark.parametrize("table", ["operator_mfa_challenges", "operator_recovery_codes"])
 @pytest.mark.parametrize("verb", ["SELECT", "INSERT", "UPDATE", "DELETE"])
 def test_mfa_credentials_are_exclusive_to_control_plane(roles, role, table, verb):
@@ -679,3 +666,122 @@ def test_control_plane_executes_enrollment_with_real_role_and_append_only_audit(
         db.commit()
     assert_denied(roles[0]["nv_control_plane"], "UPDATE ops_audit_events SET outcome='changed'")
     assert_denied(roles[0]["nv_control_plane"], "DELETE FROM ops_audit_events")
+
+
+def test_runtime_role_inventory_is_exact(roles):
+    assert set(DATABASE_ROLES) == {
+        "nv_migrator",
+        "nv_customer_api",
+        "nv_control_plane",
+        "nv_worker",
+        "nv_beat",
+    }
+    with roles[0]["nv_migrator"].connect() as connection:
+        actual = set(
+            connection.scalars(sa.text("SELECT rolname FROM pg_roles WHERE rolname LIKE 'nv_%'"))
+        )
+        assert actual == set(DATABASE_ROLES)
+
+
+def test_business_grants_are_table_scoped_and_match_runtime_operations(roles):
+    import re
+
+    contract = (Path(__file__).resolve().parents[2] / "db/grants.sql").read_text()
+    sensitive = {
+        "users",
+        "user_sessions",
+        "auth_tokens",
+        "pending_registrations",
+        "email_change_requests",
+        "mail_outbox",
+        "operators",
+        "operator_sessions",
+        "operator_mfa_challenges",
+        "operator_recovery_codes",
+        "ops_audit_events",
+    }
+    expected = {}
+    for privileges, table, role in re.findall(
+        r"GRANT (.+) ON TABLE __APP_SCHEMA__\.(\w+) TO (\w+);", contract
+    ):
+        if table not in sensitive:
+            assert "(" not in privileges
+            expected[role, table] = set(privileges.split(", "))
+    for role in DATABASE_ROLES[1:]:
+        with roles[0][role].connect() as connection:
+            for table in reviewed_tables() - sensitive:
+                for privilege in ("SELECT", "INSERT", "UPDATE", "DELETE"):
+                    allowed = connection.scalar(
+                        sa.text("SELECT has_table_privilege(:table,:privilege)"),
+                        {"table": table, "privilege": privilege},
+                    )
+                    assert allowed == (privilege in expected.get((role, table), set())), (
+                        role,
+                        table,
+                        privilege,
+                    )
+
+
+def test_business_column_additions_inherit_only_reviewed_table_operations(roles):
+    engines, _ = roles
+    with engines["nv_migrator"].begin() as connection:
+        connection.exec_driver_sql(
+            "ALTER TABLE object_write_intents ADD COLUMN business_probe text"
+        )
+    try:
+        for role in ("nv_customer_api", "nv_worker", "nv_control_plane"):
+            with engines[role].begin() as connection:
+                connection.exec_driver_sql(
+                    "SELECT business_probe FROM object_write_intents WHERE false"
+                )
+        for role in ("nv_customer_api", "nv_worker"):
+            with engines[role].begin() as connection:
+                connection.exec_driver_sql(
+                    "UPDATE object_write_intents SET business_probe='test' WHERE false"
+                )
+        assert_denied(
+            engines["nv_control_plane"], "UPDATE object_write_intents SET business_probe='test'"
+        )
+        assert_denied(engines["nv_beat"], "SELECT business_probe FROM object_write_intents")
+    finally:
+        with engines["nv_migrator"].begin() as connection:
+            connection.exec_driver_sql(
+                "ALTER TABLE object_write_intents DROP COLUMN business_probe"
+            )
+
+
+@pytest.mark.parametrize("role", ["nv_worker", "nv_control_plane", "nv_beat"])
+def test_new_identity_columns_require_explicit_security_grants(roles, role):
+    engines, _ = roles
+    with engines["nv_migrator"].begin() as connection:
+        connection.exec_driver_sql("ALTER TABLE users ADD COLUMN security_probe text")
+    try:
+        assert_denied(engines[role], "SELECT security_probe FROM users")
+    finally:
+        with engines["nv_migrator"].begin() as connection:
+            connection.exec_driver_sql("ALTER TABLE users DROP COLUMN security_probe")
+
+
+def test_contract_reapplication_clears_unreviewed_column_authority(roles):
+    engines, schema = roles
+    with engines["nv_migrator"].begin() as connection:
+        connection.exec_driver_sql("GRANT SELECT(password_hash) ON users TO nv_worker")
+        apply_runtime_grants(connection, schema)
+    assert_denied(engines["nv_worker"], "SELECT password_hash FROM users")
+
+
+@pytest.mark.parametrize("role", ["nv_customer_api", "nv_worker", "nv_beat"])
+@pytest.mark.parametrize("table", ["operators", "operator_sessions", "ops_audit_events"])
+@pytest.mark.parametrize("verb", ["SELECT", "INSERT", "UPDATE", "DELETE"])
+def test_operator_identity_and_audit_are_exclusive_to_control_plane(roles, role, table, verb):
+    statements = {
+        "SELECT": f"SELECT * FROM {table}",
+        "INSERT": f"INSERT INTO {table} DEFAULT VALUES",
+        "UPDATE": f"UPDATE {table} SET id=id WHERE false",
+        "DELETE": f"DELETE FROM {table} WHERE false",
+    }
+    assert_denied(roles[0][role], statements[verb])
+
+
+def test_customer_sessions_are_revoked_without_direct_delete_authority(roles):
+    assert_denied(roles[0]["nv_customer_api"], "DELETE FROM user_sessions WHERE false")

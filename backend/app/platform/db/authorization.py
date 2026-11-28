@@ -14,7 +14,6 @@ DATABASE_ROLES = (
     "nv_control_plane",
     "nv_worker",
     "nv_beat",
-    "nv_observability",
 )
 
 
@@ -108,7 +107,10 @@ def apply_runtime_grants(connection: Connection, schema: str) -> None:
         owner != "nv_migrator" for owner in owners.values()
     ):
         raise ValueError("All reviewed tables must exist and belong to nv_migrator")
-    connection.exec_driver_sql(render_contract(connection, "grants.sql", schema))
+    connection.exec_driver_sql(
+        render_contract(connection, "grants.sql", schema),
+        execution_options={"no_parameters": True},
+    )
 
 
 def render_contract(connection: Connection, filename: str, schema: str) -> str:
@@ -118,6 +120,10 @@ def render_contract(connection: Connection, filename: str, schema: str) -> str:
     return (
         (CONTRACT_DIRECTORY / filename)
         .read_text(encoding="utf-8")
+        .replace(
+            "__APP_SCHEMA_LITERAL__",
+            sql.Literal(schema).as_string(connection.connection.driver_connection),
+        )
         .replace("__APP_SCHEMA__", identifier)
     )
 
