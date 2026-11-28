@@ -295,6 +295,7 @@ python scripts/check_observability_manifests.py
 
 ```powershell
 helm upgrade --install loki grafana/loki `
+  --post-renderer python --post-renderer-args scripts/harden_observability_manifests.py `
   --version 7.1.0 `
   --namespace observability `
   -f deploy/observability/values/loki.values.yaml `
@@ -318,6 +319,7 @@ kubectl get all -n observability
 
 ```powershell
 helm upgrade --install fluent-bit fluent/fluent-bit `
+  --post-renderer python --post-renderer-args scripts/harden_observability_manifests.py `
   --version 0.57.9 `
   --namespace observability `
   -f deploy/observability/values/fluent-bit.values.yaml
@@ -334,6 +336,7 @@ kubectl get pods -n observability -l app.kubernetes.io/name=fluent-bit -o wide
 
 ```powershell
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack `
+  --post-renderer python --post-renderer-args scripts/harden_observability_manifests.py `
   --version 79.5.0 `
   --namespace observability `
   -f deploy/observability/values/kube-prometheus-stack.values.yaml `
@@ -404,6 +407,7 @@ The smoke checks:
 
 ```powershell
 helm upgrade --install tempo grafana/tempo `
+  --post-renderer python --post-renderer-args scripts/harden_observability_manifests.py `
   --version 1.24.4 `
   --namespace observability `
   -f deploy/observability/values/tempo.values.yaml `
@@ -424,6 +428,7 @@ matches the production storage model while keeping trace retention short.
 
 ```powershell
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
+  --post-renderer python --post-renderer-args scripts/harden_observability_manifests.py `
   --version 0.165.0 `
   --namespace observability `
   -f deploy/observability/values/otel-collector.values.yaml

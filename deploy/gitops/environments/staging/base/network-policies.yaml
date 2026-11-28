@@ -1,0 +1,489 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-default-deny
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-backend-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: envoy-gateway-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: proxy
+          app.kubernetes.io/managed-by: envoy-gateway
+    ports:
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: observability
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: observability
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: opentelemetry-collector
+          app.kubernetes.io/instance: otel-collector
+    ports:
+    - protocol: TCP
+      port: 4317
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: control-plane
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: envoy-gateway-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: proxy
+          app.kubernetes.io/managed-by: envoy-gateway
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: observability
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: opentelemetry-collector
+          app.kubernetes.io/instance: otel-collector
+    ports:
+    - protocol: TCP
+      port: 4317
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-backend-worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-worker
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: observability
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: opentelemetry-collector
+          app.kubernetes.io/instance: otel-collector
+    ports:
+    - protocol: TCP
+      port: 4317
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-backend-beat
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-beat
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: observability
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: opentelemetry-collector
+          app.kubernetes.io/instance: otel-collector
+    ports:
+    - protocol: TCP
+      port: 4317
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-customer-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: customer-web
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: envoy-gateway-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: proxy
+          app.kubernetes.io/managed-by: envoy-gateway
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-platform-admin
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: platform-admin
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: envoy-gateway-system
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/component: proxy
+          app.kubernetes.io/managed-by: envoy-gateway
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-observability-exporter
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: observability-exporter
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: observability
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-migration
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: migration
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: noteverse-data
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-model-cache-agent
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: model-cache-agent
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress:
+  - to:
+    - &id001
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+  - to:
+    - *id001
+    ports:
+    - protocol: UDP
+      port: 53

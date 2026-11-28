@@ -1,0 +1,195 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-postgresql-backend-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-postgresql-control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: control-plane
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-postgresql-backend-worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-worker
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-postgresql-backend-beat
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-beat
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-postgresql-observability-exporter
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: observability-exporter
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-postgresql-migration
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: migration
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-redis-backend-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-redis-control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: control-plane
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-redis-backend-worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-worker
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-redis-backend-beat
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-beat
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-object-storage-backend-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-object-storage-backend-worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-worker
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-mail-backend-worker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend-worker
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: noteverse-external-model-assets-model-cache-agent
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: model-cache-agent
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []

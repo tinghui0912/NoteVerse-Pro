@@ -142,7 +142,7 @@ Runtime:
 
 Required environment variables:
 
-- `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites.
+- Production `/api` routing is owned by Gateway; development-only Next rewrites use `NEXT_BACKEND_ORIGIN`.
 
 Development-only environment variables:
 
@@ -363,3 +363,11 @@ credentials. See `scripts/render_k8s_release_overlay.py`.
 
 Before applying private production manifests, run the strict preflight check in
 `docs/operations/deployment/k8s-production-preflight-checklist.md`.
+
+## Container and network isolation
+
+[Container and Network Hardening](container-and-network-hardening.md) defines
+numeric UID/GID 10001, read-only filesystems, bounded scratch mounts, default-deny
+NetworkPolicy and per-runtime traffic. Gateway routes both Customer and Admin
+API traffic directly to their HTTP runtimes. External CIDRs default to empty and
+must be explicitly reviewed before external connectivity is enabled.

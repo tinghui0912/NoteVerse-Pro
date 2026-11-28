@@ -158,13 +158,16 @@ def test_enrollment_cookie_security_single_use_challenge_and_hashed_recovery(
 
 
 def test_totp_replay_and_recovery_code_reuse_are_rejected(control_app, control_db, monkeypatch):
+    clock = utc_now()
+    monkeypatch.setattr("app.modules.platform_operators.service.utc_now", lambda: clock)
+    monkeypatch.setattr("tests.support.control_plane.utc_now", lambda: clock)
     seed(control_db)
     with TestClient(control_app) as client:
         secret, codes = enroll_operator(client)
         login(client)
-        code = totp.code_for_step(secret, int(utc_now().timestamp()) // 30)
+        code = totp.code_for_step(secret, int(clock.timestamp()) // 30)
         assert client.post("/api/v1/auth/mfa/verify", json={"code": code}).status_code == 401
-        now = utc_now() + timedelta(seconds=30)
+        now = clock + timedelta(seconds=30)
         monkeypatch.setattr("app.modules.platform_operators.service.utc_now", lambda: now)
         code = totp.code_for_step(secret, int(now.timestamp()) // 30)
         response = client.post("/api/v1/auth/mfa/verify", json={"code": code})

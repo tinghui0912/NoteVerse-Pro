@@ -30,3 +30,12 @@ GitHub and registry mutation belongs here. Backend runtime commands and shipped
 image contracts belong in [backend/scripts](../../backend/scripts/README.md).
 Repository, platform and environment orchestration belongs in
 [scripts](../../scripts/README.md).
+
+## Security regression
+
+`backend_security_regression.py` executes the mandatory security and architecture
+suite with explicit real PostgreSQL/Redis URLs and rejects skips/xfails or empty
+execution. `test_container_security_policy.py` exercises numeric image identity,
+Pod/init contexts, exact network traffic, external CIDR inputs, direct Gateway
+routing and observability Helm hardening. Workflows invoke these gates separately
+from full backend regression.

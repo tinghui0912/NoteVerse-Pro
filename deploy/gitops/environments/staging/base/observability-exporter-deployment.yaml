@@ -64,6 +64,35 @@ spec:
             requests:
               cpu: 100m
               memory: 256Mi
+              ephemeral-storage: 32Mi
             limits:
               cpu: 500m
               memory: 512Mi
+              ephemeral-storage: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 32Mi

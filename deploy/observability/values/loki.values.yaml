@@ -1,12 +1,4 @@
-# Loki values skeleton for NoteVerse Pro.
-#
-# Chart family: grafana/loki
-# Namespace: observability
-#
-# Validated against grafana/loki chart 7.x for local/minikube rendering.
-
 deploymentMode: SingleBinary
-
 loki:
   auth_enabled: false
   commonConfig:
@@ -26,44 +18,34 @@ loki:
     reject_old_samples_max_age: 168h
   schemaConfig:
     configs:
-      - from: "2026-01-01"
+      - from: '2026-01-01'
         store: tsdb
         object_store: filesystem
         schema: v13
         index:
           prefix: loki_index_
           period: 24h
-
 singleBinary:
   replicas: 1
   persistence:
     enabled: false
-
 read:
   replicas: 0
-
 write:
   replicas: 0
-
 backend:
   replicas: 0
-
 gateway:
   enabled: true
   nginxConfig:
     resolver: 10.96.0.10
-
 monitoring:
   serviceMonitor:
     enabled: true
-
 chunksCache:
   enabled: false
-
 resultsCache:
   enabled: false
-
-# Production should revisit Loki storage, retention, and deploymentMode based on
-# log volume and durability requirements.
-#
-# Loki is operational log storage, not audit or billing source of truth.
+sidecar:
+  rules:
+    enabled: false

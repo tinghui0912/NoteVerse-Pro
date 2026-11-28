@@ -70,20 +70,20 @@ spec:
           responseHeaderModifier:
             set:
               - name: Strict-Transport-Security
-                value: "max-age=63072000; includeSubDomains"
+                value: max-age=63072000; includeSubDomains
       backendRefs:
         - name: noteverse-backend-api
           port: 8000
     - matches:
         - path:
             type: PathPrefix
-            value: /api/v1
+            value: /api
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
             set:
               - name: Strict-Transport-Security
-                value: "max-age=63072000; includeSubDomains"
+                value: max-age=63072000; includeSubDomains
       backendRefs:
         - name: noteverse-backend-api
           port: 8000
@@ -96,7 +96,7 @@ spec:
           responseHeaderModifier:
             set:
               - name: Strict-Transport-Security
-                value: "max-age=63072000; includeSubDomains"
+                value: max-age=63072000; includeSubDomains
       backendRefs:
         - name: noteverse-customer-web
           port: 3000
@@ -117,13 +117,26 @@ spec:
     - matches:
         - path:
             type: PathPrefix
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=63072000; includeSubDomains
+      backendRefs:
+        - name: noteverse-control-plane
+          port: 8000
+    - matches:
+        - path:
+            type: PathPrefix
             value: /
       filters:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
             set:
               - name: Strict-Transport-Security
-                value: "max-age=63072000; includeSubDomains"
+                value: max-age=63072000; includeSubDomains
       backendRefs:
         - name: noteverse-platform-admin
           port: 3000

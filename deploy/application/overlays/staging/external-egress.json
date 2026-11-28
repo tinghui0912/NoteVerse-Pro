@@ -1,0 +1,7 @@
+{
+  "postgresql": [],
+  "redis": [],
+  "object_storage": [],
+  "mail": [],
+  "model_assets": []
+}

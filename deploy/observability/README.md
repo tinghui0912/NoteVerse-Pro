@@ -133,3 +133,13 @@ Render Helm manifests before installing:
 python scripts/render_observability_helm.py --profile minikube --release loki --release fluent-bit
 python scripts/render_observability_helm.py --profile production --release loki --release fluent-bit
 ```
+
+## Container and network policy
+
+All Helm install/upgrade commands use
+`--post-renderer python --post-renderer-args scripts/harden_observability_manifests.py`
+from the repository root. `scripts/render_observability_helm.py` applies this same
+contract to both profiles. Apply `application-network-policy.yaml` alongside the
+releases. Numeric identity, scratch bounds, PVC/log permissions and the explicit
+Kubernetes API token exceptions are documented in
+[Container and Network Hardening](../../docs/architecture/runtime/container-and-network-hardening.md).

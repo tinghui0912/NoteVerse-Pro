@@ -263,6 +263,10 @@ class ImagePolicyTests(unittest.TestCase):
 
     def test_image_risk_prs_run_full_image_pipeline(self):
         inputs = {".dockerignore", policy.IMAGE_WORKFLOW,
+                  "backend/tests/fixtures/verovio-written-realization.json",
+                  "backend/tests/fixtures/verovio-playback-profile.json",
+                  ".github/scripts/frontend_image_security_smoke.mjs",
+
                   "apps/customer-web/package.json", "apps/customer-web/package-lock.json",
                   "apps/customer-web/next.config.ts", "apps/customer-web/.npmrc",
                   "apps/customer-web/npm-shrinkwrap.json"}

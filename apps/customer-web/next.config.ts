@@ -4,11 +4,11 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
-if (!process.env.NEXT_BACKEND_ORIGIN) {
+if (process.env.NODE_ENV === 'development' && !process.env.NEXT_BACKEND_ORIGIN) {
   throw new Error('NEXT_BACKEND_ORIGIN is required.');
 }
 
-const backendOrigin = process.env.NEXT_BACKEND_ORIGIN.replace(/\/$/, '');
+const backendOrigin = process.env.NEXT_BACKEND_ORIGIN?.replace(/\/$/, '');
 const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
   ? process.env.NEXT_ALLOWED_DEV_ORIGINS
       .split(',')
@@ -44,6 +44,7 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
+    if (process.env.NODE_ENV !== 'development') return [];
     return [
       {
         source: `${CUSTOMER_API_PREFIX}/:path*`,

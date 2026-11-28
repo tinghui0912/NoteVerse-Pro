@@ -9,6 +9,8 @@ they are wired into a real Helm release.
 from __future__ import annotations
 
 import argparse
+import yaml
+from container_security_contract import validate_workloads, validate_dockerfiles
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -222,12 +224,16 @@ def print_findings(findings: list[Finding]) -> None:
 def main() -> int:
     args = parse_args()
     findings: list[Finding] = []
+    for error in validate_dockerfiles():
+        findings.append(add_file_finding(args.target, "container-identity", error))
     for path in target_files(args.target):
         findings.extend(scan_file(path))
     findings.extend(validate_fluent_bit_values(args.target))
     findings.extend(validate_environment_object_storage(args.target))
     for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):
         path = REPO_ROOT / base / "observability-exporter-deployment.yaml"
+        for problem in validate_workloads(list(yaml.safe_load_all(path.read_text()))):
+            findings.append(add_file_finding(path, "exporter-container-security", problem))
         for problem in validate_rendered(
             path.read_text(), require_workloads=False, require_configuration=False
         ):

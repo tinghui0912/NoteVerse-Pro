@@ -100,3 +100,10 @@ permissions, reason/password admission and administrative query/mutation surface
 The repository's Platform Admin workflow runs the corresponding quality commands.
 
 See [Browser Security Baseline](../../docs/architecture/browser-security-baseline.md) for per-request nonce CSP, route capabilities, header ownership and Gateway HSTS.
+
+## Deployment network boundary
+
+Production `/api` requests route directly from the same-origin Edge Gateway to
+its HTTP runtime. Next.js rewrites are development-only. Production containers
+use numeric UID/GID 10001, read-only image layers and bounded temporary storage.
+See [Container and Network Hardening](../../docs/architecture/runtime/container-and-network-hardening.md).

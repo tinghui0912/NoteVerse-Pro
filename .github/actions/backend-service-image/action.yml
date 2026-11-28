@@ -85,7 +85,7 @@ runs:
       env:
         IMAGE_REF: ${{ steps.artifact.outputs.ref }}
         ROLE: ${{ inputs.role }}
-      run: docker run --rm --network none --entrypoint python "$IMAGE_REF" scripts/check_image_contract.py --role "$ROLE"
+      run: docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev,size=2g,mode=1777 --entrypoint python "$IMAGE_REF" scripts/check_image_contract.py --role "$ROLE"
     - name: Generate service SPDX SBOM
       id: sbom
       uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c

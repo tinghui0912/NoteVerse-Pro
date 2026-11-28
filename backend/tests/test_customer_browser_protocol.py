@@ -152,8 +152,9 @@ def test_gateway_customer_bindings_match_protocol_and_openapi_sources():
         routes = web["spec"]["rules"]
         assert [rule["matches"][0]["path"]["value"] for rule in routes[:2]] == [
             stream,
-            protocol.CUSTOMER_API_PREFIX,
+            "/api",
         ]
+        assert protocol.CUSTOMER_API_PREFIX.startswith("/api/")
         assert all(rule["backendRefs"][0]["name"] == "noteverse-backend-api" for rule in routes[:2])
 
 

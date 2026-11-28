@@ -8,6 +8,11 @@ dev endpoints, raw credentials, or mutable image tags.
 from __future__ import annotations
 
 from browser_security_contract import validate_browser_documents
+from container_security_contract import (
+    validate_application_documents,
+    validate_dockerfiles,
+    validate_external_files,
+)
 import yaml
 import argparse
 import json
@@ -186,6 +191,14 @@ def main() -> int:
     for target in args.targets:
         findings.extend(validate_files(target))
         rendered = render_kustomize(target)
+        findings.extend(
+            Finding(str(target), 1, "container-network-security", message)
+            for message in validate_application_documents(
+                [doc for doc in yaml.safe_load_all(rendered) if doc]
+            )
+            + validate_dockerfiles()
+            + validate_external_files(target, [doc for doc in yaml.safe_load_all(rendered) if doc])
+        )
         findings.extend(
             Finding(str(target), 1, "browser-security-contract", message)
             for message in validate_browser_documents(

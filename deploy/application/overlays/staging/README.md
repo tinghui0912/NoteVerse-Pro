@@ -29,13 +29,11 @@ Required objects supplied outside this overlay:
 - Envoy Gateway data-plane exposure through MetalLB or a local port-forward to
   port 443 for minikube production-flow rehearsal
 
-The staging overlay intentionally enables one `control-plane` and one
-`platform-admin` replica. The dedicated `admin.<environment-domain>` Gateway
-listener routes only to Platform Admin; its same-origin BFF is the only
-in-cluster caller admitted to the control-plane Service by NetworkPolicy.
-The control-plane Service itself has no Gateway route. Production remains
-dark-by-default until workforce MFA and the production access review are
-complete.
+The staging overlay enables one Control Plane and one Platform Admin replica.
+The Admin HTTPS listener routes `/api` directly to Control Plane and document
+paths to Platform Admin. NetworkPolicy admits only Envoy to these surfaces;
+Platform Admin has no Control Plane egress. Production replica counts follow its
+explicit deployment access policy.
 
 Replace all `registry.example.invalid` images in an environment-specific branch
 or private overlay before deployment. The staging overlay is intended for the
@@ -55,7 +53,14 @@ from the cluster secret management path, not from repository files.
 
 Frontend routing notes:
 
-- `NEXT_BACKEND_ORIGIN` points to the internal backend Service because it is used
-  by Next.js rewrites on the server side.
+- Gateway routes `/api` directly to Customer API; production Next.js performs no API rewrite.
 - Practice source requests are served by the main backend API.
 - Browser API and realtime requests use same-origin `/api/v1`.
+
+## Runtime isolation
+
+All application workloads use UID/GID 10001 and read-only root filesystems.
+`external-egress.json` owns per-service CIDR lists; empty lists deny external
+connectivity. Render `external-egress.yaml` with
+`scripts/container_security_contract.py` after reviewing endpoint CIDRs.
+See [Container and Network Hardening](../../../../docs/architecture/runtime/container-and-network-hardening.md).

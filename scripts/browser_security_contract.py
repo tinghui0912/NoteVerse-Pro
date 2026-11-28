@@ -78,6 +78,42 @@ def validate_browser_documents(documents: list[dict]) -> list[str]:
         annotations = doc.get("metadata", {}).get("annotations", {})
         if any("content-security-policy" in str(value).lower() for value in annotations.values()):
             errors.append("Gateway annotations cannot emit or overwrite document CSP")
+    for route in (
+        d
+        for d in documents
+        if d.get("kind") == "HTTPRoute" and d.get("metadata", {}).get("name") in BROWSER_ROUTES
+    ):
+        name = route["metadata"]["name"]
+        rules = route.get("spec", {}).get("rules", [])
+        backend = (
+            "noteverse-control-plane"
+            if name == "noteverse-platform-admin"
+            else "noteverse-backend-api"
+        )
+        frontend = (
+            "noteverse-platform-admin"
+            if name == "noteverse-platform-admin"
+            else "noteverse-customer-web"
+        )
+        api = [
+            r
+            for r in rules
+            if r.get("matches") == [{"path": {"type": "PathPrefix", "value": "/api"}}]
+        ]
+        web = [
+            r for r in rules if r.get("matches") == [{"path": {"type": "PathPrefix", "value": "/"}}]
+        ]
+        if len(api) != 1 or api[0].get("backendRefs") != [{"name": backend, "port": 8000}]:
+            errors.append(f"{name}: /api must route directly to its HTTP runtime")
+        if len(web) != 1 or web[0].get("backendRefs") != [{"name": frontend, "port": 3000}]:
+            errors.append(f"{name}: document traffic must route to its frontend")
+        for rule in rules:
+            for match in rule.get("matches", []):
+                path = match.get("path", {}).get("value", "")
+                if path.startswith("/api") and rule.get("backendRefs") != [
+                    {"name": backend, "port": 8000}
+                ]:
+                    errors.append(f"{name}: API routing authority differs")
     limits = {"noteverse-web": "32Mi", "noteverse-platform-admin": "512Ki"}
     for route in (doc for doc in documents if doc.get("kind") == "HTTPRoute"):
         name = route.get("metadata", {}).get("name")

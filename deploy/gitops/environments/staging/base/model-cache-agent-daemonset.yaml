@@ -48,6 +48,25 @@ spec:
           volumeMounts:
             - name: node-model-cache
               mountPath: /opt/noteverse/models
+            - name: scratch
+              mountPath: /tmp
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              ephemeral-storage: 128Mi
+            limits:
+              ephemeral-storage: 3Gi
       containers:
         - name: cache-ready
           image: busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
@@ -55,12 +74,17 @@ spec:
           command:
             - sh
             - -c
-            - |
-              set -eu
+            - 'set -eu
+
               echo "model cache ready on ${NODE_NAME}"
+
               trap : TERM INT
+
               sleep infinity &
+
               wait
+
+              '
           env:
             - name: NODE_NAME
               valueFrom:
@@ -70,8 +94,38 @@ spec:
             - name: node-model-cache
               mountPath: /opt/noteverse/models
               readOnly: true
+            - name: scratch
+              mountPath: /tmp
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              ephemeral-storage: 128Mi
+            limits:
+              ephemeral-storage: 3Gi
       volumes:
         - name: node-model-cache
           hostPath:
             path: /var/lib/noteverse/models
-            type: DirectoryOrCreate
+            type: Directory
+        - name: scratch
+          emptyDir:
+            sizeLimit: 2Gi
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault

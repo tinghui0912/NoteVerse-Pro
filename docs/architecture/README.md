@@ -13,6 +13,7 @@ accepted current decisions and their rationale.
 - [Backend Settings Ownership](runtime/settings-ownership.md)
 - [Database Role and Secret Ownership](runtime/database-role-ownership.md)
 - [Import Processing](runtime/import-processing.md)
+- [Container and Network Hardening](runtime/container-and-network-hardening.md)
 - [Kubernetes Application Runtime](runtime/k8s-application-runtime-contract.md)
 - [External Dependencies](integrations/external-dependencies.md)
 

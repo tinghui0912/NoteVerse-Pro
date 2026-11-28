@@ -67,3 +67,11 @@ a private production overlay or CI/CD substitution step before deployment.
 
 Do not commit real credentials, real object storage keys, or production database
 URLs to this repository.
+
+## Runtime isolation
+
+All application workloads use UID/GID 10001 and read-only root filesystems.
+`external-egress.json` owns per-service CIDR lists; empty lists deny external
+connectivity. Render `external-egress.yaml` with
+`scripts/container_security_contract.py` after reviewing endpoint CIDRs.
+See [Container and Network Hardening](../../../../docs/architecture/runtime/container-and-network-hardening.md).

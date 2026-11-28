@@ -12,6 +12,8 @@ RUN npm install -g "npm@${NPM_VERSION}" \
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=development
 
+ENV TMPDIR=/tmp HOME=/tmp npm_config_cache=/tmp/npm
+
 WORKDIR /app
 
 COPY apps/customer-web/package.json apps/customer-web/package-lock.json ./
@@ -20,6 +22,10 @@ RUN npm ci \
 
 COPY docker/customer-web/entrypoint.dev.sh /usr/local/bin/customer-web-dev-entrypoint
 RUN chmod +x /usr/local/bin/customer-web-dev-entrypoint
+
+RUN groupadd --gid 10001 noteverse && useradd --uid 10001 --gid 10001 --no-create-home --home-dir /tmp noteverse \
+    && chown -R 10001:10001 /app
+USER 10001:10001
 
 EXPOSE 3000
 

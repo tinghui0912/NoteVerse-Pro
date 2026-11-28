@@ -29,3 +29,7 @@ backend/research
 backend/.venv
 
 backend/.env*
+
+backend/db/secret-templates/*.env
+
+apps/**/.env*

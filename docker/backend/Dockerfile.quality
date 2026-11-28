@@ -36,4 +36,13 @@ RUN uv sync --project /opt/noteverse/project --locked --no-default-groups --only
 COPY backend/ /app/
 RUN test ! -e /app/research
 
+ENV PYTHONPATH=/app TMPDIR=/tmp HOME=/tmp XDG_CACHE_HOME=/tmp/.cache \
+    MPLCONFIGDIR=/tmp/matplotlib TORCH_HOME=/tmp/torch \
+    NUMBA_CACHE_DIR=/tmp/numba PADDLE_HOME=/tmp/paddle \
+    RUFF_CACHE_DIR=/tmp/ruff MYPY_CACHE_DIR=/tmp/mypy UV_CACHE_DIR=/tmp/uv \
+    WORK_ROOT=/tmp/work
+
+RUN groupadd --gid 10001 noteverse && useradd --uid 10001 --gid 10001 --no-create-home --home-dir /tmp noteverse
+USER 10001:10001
+
 CMD ["bash"]

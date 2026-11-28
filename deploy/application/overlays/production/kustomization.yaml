@@ -1,23 +1,20 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 namespace: noteverse-production
-
 resources:
+  - external-egress.yaml
   - ../../base
   - gateway.yaml
   - pdb-backend-api.yaml
   - pdb-customer-web.yaml
   - hpa-backend-api.yaml
   - hpa-customer-web.yaml
-
 labels:
   - includeSelectors: false
     includeTemplates: true
     pairs:
       app.kubernetes.io/instance: noteverse-production
       app.kubernetes.io/environment: production
-
 images:
   - name: noteverse-backend-api
     newName: registry.example.invalid/noteverse/backend-api
@@ -34,7 +31,6 @@ images:
   - name: noteverse-platform-admin
     newName: registry.example.invalid/noteverse/platform-admin
     newTag: production-replace-me
-
 configMapGenerator:
   - name: noteverse-beat-config
     envs:
@@ -57,10 +53,8 @@ configMapGenerator:
   - name: noteverse-customer-web-config
     envs:
       - customer-web-config.env
-
 generatorOptions:
   disableNameSuffixHash: true
-
 replicas:
   - name: noteverse-backend-api
     count: 3
@@ -68,7 +62,6 @@ replicas:
     count: 1
   - name: noteverse-customer-web
     count: 3
-
 patches:
   - path: patch-backend-api-runtime-volumes.yaml
   - path: patch-backend-worker-runtime-volumes.yaml

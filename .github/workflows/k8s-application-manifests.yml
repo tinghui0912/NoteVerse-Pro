@@ -6,6 +6,9 @@ on:
     paths:
       - "backend/docs/contracts/runtime-deployment.json"
       - "scripts/check_k8s_config_ownership.py"
+      - "scripts/container_security_contract.py"
+      - "docker/**"
+      - ".github/scripts/test_container_security_policy.py"
       - "scripts/requirements-manifests.txt"
       - "deploy/application/**"
       - "deploy/gitops/**"
@@ -20,6 +23,9 @@ on:
     paths:
       - "backend/docs/contracts/runtime-deployment.json"
       - "scripts/check_k8s_config_ownership.py"
+      - "scripts/container_security_contract.py"
+      - "docker/**"
+      - ".github/scripts/test_container_security_policy.py"
       - "scripts/requirements-manifests.txt"
       - "deploy/application/**"
       - "deploy/gitops/**"
@@ -60,6 +66,11 @@ jobs:
 
       - name: Verify browser security manifest contracts
         run: python -m unittest discover -s .github/scripts -p test_browser_security_manifest_policy.py -v
+
+      - name: Check container and network policy contracts
+        run: |
+          python scripts/container_security_contract.py
+          python -m unittest discover -s .github/scripts -p test_container_security_policy.py -v
 
       - name: Validate Kubernetes env-file ownership
         run: python scripts/check_k8s_config_ownership.py

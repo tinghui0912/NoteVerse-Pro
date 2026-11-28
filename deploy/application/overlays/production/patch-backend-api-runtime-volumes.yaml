@@ -12,4 +12,5 @@ spec:
               mountPath: /var/lib/noteverse/work
       volumes:
         - name: work
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: 512Mi

@@ -13,9 +13,9 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: noteverse-staging
   namespaceResourceWhitelist:
-    - group: ""
+    - group: ''
       kind: ConfigMap
-    - group: ""
+    - group: ''
       kind: Service
     - group: apps
       kind: DaemonSet
@@ -31,3 +31,5 @@ spec:
       kind: HTTPRoute
     - group: networking.k8s.io
       kind: NetworkPolicy
+    - group: gateway.envoyproxy.io
+      kind: BackendTrafficPolicy

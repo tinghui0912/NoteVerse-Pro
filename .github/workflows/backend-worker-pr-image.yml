@@ -75,7 +75,7 @@ jobs:
       id: deps-contract
       env:
         DEPS_REF: ${{ env.WORKER_DEPS_IMAGE }}
-      run: docker run --rm --network none --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/check_image_contract.py
+      run: docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev,size=2g,mode=1777 --entrypoint python "$DEPS_REF" /usr/local/lib/noteverse/check_image_contract.py
         --role worker-deps
     - name: Release completed deps build cache and pulls
       env:
@@ -136,7 +136,7 @@ jobs:
       id: worker-contract
       env:
         WORKER_REF: ${{ env.WORKER_IMAGE }}
-      run: docker run --rm --network none --entrypoint python "$WORKER_REF" scripts/check_image_contract.py --role worker
+      run: docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev,size=2g,mode=1777 --entrypoint python "$WORKER_REF" scripts/check_image_contract.py --role worker
     - name: Release completed worker build cache and pulls
       env:
         WORKER_REF: ${{ env.WORKER_IMAGE }}

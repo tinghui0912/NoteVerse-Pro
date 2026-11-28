@@ -9,6 +9,8 @@ the script explicitly documents another path.
 | --- | --- | --- |
 | `check_image_contract.py` | Verifies backend image dependency/import composition; embedded in Worker-deps. | Offline packaging check, not deployment readiness or model/GPU qualification. |
 | `check_runtime.py` | Validates configuration and dependencies for a runtime role. | Read-only diagnostic. |
+| `export_runtime_contract.py` | Exports or checks process settings and Secret ownership. | Writes the generated deployment contract unless `--check` is used. |
+| `provision_database.py` | Provisions explicit PostgreSQL roles or applies the reviewed grants. | Mutates database authorization; use the declared bootstrap/migrator credentials. |
 | `export_openapi.py` | Exports or verifies versioned HTTP API contracts. | Writes generated contracts unless `--check` is used. |
 | `create_operator.py` | Creates a local platform operator. | Mutates identity data; development only. |
 | `reconcile_storage_usage.py` | Inspects or repairs one user's online usage projection from semantic ownership and active holds. | `inspect` is read-only; `repair` commits corrections; output omits object locators. |

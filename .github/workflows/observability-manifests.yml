@@ -6,19 +6,27 @@ on:
     paths:
       - "backend/docs/contracts/runtime-deployment.json"
       - "scripts/check_k8s_config_ownership.py"
+      - "scripts/container_security_contract.py"
+      - "docker/**"
+      - ".github/scripts/test_container_security_policy.py"
       - "scripts/requirements-manifests.txt"
       - "deploy/observability/**"
       - "scripts/check_observability_manifests.py"
       - "scripts/render_observability_helm.py"
+      - "scripts/harden_observability_manifests.py"
       - ".github/workflows/observability-manifests.yml"
   pull_request:
     paths:
       - "backend/docs/contracts/runtime-deployment.json"
       - "scripts/check_k8s_config_ownership.py"
+      - "scripts/container_security_contract.py"
+      - "docker/**"
+      - ".github/scripts/test_container_security_policy.py"
       - "scripts/requirements-manifests.txt"
       - "deploy/observability/**"
       - "scripts/check_observability_manifests.py"
       - "scripts/render_observability_helm.py"
+      - "scripts/harden_observability_manifests.py"
       - ".github/workflows/observability-manifests.yml"
 
 concurrency:
@@ -44,5 +52,27 @@ jobs:
       - name: Check observability helper syntax
         run: python -m py_compile scripts/check_observability_manifests.py scripts/render_observability_helm.py
 
+      - name: Check container and network policy contracts
+        run: |
+          python scripts/container_security_contract.py
+          python -m unittest discover -s .github/scripts -p test_container_security_policy.py -v
+
       - name: Validate observability values
         run: python scripts/check_observability_manifests.py
+
+      - name: Install verified Helm renderer
+        run: |
+          curl -fsSLo /tmp/helm.tar.gz https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz
+          curl -fsSLo /tmp/helm.sha256 https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz.sha256sum
+          (cd /tmp && sed 's/helm-v3.19.0-linux-amd64.tar.gz/helm.tar.gz/' helm.sha256 | sha256sum --check)
+          tar -xzf /tmp/helm.tar.gz -C /tmp
+          sudo install /tmp/linux-amd64/helm /usr/local/bin/helm
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add fluent https://fluent.github.io/helm-charts
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+
+      - name: Verify hardened pinned observability chart renders
+        run: |
+          python scripts/render_observability_helm.py --profile minikube --output-dir /tmp/observability-minikube
+          python scripts/render_observability_helm.py --profile production --output-dir /tmp/observability-production

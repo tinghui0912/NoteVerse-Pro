@@ -15,6 +15,9 @@ from __future__ import annotations
 
 from browser_security_contract import storage_origins
 import argparse
+import json
+import yaml
+from container_security_contract import external_network_policies
 import re
 import shutil
 from dataclasses import dataclass
@@ -35,6 +38,11 @@ class ImageRef:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--external-egress-config",
+        type=Path,
+        help="Reviewed per-service CIDR JSON; defaults to deny external egress",
+    )
     parser.add_argument("--environment", choices=("staging", "production"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--backend-api-image", required=True)
@@ -205,6 +213,15 @@ def render_overlay(args: argparse.Namespace) -> Path:
     output = args.output if args.output.is_absolute() else REPO_ROOT / args.output
     copy_template(source, output, args.overwrite)
     shutil.copytree(APPLICATION_BASE_ROOT, output / "base")
+    if getattr(args, "external_egress_config", None):
+        configuration = json.loads(args.external_egress_config.read_text(encoding="utf-8"))
+        policies = external_network_policies(configuration)
+        (output / "external-egress.json").write_text(
+            json.dumps(configuration, indent=2) + "\n", encoding="utf-8"
+        )
+        (output / "external-egress.yaml").write_text(
+            yaml.safe_dump_all(policies, sort_keys=False), encoding="utf-8"
+        )
 
     backend_api_ref = parse_image_ref(args.backend_api_image)
     backend_beat_ref = parse_image_ref(args.backend_beat_image)

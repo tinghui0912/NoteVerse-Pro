@@ -1,5 +1,6 @@
 ARG TRANSCODA_PYTHON_IMAGE=noteverse-transcoda-ml-base:py312-torch291-cu128
 FROM ${TRANSCODA_PYTHON_IMAGE}
+USER 0:0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
@@ -32,5 +33,13 @@ RUN python -m pip install \
         transformers==4.57.3 \
         xgrammar==0.1.31 \
     && python -c "import cv2, fire, torch, transformers, xgrammar; print('torch', torch.__version__); print('transformers', transformers.__version__); print('opencv', cv2.__version__); print('xgrammar', getattr(xgrammar, '__version__', 'import-ok'))"
+
+ENV TMPDIR=/tmp HOME=/tmp XDG_CACHE_HOME=/tmp/.cache \
+    MPLCONFIGDIR=/tmp/matplotlib TORCH_HOME=/tmp/torch \
+    NUMBA_CACHE_DIR=/tmp/numba PADDLE_HOME=/tmp/paddle \
+    RUFF_CACHE_DIR=/tmp/ruff MYPY_CACHE_DIR=/tmp/mypy UV_CACHE_DIR=/tmp/uv \
+    WORK_ROOT=/tmp/work
+
+USER 10001:10001
 
 ENTRYPOINT ["/usr/bin/tini", "--", "python", "scripts/inference.py"]

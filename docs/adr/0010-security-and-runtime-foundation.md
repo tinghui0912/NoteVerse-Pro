@@ -59,21 +59,30 @@ Database URLs are process inputs. Separate least-privilege database roles and
 Secret distribution are an explicit security delivery boundary; configuration
 isolation alone does not prove deployed database permissions.
 
-## Security blueprint and implementation boundary
+## Security contracts
 
-The security blueprint uses opaque customer/operator sessions, mandatory operator
-TOTP MFA, JSON command bodies with Fetch Metadata and Origin admission, bounded
-MusicXML admission and process-specific database roles/secrets. Each capability
-has its own implementation and acceptance work. This decision does not claim
-that those capabilities are already implemented by configuration decoupling.
+Customer identity uses PostgreSQL-backed opaque sessions, Argon2id passwords and
+Redis identity hints. Control Plane uses mandatory TOTP MFA, opaque challenges,
+operator sessions, static permission policy and append-only audit. Request
+admission uses Origin/Fetch Metadata and distributed fail-closed auth limits.
+Browser responses use route-scoped nonce CSP; document and HTTP admission enforce
+streaming resource budgets. Runtime credentials, numeric non-root containers and
+network policies isolate process authority.
 
-Customer identity uses PostgreSQL-backed opaque sessions and Redis identity hints.
-Platform security primitives own Argon2id password hashing, CSPRNG opaque tokens
-and host-only cookies. Customer API owns session issuance, validation and
-revocation; other runtimes have no direct session-ledger privileges. See
-[Consumer Sessions](../architecture/consumer-sessions.md) for the executable
-HTTP, lifecycle and cache contract. Operator identity, browser request admission and MusicXML each
-retain their independent domain contracts.
+The authoritative contracts are:
+
+1. [Consumer Sessions](../architecture/consumer-sessions.md).
+2. [Control Plane Authentication](../architecture/control-plane-auth.md).
+3. [Browser Request Security](../architecture/browser-request-security.md).
+4. [Browser Security Baseline](../architecture/browser-security-baseline.md).
+5. [Document Admission and Ingress Limits](../architecture/document-admission-and-ingress-limits.md).
+6. [Container and Network Hardening](../architecture/runtime/container-and-network-hardening.md).
+
+[Settings Ownership](../architecture/runtime/settings-ownership.md) and
+[Database Role and Secret Ownership](../architecture/runtime/database-role-ownership.md)
+define the exact process configuration and least-privilege database contracts.
+Local automated checks establish these executable boundaries; cluster dataplane,
+external provider and hardware acceptance require their own live evidence.
 
 ## Enforcement and acceptance
 

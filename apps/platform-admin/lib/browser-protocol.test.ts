@@ -22,6 +22,7 @@ it("browser identities agree with the versioned authority", () => {
   });
 });
 it("the same-origin proxy uses the generated prefix and server topology", async () => {
+  vi.stubEnv("NODE_ENV", "development");
   vi.stubEnv("NEXT_CONTROL_PLANE_ORIGIN", "http://internal-control:8000/");
   const { default: config } = await import("../next.config");
   expect(typeof config.rewrites).toBe("function");
@@ -49,4 +50,10 @@ it("browser policy declares its generated identity dependencies", () => {
     expect(transport.includes(JSON.stringify(identity))).toBe(false);
     expect(proxy.includes(JSON.stringify(identity))).toBe(false);
   }
+});
+
+it("production routes API requests only through the edge gateway", async () => {
+  vi.stubEnv("NODE_ENV", "production");
+  const { default: config } = await import("../next.config");
+  expect(await config.rewrites!()).toEqual([]);
 });

@@ -19,7 +19,7 @@ vi.mock('@/i18n/routing', () => ({
 vi.mock('next-intl/middleware', () => ({
   default: () => () => new Response(null, { status: 200 }),
 }));
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 const source = JSON.parse(
   fs.readFileSync('../../contracts/http/customer-browser-protocol.json', 'utf8'),
 );
@@ -54,7 +54,8 @@ it('shares canonical browser identity with Backend and Next proxy', () => {
   expect(new URL(anonymous.headers.get('location')!).pathname).toBe('/auth/login');
 });
 
-it('uses the generated prefix and deployment origin for Next rewrite', async () => {
+it('uses the generated prefix for the development API rewrite', async () => {
+  vi.stubEnv('NODE_ENV', 'development');
   expect(await config.rewrites?.()).toEqual([
     {
       source: `${source.api_prefix}/:path*`,
@@ -114,4 +115,9 @@ it('keeps missing thumbnails empty and connects EventSource with credentials', (
     withCredentials: true,
   });
   expect(send).not.toHaveBeenCalled();
+});
+
+it('production API traffic is routed by the edge gateway', async () => {
+  vi.stubEnv('NODE_ENV', 'production');
+  expect(await config.rewrites?.()).toEqual([]);
 });
