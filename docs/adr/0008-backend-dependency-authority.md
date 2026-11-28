@@ -53,7 +53,7 @@ manifest absence, digest validation, qualified attachment and exact verification
 Separate service and Worker policies own their bounded repositories and canonical
 rules. Registry policy code is outside the Worker dependency key.
 
-API and Beat trusted publication refuses existing source/candidate tags, pushes
+Core trusted publication refuses existing source/candidate tags, pushes
 only an attempt-specific candidate, pulls its exact OCI, and runs offline contract,
 SPDX and CRITICAL Trivy gates before source-SHA promotion. Worker reuses an
 existing qualified dependency key or qualifies a dependency candidate, then builds

@@ -115,3 +115,22 @@ The migrator is a short-lived Job. Their five database roles and Secrets are dis
 Control Plane alone projects durable application/scheduler/storage metrics on internal
 `/metrics`; Prometheus reaches it directly on TCP 8000. The gateway forwards only
 `/api` without rewriting the path and never publishes the scrape endpoint.
+
+## Production image ownership
+
+The modular monolith uses four production images: `noteverse-backend-core`,
+`noteverse-backend-worker`, `noteverse-customer-web` and `noteverse-platform-admin`.
+Customer API, Control Plane, Beat and the short-lived migrator share one immutable
+core digest, with explicit `customer-api`, `control-plane`, `beat`, `migrator`
+commands. Worker and model preparation share the Worker digest. Four long-lived
+backend Deployments retain independent Settings, five runtime DB Secrets,
+five PostgreSQL roles and workload-specific Cilium policies; an image is not an
+authorization boundary. Model preparation's optional download credential and
+registry-pull credential have separate purposes, without database authority.
+
+Worker-deps is an internal qualified dependency cache; Quality and frontend dev
+recipes serve CI/local development. Core excludes heavy processing dependencies.
+[Image publication and release contract](../../operations/release/container-image-build-strategy.md)
+checks numeric UID/GID, read-only operation, isolated imports and exact four-image
+release ownership. GitOps without a trusted four-image publication is explicitly
+BLOCKED; no existing digest is relabelled as a different image.

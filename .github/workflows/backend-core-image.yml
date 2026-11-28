@@ -1,4 +1,4 @@
-name: Backend Beat Image
+name: Backend Core Image
 
 on:
   workflow_dispatch:
@@ -7,10 +7,10 @@ on:
     paths:
       - "backend/**"
       - "!backend/research/**"
-      - "docker/backend/Dockerfile.beat"
-      - "docker/backend/Dockerfile.beat.dockerignore"
+      - "docker/backend/Dockerfile.core"
+      - "docker/backend/Dockerfile.core.dockerignore"
       - "docker/backend/entrypoint.sh"
-      - ".github/workflows/backend-beat-image.yml"
+      - ".github/workflows/backend-core-image.yml"
       - ".github/actions/backend-service-image/**"
       - ".github/scripts/backend_*.py"
       - ".github/scripts/test_backend_*.py"
@@ -20,10 +20,10 @@ on:
     paths:
       - "backend/**"
       - "!backend/research/**"
-      - "docker/backend/Dockerfile.beat"
-      - "docker/backend/Dockerfile.beat.dockerignore"
+      - "docker/backend/Dockerfile.core"
+      - "docker/backend/Dockerfile.core.dockerignore"
       - "docker/backend/entrypoint.sh"
-      - ".github/workflows/backend-beat-image.yml"
+      - ".github/workflows/backend-core-image.yml"
       - ".github/actions/backend-service-image/**"
       - ".github/scripts/backend_*.py"
       - ".github/scripts/test_backend_*.py"
@@ -31,7 +31,7 @@ on:
       - ".github/scripts/test_oci_publication.py"
 
 concurrency:
-  group: backend-beat-image-${{ github.event_name == 'pull_request' && github.ref || 'trusted-main' }}
+  group: backend-core-image-${{ github.event_name == 'pull_request' && github.ref || 'trusted-main' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   validate:
-    name: Validate beat artifact (PR)
+    name: Validate core artifact (PR)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -52,11 +52,10 @@ jobs:
       - name: Validate local image without registry credentials
         uses: ./.github/actions/backend-service-image
         with:
-          role: beat
           publish: "false"
 
   publish:
-    name: Publish beat artifact (trusted main)
+    name: Publish core artifact (trusted main)
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -78,5 +77,4 @@ jobs:
       - name: Publish and validate the published digest
         uses: ./.github/actions/backend-service-image
         with:
-          role: beat
           publish: "true"

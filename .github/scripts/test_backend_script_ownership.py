@@ -10,8 +10,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 CI = ROOT / ".github/scripts"
 HELPERS = (
-    "oci_publication.py", "backend_service_image_publication.py",
-    "backend_worker_image_identity.py", "backend_worker_image_publication.py",
+    "oci_publication.py",
+    "backend_service_image_publication.py",
+    "backend_worker_image_identity.py",
+    "backend_worker_image_publication.py",
     "backend_worker_runner_disk.py",
 )
 
@@ -26,11 +28,18 @@ def test_ci_helpers_are_owned_and_tested_in_the_ci_directory():
         assert (CI / ("test_" + name)).is_file()
         tree = ast.parse((CI / name).read_text(encoding="utf-8"))
         modules = [node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
-        modules += [alias.name for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names]
+        modules += [
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        ]
         assert all(module.split(".")[0] != "app" for module in modules)
 
 
-@pytest.mark.parametrize("workflow", ["backend-quality.yml", "backend-api-image.yml", "backend-beat-image.yml", "backend-worker-pr-image.yml"])
+@pytest.mark.parametrize(
+    "workflow", ["backend-quality.yml", "backend-core-image.yml", "backend-worker-pr-image.yml"]
+)
 def test_backend_ci_changes_trigger_affected_validation(workflow):
     document = load_workflow(workflow)
     events = document.get("on", document.get(True))
@@ -39,7 +48,9 @@ def test_backend_ci_changes_trigger_affected_validation(workflow):
     governed += [p.relative_to(ROOT).as_posix() for p in CI.glob("test_backend_*.py")]
     governed += [".github/scripts/oci_publication.py", ".github/scripts/test_oci_publication.py"]
     for path in governed:
-        assert any(fnmatchcase(path, pattern) for pattern in paths if not pattern.startswith("!")), path
+        assert any(
+            fnmatchcase(path, pattern) for pattern in paths if not pattern.startswith("!")
+        ), path
     if "push" in events:
         assert set(paths) <= set(events["push"]["paths"])
 

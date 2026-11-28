@@ -370,11 +370,10 @@ endpoint URL, while Tempo must receive the endpoint hostname without
 Set immutable image references and S3 settings:
 
 ```powershell
-$env:NOTEVERSE_BACKEND_API_IMAGE = "ghcr.io/<owner>/noteverse/backend-api:<tag>"
-$env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<owner>/noteverse/backend-beat:<tag>"
-$env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker:<tag>"
-$env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<owner>/noteverse/customer-web:<tag>"
-$env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<owner>/noteverse/platform-admin:<tag>"
+$env:NOTEVERSE_BACKEND_CORE_IMAGE = "ghcr.io/<owner>/noteverse/backend-core@sha256:<digest>"
+$env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest>"
+$env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<owner>/noteverse/customer-web@sha256:<digest>"
+$env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<owner>/noteverse/platform-admin@sha256:<digest>"
 
 $env:NOTEVERSE_CSP_OBJECT_STORAGE_ORIGINS = "<public-storage-or-cdn-origin>"
 $env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"

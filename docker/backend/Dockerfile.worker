@@ -5,7 +5,7 @@ USER 0:0
 
 WORKDIR /app
 
-COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
+COPY docker/backend/worker-entrypoint.sh /usr/local/bin/noteverse-entrypoint
 RUN chmod +x /usr/local/bin/noteverse-entrypoint \
     && mkdir -p /app/data/work \
     && rm -rf /tmp/* /var/tmp/*
@@ -15,7 +15,8 @@ RUN test ! -e /app/research
 
 EXPOSE 8000
 
-ENV TMPDIR=/tmp HOME=/tmp XDG_CACHE_HOME=/tmp/.cache \
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+    TMPDIR=/tmp HOME=/tmp XDG_CACHE_HOME=/tmp/.cache \
     MPLCONFIGDIR=/tmp/matplotlib TORCH_HOME=/tmp/torch \
     NUMBA_CACHE_DIR=/tmp/numba PADDLE_HOME=/tmp/paddle \
     RUFF_CACHE_DIR=/tmp/ruff MYPY_CACHE_DIR=/tmp/mypy UV_CACHE_DIR=/tmp/uv \

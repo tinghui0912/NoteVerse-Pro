@@ -22,9 +22,9 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: control-plane
-          image: noteverse-backend-api:replace-me
+          image: noteverse-backend-core:replace-me
           args:
-            - control
+            - control-plane
           ports:
             - name: http
               containerPort: 8000

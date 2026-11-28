@@ -12,14 +12,11 @@ labels:
       app.kubernetes.io/instance: noteverse-staging
       app.kubernetes.io/environment: staging
 images:
-  - name: noteverse-backend-api
-    newName: registry.example.invalid/noteverse/backend-api
+  - name: noteverse-backend-core
+    newName: registry.example.invalid/noteverse/backend-core
     newTag: staging-replace-me
   - name: noteverse-backend-worker
     newName: registry.example.invalid/noteverse/backend-worker
-    newTag: staging-replace-me
-  - name: noteverse-backend-beat
-    newName: registry.example.invalid/noteverse/backend-beat
     newTag: staging-replace-me
   - name: noteverse-customer-web
     newName: registry.example.invalid/noteverse/customer-web

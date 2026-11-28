@@ -16,14 +16,11 @@ labels:
       app.kubernetes.io/instance: noteverse-production
       app.kubernetes.io/environment: production
 images:
-  - name: noteverse-backend-api
-    newName: registry.example.invalid/noteverse/backend-api
+  - name: noteverse-backend-core
+    newName: registry.example.invalid/noteverse/backend-core
     newTag: production-replace-me
   - name: noteverse-backend-worker
     newName: registry.example.invalid/noteverse/backend-worker
-    newTag: production-replace-me
-  - name: noteverse-backend-beat
-    newName: registry.example.invalid/noteverse/backend-beat
     newTag: production-replace-me
   - name: noteverse-customer-web
     newName: registry.example.invalid/noteverse/customer-web

@@ -100,7 +100,6 @@ def test_policy_templates_describe_deployment_policy_and_topology():
         "backend/.env.docker.control-plane.example",
         "deploy/application/overlays/staging/control-plane-config.env",
         "deploy/application/overlays/production/control-plane-config.env",
-        "deploy/gitops/environments/staging/control-plane-config.env",
     ]:
         keys = {
             line.split("=", 1)[0]

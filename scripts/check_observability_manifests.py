@@ -238,6 +238,18 @@ def main() -> int:
     findings.extend(validate_fluent_bit_values(args.target))
     findings.extend(validate_environment_object_storage(args.target))
     for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):
+        if (
+            base == "deploy/gitops/environments/staging/base"
+            and (REPO_ROOT / "deploy/gitops/environments/staging/publication-block.json").is_file()
+        ):
+            from check_gitops_manifests import validate_publication_block
+
+            gate = Path("deploy/gitops/environments/staging")
+            findings.extend(
+                add_file_finding(gate, "publication-block", str(finding))
+                for finding in validate_publication_block(gate)
+            )
+            continue
         path = REPO_ROOT / base / "control-plane-deployment.yaml"
         for problem in validate_workloads(list(yaml.safe_load_all(path.read_text()))):
             findings.append(add_file_finding(path, "control-plane-container-security", problem))

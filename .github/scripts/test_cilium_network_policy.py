@@ -208,10 +208,7 @@ class CiliumPolicyTests(unittest.TestCase):
             )
 
     def test_checked_in_policies_are_schema_valid_and_match_the_contract(self):
-        for base in (
-            "deploy/application/base",
-            "deploy/gitops/environments/staging/base",
-        ):
+        for base in ("deploy/application/base",):
             docs = list(yaml.safe_load_all((ROOT / base / "network-policies.yaml").read_text()))
             self.assertEqual(validate_application_documents(docs), [])
         for path in (ROOT / "deploy").rglob("external-egress.json"):

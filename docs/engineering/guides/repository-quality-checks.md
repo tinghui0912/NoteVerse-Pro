@@ -131,8 +131,7 @@ Current GitHub Actions workflows:
 | Workflow | Trigger scope | Purpose |
 | --- | --- | --- |
 | `.github/workflows/backend-quality.yml` | `backend/**`, `.github/scripts/*.py`, backend-quality wrappers and quality Dockerfiles | Backend ruff, mypy, model-layer mypy, OpenAPI contract verification, pytest |
-| `.github/workflows/backend-api-image.yml` | backend API runtime files | Builds and scans the backend API image |
-| `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
+| `.github/workflows/backend-core-image.yml` | backend core runtime files | Qualifies the shared Customer API, Control Plane, Beat and migrator image |
 | `.github/workflows/backend-worker-image.yml` | manual | Qualifies Worker candidates before canonical promotion |
 | `.github/workflows/customer-web-image.yml` | Customer Web runtime files | Builds and scans the Customer Web image |
 | `.github/workflows/customer-web-quality.yml` | `apps/customer-web/**` and shared API constants | Customer Web lint, i18n guard, typecheck, tests, build, e2e |

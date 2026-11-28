@@ -38,7 +38,7 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
 
     def test_missing_root_and_username_only_image_identities_fail(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "docker/backend/Dockerfile.api"
+            path = Path(directory) / "docker/backend/Dockerfile.core"
             path.parent.mkdir(parents=True)
             for user in ("", "USER root", "USER node", "USER 0:0", "USER 10001"):
                 path.write_text("FROM python:3.12\n" + user + "\n")
@@ -48,7 +48,6 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
         documents = []
         for base in (
             "deploy/application/base",
-            "deploy/gitops/environments/staging/base",
             "deploy/application/model-cache",
         ):
             for path in (ROOT / base).glob("*.yaml"):
@@ -230,10 +229,7 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                 self.assertTrue(validate_browser_documents(docs), mutation)
 
     def test_application_workload_and_scrape_inventory_is_explicit(self):
-        for base in (
-            "deploy/application/base",
-            "deploy/gitops/environments/staging/base",
-        ):
+        for base in ("deploy/application/base",):
             documents = [
                 d
                 for path in (ROOT / base).glob("*.yaml")
@@ -272,7 +268,16 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
         entrypoint = (ROOT / "docker/backend/entrypoint.sh").read_text()
         self.assertEqual(
             set(re.findall(r"^  ([a-z_-]+)\)", entrypoint, re.M)),
-            {"api", "control", "worker", "beat", "check", "migrate", "bash"},
+            {
+                "customer-api",
+                "control-plane",
+                "beat",
+                "migrator",
+                "contract",
+                "seed-integration",
+                "create-operator",
+                "database-bootstrap",
+            },
         )
         integration = yaml.safe_load((ROOT / "docker-compose.integration.yml").read_text())
         passwords = {
@@ -401,10 +406,7 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                     self.assertIn("--security-opt no-new-privileges", line)
 
     def test_application_policy_files_enforce_non_negotiable_runtime_boundaries(self):
-        for base in (
-            "deploy/application/base",
-            "deploy/gitops/environments/staging/base",
-        ):
+        for base in ("deploy/application/base",):
             docs = list(yaml.safe_load_all((ROOT / base / "network-policies.yaml").read_text()))
             by_name = {d["metadata"]["name"]: d["spec"] for d in docs}
             self.assertEqual(by_name["noteverse-default-deny"]["endpointSelector"], {})
@@ -574,10 +576,7 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
             )
 
     def test_frontend_writable_cache_matches_runtime_capabilities(self):
-        for base in (
-            "deploy/application/base",
-            "deploy/gitops/environments/staging/base",
-        ):
+        for base in ("deploy/application/base",):
             for runtime, expected in (
                 ("customer-web", True),
                 ("platform-admin", False),

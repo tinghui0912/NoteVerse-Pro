@@ -141,6 +141,12 @@ def validate_rendered(
 def main() -> int:
     problems = []
     for target in TARGETS:
+        if (REPO_ROOT / target / "publication-block.json").is_file():
+            from check_gitops_manifests import validate_publication_block
+
+            problems.extend(str(finding) for finding in validate_publication_block(Path(target)))
+            print(f"{target}: BLOCKED - no published runtime configuration")
+            continue
         rendered = subprocess.run(
             ["kubectl", "kustomize", str(REPO_ROOT / target)],
             capture_output=True,

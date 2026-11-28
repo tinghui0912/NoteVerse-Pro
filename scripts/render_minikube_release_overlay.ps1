@@ -26,8 +26,7 @@ if ($Environment -ne "staging") {
     throw "This wrapper is intentionally limited to the minikube staging rehearsal path."
 }
 
-$backendApiImage = Get-RequiredEnv "NOTEVERSE_BACKEND_API_IMAGE"
-$backendBeatImage = Get-RequiredEnv "NOTEVERSE_BACKEND_BEAT_IMAGE"
+$backendCoreImage = Get-RequiredEnv "NOTEVERSE_BACKEND_CORE_IMAGE"
 $backendWorkerImage = Get-RequiredEnv "NOTEVERSE_BACKEND_WORKER_IMAGE"
 $customerWebImage = Get-RequiredEnv "NOTEVERSE_CUSTOMER_WEB_IMAGE"
 $platformAdminImage = Get-RequiredEnv "NOTEVERSE_PLATFORM_ADMIN_IMAGE"
@@ -47,8 +46,7 @@ $args = @(
     "scripts/render_k8s_release_overlay.py",
     "--environment", $Environment,
     "--output", $Output,
-    "--backend-api-image", $backendApiImage,
-    "--backend-beat-image", $backendBeatImage,
+    "--backend-core-image", $backendCoreImage,
     "--backend-worker-image", $backendWorkerImage,
     "--customer-web-image", $customerWebImage,
     "--platform-admin-image", $platformAdminImage,

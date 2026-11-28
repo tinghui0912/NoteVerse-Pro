@@ -14,6 +14,7 @@ It intentionally does not generate Kubernetes Secrets or credentials.
 from __future__ import annotations
 
 from browser_security_contract import storage_origins
+from production_image_contract import validate_release_snapshot, validate_release_images
 import argparse
 import json
 import yaml
@@ -45,8 +46,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--environment", choices=("staging", "production"), required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--backend-api-image", required=True)
-    parser.add_argument("--backend-beat-image", required=True)
+    parser.add_argument("--backend-core-image", required=True)
     parser.add_argument("--backend-worker-image", required=True)
     parser.add_argument("--customer-web-image", required=True)
     parser.add_argument("--platform-admin-image", required=True)
@@ -74,15 +74,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def parse_image_ref(value: str) -> ImageRef:
-    if "@sha256:" in value:
-        name, digest = value.split("@", 1)
-        return ImageRef(name=name, field="digest", value=digest)
-
-    slash_index = value.rfind("/")
-    colon_index = value.rfind(":")
-    if colon_index <= slash_index:
-        raise ValueError(f"Image reference must include an immutable tag or digest: {value}")
-    return ImageRef(name=value[:colon_index], field="newTag", value=value[colon_index + 1 :])
+    if not re.fullmatch(r"[a-z0-9][a-z0-9./:_-]*@sha256:[a-f0-9]{64}", value):
+        raise ValueError(f"Image reference must include an immutable sha256 digest: {value}")
+    name, digest = value.split("@", 1)
+    return ImageRef(name=name, field="digest", value=digest)
 
 
 def require_nonblank_arguments(args: argparse.Namespace) -> None:
@@ -94,8 +89,7 @@ def require_nonblank_arguments(args: argparse.Namespace) -> None:
     """
 
     required_fields = (
-        "backend_api_image",
-        "backend_beat_image",
+        "backend_core_image",
         "backend_worker_image",
         "customer_web_image",
         "platform_admin_image",
@@ -170,13 +164,15 @@ def materialize_base_images(base: Path, images: dict[str, str]) -> None:
     """Replace template image placeholders in a release-local base snapshot."""
 
     replacements = {
-        "backend-api-deployment.yaml": {"noteverse-backend-api:replace-me": images["backend_api"]},
-        "control-plane-deployment.yaml": {
-            "noteverse-backend-api:replace-me": images["backend_api"]
+        "backend-api-deployment.yaml": {
+            "noteverse-backend-core:replace-me": images["backend_core"]
         },
-        "migration-job.yaml": {"noteverse-backend-api:replace-me": images["backend_api"]},
+        "control-plane-deployment.yaml": {
+            "noteverse-backend-core:replace-me": images["backend_core"]
+        },
+        "migration-job.yaml": {"noteverse-backend-core:replace-me": images["backend_core"]},
         "backend-beat-deployment.yaml": {
-            "noteverse-backend-beat:replace-me": images["backend_beat"]
+            "noteverse-backend-core:replace-me": images["backend_core"]
         },
         "backend-worker-deployment.yaml": {
             "noteverse-backend-worker:replace-me": images["backend_worker"]
@@ -203,6 +199,13 @@ def materialize_base_images(base: Path, images: dict[str, str]) -> None:
 
 def render_overlay(args: argparse.Namespace) -> Path:
     require_nonblank_arguments(args)
+    for key in ("backend_core", "backend_worker", "customer_web", "platform_admin"):
+        parse_image_ref(getattr(args, key + "_image"))
+    images = {
+        key: getattr(args, key + "_image")
+        for key in ("backend_core", "backend_worker", "customer_web", "platform_admin")
+    }
+    validate_release_images(images)
     source = OVERLAYS_ROOT / args.environment
     if not source.is_dir():
         raise FileNotFoundError(f"Overlay template not found: {source}")
@@ -220,8 +223,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
             yaml.safe_dump_all(policies, sort_keys=False), encoding="utf-8"
         )
 
-    backend_api_ref = parse_image_ref(args.backend_api_image)
-    backend_beat_ref = parse_image_ref(args.backend_beat_image)
+    backend_core_ref = parse_image_ref(args.backend_core_image)
     backend_worker_ref = parse_image_ref(args.backend_worker_image)
     customer_web_ref = parse_image_ref(args.customer_web_image)
     platform_admin_ref = parse_image_ref(args.platform_admin_image)
@@ -233,8 +235,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
         "- ../../base",
         "- base",
     )
-    kustomization = replace_image_block(kustomization, "noteverse-backend-api", backend_api_ref)
-    kustomization = replace_image_block(kustomization, "noteverse-backend-beat", backend_beat_ref)
+    kustomization = replace_image_block(kustomization, "noteverse-backend-core", backend_core_ref)
     kustomization = replace_image_block(
         kustomization, "noteverse-backend-worker", backend_worker_ref
     )
@@ -247,8 +248,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     materialize_base_images(
         output / "base",
         {
-            "backend_api": args.backend_api_image,
-            "backend_beat": args.backend_beat_image,
+            "backend_core": args.backend_core_image,
             "backend_worker": args.backend_worker_image,
             "customer_web": args.customer_web_image,
             "platform_admin": args.platform_admin_image,
@@ -316,6 +316,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
     )
     control_plane_config_path.write_text(control_plane_config, encoding="utf-8")
 
+    validate_release_snapshot(output, images)
     return output
 
 

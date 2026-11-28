@@ -113,7 +113,7 @@ def test_worker_sources_are_explicit_and_platform_scoped():
 
 @pytest.mark.parametrize(
     ("image", "group"),
-    [("api", "api"), ("beat", "beat"), ("quality", "quality"), ("worker-deps", "worker")],
+    [("core", "api"), ("quality", "quality"), ("worker-deps", "worker")],
 )
 def test_docker_self_enforces_project_authority(image, group):
     dockerfile = (ROOT / f"docker/backend/Dockerfile.{image}").read_text(encoding="utf-8")

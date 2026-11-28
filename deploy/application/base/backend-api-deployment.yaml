@@ -22,9 +22,9 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: api
-          image: noteverse-backend-api:replace-me
+          image: noteverse-backend-core:replace-me
           args:
-            - api
+            - customer-api
           ports:
             - name: http
               containerPort: 8000

@@ -38,12 +38,12 @@ and update process.
 
 ## Files
 
-- `docker/backend/Dockerfile.api`: API and migration runtime image.
-- `docker/backend/Dockerfile.beat`: Celery beat scheduler runtime image.
+- `docker/backend/Dockerfile.core`: shared Customer API, Control Plane, Beat and migration runtime image.
 - `docker/backend/Dockerfile.worker-deps`: shared worker dependency base image.
 - `docker/backend/Dockerfile.worker`: Celery worker and model-cache-agent runtime image.
 - `docker/backend/Dockerfile.quality`: local core backend quality-check image.
-- `docker/backend/entrypoint.sh`: service command switch.
+- `docker/backend/entrypoint.sh`: explicit core runtime/administrative commands.
+- `docker/backend/worker-entrypoint.sh`: Worker and model-preparation commands.
 - `docker-compose.backend-dev.yml`: runtime-specific development processes.
 - `docker-compose.backend-quality.yml`: isolated test database and quality process.
 - `backend/.env.docker.<runtime>.example`: isolated configuration for each process.
@@ -54,7 +54,7 @@ and update process.
 Copy each example needed by the processes you run:
 
 ```powershell
-'customer-api','control-plane','worker','beat','observability','migrator','model-assets' | ForEach-Object {
+'customer-api','control-plane','worker','beat','migrator','model-assets' | ForEach-Object {
     Copy-Item "backend/.env.docker.$_.example" "backend/.env.docker.$_"
 }
 ```
@@ -209,7 +209,8 @@ Final composition uses the dependency OCI. PR validation builds locally and
 cannot publish. Security/SBOM work keeps lifecycle-scoped disk cleanup; disk
 exhaustion is a failure, never a reason to skip a gate.
 
-API selects only `api`; Beat selects only `beat`; Quality selects only `quality`.
+Core selects `api` and `beat`; Quality selects `quality`. Core includes HTTP,
+Celery and migrations without Worker processing dependencies.
 API owns customer/control-plane/observability and migration entrypoints. Beat
 owns PostgreSQL scheduler locking and Celery, without Worker task implementations.
 Worker owns render and heavy OCR/ML.
@@ -250,15 +251,15 @@ npm run dev
 Check runtime dependencies inside the container:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api check --role api
+docker compose -f docker-compose.backend-dev.yml run --rm --entrypoint python api scripts/check_runtime.py --role api
 ```
 
 Run checks in the matching process environment:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api check --role api
-docker compose -f docker-compose.backend-dev.yml run --rm worker check --role worker
-docker compose -f docker-compose.backend-dev.yml run --rm beat check --role beat
+docker compose -f docker-compose.backend-dev.yml run --rm --entrypoint python api scripts/check_runtime.py --role api
+docker compose -f docker-compose.backend-dev.yml run --rm --entrypoint python worker scripts/check_runtime.py --role worker
+docker compose -f docker-compose.backend-dev.yml run --rm --entrypoint python beat scripts/check_runtime.py --role beat
 ```
 
 The roles intentionally have different boundaries:

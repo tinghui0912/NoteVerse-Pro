@@ -22,7 +22,7 @@ RUN apt-get update -o Acquire::Retries=3 \
 # The checked-in uv project is the sole dependency authority. --locked fails stale builds.
 COPY --from=ghcr.io/astral-sh/uv@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff /uv /uvx /usr/local/bin/
 COPY backend/pyproject.toml backend/uv.lock /opt/noteverse/project/
-RUN uv sync --project /opt/noteverse/project --locked --no-default-groups --only-group api --python /usr/local/bin/python --no-cache \
+RUN uv sync --project /opt/noteverse/project --locked --no-default-groups --only-group api --only-group beat --python /usr/local/bin/python --no-cache \
     && uv pip check --python /opt/noteverse/venv/bin/python
 
 COPY docker/backend/entrypoint.sh /usr/local/bin/noteverse-entrypoint
@@ -35,8 +35,6 @@ RUN test ! -e /app/research
 EXPOSE 8000
 
 ENV TMPDIR=/tmp HOME=/tmp XDG_CACHE_HOME=/tmp/.cache \
-    MPLCONFIGDIR=/tmp/matplotlib TORCH_HOME=/tmp/torch \
-    NUMBA_CACHE_DIR=/tmp/numba PADDLE_HOME=/tmp/paddle \
     RUFF_CACHE_DIR=/tmp/ruff MYPY_CACHE_DIR=/tmp/mypy UV_CACHE_DIR=/tmp/uv \
     WORK_ROOT=/tmp/work
 
@@ -44,4 +42,4 @@ RUN groupadd --gid 10001 noteverse && useradd --uid 10001 --gid 10001 --no-creat
 USER 10001:10001
 
 ENTRYPOINT ["/usr/bin/tini", "--", "noteverse-entrypoint"]
-CMD ["api"]
+CMD ["customer-api"]

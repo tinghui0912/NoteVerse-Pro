@@ -24,7 +24,7 @@ class BrowserSecurityManifestTests(unittest.TestCase):
     def test_every_public_gateway_rule_sets_exact_hsts(self):
         documents = self.gateways()
         routes = [doc for doc in documents if doc.get("kind") == "HTTPRoute"]
-        self.assertGreaterEqual(len(routes), 6)
+        self.assertEqual(len(routes), 2 * len(self.gateway_sets()))
         for group in self.gateway_sets():
             self.assertEqual(validate_browser_documents(group), [])
         gateways = [doc for doc in documents if doc.get("kind") == "Gateway"]

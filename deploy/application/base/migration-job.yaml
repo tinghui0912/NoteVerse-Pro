@@ -22,9 +22,9 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: migrate
-          image: noteverse-backend-api:replace-me
+          image: noteverse-backend-core:replace-me
           args:
-            - migrate
+            - migrator
           env:
             - name: DATABASE_URL
               valueFrom:

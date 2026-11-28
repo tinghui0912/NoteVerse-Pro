@@ -1,0 +1,9 @@
+{
+  "state": "AWAITING_TRUSTED_PUBLICATION",
+  "required_images": [
+    "backend_core",
+    "backend_worker",
+    "customer_web",
+    "platform_admin"
+  ]
+}

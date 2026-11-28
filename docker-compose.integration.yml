@@ -26,7 +26,7 @@ services:
       timeout: 3s
       retries: 30
   migrate:
-    image: noteverse-backend-api:integration
+    image: noteverse-backend-core:integration
     volumes:
     - integration_work:/tmp/noteverse-integration
     extra_hosts:
@@ -34,20 +34,20 @@ services:
     depends_on:
       bootstrap:
         condition: service_completed_successfully
-    command: migrate
+    command: migrator
     restart: 'no'
     environment:
       DATABASE_URL: postgresql+psycopg://nv_migrator:${NV_MIGRATOR_PASSWORD:?Runtime database password is required}@postgres:5432/noteverse_test_integration
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.api
+      dockerfile: docker/backend/Dockerfile.core
   seed:
-    image: noteverse-backend-api:integration
+    image: noteverse-backend-core:integration
     volumes:
     - integration_work:/tmp/noteverse-integration
     extra_hosts:
     - host.docker.internal:host-gateway
-    command: python scripts/seed_integration_user.py
+    command: seed-integration
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -71,12 +71,12 @@ services:
       NOTEVERSE_INTEGRATION_RUN_ID: ${NOTEVERSE_INTEGRATION_RUN_ID:?Integration run identity is required}
       NOTEVERSE_INTEGRATION_PASSWORD: ${NOTEVERSE_INTEGRATION_PASSWORD:?Integration password is required}
   api:
-    image: noteverse-backend-api:integration
+    image: noteverse-backend-core:integration
     volumes:
     - integration_work:/tmp/noteverse-integration
     extra_hosts:
     - host.docker.internal:host-gateway
-    command: api
+    command: customer-api
     ports:
     - 3011:8000
     depends_on:
@@ -138,7 +138,7 @@ services:
       args:
         WORKER_DEPS_IMAGE: ${WORKER_DEPS_IMAGE:-noteverse-backend-worker-deps:dev}
   beat:
-    image: noteverse-backend-beat:integration
+    image: noteverse-backend-core:integration
     volumes:
     - integration_work:/tmp/noteverse-integration
     extra_hosts:
@@ -158,7 +158,7 @@ services:
       WORK_ROOT: /tmp/noteverse-integration/work
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.beat
+      dockerfile: docker/backend/Dockerfile.core
   customer-web:
     image: noteverse-customer-web-integration:dev
     build:
@@ -179,15 +179,13 @@ services:
       api:
         condition: service_healthy
   bootstrap:
-    image: noteverse-backend-api:integration
+    image: noteverse-backend-core:integration
     volumes:
     - integration_work:/tmp/noteverse-integration
     extra_hosts:
     - host.docker.internal:host-gateway
     command:
-    - python
-    - scripts/provision_database.py
-    - bootstrap
+    - database-bootstrap
     restart: 'no'
     depends_on:
       postgres:

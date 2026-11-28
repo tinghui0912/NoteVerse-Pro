@@ -30,9 +30,8 @@ spec:
         - name: prepare-model-assets
           image: noteverse-backend-worker:replace-me
           imagePullPolicy: IfNotPresent
-          command:
-            - python
-            - /app/scripts/prepare_model_assets.py
+          args:
+            - model-cache
             - --check-scope
             - assets
           envFrom:

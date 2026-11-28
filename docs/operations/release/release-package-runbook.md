@@ -18,10 +18,9 @@ specific environment:
 Every release package must name all deployable application images:
 
 ```text
-backend-api
-backend-beat
+backend-core
 backend-worker
-frontend
+customer-web
 platform-admin
 ```
 
@@ -38,13 +37,13 @@ What exact application set is deployed?
 Preferred production form:
 
 ```text
-ghcr.io/<owner>/noteverse/backend-api@sha256:<digest>
+ghcr.io/<owner>/noteverse/backend-core@sha256:<digest>
 ```
 
 Acceptable input form:
 
 ```text
-ghcr.io/<owner>/noteverse/backend-api:<git-sha>
+ghcr.io/<owner>/noteverse/backend-core:<git-sha>
 ```
 
 Rules:
@@ -78,29 +77,30 @@ If you leave `image_tag` empty, the workflow uses the current
 every component you did not explicitly override. This is the normal path for a
 small staged rollout where only one or two images changed.
 
-When a newly introduced deployable component has no entry in the current
-metadata yet, provide its immutable image reference explicitly for that first
-promotion. The first Platform Admin release therefore requires
-`platform_admin_image` unless `image_tag` is supplied for a complete release.
+Without published staging metadata, supply `image_tag` for a complete trusted
+publication or all four explicit image inputs. An incomplete set fails closed.
+The checked-in publication gate is BLOCKED until qualified registry digests are
+available; `published-release` is intentionally absent, so Argo cannot sync an
+empty or unqualified resource set. Promotion replaces the gate with a validated
+self-contained release.
 
-For example, to update only the API image:
+For example, to update the shared core image:
 
 ```text
-backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<new-sha-or-digest>
+backend_core_image=ghcr.io/<owner>/noteverse/backend-core:<new-sha-or-digest>
 ```
 
 Each image input must be a bare image reference. Do not paste a command copied
 from a registry UI, such as `docker pull ghcr.io/...` or `pull ghcr.io/...`.
 
-The release package will keep the current staging beat, worker, frontend, and
-Platform Admin image digests.
+The shared core digest updates Customer API, Control Plane, Beat and migrator
+together. Worker and both frontend digests remain explicitly recorded.
 
 If one or more components use different tags and you do not want to inherit
 from current staging, provide explicit image refs for every component:
 
 ```text
-backend_api_image=ghcr.io/<owner>/noteverse/backend-api:<sha-a>
-backend_beat_image=ghcr.io/<owner>/noteverse/backend-beat:<sha-a>
+backend_core_image=ghcr.io/<owner>/noteverse/backend-core:<sha-a>
 backend_worker_image=ghcr.io/<owner>/noteverse/backend-worker:<sha-c>
 customer_web_image=ghcr.io/<owner>/noteverse/customer-web:<sha-d>
 platform_admin_image=ghcr.io/<owner>/noteverse/platform-admin:<sha-e>

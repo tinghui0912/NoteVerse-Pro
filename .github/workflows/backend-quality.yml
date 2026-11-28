@@ -148,7 +148,7 @@ jobs:
           docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
           "$QUALITY_IMAGE" /repo/.github/scripts/backend_worker_image_publication.py check-workflows --repo /repo
 
-      - name: Check API/Beat candidate publication contracts
+      - name: Check Core candidate publication contracts
         run: >-
           docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
           "$QUALITY_IMAGE" /repo/.github/scripts/backend_service_image_publication.py check-workflows --repo /repo

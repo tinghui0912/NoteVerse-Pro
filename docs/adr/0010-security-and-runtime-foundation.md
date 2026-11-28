@@ -120,3 +120,19 @@ Control Plane exposes durable application and scheduler metrics only through its
 internal `/metrics` endpoint. Prometheus ingress is restricted to TCP 8000 by
 Cilium. Gateway routing preserves `/api` and never forwards the internal scrape.
 Standard database-owned `postgres_exporter` owns PostgreSQL infrastructure metrics.
+
+## Production image and workload topology
+
+The modular monolith builds four production container images: backend-core,
+backend-worker, customer-web and platform-admin. Customer API, Control Plane,
+Beat and the short-lived migrator Job share one immutable backend-core digest
+with explicit runtime commands. Worker and model preparation share backend-worker.
+Four long-lived backend Deployments retain five PostgreSQL roles, five runtime
+DB Secrets, isolated Settings and unified CiliumNetworkPolicy enforcement.
+Image reuse does not combine authority. Worker-deps is an internal build-cache
+artifact; the quality runner and frontend development recipes are not deployed.
+
+[Image ownership and qualification](../operations/release/container-image-build-strategy.md)
+requires a numeric non-root, read-only, four-mode core smoke and strict immutable
+four-image release snapshots. Unpublished GitOps state is an explicit manifest
+generation block, never a fabricated digest or an empty pruning sync.

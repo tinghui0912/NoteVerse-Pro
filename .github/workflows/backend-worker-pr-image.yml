@@ -8,7 +8,7 @@ name: Backend Worker PR Image
     - docker/backend/Dockerfile.worker.dockerignore
     - docker/backend/Dockerfile.worker-deps
     - docker/backend/Dockerfile.worker-deps.dockerignore
-    - docker/backend/entrypoint.sh
+    - docker/backend/worker-entrypoint.sh
     - .github/workflows/backend-worker-image.yml
     - .github/workflows/backend-worker-pr-image.yml
     - ".github/scripts/backend_*.py"

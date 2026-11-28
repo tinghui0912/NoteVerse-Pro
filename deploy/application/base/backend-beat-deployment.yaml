@@ -34,7 +34,7 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: beat
-          image: noteverse-backend-beat:replace-me
+          image: noteverse-backend-core:replace-me
           args:
             - beat
           envFrom:

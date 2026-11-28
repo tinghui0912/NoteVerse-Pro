@@ -20,19 +20,26 @@ import argparse
 import json
 import shutil
 from pathlib import Path
+from production_image_contract import validate_release_images, validate_release_snapshot
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GITOPS_ENV_ROOT = REPO_ROOT / "deploy" / "gitops" / "environments"
 ALLOWED_FILES = {
     "README.md",
+    "external-egress.json",
+    "external-egress.yaml",
     "customer-api-config.env",
     "worker-config.env",
     "beat-config.env",
-    "observability-config.env",
     "model-assets-config.env",
     "control-plane-config.env",
     "customer-web-config.env",
     "gateway.yaml",
+    "hpa-backend-api.yaml",
+    "hpa-customer-web.yaml",
+    "pdb-backend-api.yaml",
+    "pdb-customer-web.yaml",
+    "patch-production-resources.yaml",
     "kustomization.yaml",
     "patch-backend-api-runtime-volumes.yaml",
     "patch-backend-beat-runtime-volumes.yaml",
@@ -72,11 +79,8 @@ def load_metadata(source: Path, expected_environment: str) -> dict[str, object]:
             f"release metadata environment {metadata.get('environment')!r} does not match {expected_environment!r}"
         )
     images = metadata.get("images")
-    if not isinstance(images, dict) or not images:
-        raise RuntimeError("release metadata must contain images")
-    for name, value in images.items():
-        if not isinstance(value, str) or "@sha256:" not in value:
-            raise RuntimeError(f"release metadata image is not digest-pinned: {name}={value!r}")
+    validate_release_images(images)
+    validate_release_snapshot(source, images)
     return metadata
 
 
