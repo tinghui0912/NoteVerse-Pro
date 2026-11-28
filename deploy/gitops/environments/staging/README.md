@@ -22,7 +22,7 @@ Rules:
 ## Runtime isolation
 
 All application workloads use UID/GID 10001 and read-only root filesystems.
-`external-egress.json` owns per-service CIDR lists; empty lists deny external
+`external-egress.json` owns private PostgreSQL/Redis CIDR and exact provider FQDN lists; empty lists deny external
 connectivity. Render `external-egress.yaml` with
-`scripts/container_security_contract.py` after reviewing endpoint CIDRs.
+`scripts/container_security_contract.py` after reviewing private networks and exact endpoint hostnames.
 See [Container and Network Hardening](../../../../docs/architecture/runtime/container-and-network-hardening.md).

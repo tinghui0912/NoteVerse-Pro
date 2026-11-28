@@ -29,7 +29,7 @@ spec:
       kind: Gateway
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-    - group: networking.k8s.io
-      kind: NetworkPolicy
+    - group: cilium.io
+      kind: CiliumNetworkPolicy
     - group: gateway.envoyproxy.io
       kind: BackendTrafficPolicy

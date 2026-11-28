@@ -1,0 +1,11 @@
+# Cilium Helm 1.20.5, self-hosted VM cluster networking.
+routingMode: tunnel
+tunnelProtocol: vxlan
+l7Proxy: true
+policyEnforcementMode: default
+hubble:
+  enabled: true
+  relay:
+    enabled: false
+  ui:
+    enabled: false

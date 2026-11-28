@@ -96,3 +96,14 @@ Factory tests prove explicit database input, request-local session selection,
 cleanup and transaction semantics. Runtime import tests require only each
 process's declared environment. Existing backend, PostgreSQL, OpenAPI and image
 entrypoint tests remain acceptance evidence for behavior and deployment wiring.
+
+## Cluster network authority
+
+Self-hosted Kubernetes runs on cloud VMs using Cilium 1.20.5 CNI, Linux kernel
+>= 5.10 and a VXLAN/Geneve overlay. Application namespaces contain exclusively
+CiliumNetworkPolicy (`cilium.io/v2`), explicit bidirectional default deny and
+metadata-IP egress deny. External HTTPS uses exact, default-empty `toFQDNs`
+allowlists with L7 DNS proxy inspection; private PostgreSQL/Redis CIDRs remain
+explicit and default-empty. Runtime authority, release inputs, offline pinned
+CRD schema validation and live-cluster qualification are defined in the
+[container/network contract](../architecture/runtime/container-and-network-hardening.md).

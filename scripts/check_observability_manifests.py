@@ -228,6 +228,11 @@ def main() -> int:
         findings.append(add_file_finding(args.target, "container-identity", error))
     for path in target_files(args.target):
         findings.extend(scan_file(path))
+    from cilium_schema import validate_cilium_documents
+
+    network_path = REPO_ROOT / "deploy/observability/application-network-policy.yaml"
+    for error in validate_cilium_documents(list(yaml.safe_load_all(network_path.read_text()))):
+        findings.append(add_file_finding(network_path, "cilium-schema", error))
     findings.extend(validate_fluent_bit_values(args.target))
     findings.extend(validate_environment_object_storage(args.target))
     for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):

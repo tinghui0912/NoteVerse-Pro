@@ -48,10 +48,23 @@ No privileged ownership-fixing initContainer is used.
 
 ## Application network contract
 
-A namespace-wide NetworkPolicy denies ingress and egress. Additive policies grant
-only the following paths. A NetworkPolicy-capable CNI is mandatory; YAML rendering
-cannot prove dataplane enforcement. Kubernetes node/kubelet probe exceptions and
-Service/DNAT behavior depend on the CNI and require a cluster acceptance check.
+Self-hosted Kubernetes (k3s or kubeadm) runs on cloud VMs with Cilium CNI
+**1.20.5**, Linux kernel >= 5.10, a VXLAN/Geneve portable overlay and the L7 DNS
+proxy enabled. [Cluster settings and pinned schema](../../../deploy/platform/cilium/README.md)
+are infrastructure-owned; Hubble provides optional operational visibility.
+
+A namespace-wide `cilium.io/v2` CiliumNetworkPolicy selects all application Pods.
+It contains `ingress: []`, `egress: []` and explicitly sets
+`enableDefaultDeny: {ingress: true, egress: true}`. Empty lists grant no traffic;
+the explicit default-deny switches prevent omitted/empty-rule defaults from
+leaving a direction unenforced. `[{}]` is never an allowlist entry.
+`egressDeny.toCIDR` blocks `169.254.169.254/32` and `100.100.100.200/32` regardless
+of additive allows, including DNS answers resolving to metadata addresses.
+Application namespaces contain exclusively CiliumNetworkPolicy resources.
+
+Offline validation proves schema and reviewed policy shape. Actual Cilium
+agent/CRD admission, local-node/kubelet probe handling, Service translation,
+DNS proxy visibility and packet enforcement require cluster acceptance.
 
 | Runtime | Ingress | Egress |
 | --- | --- | --- |
@@ -64,7 +77,7 @@ Service/DNAT behavior depend on the CNI and require a cluster acceptance check.
 | Migrator | None | PostgreSQL 5432; DNS |
 | Model cache Pod | None | Model assets 443; DNS |
 
-Peers combine namespace AND pod selectors, never two independent OR peers:
+Peers combine namespace AND pod labels in the same endpoint selector, never two independent OR peers:
 
 - Envoy: namespace `envoy-gateway-system`, component `proxy`, managed-by `envoy-gateway`.
 - Prometheus: namespace `observability`, `app.kubernetes.io/name: prometheus`.
@@ -81,33 +94,66 @@ API, Gateway-to-Worker or background ingress allowance.
 
 ## External destinations
 
-Standard Kubernetes NetworkPolicy has no FQDN destination authority. Each environment
-owns `external-egress.json`, with explicit lists for `postgresql`, `redis`,
-`object_storage`, `mail` and `model_assets`. Empty lists deny those external paths.
-Checked-in lists are empty; they are not a production connectivity qualification.
-Cluster-local PostgreSQL/Redis selectors remain usable where deployed.
+Each environment owns `external-egress.json` with these exact fields:
 
-Review the provider's maintained CIDRs and exact configured endpoints, then render:
+| JSON field | Release environment input | Authority |
+| --- | --- | --- |
+| `postgresql_cidrs` | `POSTGRESQL_EGRESS_CIDRS` | Private PostgreSQL TCP 5432, six DB runtimes |
+| `redis_cidrs` | `REDIS_EGRESS_CIDRS` | Private Redis TCP 6379, API/Control Plane/Worker/Beat |
+| `s3_fqdns` | `S3_EGRESS_FQDNS` | Exact object-storage hosts, API and Worker TCP 443 |
+| `mail_fqdns` | `MAIL_EGRESS_FQDNS` | Exact mail API hosts, Worker TCP 443 |
+| `model_fqdns` | `MODEL_EGRESS_FQDNS` | Exact artifact hosts, model-cache TCP 443 |
+
+All inputs are JSON arrays and default to `[]` (fail closed). GitHub release
+variables prefix these names with `STAGING_` or `PRODUCTION_`. They are public
+network configuration, not Secrets. Runtime settings, endpoints and these lists
+must agree, including the bucket hostname used by virtual-host S3 addressing,
+regional endpoints and every required redirect/artifact hostname.
+
+HTTPS rules contain only `toFQDNs.matchName` plus TCP 443. Validation rejects
+wildcards, protocols, paths, ports, IP literals, malformed labels, trailing dots,
+uppercase/non-normalized values and local/cluster names. Database/Redis CIDRs
+must be canonical RFC1918 IPv4 or IPv6 ULA subnets; public, metadata, loopback and
+wildcard networks are rejected. Cluster-local database selectors remain usable.
+The six zero-public-internet roles have no external FQDN/HTTPS allowance.
+
+All application DNS permits only kube-dns in kube-system, TCP/UDP 53, with
+`rules.dns` so queries pass through Cilium's L7 proxy. The base DNS rule permits
+`**.svc.cluster.local`, `**.cluster.local` and explicit cluster suffixes. In
+Cilium 1.20.5 the leading `**.` matches multiple subdomain labels; this permits
+Kubernetes `ndots:5` search forms, including negative searches for a fully
+qualified external name under the cluster suffix. Each configured provider adds
+only its exact DNS name. Internal search patterns permit DNS questions only;
+`toFQDNs` always remains exact and never grants HTTPS to a wildcard or a
+search-suffixed hostname. There is no L4-only DNS allow or alternate resolver.
+Private database connection URLs use literal private IPs covered by the reviewed
+CIDRs, or the declared cluster-local PostgreSQL/Redis Services. Arbitrary managed
+DB DNS hostnames are not an implicit DNS permission.
 
 ```powershell
 python scripts/container_security_contract.py --external-config deploy/application/overlays/staging/external-egress.json --output deploy/application/overlays/staging/external-egress.yaml
 ```
 
-Release packaging accepts `--external-egress-config <reviewed-file.json>` on
-`scripts/render_k8s_release_overlay.py`. Omission retains deny-by-default lists.
-Both JSON and generated YAML travel with the release. Manifest checks compare
-them and reject undeclared additive policies, wrong ports or selectors, wildcard
-networks and private HTTPS provider destinations. Database/Redis private CIDRs
-are allowed at their fixed ports. Source IPs, Pod/Service CIDRs, IPv6 and changing
-cloud/CDN addresses require environment review; do not snapshot DNS answers as
-permanent authorization. CIDRs and ports do not bind an HTTPS hostname; shared
-CDN addresses require an explicit egress design when host-level isolation is
-necessary. If stable provider CIDRs are unavailable, keep the path
-closed until the cluster owner selects an explicit, enforceable egress design.
+Release packaging passes `--external-egress-config <reviewed-file.json>` to
+`scripts/render_k8s_release_overlay.py`. JSON and generated YAML travel together.
+Manifest checks compare source and final rendered specs, including composed HA
+and GitOps overlays, and reject additive policies, changed identities, ports,
+DNS authority, secondary `specs` rule lists and schema-unknown fields. The pinned official v2 OpenAPI schema
+is validated offline with a verified SHA-256 and strict structural fields;
+Cilium's CEL/agent checks and DNS dataplane behavior still require a real cluster.
 
-Policies are pod-scoped: the model-cache initContainer and idle cache-ready
-container share a network identity. Only the initContainer executes downloads;
-NetworkPolicy does not distinguish individual containers inside that Pod.
+Cilium FQDN rules derive allowed IPs from observed DNS responses. They do not
+validate TLS SNI, certificate identity, HTTP host or URLs, and a shared provider
+IP remains shared at L3/L4. Application TLS verification and endpoint ownership
+remain necessary. DNS TTL/connection tracking and CNAME/redirect behavior require
+real-provider qualification. Model cache containers share the Pod's network
+identity; only the preparation initContainer executes downloads.
+
+Cluster acceptance checks exercise allowed and forbidden DNS/HTTPS names,
+TCP/UDP DNS, service search suffixes, both metadata IPs, unauthorized public
+resolvers, cross-runtime denials, kubelet readiness and Prometheus/OTLP traffic.
+Observe Hubble DNS proxy flows and denied packets. Rendering alone does not
+qualify the cluster or external endpoint allowlist.
 
 ## Gateway and client identity
 
@@ -167,7 +213,7 @@ hardening is made for operator-generated storage/network Pods.
   Explicit real PostgreSQL and Redis URLs are required.
 - `backend-quality.yml`: runs this gate separately before full backend pytest.
 - `container_security_contract.py`: Docker numeric identity, Pod/init security,
-  bounded scratch, exact default-deny/runtime traffic and external CIDR contract.
+  bounded scratch, exact default-deny/runtime traffic and exact FQDN/private CIDR contract.
 - Application/GitOps/observability checkers share these validators; browser checks
   enforce direct API routing, exact body budgets, HSTS and CSP header ownership.
 - Observability CI renders both environment profiles with fixed charts and the

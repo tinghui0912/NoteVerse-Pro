@@ -368,6 +368,6 @@ Before applying private production manifests, run the strict preflight check in
 
 [Container and Network Hardening](container-and-network-hardening.md) defines
 numeric UID/GID 10001, read-only filesystems, bounded scratch mounts, default-deny
-NetworkPolicy and per-runtime traffic. Gateway routes both Customer and Admin
-API traffic directly to their HTTP runtimes. External CIDRs default to empty and
+CiliumNetworkPolicy and per-runtime traffic. Gateway routes both Customer and Admin
+API traffic directly to their HTTP runtimes. External FQDN and private database CIDR lists default to empty and
 must be explicitly reviewed before external connectivity is enabled.

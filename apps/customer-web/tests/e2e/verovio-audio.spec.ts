@@ -1,14 +1,14 @@
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
 
 test('local piano soundfont unlocks, decodes, schedules, and closes in Chromium', async ({
   page,
 }) => {
-  await page.goto('/en/login');
-  await page.addScriptTag({
-    path: resolve(process.cwd(), 'node_modules/soundfont-player/dist/soundfont-player.min.js'),
-  });
+  await page.route('**/audio-smoke.js', route => route.fulfill({ contentType: 'application/javascript', body: readFileSync(resolve(process.cwd(), 'node_modules/soundfont-player/dist/soundfont-player.min.js'), 'utf8') }));
+  await page.goto('/en/auth/login');
+  await page.addScriptTag({ url: '/audio-smoke.js' });
 
   await page.evaluate(() => {
     const soundfont = (window as unknown as {

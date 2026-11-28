@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Bell } from 'lucide-react';
+import { useAuthentication } from '@/features/authentication/session/authentication-context';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useMyPendingScoreInvites } from '@/features/scores/collaboration/queries';
@@ -12,8 +13,9 @@ import { NotificationCenterDialog } from './notification-center-dialog';
 export function NotificationBell({ buttonClassName }: { buttonClassName?: string }) {
   const t = useTranslations('notifications');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const pendingInvites = useMyPendingScoreInvites(true);
-  const unreadNotifications = useNotificationUnreadCount(true);
+  const { isAuthenticated } = useAuthentication();
+  const pendingInvites = useMyPendingScoreInvites(isAuthenticated);
+  const unreadNotifications = useNotificationUnreadCount(isAuthenticated);
   const pendingInviteCount =
     pendingInvites.data?.pages.reduce(
       (count, page) => count + (page?.items.length ?? 0),

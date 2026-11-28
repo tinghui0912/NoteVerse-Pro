@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import pytest
 
 TARGETS = (
     "tests/security",
@@ -34,6 +33,8 @@ class RequiredChecks:
 
 
 def main() -> int:
+    import pytest
+
     if not os.environ.get("NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL") or not os.environ.get(
         "NOTEVERSE_TEST_REDIS_URL"
     ):

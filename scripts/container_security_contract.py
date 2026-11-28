@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from ipaddress import ip_network
+from ipaddress import ip_network, ip_address
 import json
 from pathlib import Path
 import re
@@ -41,7 +41,7 @@ CONTAINER_SECURITY = {
     "seccompProfile": {"type": "RuntimeDefault"},
 }
 EXTERNAL_SERVICES = {
-    "postgresql": (
+    "postgresql_cidrs": (
         5432,
         (
             "backend-api",
@@ -52,28 +52,31 @@ EXTERNAL_SERVICES = {
             "migration",
         ),
     ),
-    "redis": (6379, ("backend-api", "control-plane", "backend-worker", "backend-beat")),
-    "object_storage": (443, ("backend-api", "backend-worker")),
-    "mail": (443, ("backend-worker",)),
-    "model_assets": (443, ("model-cache-agent",)),
+    "redis_cidrs": (6379, ("backend-api", "control-plane", "backend-worker", "backend-beat")),
+    "s3_fqdns": (443, ("backend-api", "backend-worker")),
+    "mail_fqdns": (443, ("backend-worker",)),
+    "model_fqdns": (443, ("model-cache-agent",)),
 }
+IMDS_CIDRS = ["169.254.169.254/32", "100.100.100.200/32"]
 
 
 def peer(namespace: str, labels: dict) -> dict:
     return {
-        "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": namespace}},
-        "podSelector": {"matchLabels": labels},
+        "matchLabels": {
+            "k8s:io.kubernetes.pod.namespace": namespace,
+            **{"k8s:" + key: value for key, value in labels.items()},
+        }
     }
 
 
 def network_policy(name: str, selector: dict, ingress: list, egress: list) -> dict:
     return {
-        "apiVersion": "networking.k8s.io/v1",
-        "kind": "NetworkPolicy",
+        "apiVersion": "cilium.io/v2",
+        "kind": "CiliumNetworkPolicy",
         "metadata": {"name": name},
         "spec": {
-            "podSelector": selector,
-            "policyTypes": ["Ingress", "Egress"],
+            "endpointSelector": selector,
+            "enableDefaultDeny": {"ingress": True, "egress": True},
             "ingress": ingress,
             "egress": egress,
         },
@@ -81,16 +84,42 @@ def network_policy(name: str, selector: dict, ingress: list, egress: list) -> di
 
 
 def rule(direction: str, target: dict, port: int, protocol: str = "TCP") -> dict:
-    return {direction: [target], "ports": [{"protocol": protocol, "port": port}]}
+    return {
+        direction: [target],
+        "toPorts": [{"ports": [{"protocol": protocol, "port": str(port)}]}],
+    }
+
+
+def dns_rule(names: list[str] | None = None) -> dict:
+    queries = (
+        [{"matchName": name} for name in names]
+        if names
+        else [
+            {"matchName": "cluster.local"},
+            {"matchName": "svc.cluster.local"},
+            {"matchPattern": "**.svc.cluster.local"},
+            {"matchPattern": "**.cluster.local"},
+        ]
+    )
+    return {
+        "toEndpoints": [peer("kube-system", {"k8s-app": "kube-dns"})],
+        "toPorts": [
+            {
+                "ports": [{"port": "53", "protocol": p} for p in ("TCP", "UDP")],
+                "rules": {"dns": queries},
+            }
+        ],
+    }
 
 
 def application_network_policies() -> list[dict]:
-    policies = [network_policy("noteverse-default-deny", {}, [], [])]
+    baseline = network_policy("noteverse-default-deny", {}, [], [])
+    baseline["spec"]["egressDeny"] = [{"toCIDR": IMDS_CIDRS}]
+    policies = [baseline]
     gateway = peer(
         "envoy-gateway-system",
         {COMPONENT: "proxy", "app.kubernetes.io/managed-by": "envoy-gateway"},
     )
-    dns = peer("kube-system", {"k8s-app": "kube-dns"})
     prometheus = peer("observability", {"app.kubernetes.io/name": "prometheus"})
     collector = peer(
         "observability",
@@ -104,21 +133,28 @@ def application_network_policies() -> list[dict]:
         if runtime in {"backend-api", "control-plane", "customer-web", "platform-admin"}:
             ingress.append(
                 rule(
-                    "from",
+                    "fromEndpoints",
                     gateway,
-                    3000 if runtime.endswith("web") or runtime == "platform-admin" else 8000,
+                    3000 if runtime in {"customer-web", "platform-admin"} else 8000,
                 )
             )
         if runtime in {"backend-api", "observability-exporter"}:
-            ingress.append(rule("from", prometheus, 8000))
-        egress = [rule("to", dns, 53, protocol) for protocol in ("TCP", "UDP")]
+            ingress.append(rule("fromEndpoints", prometheus, 8000))
+        egress = [dns_rule()]
         for service, (port, runtimes) in EXTERNAL_SERVICES.items():
-            if service in {"postgresql", "redis"} and runtime in runtimes:
+            if service.endswith("_cidrs") and runtime in runtimes:
                 egress.append(
-                    rule("to", peer("noteverse-data", {"app.kubernetes.io/name": service}), port)
+                    rule(
+                        "toEndpoints",
+                        peer(
+                            "noteverse-data",
+                            {"app.kubernetes.io/name": service.removesuffix("_cidrs")},
+                        ),
+                        port,
+                    )
                 )
         if runtime in {"backend-api", "control-plane", "backend-worker", "backend-beat"}:
-            egress.append(rule("to", collector, 4317))
+            egress.append(rule("toEndpoints", collector, 4317))
         policies.append(
             network_policy(
                 "noteverse-" + runtime, {"matchLabels": {COMPONENT: runtime}}, ingress, egress
@@ -127,36 +163,76 @@ def application_network_policies() -> list[dict]:
     return policies
 
 
+def validate_fqdn(value: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) > 253
+        or value != value.lower()
+        or value.endswith(".")
+    ):
+        raise ValueError("FQDNs require normalized lowercase exact hostnames")
+    try:
+        ip_address(value)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("IP literals are not FQDNs")
+    if not re.fullmatch(
+        r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?", value
+    ):
+        raise ValueError("Exact FQDNs require valid labels without wildcard, scheme or path")
+    if value.endswith((".local", ".internal", ".localhost")):
+        raise ValueError("External provider FQDNs must not select cluster or local names")
+    return value
+
+
+def validate_egress_configuration(configuration: dict) -> dict:
+    if not isinstance(configuration, dict) or set(configuration) != set(EXTERNAL_SERVICES):
+        raise ValueError("Every service requires an explicit private CIDR or exact FQDN list")
+    result = {}
+    private = [ip_network(c) for c in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")]
+    for service, values in configuration.items():
+        if (
+            not isinstance(values, list)
+            or any(not isinstance(v, str) for v in values)
+            or len(values) != len(set(values))
+        ):
+            raise ValueError("Egress destinations require distinct string lists")
+        if service.endswith("_cidrs"):
+            for value in values:
+                network = ip_network(value, strict=True)
+                if not any(network.version == p.version and network.subnet_of(p) for p in private):
+                    raise ValueError("Database and Redis destinations require private CIDRs")
+            result[service] = sorted(values)
+        else:
+            result[service] = sorted(validate_fqdn(v) for v in values)
+    return result
+
+
 def external_network_policies(configuration: dict) -> list[dict]:
-    if set(configuration) != set(EXTERNAL_SERVICES):
-        raise ValueError("External egress requires an explicit CIDR list for every service")
+    configuration = validate_egress_configuration(configuration)
     policies = []
     for service, (port, runtimes) in EXTERNAL_SERVICES.items():
         values = configuration[service]
-        if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
-            raise ValueError("CIDRs must be a list of network strings")
-        destinations = []
-        for value in values:
-            network = ip_network(value, strict=True)
-            if (
-                network.prefixlen == 0
-                or network.is_multicast
-                or network.is_loopback
-                or network.is_link_local
-            ):
-                raise ValueError("Wildcard, multicast, loopback and link-local egress is forbidden")
-            if service in {"object_storage", "mail", "model_assets"} and not network.is_global:
-                raise ValueError("HTTPS provider destinations must use public CIDRs")
-            destinations.append({"ipBlock": {"cidr": str(network)}})
+        egress = []
+        if values:
+            destination = (
+                {"toCIDR": values}
+                if service.endswith("_cidrs")
+                else {"toFQDNs": [{"matchName": n} for n in values]}
+            )
+            egress.append(
+                {**destination, "toPorts": [{"ports": [{"protocol": "TCP", "port": str(port)}]}]}
+            )
+            if service.endswith("_fqdns"):
+                egress.append(dns_rule(values))
         for runtime in runtimes:
             policies.append(
                 network_policy(
                     "noteverse-external-" + service.replace("_", "-") + "-" + runtime,
                     {"matchLabels": {COMPONENT: runtime}},
                     [],
-                    [{"to": destinations, "ports": [{"protocol": "TCP", "port": port}]}]
-                    if destinations
-                    else [],
+                    egress,
                 )
             )
     return policies
@@ -243,60 +319,63 @@ def validate_application_documents(documents: list[dict]) -> list[str]:
             )
             if component not in RUNTIMES:
                 errors.append("Every application workload requires a declared network identity")
-    policies = [d for d in documents if d.get("kind") == "NetworkPolicy"]
+    from cilium_schema import validate_cilium_documents
+
+    errors.extend(validate_cilium_documents(documents))
+    if any(d.get("kind") in {"NetworkPolicy", "CiliumClusterwideNetworkPolicy"} for d in documents):
+        errors.append("Application networking requires exclusively namespaced CiliumNetworkPolicy")
+    policies = [d for d in documents if d.get("kind") == "CiliumNetworkPolicy"]
     if namespaces and any(
         d.get("metadata", {}).get("namespace") not in namespaces for d in policies
     ):
         errors.append("Network policy and workload namespaces must match")
     expected = {d["metadata"]["name"]: d["spec"] for d in application_network_policies()}
-    # CIDR values are environment-owned; the per-service role and port shape remains fixed.
-    external = {service: [] for service in EXTERNAL_SERVICES}
-    external_names = {d["metadata"]["name"] for d in external_network_policies(external)}
     seen = set()
+    external = []
     for document in policies:
-        name, spec = document["metadata"]["name"], document["spec"]
+        name, spec = document["metadata"]["name"], document.get("spec", {})
         if name in seen:
             errors.append(f"{name}: duplicate network policy")
         seen.add(name)
         if name in expected:
             if spec != expected[name]:
                 errors.append(f"{name}: runtime traffic matrix differs")
-        elif name in external_names:
-            matching = next(
-                d for d in external_network_policies(external) if d["metadata"]["name"] == name
-            )
-            sample = dict(spec)
-            sample["egress"] = []
-            if sample != matching["spec"]:
-                errors.append(f"{name}: external policy authority differs")
-            service = next(
-                s
-                for s in EXTERNAL_SERVICES
-                if name.startswith("noteverse-external-" + s.replace("_", "-") + "-")
-            )
-            for egress in spec.get("egress", []):
-                try:
-                    if (
-                        set(egress) != {"to", "ports"}
-                        or egress["ports"]
-                        != [{"protocol": "TCP", "port": EXTERNAL_SERVICES[service][0]}]
-                        or not egress["to"]
-                    ):
-                        raise ValueError("Invalid external port or destination")
-                    cidrs = []
-                    for target in egress["to"]:
-                        if set(target) != {"ipBlock"} or set(target["ipBlock"]) != {"cidr"}:
-                            raise ValueError("Exact CIDRs required")
-                        cidrs.append(target["ipBlock"]["cidr"])
-                    external_network_policies(
-                        {s: cidrs if s == service else [] for s in EXTERNAL_SERVICES}
-                    )
-                except (ValueError, KeyError, TypeError):
-                    errors.append(f"{name}: invalid external egress")
+        elif name.startswith("noteverse-external-"):
+            external.append(document)
         else:
             errors.append(f"{name}: undeclared additive network policy")
     if not set(expected).issubset(seen):
         errors.append("Missing default-deny or runtime network policy")
+    if external:
+        empty = {s: [] for s in EXTERNAL_SERVICES}
+        external_names = {d["metadata"]["name"] for d in external_network_policies(empty)}
+        if {d["metadata"]["name"] for d in external} != external_names:
+            errors.append("External egress requires all reviewed per-service policies")
+        for document in external:
+            try:
+                name = document["metadata"]["name"]
+                service = next(
+                    s
+                    for s in EXTERNAL_SERVICES
+                    if name.startswith("noteverse-external-" + s.replace("_", "-") + "-")
+                )
+                egress = document["spec"]["egress"]
+                values = []
+                if egress:
+                    values = (
+                        egress[0]["toCIDR"]
+                        if service.endswith("_cidrs")
+                        else [v["matchName"] for v in egress[0]["toFQDNs"]]
+                    )
+                configuration = {**empty, service: values}
+                expected_external = {
+                    d["metadata"]["name"]: d["spec"]
+                    for d in external_network_policies(configuration)
+                }
+                if document["spec"] != expected_external.get(name):
+                    errors.append(f"{name}: external service/role/port/DNS authority differs")
+            except (KeyError, ValueError, TypeError, StopIteration):
+                errors.append("Invalid external Cilium egress authority")
     for document in documents:
         if document.get("kind") == "ConfigMap" and document["metadata"]["name"] in {
             "noteverse-customer-api-config",
@@ -337,19 +416,23 @@ def _validate_external_owner(
             observed = list(yaml.safe_load_all(manifest.read_text(encoding="utf-8")))
             if observed != expected:
                 errors.append(
-                    "External egress manifest differs from its reviewed CIDR configuration"
+                    "External egress manifest differs from its reviewed egress configuration"
                 )
             if documents is not None:
                 for policy in expected:
                     matches = [
                         d
                         for d in documents
-                        if d.get("kind") == "NetworkPolicy"
+                        if d.get("kind") == "CiliumNetworkPolicy"
                         and d.get("metadata", {}).get("name") == policy["metadata"]["name"]
                     ]
-                    if len(matches) != 1 or matches[0]["spec"] != policy["spec"]:
+                    if (
+                        len(matches) != 1
+                        or matches[0]["spec"] != policy["spec"]
+                        or "specs" in matches[0]
+                    ):
                         errors.append(
-                            "Rendered external egress differs from its reviewed CIDR configuration"
+                            "Rendered external egress differs from its reviewed egress configuration"
                         )
         for resource in resources:
             path = (directory / resource).resolve()

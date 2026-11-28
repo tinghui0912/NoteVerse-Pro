@@ -60,9 +60,9 @@ The Docker minikube driver is not the production rehearsal path because it
 cannot attach extra block disks. Docker volumes are not block devices and should
 not be used to simulate LVM.
 
-The profile uses Cilium from cluster creation. Cilium enforces standard
-Kubernetes `NetworkPolicy`, so the staging rehearsal can prove that the
-Control Plane is reachable only from Platform Admin. Do not replace it with the
+The profile uses Cilium from cluster creation. Cilium enforces the application
+`CiliumNetworkPolicy` contract, so the staging rehearsal verifies direct Gateway
+access to Control Plane and denies Platform Admin Pod access to it. Do not replace it with the
 minikube bridge CNI: bridge accepts policy objects but does not enforce them.
 For the Windows qemu2 profile only, the start script enables Cilium endpoint
 routes and restarts CoreDNS. This restores host-to-Pod forwarding in the local
@@ -437,7 +437,7 @@ repository.
 ### Verify Control-Plane Network Isolation
 
 The staging profile uses Cilium, so these checks exercise enforced
-`NetworkPolicy` behavior rather than merely inspecting YAML. Run them after an
+`CiliumNetworkPolicy` behavior rather than merely inspecting YAML. Run them after an
 application release:
 
 ```powershell
@@ -446,8 +446,8 @@ application release:
 
 The smoke test proves four cases and deletes its temporary Pods afterward:
 
-- Platform Admin can reach the internal Control Plane Service;
-- an unrelated application Pod cannot reach Control Plane;
+- selected Envoy Gateway Pods can reach the internal Control Plane Service;
+- a Platform Admin Pod cannot reach Control Plane;
 - the selected Envoy Gateway data-plane Pods can reach Platform Admin;
 - an unrelated application Pod cannot reach Platform Admin.
 

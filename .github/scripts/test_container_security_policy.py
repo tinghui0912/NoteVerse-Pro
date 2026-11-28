@@ -109,18 +109,13 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
             policy = next(
                 d
                 for d in docs
-                if d.get("kind") == "NetworkPolicy"
+                if d.get("kind") == "CiliumNetworkPolicy"
                 and d.get("metadata", {}).get("name") == "noteverse-" + runtime
             )
             policy["spec"]["egress"].append(
                 {
-                    "to": [
-                        {
-                            "podSelector": {
-                                "matchLabels": {"app.kubernetes.io/component": destination}
-                            }
-                        }
-                    ]
+                    "toEndpoints": [{"matchLabels": {"app.kubernetes.io/component": destination}}],
+                    "toPorts": [{"ports": [{"port": "8000", "protocol": "TCP"}]}],
                 }
             )
             self.assertTrue(validate_application_documents(docs))
@@ -139,7 +134,9 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
         policy = next(
             d for d in docs if d.get("metadata", {}).get("name") == "noteverse-control-plane"
         )
-        del policy["spec"]["ingress"][0]["from"][0]["namespaceSelector"]
+        del policy["spec"]["ingress"][0]["fromEndpoints"][0]["matchLabels"][
+            "k8s:io.kubernetes.pod.namespace"
+        ]
         self.assertTrue(validate_application_documents(docs))
 
     def test_external_egress_is_closed_and_scoped_by_service(self):
@@ -147,19 +144,20 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
         policies = external_network_policies(configuration)
         self.assertTrue(all(not p["spec"]["egress"] for p in policies))
         self.assertEqual(validate_application_documents(self.fixture() + policies), [])
-        configuration["object_storage"] = ["8.8.8.8/32"]
+        configuration["s3_fqdns"] = ["storage.example.com"]
         policies = external_network_policies(configuration)
         self.assertEqual(validate_application_documents(self.fixture() + policies), [])
         affected = [p for p in policies if p["spec"]["egress"]]
         self.assertEqual(len(affected), 2)
         for policy in affected:
             self.assertEqual(
-                policy["spec"]["egress"][0]["ports"], [{"protocol": "TCP", "port": 443}]
+                policy["spec"]["egress"][0]["toPorts"],
+                [{"ports": [{"protocol": "TCP", "port": "443"}]}],
             )
-        affected[0]["spec"]["egress"][0]["ports"][0]["port"] = 8000
+        affected[0]["spec"]["egress"][0]["toPorts"][0]["ports"][0]["port"] = "8000"
         self.assertTrue(validate_application_documents(self.fixture() + policies))
 
-    def test_external_cidr_input_rejects_wildcards_and_private_https(self):
+    def test_external_fqdn_input_rejects_wildcards_and_ip_literals(self):
         for cidr in (
             "0.0.0.0/0",
             "::/0",
@@ -169,7 +167,7 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
             "8.8.8.8/24",
         ):
             configuration = {service: [] for service in EXTERNAL_SERVICES}
-            configuration["object_storage"] = [cidr]
+            configuration["s3_fqdns"] = [cidr]
             with self.assertRaises(ValueError, msg=cidr):
                 external_network_policies(configuration)
 
@@ -296,7 +294,7 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
         for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):
             docs = list(yaml.safe_load_all((ROOT / base / "network-policies.yaml").read_text()))
             by_name = {d["metadata"]["name"]: d["spec"] for d in docs}
-            self.assertEqual(by_name["noteverse-default-deny"]["podSelector"], {})
+            self.assertEqual(by_name["noteverse-default-deny"]["endpointSelector"], {})
             self.assertEqual(by_name["noteverse-default-deny"]["ingress"], [])
             self.assertEqual(by_name["noteverse-default-deny"]["egress"], [])
             for runtime in ("backend-worker", "backend-beat", "migration", "model-cache-agent"):
@@ -306,18 +304,18 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                     {
                         p["port"]
                         for rule in by_name["noteverse-" + runtime]["egress"]
-                        for p in rule["ports"]
+                        for to_port in rule["toPorts"]
+                        for p in to_port["ports"]
                     },
-                    {53},
+                    {"53"},
                 )
             for runtime in ("control-plane", "backend-api", "backend-worker", "backend-beat"):
                 for rule in by_name["noteverse-" + runtime]["egress"]:
-                    for target in rule["to"]:
-                        self.assertIn("namespaceSelector", target)
-                        self.assertIn("podSelector", target)
+                    for target in rule["toEndpoints"]:
+                        self.assertIn("k8s:io.kubernetes.pod.namespace", target["matchLabels"])
                         self.assertNotIn(
                             "app.kubernetes.io/component",
-                            target["podSelector"].get("matchLabels", {}),
+                            target.get("matchLabels", {}),
                         )
             for runtime in ("control-plane", "backend-beat", "migration", "observability-exporter"):
                 self.assertNotIn(
@@ -325,7 +323,8 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                     {
                         p["port"]
                         for rule in by_name["noteverse-" + runtime]["egress"]
-                        for p in rule["ports"]
+                        for to_port in rule["toPorts"]
+                        for p in to_port["ports"]
                     },
                 )
 
@@ -340,7 +339,7 @@ class ContainerSecurityPolicyTests(unittest.TestCase):
                 path,
             )
 
-    def test_rendered_external_policy_cannot_bypass_its_cidr_configuration(self):
+    def test_rendered_external_policy_cannot_bypass_its_egress_configuration(self):
         with tempfile.TemporaryDirectory() as directory:
             owner = Path(directory)
             config = {service: [] for service in EXTERNAL_SERVICES}

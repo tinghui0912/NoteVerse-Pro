@@ -15,7 +15,8 @@ components and environments, rather than their internal application commands.
 | `quality.ps1` | Repository quality wrapper. Run `./scripts/quality.ps1 -Check <check>`. |
 | `check_documentation_structure.py` | Repository-quality guard for current documentation locations and work-tracking filenames; tested by `test_documentation_structure.py`. |
 | `check_markdown_links.py` | Validates checked-in local Markdown links. Run `python scripts/check_markdown_links.py`. |
-| `container_security_contract.py` | Validates container identity and exact application network policy; renders explicit external CIDR configuration. |
+| `container_security_contract.py` | Validates container identity and the Cilium traffic matrix; renders exact provider FQDN and private database CIDR configuration. |
+| `cilium_schema.py` | Validates managed CiliumNetworkPolicy resources offline against the pinned official structural schema. |
 | `harden_observability_manifests.py` | Helm post-renderer for numeric identity, read-only filesystems and bounded observability scratch. |
 | `check_k8s_application_manifests.py` | Validates Kubernetes application templates and rendered overlays. |
 | `check_k8s_config_ownership.py` | Validates Kubernetes env-file ownership boundaries. |

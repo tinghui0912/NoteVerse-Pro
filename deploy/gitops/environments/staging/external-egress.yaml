@@ -1,195 +1,195 @@
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-postgresql-backend-api
+  name: noteverse-external-postgresql-cidrs-backend-api
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-api
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-postgresql-control-plane
+  name: noteverse-external-postgresql-cidrs-control-plane
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: control-plane
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-postgresql-backend-worker
+  name: noteverse-external-postgresql-cidrs-backend-worker
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-worker
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-postgresql-backend-beat
+  name: noteverse-external-postgresql-cidrs-backend-beat
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-beat
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-postgresql-observability-exporter
+  name: noteverse-external-postgresql-cidrs-observability-exporter
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: observability-exporter
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-postgresql-migration
+  name: noteverse-external-postgresql-cidrs-migration
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: migration
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-redis-backend-api
+  name: noteverse-external-redis-cidrs-backend-api
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-api
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-redis-control-plane
+  name: noteverse-external-redis-cidrs-control-plane
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: control-plane
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-redis-backend-worker
+  name: noteverse-external-redis-cidrs-backend-worker
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-worker
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-redis-backend-beat
+  name: noteverse-external-redis-cidrs-backend-beat
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-beat
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-object-storage-backend-api
+  name: noteverse-external-s3-fqdns-backend-api
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-api
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-object-storage-backend-worker
+  name: noteverse-external-s3-fqdns-backend-worker
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-worker
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-mail-backend-worker
+  name: noteverse-external-mail-fqdns-backend-worker
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-worker
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
-  name: noteverse-external-model-assets-model-cache-agent
+  name: noteverse-external-model-fqdns-model-cache-agent
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: model-cache-agent
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []

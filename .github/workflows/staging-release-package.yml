@@ -203,10 +203,27 @@ jobs:
             echo "PLATFORM_ADMIN_IMAGE_PINNED=$(image_name_without_reference "${PLATFORM_ADMIN_IMAGE}")@${PLATFORM_ADMIN_IMAGE_DIGEST}"
           } >> "$GITHUB_ENV"
 
+      - name: Materialize reviewed Cilium egress inputs
+        env:
+          POSTGRESQL_EGRESS_CIDRS: ${{ vars.STAGING_POSTGRESQL_EGRESS_CIDRS }}
+          REDIS_EGRESS_CIDRS: ${{ vars.STAGING_REDIS_EGRESS_CIDRS }}
+          S3_EGRESS_FQDNS: ${{ vars.STAGING_S3_EGRESS_FQDNS }}
+          MAIL_EGRESS_FQDNS: ${{ vars.STAGING_MAIL_EGRESS_FQDNS }}
+          MODEL_EGRESS_FQDNS: ${{ vars.STAGING_MODEL_EGRESS_FQDNS }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          fields = {"postgresql_cidrs": "POSTGRESQL_EGRESS_CIDRS", "redis_cidrs": "REDIS_EGRESS_CIDRS", "s3_fqdns": "S3_EGRESS_FQDNS", "mail_fqdns": "MAIL_EGRESS_FQDNS", "model_fqdns": "MODEL_EGRESS_FQDNS"}
+          configuration = {key: json.loads(os.environ[value] or "[]") for key, value in fields.items()}
+          Path(os.environ["RUNNER_TEMP"], "external-egress.json").write_text(json.dumps(configuration))
+          PY
+
       - name: Render staging release overlay
         run: |
           python scripts/render_k8s_release_overlay.py \
             --environment staging \
+            --external-egress-config "$RUNNER_TEMP/external-egress.json" \
             --output build/k8s-release/staging \
             --backend-api-image "${BACKEND_API_IMAGE_PINNED}" \
             --backend-beat-image "${BACKEND_BEAT_IMAGE_PINNED}" \

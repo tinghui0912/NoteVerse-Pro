@@ -33,6 +33,9 @@ COPY backend/pyproject.toml backend/uv.lock /opt/noteverse/project/
 RUN uv sync --project /opt/noteverse/project --locked --no-default-groups --only-group quality --python /usr/local/bin/python --no-cache \
     && uv pip check --python /opt/noteverse/venv/bin/python
 
+COPY scripts/requirements-manifests.txt /opt/noteverse/manifest-requirements.txt
+RUN uv pip install --python /opt/noteverse/venv/bin/python -r /opt/noteverse/manifest-requirements.txt --no-cache
+
 COPY backend/ /app/
 RUN test ! -e /app/research
 

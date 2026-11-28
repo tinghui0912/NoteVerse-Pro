@@ -176,7 +176,7 @@ deploy/gitops/environments/staging
 Then perform a manual sync.
 
 The `noteverse` AppProject explicitly whitelists every namespaced resource used
-by the desired state, including `networking.k8s.io/NetworkPolicy`. Keep that
+by the desired state, including `cilium.io/CiliumNetworkPolicy`. Keep that
 allowlist in step with the rendered application manifests. A rejected resource
 is a delivery-boundary failure, not a reason to broaden the project to `*/*`.
 

@@ -6,7 +6,7 @@ import { openPreparedPractice } from './support/practice-workspace';
 import type { RevisionRead } from '../../src/generated/api';
 import artifactFixture from '../../src/lib/practice/__fixtures__/canonical-practice-score-artifact.json';
 
-const musicXml = readFileSync(resolve('../../backend/tests/fixtures/musicxml/canonical-practice-score.musicxml'), 'utf8');
+const musicXml = readFileSync(resolve('tests/fixtures/collaboration.musicxml'), 'utf8');
 const scoreId = 'trusted-score';
 const revisionId = 'trusted-revision';
 type Role = 'OWNER' | 'VIEWER' | 'PRACTITIONER' | 'EDITOR';
@@ -18,6 +18,14 @@ const capabilities = (role: Role) => ({
 
 async function mockScore(page: Page, role: Role) {
   await mockAuthenticatedSession(page); await mockRealtimeEvents(page);
+  await page.route('**/api/v1/playback/performance-plan', async route => {
+    const {musicxml} = route.request().postDataJSON();
+    expect(musicxml).toContain('<score-partwise');
+    const rational = (numerator: number) => ({numerator, denominator: 1});
+    await route.fulfill({json: {musicxml, initial_tempo_bpm: rational(120), performance_end: rational(6),
+      occurrences: [0, 1].map(ordinal => ({ordinal, measure_index: ordinal, visit: 1, written_start: rational(ordinal * 3), written_end: rational((ordinal + 1) * 3), performance_start: rational(ordinal * 3), performance_end: rational((ordinal + 1) * 3)})),
+      tempo_events: [{occurrence_ordinal: 0, performance_position: rational(0), bpm: rational(120)}, {occurrence_ordinal: 1, performance_position: rational(3), bpm: rational(90)}]}});
+  });
   const caps = capabilities(role);
   const score = { score_id: scoreId, display_title: 'Trusted Score', genres: [], metadata_version: 1, head_revision_number: 1, head_revision_id: revisionId,
     metadata: null, input_assets: [], created_at: '2026-06-20T00:00:00Z', updated_at: '2026-06-20T00:00:00Z', capabilities: caps,
@@ -27,11 +35,11 @@ async function mockScore(page: Page, role: Role) {
   await page.route(`**/api/v1/scores/${scoreId}/revision-assets**`, route => route.fulfill({ json: { revision_sources: [], render_assets: [] } }));
   await page.route('**/api/v1/render-assets/page-a/view', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="white"/></svg>' }));
   await page.route(`**/api/v1/scores/${scoreId}/revisions?**`, route => route.fulfill({ json: { items: [revision], next_cursor: null } }));
-  await page.route(`**/api/v1/scores/${scoreId}/revisions/*/content`, route => route.fulfill({ status: caps.can_edit ? 200 : 403, json: caps.can_edit ? { ...revision, revision_id: new URL(route.request().url()).pathname.split('/').at(-2), content: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : {  code: 'no_edit_access', request_id: null } }));
+  await page.route(`**/api/v1/scores/${scoreId}/revisions/*/content`, route => route.fulfill({ status: caps.can_edit ? 200 : 403, json: caps.can_edit ? { ...revision, revision_id: new URL(route.request().url()).pathname.split('/').at(-2), content: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } : {  code: 'no_edit_access', request_id: 'e2e-request' } }));
   await page.route(`**/api/v1/practice/scores/${scoreId}/revisions/${revisionId}/bundle?**`, route => {
     expect(caps.can_practice).toBe(true);
     expect(new URL(route.request().url()).searchParams.get('include_notation')).toBe('true');
-    return route.fulfill({ json: { source_id: 'trusted-admission', artifact: { ...artifactFixture, scoreId, revisionId }, notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } });
+    return route.fulfill({ json: { binding: { score_id: scoreId, revision_id: revisionId, bundle_id: artifactFixture.artifactId }, artifact: artifactFixture, notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' } } });
   });
   return { score, revision };
 }
@@ -126,13 +134,13 @@ test('Editor loads MusicXML and saves a revision without download permission', a
 test('Owner invites with default Viewer and can choose Practitioner or Editor and change member roles', async ({ page }) => {
   await mockScore(page, 'OWNER');
   let memberRole = 'VIEWER';
-  await page.route(`**/api/v1/scores/${scoreId}/members`, route => route.fulfill({ json: [{ membership_id: 10, display_name: 'Member', email: 'member@example.com', role: memberRole, created_at: '2026-06-20T00:00:00Z', revoked_at: null, avatar_url: null }] }));
+  await page.route(`**/api/v1/scores/${scoreId}/members{,?**}`, route => route.fulfill({ json: { items: [{ membership_id: 10, display_name: 'Member', email: 'member@example.com', role: memberRole, created_at: '2026-06-20T00:00:00Z', revoked_at: null, avatar_url: null }], next_cursor: null } }));
   const invited: string[] = [], changed: string[] = [];
-  await page.route(`**/api/v1/scores/${scoreId}/invites`, async route => {
+  await page.route(`**/api/v1/scores/${scoreId}/invites{,?**}`, async route => {
     if (route.request().method() === 'POST') {
       const body = route.request().postDataJSON(); invited.push(body.role);
       await route.fulfill({ json: { invite_id: `invite-${invited.length}`, token: `token-${invited.length}`, email: body.email, role: body.role, status: 'PENDING', created_at: '2026-06-20T00:00:00Z', expires_at: null, terminal_at: null, created_by: null, terminal_actor: null } });
-    } else await route.fulfill({ json: [] });
+    } else await route.fulfill({ json: { items: [], next_cursor: null } });
   });
   await page.route(`**/api/v1/scores/${scoreId}/members/10`, async route => {
     memberRole = route.request().postDataJSON().role;
@@ -179,7 +187,7 @@ test('Editor keeps the document open when its expected head conflicts', async ({
   await page.route(`**/api/v1/scores/${scoreId}/revisions`, route => {
     expect(route.request().postDataJSON().expected_head_revision_id).toBe(revisionId);
     rejected = true;
-    return route.fulfill({ status: 409, json: { code: 'revision_conflict', request_id: null } });
+    return route.fulfill({ status: 409, json: { code: 'revision_conflict', request_id: 'e2e-request' } });
   });
   await page.goto(`/en/score/${scoreId}/edit`);
   await expect(page.locator('svg .note').first()).toBeVisible();

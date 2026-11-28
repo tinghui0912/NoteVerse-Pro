@@ -31,7 +31,7 @@ Required objects supplied outside this overlay:
 
 The staging overlay enables one Control Plane and one Platform Admin replica.
 The Admin HTTPS listener routes `/api` directly to Control Plane and document
-paths to Platform Admin. NetworkPolicy admits only Envoy to these surfaces;
+paths to Platform Admin. CiliumNetworkPolicy admits only Envoy to these surfaces;
 Platform Admin has no Control Plane egress. Production replica counts follow its
 explicit deployment access policy.
 
@@ -60,7 +60,7 @@ Frontend routing notes:
 ## Runtime isolation
 
 All application workloads use UID/GID 10001 and read-only root filesystems.
-`external-egress.json` owns per-service CIDR lists; empty lists deny external
+`external-egress.json` owns private PostgreSQL/Redis CIDR and exact provider FQDN lists; empty lists deny external
 connectivity. Render `external-egress.yaml` with
-`scripts/container_security_contract.py` after reviewing endpoint CIDRs.
+`scripts/container_security_contract.py` after reviewing private networks and exact endpoint hostnames.
 See [Container and Network Hardening](../../../../docs/architecture/runtime/container-and-network-hardening.md).

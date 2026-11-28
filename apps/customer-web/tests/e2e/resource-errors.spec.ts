@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { mockAnonymousSession, mockAuthenticatedSession, mockRealtimeEvents } from './support/api-mocks';
 
-const apiError = (code: string) => ({ code, request_id: null });
+const apiError = (code: string) => ({ code, request_id: 'e2e-request' });
 
 test.beforeEach(async ({ page }) => {
   await mockAnonymousSession(page);
 });
 
 
-test('direct Practice requires Setup without reading unavailable Score or Source', async ({ page }) => {
+test('direct Practice enters Setup with only a score metadata read', async ({ page }) => {
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
   const representationRequests: string[] = [];
@@ -28,9 +28,9 @@ test('direct Practice requires Setup without reading unavailable Score or Source
 
   await page.goto('/en/score/missing-practice-score/practice?practiceRevisionId=missing-revision');
 
-  await expect(page.getByRole('status')).toHaveText('Complete setup before starting practice.');
-  await expect(page.getByRole('button', { name: 'Practice setup', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/practice\/setup\?practiceRevisionId=missing-revision$/);
+  await expect(page.getByTestId('practice-setup')).toBeVisible();
   await expect(page.getByText('Preparing your practice...')).toHaveCount(0);
   await expect(page.getByText('Practice mode score display area')).toHaveCount(0);
-  expect(representationRequests).toEqual([]);
+  expect(representationRequests).toEqual(['/api/v1/scores/missing-practice-score']);
 });

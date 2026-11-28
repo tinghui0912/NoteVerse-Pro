@@ -17,7 +17,7 @@ export async function mockAnonymousSession(page: Page): Promise<void> {
       status: 401,
       contentType: 'application/json',
       body: JSON.stringify({
-        code: 'unauthorized', request_id: null,
+        code: 'unauthorized', request_id: 'e2e-request',
       }),
     })
   );

@@ -1,489 +1,453 @@
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-default-deny
 spec:
-  podSelector: {}
-  policyTypes:
-  - Ingress
-  - Egress
+  endpointSelector: {}
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress: []
+  egressDeny:
+  - toCIDR:
+    - 169.254.169.254/32
+    - 100.100.100.200/32
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-backend-api
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-api
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: envoy-gateway-system
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/component: proxy
-          app.kubernetes.io/managed-by: envoy-gateway
-    ports:
-    - protocol: TCP
-      port: 8000
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: observability
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: prometheus
-    ports:
-    - protocol: TCP
-      port: 8000
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: envoy-gateway-system
+        k8s:app.kubernetes.io/component: proxy
+        k8s:app.kubernetes.io/managed-by: envoy-gateway
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '8000'
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: prometheus
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '8000'
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: redis
-    ports:
-    - protocol: TCP
-      port: 6379
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: observability
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: opentelemetry-collector
-          app.kubernetes.io/instance: otel-collector
-    ports:
-    - protocol: TCP
-      port: 4317
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: postgresql
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '5432'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: redis
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '6379'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: opentelemetry-collector
+        k8s:app.kubernetes.io/instance: otel-collector
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '4317'
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-control-plane
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: control-plane
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: envoy-gateway-system
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/component: proxy
-          app.kubernetes.io/managed-by: envoy-gateway
-    ports:
-    - protocol: TCP
-      port: 8000
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: envoy-gateway-system
+        k8s:app.kubernetes.io/component: proxy
+        k8s:app.kubernetes.io/managed-by: envoy-gateway
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '8000'
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: redis
-    ports:
-    - protocol: TCP
-      port: 6379
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: observability
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: opentelemetry-collector
-          app.kubernetes.io/instance: otel-collector
-    ports:
-    - protocol: TCP
-      port: 4317
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: postgresql
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '5432'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: redis
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '6379'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: opentelemetry-collector
+        k8s:app.kubernetes.io/instance: otel-collector
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '4317'
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-backend-worker
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-worker
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: redis
-    ports:
-    - protocol: TCP
-      port: 6379
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: observability
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: opentelemetry-collector
-          app.kubernetes.io/instance: otel-collector
-    ports:
-    - protocol: TCP
-      port: 4317
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: postgresql
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '5432'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: redis
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '6379'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: opentelemetry-collector
+        k8s:app.kubernetes.io/instance: otel-collector
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '4317'
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-backend-beat
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: backend-beat
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: redis
-    ports:
-    - protocol: TCP
-      port: 6379
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: observability
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: opentelemetry-collector
-          app.kubernetes.io/instance: otel-collector
-    ports:
-    - protocol: TCP
-      port: 4317
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: postgresql
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '5432'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: redis
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '6379'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: opentelemetry-collector
+        k8s:app.kubernetes.io/instance: otel-collector
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '4317'
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-customer-web
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: customer-web
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: envoy-gateway-system
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/component: proxy
-          app.kubernetes.io/managed-by: envoy-gateway
-    ports:
-    - protocol: TCP
-      port: 3000
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: envoy-gateway-system
+        k8s:app.kubernetes.io/component: proxy
+        k8s:app.kubernetes.io/managed-by: envoy-gateway
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '3000'
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-platform-admin
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: platform-admin
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: envoy-gateway-system
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/component: proxy
-          app.kubernetes.io/managed-by: envoy-gateway
-    ports:
-    - protocol: TCP
-      port: 3000
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: envoy-gateway-system
+        k8s:app.kubernetes.io/component: proxy
+        k8s:app.kubernetes.io/managed-by: envoy-gateway
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '3000'
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-observability-exporter
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: observability-exporter
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: observability
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: prometheus
-    ports:
-    - protocol: TCP
-      port: 8000
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: prometheus
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '8000'
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: postgresql
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '5432'
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-migration
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: migration
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: noteverse-data
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: noteverse-data
+        k8s:app.kubernetes.io/name: postgresql
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '5432'
 ---
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
 metadata:
   name: noteverse-model-cache-agent
 spec:
-  podSelector:
+  endpointSelector:
     matchLabels:
       app.kubernetes.io/component: model-cache-agent
-  policyTypes:
-  - Ingress
-  - Egress
+  enableDefaultDeny:
+    ingress: true
+    egress: true
   ingress: []
   egress:
-  - to:
-    - &id001
-      namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: kube-system
-      podSelector:
-        matchLabels:
-          k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
-  - to:
-    - *id001
-    ports:
-    - protocol: UDP
-      port: 53
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'

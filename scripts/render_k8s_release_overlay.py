@@ -41,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--external-egress-config",
         type=Path,
-        help="Reviewed per-service CIDR JSON; defaults to deny external egress",
+        help="Reviewed private-CIDR and exact-FQDN JSON; defaults to deny external egress",
     )
     parser.add_argument("--environment", choices=("staging", "production"), required=True)
     parser.add_argument("--output", type=Path, required=True)

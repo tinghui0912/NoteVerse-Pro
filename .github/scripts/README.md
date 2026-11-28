@@ -20,7 +20,7 @@ tooling environment and runs CI tests separately from backend application tests.
 From the repository root:
 
 ```sh
-uv run --project backend --locked --only-group quality python -m pytest .github/scripts -q -c backend/pyproject.toml
+uv run --project backend --locked --only-group quality --with-requirements scripts/requirements-manifests.txt python -m pytest .github/scripts -q -c backend/pyproject.toml
 ```
 
 The Quality workflow also type-checks the real CI helper paths with backend
@@ -36,6 +36,8 @@ Repository, platform and environment orchestration belongs in
 `backend_security_regression.py` executes the mandatory security and architecture
 suite with explicit real PostgreSQL/Redis URLs and rejects skips/xfails or empty
 execution. `test_container_security_policy.py` exercises numeric image identity,
-Pod/init contexts, exact network traffic, external CIDR inputs, direct Gateway
-routing and observability Helm hardening. Workflows invoke these gates separately
+Pod/init contexts, exact network traffic, private CIDR inputs, direct Gateway
+routing and observability Helm hardening. `test_cilium_network_policy.py` verifies
+exact FQDN/DNS authority, metadata deny, single-rule ownership and offline CRD
+schema validation on Linux and Windows. Workflows invoke these gates separately
 from full backend regression.
