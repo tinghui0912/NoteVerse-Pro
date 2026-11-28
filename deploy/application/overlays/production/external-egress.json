@@ -1,0 +1,7 @@
+{
+  "postgresql_cidrs": [],
+  "redis_cidrs": [],
+  "s3_fqdns": [],
+  "mail_fqdns": [],
+  "model_fqdns": []
+}

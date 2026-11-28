@@ -21,17 +21,10 @@ python scripts/check_k8s_application_manifests.py \
 
 Required objects supplied outside this overlay:
 
-- `Secret/noteverse-backend-secret`
-  - `SECRET_KEY`
-  - `DATABASE_URL`
-  - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or a dedicated PgBouncer session-pooling endpoint)
-  - `REDIS_URL`
-  - `CELERY_BROKER_URL`
-  - `CELERY_RESULT_BACKEND`
-  - `S3_ACCESS_KEY_ID`
-  - `S3_SECRET_ACCESS_KEY`
-  - `RESEND_API_KEY` if mail is enabled
-  - `HF_TOKEN` when gated Hugging Face model repositories are enabled
+- Five runtime database Secrets: `noteverse-migrator-secret`, `noteverse-customer-api-secret`,
+  `noteverse-control-plane-secret`, `noteverse-worker-secret`, `noteverse-beat-secret`; exact keys follow
+  [runtime ownership](../../../../docs/architecture/runtime/settings-ownership.md).
+- Optional `noteverse-model-assets-secret` with `HF_TOKEN` only for gated model downloads.
 - `ClusterIssuer/letsencrypt-production-dns01` or another cert-manager issuer
   capable of issuing `Secret/noteverse-production-tls`
 - node labels/tolerations for GPU worker scheduling:
@@ -73,3 +66,11 @@ a private production overlay or CI/CD substitution step before deployment.
 
 Do not commit real credentials, real object storage keys, or production database
 URLs to this repository.
+
+## Runtime isolation
+
+All application workloads use UID/GID 10001 and read-only root filesystems.
+`external-egress.json` owns private PostgreSQL/Redis CIDR and exact provider FQDN lists; empty lists deny external
+connectivity. Render `external-egress.yaml` with
+`scripts/container_security_contract.py` after reviewing private networks and exact endpoint hostnames.
+See [Container and Network Hardening](../../../../docs/architecture/runtime/container-and-network-hardening.md).

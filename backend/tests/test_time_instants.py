@@ -13,7 +13,7 @@ from sqlmodel import SQLModel
 from alembic import command
 from app.db.models import (
     User,
-    RefreshToken,
+    UserSession,
     ImportJob,
     ImportDispatch,
     ScoreInvite,
@@ -90,7 +90,14 @@ def test_fresh_postgresql_instants_use_timestamptz_and_round_trip(monkeypatch):
             db.add_all([job, score])
             db.flush()
             dispatch = ImportDispatch(job_id=job.id, next_attempt_at=source)
-            auth = RefreshToken(user_id=1, token_hash="hash", expires_at=source)
+            auth = UserSession(
+                user_id=1,
+                token_hash="a" * 64,
+                created_at=source - timedelta(days=1),
+                last_seen_at=source - timedelta(hours=1),
+                idle_expires_at=source,
+                absolute_expires_at=source + timedelta(days=1),
+            )
             invite = ScoreInvite(
                 invite_uuid="instant-invite",
                 score_id=score.id,
@@ -104,7 +111,7 @@ def test_fresh_postgresql_instants_use_timestamptz_and_round_trip(monkeypatch):
             db.commit()
             db.expire_all()
             for value in (
-                auth.expires_at,
+                auth.idle_expires_at,
                 dispatch.next_attempt_at,
                 job.processing_started_at,
                 invite.expires_at,

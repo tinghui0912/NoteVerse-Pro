@@ -29,19 +29,22 @@ tracing = [
   "opentelemetry-sdk==1.45.1",
   "opentelemetry-exporter-otlp-proto-grpc==1.45.1",
 ]
+metrics = [
+  "prometheus-client==0.26.0",
+]
 http = [
+  { include-group = "metrics" },
   { include-group = "core" },
   { include-group = "tracing" },
   "fastapi==0.146.0",
   "uvicorn[standard]==0.54.0",
   "python-multipart==0.0.32",
-  "prometheus-client==0.26.0",
   "opentelemetry-instrumentation-fastapi==0.66b1",
 ]
 auth = [
   { include-group = "core" },
-  "PyJWT[crypto]==2.15.1",
-  "pwdlib[argon2]==0.3.1",
+  "argon2-cffi==25.1.0",
+  "cryptography==50.0.2",
 ]
 storage = [
   { include-group = "core" },
@@ -66,6 +69,7 @@ migrations = [
   "alembic==1.20.0",
 ]
 quality-tools = [
+  "PyYAML==6.0.2",
   "httpx==0.28.1",
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
@@ -86,9 +90,11 @@ api = [
 ]
 beat = [
   { include-group = "celery" },
-  "psycopg[binary]==3.3.6",
+  { include-group = "db" },
 ]
 worker-app = [
+  { include-group = "auth" },
+  { include-group = "metrics" },
   { include-group = "db" },
   { include-group = "storage" },
   { include-group = "celery" },
@@ -164,8 +170,10 @@ files = [
   "app/core",
   "app/composition",
   "app/db/__init__.py",
-  "app/db/session.py",
-  "app/main.py",
+  "app/platform",
+  "app/runtime",
+  "app/storage",
+  "app/observability",
   "app/modules",
   "app/processing",
   "app/shared",

@@ -17,7 +17,7 @@ only from a valid active OpenTelemetry span.
 outside routing, security middleware and framework error handling. It preserves a
 valid incoming `X-Request-ID` or generates a validated ID, binds request state and
 the logging context, and attaches the same response header. Customer application
-error bodies always carry that nonempty `request_id`. Logging, CSRF and exception
+error bodies always carry that nonempty `request_id`. Logging, Origin admission and exception
 presentation only consume the established ID. The request binding resets on
 completion or exception; detached tasks cannot retain ambient HTTP correlation
 after the owning request ends. Durable work records capture originating request

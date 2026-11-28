@@ -118,22 +118,22 @@ def test_writer_has_no_broker_dispatch_dependency():
     )
 
 
-def test_three_domain_fast_dispatch_has_one_owner_in_production_and_smoke():
-    relays = {
-        "app.modules.revisions.render_dispatch",
-        "app.modules.playback.dispatch",
-        "app.modules.revisions.metadata_dispatch",
-    }
-    owners = set()
-    for path in ROOT.rglob("*.py"):
-        modules = {
-            node.module
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
-            if isinstance(node, ast.ImportFrom)
-        }
-        if relays <= modules:
-            owners.add(path.relative_to(ROOT).as_posix())
-    assert owners == {"modules/revisions/post_commit.py"}
+def test_revision_delivery_receives_explicit_dispatch_callbacks():
+    tree = ast.parse((ROOT / "modules/revisions/post_commit.py").read_text())
+    coordinator = next(
+        n
+        for n in tree.body
+        if isinstance(n, ast.ClassDef) and n.name == "RevisionPostCommitCoordinator"
+    )
+    constructor = next(
+        n for n in coordinator.body if isinstance(n, ast.FunctionDef) and n.name == "__init__"
+    )
+    assert [arg.arg for arg in constructor.args.args] == ["self", "render", "playback", "metadata"]
+    modules = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    assert not any(
+        name and name.startswith(("app.runtime", "app.composition", "app.task_queue"))
+        for name in modules
+    )
     smoke = (ROOT.parents[1] / "scripts/k8s_smoke_derived_assets.py").read_text()
-    assert "from app.modules.revisions.post_commit import revision_post_commit" in smoke
-    assert all(module not in smoke for module in relays)
+    assert "from app.runtime.cli.resources import get_context" in smoke
+    assert "resources.post_commit.dispatch_best_effort(work)" in smoke

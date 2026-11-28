@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
+
 import sys
 
 from app.core.background_tracing import record_current_attempt_failure
 from app.composition.mail_delivery import validate_mail_source
-from app.db.session import SessionLocal
-from app.modules.mail.outbox_service import mail_outbox_service
 from app.task_queue.protocols import CeleryTaskLike
-from app.utils.email import MailPermanentError, MailTransientError, send_email
+from app.utils.email import MailPermanentError, MailTransientError, send_email, MailTransportConfig
 from app.worker.task_runtime import (
     bind_task_context,
     clear_task_context,
     operation_logger,
     start_attempt_trace,
 )
+from app.runtime.worker.context import get_context
 
 
 def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str, str]:
@@ -24,9 +24,11 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
     bind_task_context(task)
     trace_scope = None
     try:
-        with SessionLocal() as db:
+        with get_context().sessions() as db:
             source_active = validate_mail_source(db, outbox_uuid)
-            payload = mail_outbox_service.claim(db, outbox_uuid) if source_active else None
+            payload = (
+                get_context().deliveries.mail.claim(db, outbox_uuid) if source_active else None
+            )
             db.commit()
         if payload is None:
             operation_logger(
@@ -56,10 +58,12 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
             "originating_request_id": payload.originating_request_id,
         }
         operation_logger("mail.started", **context).info("mail.started")
-        with SessionLocal.begin() as db:
+        with get_context().sessions.begin() as db:
             permitted = validate_mail_source(
                 db, outbox_uuid
-            ) and mail_outbox_service.delivery_permitted(db, outbox_uuid, lease=payload.lease)
+            ) and get_context().deliveries.mail.delivery_permitted(
+                db, outbox_uuid, lease=payload.lease
+            )
         if not permitted:
             return {"status": "stale", "outbox_uuid": outbox_uuid}
         try:
@@ -68,11 +72,12 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
                 subject=payload.subject,
                 body=payload.text_body,
                 html_body=payload.html_body,
+                config=MailTransportConfig.model_validate(get_context().settings.model_dump()),
             )
         except MailPermanentError as exc:
             record_current_attempt_failure(exc)
-            with SessionLocal() as db:
-                accepted = mail_outbox_service.permanent_failure(
+            with get_context().sessions() as db:
+                accepted = get_context().deliveries.mail.permanent_failure(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
                 db.commit()
@@ -87,8 +92,8 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
             return {"status": "permanent_failure", "outbox_uuid": outbox_uuid}
         except MailTransientError as exc:
             record_current_attempt_failure(exc)
-            with SessionLocal() as db:
-                accepted = mail_outbox_service.transient_failure(
+            with get_context().sessions() as db:
+                accepted = get_context().deliveries.mail.transient_failure(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
                 db.commit()
@@ -104,15 +109,15 @@ def execute_mail_outbox_task(task: CeleryTaskLike, outbox_uuid: str) -> dict[str
 
         except Exception as exc:
             record_current_attempt_failure(exc)
-            with SessionLocal() as db:
-                accepted = mail_outbox_service.execution_failure(
+            with get_context().sessions() as db:
+                accepted = get_context().deliveries.mail.execution_failure(
                     db, outbox_uuid, str(exc), lease=payload.lease
                 )
                 db.commit()
             return {"status": "failed" if accepted else "stale", "outbox_uuid": outbox_uuid}
 
-        with SessionLocal() as db:
-            accepted = mail_outbox_service.sent(
+        with get_context().sessions() as db:
+            accepted = get_context().deliveries.mail.sent(
                 db, outbox_uuid, provider_message_id, lease=payload.lease
             )
             db.commit()

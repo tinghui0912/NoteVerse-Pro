@@ -1,5 +1,7 @@
 """Fenced revision metadata delivery; source reads and computation occur outside locks."""
 
+from app.platform.config.revision_metadata_delivery import RevisionMetadataDeliverySettings
+
 from app.modules.metadata.delivery_states import RevisionMetadataOutboxStatus
 
 from app.modules.media_storage.reads import StoredObjectReadTarget
@@ -35,10 +37,10 @@ from app.processing.musicxml import (
 from app.shared.time import utc_now
 from app.core.logger import logger
 
-from app.core.config import settings
 
-
-def metadata_lifecycle() -> DurableDeliveryLifecycle[RevisionMetadataOutboxStatus]:
+def metadata_lifecycle(
+    *, config: RevisionMetadataDeliverySettings
+) -> DurableDeliveryLifecycle[RevisionMetadataOutboxStatus]:
     return DurableDeliveryLifecycle(
         DeliveryStatuses(
             RevisionMetadataOutboxStatus.PENDING,
@@ -48,10 +50,10 @@ def metadata_lifecycle() -> DurableDeliveryLifecycle[RevisionMetadataOutboxStatu
             RevisionMetadataOutboxStatus.COMPLETED,
         ),
         DeliveryLifecyclePolicy(
-            max_attempts=settings.REVISION_METADATA_MAX_ATTEMPTS,
-            retry_base_seconds=settings.REVISION_METADATA_RETRY_BASE_SECONDS,
-            dispatch_timeout_seconds=settings.REVISION_METADATA_DISPATCH_TIMEOUT_SECONDS,
-            processing_timeout_seconds=settings.REVISION_METADATA_PROCESSING_TIMEOUT_SECONDS,
+            max_attempts=config.REVISION_METADATA_MAX_ATTEMPTS,
+            retry_base_seconds=config.REVISION_METADATA_RETRY_BASE_SECONDS,
+            dispatch_timeout_seconds=config.REVISION_METADATA_DISPATCH_TIMEOUT_SECONDS,
+            processing_timeout_seconds=config.REVISION_METADATA_PROCESSING_TIMEOUT_SECONDS,
         ),
     )
 
@@ -88,6 +90,9 @@ def compute_metadata(content: bytes) -> MetadataResult:
 
 
 class RevisionMetadataDelivery:
+    def __init__(self, *, config: RevisionMetadataDeliverySettings) -> None:
+        self.config = config
+
     def get(self, db: Session, uuid: str) -> RevisionMetadataOutbox | None:
         return db.scalar(
             select(RevisionMetadataOutbox)
@@ -100,13 +105,13 @@ class RevisionMetadataDelivery:
         row = self.get(db, uuid)
         if row is None:
             return None
-        lease = metadata_lifecycle().claim(row, token=str(uuid4()), now=utc_now())
+        lease = metadata_lifecycle(config=self.config).claim(row, token=str(uuid4()), now=utc_now())
         if lease is None:
             return None
         try:
             source = self._source(db, row)
         except ValueError:
-            metadata_lifecycle().fail_attempt(
+            metadata_lifecycle(config=self.config).fail_attempt(
                 row, lease=lease, error="canonical_source_unavailable", now=utc_now()
             )
             logger.bind(
@@ -155,7 +160,9 @@ class RevisionMetadataDelivery:
         if score is None or score.deleted_at is not None:
             raise StaleDeliveryAttempt("Metadata aggregate is no longer active")
         row = self.get(db, payload.outbox_uuid)
-        if row is None or not metadata_lifecycle().attempt_matches(row, payload.lease):
+        if row is None or not metadata_lifecycle(config=self.config).attempt_matches(
+            row, payload.lease
+        ):
             raise StaleDeliveryAttempt("Metadata execution lease is stale")
         if (
             row.revision_id != payload.revision_id
@@ -173,7 +180,9 @@ class RevisionMetadataDelivery:
             MetadataProjectionService._mark_failed(
                 projection, result.error_code or "metadata_extraction_failed"
             )
-        assert metadata_lifecycle().complete_attempt(row, lease=payload.lease, now=utc_now())
+        assert metadata_lifecycle(config=self.config).complete_attempt(
+            row, lease=payload.lease, now=utc_now()
+        )
         publish_score_change(
             db,
             score_id=payload.score_uuid,
@@ -184,13 +193,15 @@ class RevisionMetadataDelivery:
 
     def fail(self, db: Session, uuid: str, lease: DeliveryAttemptLease, error: str) -> bool:
         row = self.get(db, uuid)
-        return row is not None and metadata_lifecycle().fail_attempt(
+        return row is not None and metadata_lifecycle(config=self.config).fail_attempt(
             row, lease=lease, error=error, now=utc_now()
         )
 
     def mark_dispatched(self, db: Session, uuid: str) -> bool:
         row = self.get(db, uuid)
-        return row is not None and metadata_lifecycle().dispatch(row, now=utc_now())
+        return row is not None and metadata_lifecycle(config=self.config).dispatch(
+            row, now=utc_now()
+        )
 
     def rearm(self, db: Session, uuid: str) -> None:
         target = db.scalar(
@@ -209,15 +220,15 @@ class RevisionMetadataDelivery:
             RevisionMetadataOutboxStatus.DISPATCHED,
         ):
             raise ValueError("Metadata execution already owns this delivery")
-        metadata_lifecycle().rearm(row, now=utc_now())
+        metadata_lifecycle(config=self.config).rearm(row, now=utc_now())
 
     def release_dispatch(self, db: Session, uuid: str, error: str) -> None:
         row = self.get(db, uuid)
         if row is not None:
-            metadata_lifecycle().release_dispatch(row, error=error, now=utc_now())
+            metadata_lifecycle(config=self.config).release_dispatch(row, error=error, now=utc_now())
 
     def recover_and_list_due(self, db: Session) -> list[str]:
-        now, lifecycle = utc_now(), metadata_lifecycle()
+        now, lifecycle = utc_now(), metadata_lifecycle(config=self.config)
         rows = db.scalars(
             select(RevisionMetadataOutbox)
             .where(
@@ -245,9 +256,6 @@ class RevisionMetadataDelivery:
                     RevisionMetadataOutbox.attempt_count < lifecycle.policy.max_attempts,
                 )
                 .order_by(RevisionMetadataOutbox.id)
-                .limit(settings.REVISION_METADATA_DISPATCH_BATCH_SIZE)
+                .limit(self.config.REVISION_METADATA_DISPATCH_BATCH_SIZE)
             )
         )
-
-
-metadata_delivery = RevisionMetadataDelivery()

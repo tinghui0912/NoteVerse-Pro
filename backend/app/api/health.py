@@ -1,13 +1,9 @@
 """Process health endpoints for container orchestrators."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from app.core.runtime_checks import (
-    check_database_readiness,
-    check_redis_readiness,
-    check_storage_quota_policy_readiness,
-)
+
 from app.api.runtime_schemas import LivenessRead, ReadinessRead, ReadinessUnavailableRead
 
 
@@ -48,15 +44,19 @@ def create_health_router(
         if operation_ids
         else None,
     )
-    async def readiness() -> JSONResponse:
+    async def readiness(request: Request) -> JSONResponse:
         """Report readiness for this runtime's declared dependencies."""
-        database_ok = await check_database_readiness()
+        database_ok = await request.app.state.runtime_checks.check_database_readiness()
         storage_quota_policy_ok = (
-            await check_storage_quota_policy_readiness()
+            await request.app.state.runtime_checks.check_storage_quota_policy_readiness()
             if include_storage_quota_policy and database_ok
             else not include_storage_quota_policy
         )
-        redis_ok = await check_redis_readiness() if include_redis else True
+        redis_ok = (
+            await request.app.state.runtime_checks.check_redis_readiness()
+            if include_redis
+            else True
+        )
 
         checks = {"database": "ok" if database_ok else "failed"}
         if include_storage_quota_policy:

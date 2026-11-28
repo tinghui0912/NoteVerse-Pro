@@ -60,9 +60,9 @@ The Docker minikube driver is not the production rehearsal path because it
 cannot attach extra block disks. Docker volumes are not block devices and should
 not be used to simulate LVM.
 
-The profile uses Cilium from cluster creation. Cilium enforces standard
-Kubernetes `NetworkPolicy`, so the staging rehearsal can prove that the
-Control Plane is reachable only from Platform Admin. Do not replace it with the
+The profile uses Cilium from cluster creation. Cilium enforces the application
+`CiliumNetworkPolicy` contract, so the staging rehearsal verifies direct Gateway
+access to Control Plane and denies Platform Admin Pod access to it. Do not replace it with the
 minikube bridge CNI: bridge accepts policy objects but does not enforce them.
 For the Windows qemu2 profile only, the start script enables Cilium endpoint
 routes and restarts CoreDNS. This restores host-to-Pod forwarding in the local
@@ -245,7 +245,7 @@ minikube range into production.
 Create the bucket if needed:
 
 ```powershell
-python scripts/ensure_s3_bucket.py --env-file backend/.env.docker --create
+python scripts/ensure_s3_bucket.py --env-file backend/.env.docker.customer-api --create
 ```
 
 Create separate S3-compatible buckets for observability. Do not share the
@@ -309,7 +309,7 @@ credential into a portable image-pull Secret.
 .\scripts\minikube_app_release_prepare.ps1 `
   -RenderedOverlay build/k8s-release/minikube `
   -CreateRegistrySecretFromDockerCredentialStore `
-  -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
+  -RuntimeSecretDirectory C:\secure\noteverse-staging
 ```
 
 If Docker Desktop is not logged in, use an explicit fine-grained GHCR token
@@ -322,29 +322,23 @@ $env:GHCR_TOKEN = "<github-token-with-read-packages>"
   -RenderedOverlay build/k8s-release/minikube `
   -CreateRegistrySecretFromToken `
   -RegistryUsername "<github-username>" `
-  -BackendSecretEnvFile C:\path\to\noteverse-staging-backend-secret.env
+  -RuntimeSecretDirectory C:\secure\noteverse-staging
 ```
 
-The backend secret env file must stay outside the repository and contain the
-full required key set: `DATABASE_URL`,
-`SCHEDULER_LOCK_DATABASE_URL`, Redis URLs, S3 keys, cookie secrets, mail API
-key, and optional Hugging Face token. `SCHEDULER_LOCK_DATABASE_URL` must point
-to direct PostgreSQL (or a PgBouncer session-pooling endpoint), never a
-transaction-pooling endpoint, because the Beat leader holds a session advisory
-lock for its full lifetime.
+`RuntimeSecretDirectory` stays outside the repository and contains six separate
+credential files: `migrator.env`, `customer_api.env`, `control_plane.env`,
+`worker.env`, `beat.env` and `observability.env`. Exact keys and PostgreSQL login
+roles follow the [ownership contract](../../architecture/runtime/settings-ownership.md).
+The prepare script validates exact keys; it rejects extra fields instead of
+filtering them. Public URLs, origins, log policy, S3 bucket names and model paths
+come from each runtime's rendered ConfigMap. Worker and Beat scheduler-lock
+URLs must use their own roles with direct PostgreSQL or session pooling, never
+transaction pooling.
 
-`minikube_app_release_prepare.ps1` treats this file as a credential source only:
-it filters the file down to the required Secret keys before writing
-`Secret/noteverse-backend-secret`. Runtime/public configuration such as
-`FRONTEND_BASE_URL`, `BACKEND_CORS_ORIGINS`, `LOG_FORMAT`, S3 bucket names, and
-model paths must come from the rendered release overlay ConfigMaps. Do not put
-those values in the backend Secret or they can override the production-shaped
-release configuration at Pod startup.
-
-`HF_TOKEN` is required for model-cache/worker bootstrap when private or gated
-model repositories are involved. It is not required for the temporary
-`-ScaleWorkerToZero -SkipModelCacheWait` application deployment path where the
-GPU worker runs outside Kubernetes.
+Model-cache preparation optionally reads `HF_TOKEN` from the separate
+`noteverse-model-assets-secret`. No database, application storage or mail
+credentials enter that init container. Create this auxiliary Secret only when
+the model repositories require it.
 
 Create the observability S3 Secret in the `observability` namespace before
 installing Loki or Tempo:
@@ -366,7 +360,8 @@ kubectl -n observability create secret generic observability-s3 `
 ```
 
 For the supported, less error-prone path, use
-`scripts/minikube_create_observability_s3_secret.ps1`. Loki receives the full
+`scripts/minikube_create_observability_s3_secret.ps1 -EnvFile C:\secure\observability-storage.env`
+with dedicated bucket credentials. Loki receives the full
 endpoint URL, while Tempo must receive the endpoint hostname without
 `https://`.
 
@@ -375,12 +370,12 @@ endpoint URL, while Tempo must receive the endpoint hostname without
 Set immutable image references and S3 settings:
 
 ```powershell
-$env:NOTEVERSE_BACKEND_API_IMAGE = "ghcr.io/<owner>/noteverse/backend-api:<tag>"
-$env:NOTEVERSE_BACKEND_BEAT_IMAGE = "ghcr.io/<owner>/noteverse/backend-beat:<tag>"
-$env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker:<tag>"
-$env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<owner>/noteverse/customer-web:<tag>"
-$env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<owner>/noteverse/platform-admin:<tag>"
+$env:NOTEVERSE_BACKEND_CORE_IMAGE = "ghcr.io/<owner>/noteverse/backend-core@sha256:<digest>"
+$env:NOTEVERSE_BACKEND_WORKER_IMAGE = "ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest>"
+$env:NOTEVERSE_CUSTOMER_WEB_IMAGE = "ghcr.io/<owner>/noteverse/customer-web@sha256:<digest>"
+$env:NOTEVERSE_PLATFORM_ADMIN_IMAGE = "ghcr.io/<owner>/noteverse/platform-admin@sha256:<digest>"
 
+$env:NOTEVERSE_CSP_OBJECT_STORAGE_ORIGINS = "<public-storage-or-cdn-origin>"
 $env:NOTEVERSE_S3_ENDPOINT_URL = "<s3-endpoint-url>"
 $env:NOTEVERSE_S3_REGION = "<s3-region>"
 $env:NOTEVERSE_S3_BUCKET = "<s3-bucket>"
@@ -429,7 +424,7 @@ The script applies the release in deterministic phases:
 
 This prevents a new workload set from starting against an unverified schema.
 It waits for migration and every active HTTP/scheduler workload: backend API,
-Beat, frontend, Control Plane, Platform Admin, and the observability exporter.
+Beat, Customer Web, Control Plane and Platform Admin.
 Deployments intentionally configured with zero replicas are reported as skipped.
 It still skips the Kubernetes GPU worker/model-cache path.
 
@@ -441,7 +436,7 @@ repository.
 ### Verify Control-Plane Network Isolation
 
 The staging profile uses Cilium, so these checks exercise enforced
-`NetworkPolicy` behavior rather than merely inspecting YAML. Run them after an
+`CiliumNetworkPolicy` behavior rather than merely inspecting YAML. Run them after an
 application release:
 
 ```powershell
@@ -450,8 +445,8 @@ application release:
 
 The smoke test proves four cases and deletes its temporary Pods afterward:
 
-- Platform Admin can reach the internal Control Plane Service;
-- an unrelated application Pod cannot reach Control Plane;
+- selected Envoy Gateway Pods can reach the internal Control Plane Service;
+- a Platform Admin Pod cannot reach Control Plane;
 - the selected Envoy Gateway data-plane Pods can reach Platform Admin;
 - an unrelated application Pod cannot reach Platform Admin.
 
@@ -548,7 +543,7 @@ Expected result:
 - the browser URL has no explicit port;
 - TLS is issued by Let's Encrypt for `staging.johnabc.ccwu.cc`;
 - frontend calls `/api/v1/*` through the same origin;
-- CSRF/CORS checks use `https://staging.johnabc.ccwu.cc`, not
+- Origin/CORS checks use `https://staging.johnabc.ccwu.cc`, not
   `https://staging.johnabc.ccwu.cc:8443` or a Service port-forward host.
 
 ## 11. Smoke Test

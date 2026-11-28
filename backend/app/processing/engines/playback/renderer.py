@@ -25,10 +25,10 @@ class FluidSynthAudioRenderer:
         self,
         *,
         midi_compiler: VerovioMidiCompiler | None = None,
-        audio_synthesizer: FluidSynthAudioSynthesizer | None = None,
+        audio_synthesizer: FluidSynthAudioSynthesizer,
     ) -> None:
         self.midi_compiler = midi_compiler or VerovioMidiCompiler()
-        self.audio_synthesizer = audio_synthesizer or FluidSynthAudioSynthesizer()
+        self.audio_synthesizer = audio_synthesizer
 
     def render(self, content: bytes) -> RenderedAudio:
         midi = self.midi_compiler.compile(content)

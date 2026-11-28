@@ -29,18 +29,81 @@ spec:
             - worker
           envFrom:
             - configMapRef:
-                name: noteverse-backend-config
-            - configMapRef:
-                name: noteverse-backend-worker-config
-            - secretRef:
-                name: noteverse-backend-secret
+                name: noteverse-worker-config
           env:
-            - name: OTEL_SERVICE_NAME
-              value: noteverse-backend-worker
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-worker-secret
+                  key: DATABASE_URL
+            - name: SCHEDULER_LOCK_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-worker-secret
+                  key: SCHEDULER_LOCK_DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-worker-secret
+                  key: REDIS_URL
+            - name: CELERY_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-worker-secret
+                  key: CELERY_BROKER_URL
+            - name: CELERY_RESULT_BACKEND
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-worker-secret
+                  key: CELERY_RESULT_BACKEND
+            - name: S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-worker-secret
+                  key: S3_ACCESS_KEY_ID
+            - name: S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-worker-secret
+                  key: S3_SECRET_ACCESS_KEY
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-worker-secret
+                  key: RESEND_API_KEY
           resources:
             requests:
-              cpu: "1"
+              cpu: '1'
               memory: 4Gi
+              ephemeral-storage: 2Gi
             limits:
-              cpu: "4"
+              cpu: '4'
               memory: 12Gi
+              ephemeral-storage: 12Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 2Gi

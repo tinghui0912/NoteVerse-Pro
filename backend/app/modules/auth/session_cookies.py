@@ -1,66 +1,22 @@
-"""HTTP cookie helpers for auth sessions."""
-
-import secrets
+"""Consumer host-only session cookie transport."""
 
 from fastapi import Response
-
-from app.core.config import settings
-from app.core.generated.customer_browser_protocol import (
-    AUTH_COOKIE_NAME,
-    REFRESH_COOKIE_NAME,
-    CSRF_COOKIE_NAME,
-)
+from app.platform.config.customer_session_security import CustomerSessionSecuritySettings
+from app.platform.security.cookies import set_session_cookie, clear_session_cookie
 
 
-def set_session_cookies(response: Response, access_token: str, refresh_token: str) -> None:
-    response.set_cookie(
-        key=AUTH_COOKIE_NAME,
-        value=access_token,
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        httponly=True,
-        secure=settings.AUTH_COOKIE_SECURE,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        path="/",
-    )
-    response.set_cookie(
-        key=REFRESH_COOKIE_NAME,
-        value=refresh_token,
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        httponly=True,
-        secure=settings.AUTH_COOKIE_SECURE,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        path="/",
-    )
-    response.set_cookie(
-        key=CSRF_COOKIE_NAME,
-        value=secrets.token_urlsafe(32),
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        httponly=False,
-        secure=settings.AUTH_COOKIE_SECURE,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        path="/",
+def set_auth_session_cookie(
+    response: Response, token: str, *, config: CustomerSessionSecuritySettings
+) -> None:
+    set_session_cookie(
+        response,
+        token,
+        secure_cookies=config.AUTH_COOKIE_SECURE,
+        max_age=config.SESSION_ABSOLUTE_DAYS * 86400,
     )
 
 
-def clear_session_cookies(response: Response) -> None:
-    response.delete_cookie(
-        key=AUTH_COOKIE_NAME,
-        path="/",
-        secure=settings.AUTH_COOKIE_SECURE,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        httponly=True,
-    )
-    response.delete_cookie(
-        key=REFRESH_COOKIE_NAME,
-        path="/",
-        secure=settings.AUTH_COOKIE_SECURE,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        httponly=True,
-    )
-    response.delete_cookie(
-        key=CSRF_COOKIE_NAME,
-        path="/",
-        secure=settings.AUTH_COOKIE_SECURE,
-        samesite=settings.AUTH_COOKIE_SAMESITE,
-        httponly=False,
-    )
+def clear_auth_session_cookie(
+    response: Response, *, config: CustomerSessionSecuritySettings
+) -> None:
+    clear_session_cookie(response, secure_cookies=config.AUTH_COOKIE_SECURE)

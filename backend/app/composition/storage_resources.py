@@ -1,7 +1,5 @@
 """Explicit application wiring of independent usage and quota authorities."""
 
-from app.core.config import settings
-from app.modules.media_storage.delivery import MediaDeliveryService, DeliveryPolicy
 from sqlalchemy.orm import Session
 from app.modules.storage_governance.quota.schemas import (
     StorageUsageRead,
@@ -17,10 +15,6 @@ from app.modules.storage_governance.quota.contracts import StorageQuotaReader
 from app.modules.storage_governance.usage.contracts import StorageUsageReader
 from app.modules.storage_governance.quota.expiry import StorageQuotaExpiry
 
-
-from app.db.session import SessionLocal
-from app.storage import ObjectStorage
-from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator, SessionFactory
 
 storage_usage_service = StorageUsageService()
 
@@ -60,45 +54,4 @@ def read_storage_usage(
             )
             for category in StorageUsageCategory
         ],
-    )
-
-
-write_sessions: SessionFactory = SessionLocal
-
-
-def build_object_write_coordinator(storage: ObjectStorage) -> ObjectWriteCoordinator:
-    return ObjectWriteCoordinator(storage, write_sessions)
-
-
-def build_media_delivery_service(storage: ObjectStorage) -> MediaDeliveryService:
-    return MediaDeliveryService(
-        storage,
-        DeliveryPolicy(
-            settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS,
-            settings.MEDIA_DELIVERY_CACHE_SECONDS,
-            settings.MEDIA_DELIVERY_MAX_STREAM_MEDIA_BYTES,
-        ),
-    )
-
-
-def build_upload_session_service(storage: ObjectStorage):
-    from app.modules.media_storage.upload_sessions.service import UploadSessionService
-    from app.modules.media_storage.upload_sessions.domain import UploadPolicy
-
-    return UploadSessionService(
-        storage,
-        write_sessions,
-        build_object_write_coordinator(storage),
-        UploadPolicy(
-            settings.SCORE_IMPORT_MAX_BYTES,
-            settings.TAKE_AUDIO_MAX_BYTES,
-            settings.TAKE_VIDEO_MAX_BYTES,
-            settings.UPLOAD_SINGLE_PUT_MAX_BYTES,
-            settings.UPLOAD_PART_BYTES,
-            settings.UPLOAD_URL_TTL_SECONDS,
-            settings.UPLOAD_SESSION_TTL_SECONDS,
-            settings.UPLOAD_CLIENT_CONCURRENCY,
-            settings.UPLOAD_MAX_ACTIVE_SESSIONS,
-            settings.UPLOAD_TEMP_BYTE_BUDGET,
-        ),
     )

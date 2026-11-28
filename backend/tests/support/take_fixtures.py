@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from app.composition import storage_resources as _resource_wiring
+
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 
 from tests.support.uploads import settled_upload_session
 from tests.support.quota import quota_hold_fact
@@ -17,7 +21,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel
@@ -57,6 +61,8 @@ from app.modules.practice.score.artifact import (
 )
 from app.modules.storage_governance.usage.service import StorageUsageService
 from tests.support.object_storage import InMemoryObjectStorage
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+from app.runtime.customer_api.context import get_context
 
 VALID_WEBM_BYTES = b"\x1a\x45\xdf\xa3" + b"fake-webm-audio-binary-data-12345"
 DEFAULT_TAKE_REVISION_ID = "revision-uuid-100"
@@ -135,7 +141,12 @@ def _performance_take_service(
         storage=storage,
         storage_usage_service=storage_usage_service,
         practice_bundle_service=PracticeBundleService(
-            writes=_resource_wiring.build_object_write_coordinator(storage)
+            writes=resources_for(storage).build_object_write_coordinator(),
+            retention=PracticeBundleRetention(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ),
         ),
     )
 

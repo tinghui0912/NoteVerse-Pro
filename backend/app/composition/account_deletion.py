@@ -4,21 +4,15 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.shared.integrity import ResourceIntegrityError
-from app.core.config import settings
+from app.platform.config.account_deletion import AccountDeletionSettings
+from app.composition.media_resources import ResourceServices
 from app.db.models import (
     AccountDeletionPhase as Phase,
     User,
 )
-from app.composition.media_resources import (
-    build_avatar_service,
-    build_upload_service,
-    build_take_service,
-    build_import_deletion_service,
-    build_score_lifecycle_service,
-)
 from app.modules.account.deletion_delivery import (
     AccountDeletionLease,
-    account_deletion_delivery as delivery,
+    AccountDeletionDelivery,
 )
 from app.modules.account.deletion_repository import AccountDeletionRepository
 from app.modules.account.email_identity import try_lock_email_identity
@@ -47,16 +41,23 @@ from app.modules.media_storage.upload_sessions.account_cleanup import (
 
 
 class AccountDeletionExecutor:
-    def __init__(self, inventory: StorageInventoryReader) -> None:
+    def __init__(
+        self,
+        inventory: StorageInventoryReader,
+        resources: ResourceServices,
+        delivery: AccountDeletionDelivery,
+        config: AccountDeletionSettings,
+    ) -> None:
+        self.delivery, self.config = delivery, config
         self.inventory = inventory
-        self.avatar = build_avatar_service()
-        self.uploads = build_upload_service()
-        self.takes = build_take_service()
-        self.imports = build_import_deletion_service()
-        self.scores = build_score_lifecycle_service()
+        self.avatar = resources.build_avatar_service()
+        self.uploads = resources.build_upload_service()
+        self.takes = resources.build_take_service()
+        self.imports = resources.build_import_deletion_service()
+        self.scores = resources.build_score_lifecycle_service()
 
     def execute(self, db: Session, lease: AccountDeletionLease) -> bool:
-        operation = delivery.require(db, lease)
+        operation = self.delivery.require(db, lease)
         user_id = operation.user_id_snapshot
         if db.scalar(select(User.deleted_at).where(User.id == user_id)) is None:
             raise ResourceIntegrityError(
@@ -91,14 +92,14 @@ class AccountDeletionExecutor:
             if result == "restart":
                 operation.phase = Phase.SCORES
             if result == "completed":
-                delivery.complete(db, lease)
+                self.delivery.complete(db, lease)
                 return True
-        delivery.continue_at(
+        self.delivery.continue_at(
             db,
             lease,
             utc_now()
             + (
-                timedelta(seconds=settings.ACCOUNT_DELETION_INTERVAL_SECONDS)
+                timedelta(seconds=self.config.ACCOUNT_DELETION_INTERVAL_SECONDS)
                 if result == "busy"
                 else timedelta()
             ),
@@ -130,7 +131,7 @@ class AccountDeletionExecutor:
         storage_quota_service.lock_user(db, user_id)
         if storage_quota_service.release_next_held_for_user(db, user_id):
             return "progress"
-        limit = settings.ACCOUNT_DELETION_RESOURCE_BATCH_SIZE
+        limit = self.config.ACCOUNT_DELETION_RESOURCE_BATCH_SIZE
         from app.modules.collaboration.mail_lifecycle import close_account_collaboration_data
 
         if close_account_collaboration_data(
@@ -161,7 +162,6 @@ class AccountDeletionExecutor:
             or erase_revision_actor_links(db, user_id, limit=limit)
             or erase_playback_requester_links(db, user_id, limit=limit)
             or erase_authentication_history(db, user_id, limit=limit)
-            or AccountDeletionRepository().erase_security_history(db, user_id, limit=limit)
             or erase_account_activities(db, user_id, limit=limit)
             or erase_recipient_replay(db, user_id, limit=limit)
             or storage_usage_service.erase_empty_account_history(db, user_id, limit=limit)

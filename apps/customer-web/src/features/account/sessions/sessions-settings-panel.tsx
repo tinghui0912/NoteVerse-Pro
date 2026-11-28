@@ -60,7 +60,7 @@ export function SessionsSettingsPanel() {
     });
   };
 
-  const handleRevoke = (sessionId: number) => {
+  const handleRevoke = (sessionId: string) => {
     revokeSession.mutate(sessionId, {
       onSuccess: () => {
         toast({
@@ -139,10 +139,13 @@ export function SessionsSettingsPanel() {
                         {t('sessions.created')}: {formatApiDateTime(session.created_at, locale)}
                       </span>
                       <span>
-                        {t('sessions.lastUsed')}: {session.last_used_at ? formatApiDateTime(session.last_used_at, locale) : t('sessions.never')}
+                        {t('sessions.lastUsed')}: {formatApiDateTime(session.last_seen_at, locale)}
                       </span>
                       <span>
-                        {t('sessions.expires')}: {formatApiDateTime(session.expires_at, locale)}
+                        {t('sessions.idleExpires')}: {formatApiDateTime(session.idle_expires_at, locale)}
+                      </span>
+                      <span>
+                        {t('sessions.absoluteExpires')}: {formatApiDateTime(session.absolute_expires_at, locale)}
                       </span>
                     </div>
                   </div>

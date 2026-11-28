@@ -151,7 +151,7 @@ function PracticeWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const continuousCommands = execution.mode === 'CONTINUOUS_PLAY' && execution.modeCommands?.mode === 'CONTINUOUS_PLAY' ? execution.modeCommands : null;
   const displayPlan = execution.executedPlan ?? plan;
   const scopeStartTick = displayPlan?.scope.startTick ?? 0;
-  const displayRangeRenderNoteIds = execution.executedPlan?.scope.kind === 'RANGE'
+  const displayRangeRenderNoteIds = range.isSelecting ? selectedRangeRenderNoteIds : execution.executedPlan?.scope.kind === 'RANGE'
     ? expectedGroups.slice(execution.executedPlan.scope.startIndex, execution.executedPlan.scope.endIndex + 1).flatMap(group => group.renderNoteIds)
     : execution.executedPlan ? [] : selectedRangeRenderNoteIds;
   const analysisIntervention = execution.mode === 'CONTINUOUS_PLAY' ? execution.analysisIntervention : null;

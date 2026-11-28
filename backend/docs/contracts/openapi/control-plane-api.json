@@ -262,13 +262,24 @@
         "title": "AsyncOperationsSummaryRead",
         "type": "object"
       },
+      "ChallengePurpose": {
+        "enum": [
+          "ENROLLMENT_REQUIRED",
+          "VERIFICATION_REQUIRED"
+        ],
+        "title": "ChallengePurpose",
+        "type": "string"
+      },
       "ControlPlaneErrorCode": {
         "enum": [
           "validation_error",
+          "payload_too_large",
           "token_invalid_expired",
           "invalid_credentials",
           "no_access",
-          "csrf_token_invalid",
+          "unsupported_media_type",
+          "rate_limit_exceeded",
+          "rate_limit_unavailable",
           "request_origin_invalid",
           "resource_not_found",
           "auth_failed",
@@ -300,6 +311,100 @@
         "title": "ControlPlaneErrorResponse",
         "type": "object"
       },
+      "CreateOperatorCommand": {
+        "properties": {
+          "display_name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "Password",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/OperatorRole"
+          }
+        },
+        "required": [
+          "reason",
+          "email",
+          "display_name",
+          "password",
+          "role"
+        ],
+        "title": "CreateOperatorCommand",
+        "type": "object"
+      },
+      "CustomerDirectoryRead": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "display_name",
+          "is_active"
+        ],
+        "title": "CustomerDirectoryRead",
+        "type": "object"
+      },
+      "CustomerStatusCommand": {
+        "properties": {
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "is_active"
+        ],
+        "title": "CustomerStatusCommand",
+        "type": "object"
+      },
       "DurableFailureClass": {
         "enum": [
           "transient",
@@ -322,6 +427,61 @@
           "status"
         ],
         "title": "LivenessRead",
+        "type": "object"
+      },
+      "MfaChallengeRead": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ChallengePurpose"
+          }
+        },
+        "required": [
+          "purpose",
+          "expires_at"
+        ],
+        "title": "MfaChallengeRead",
+        "type": "object"
+      },
+      "MfaEnrollmentRead": {
+        "properties": {
+          "operator": {
+            "$ref": "#/components/schemas/OperatorRead"
+          },
+          "recovery_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operator",
+          "recovery_codes"
+        ],
+        "title": "MfaEnrollmentRead",
+        "type": "object"
+      },
+      "MfaVerifiedRead": {
+        "properties": {
+          "operator": {
+            "$ref": "#/components/schemas/OperatorRead"
+          },
+          "recovery_codes_remaining": {
+            "title": "Recovery Codes Remaining",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operator",
+          "recovery_codes_remaining"
+        ],
+        "title": "MfaVerifiedRead",
         "type": "object"
       },
       "OffsetPage_AsyncOperationRead_": {
@@ -353,6 +513,68 @@
           "has_more"
         ],
         "title": "OffsetPage[AsyncOperationRead]",
+        "type": "object"
+      },
+      "OffsetPage_CustomerDirectoryRead_": {
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerDirectoryRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "OffsetPage[CustomerDirectoryRead]",
+        "type": "object"
+      },
+      "OffsetPage_OperatorRead_": {
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OperatorRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "OffsetPage[OperatorRead]",
         "type": "object"
       },
       "OffsetPage_OpsAuditEventRead_": {
@@ -388,25 +610,36 @@
       },
       "OperatorLoginCommand": {
         "properties": {
-          "password": {
-            "maxLength": 1024,
-            "minLength": 1,
-            "title": "Password",
+          "email": {
+            "format": "email",
+            "title": "Email",
             "type": "string"
           },
-          "username": {
-            "maxLength": 255,
-            "minLength": 3,
-            "title": "Username",
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
             "type": "string"
           }
         },
         "required": [
-          "username",
+          "email",
           "password"
         ],
         "title": "OperatorLoginCommand",
         "type": "object"
+      },
+      "OperatorPermission": {
+        "enum": [
+          "operations.read",
+          "operations.retry",
+          "users.read",
+          "users.suspend",
+          "audit.read",
+          "operators.manage"
+        ],
+        "title": "OperatorPermission",
+        "type": "string"
       },
       "OperatorRead": {
         "properties": {
@@ -414,27 +647,60 @@
             "title": "Display Name",
             "type": "string"
           },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
           "operator_id": {
             "title": "Operator Id",
             "type": "string"
           },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/OperatorPermission"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
           "role": {
             "$ref": "#/components/schemas/OperatorRole"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OperatorStatus"
+          },
+          "totp_enabled": {
+            "title": "Totp Enabled",
+            "type": "boolean"
           }
         },
         "required": [
           "operator_id",
+          "email",
           "display_name",
-          "role"
+          "role",
+          "status",
+          "permissions",
+          "totp_enabled"
         ],
         "title": "OperatorRead",
         "type": "object"
       },
       "OperatorRole": {
         "enum": [
-          "platform_operator"
+          "SUPPORT_READONLY",
+          "PLATFORM_OPERATOR",
+          "SUPER_ADMIN"
         ],
         "title": "OperatorRole",
+        "type": "string"
+      },
+      "OperatorStatus": {
+        "enum": [
+          "active",
+          "disabled"
+        ],
+        "title": "OperatorStatus",
         "type": "string"
       },
       "OpsAuditEventRead": {
@@ -453,17 +719,6 @@
               }
             ],
             "title": "Actor Operator Id"
-          },
-          "client_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Client Address"
           },
           "created_at": {
             "format": "date-time",
@@ -485,6 +740,22 @@
             "title": "Event Id",
             "type": "string"
           },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip Address"
+          },
+          "metadata_json": {
+            "additionalProperties": true,
+            "title": "Metadata Json",
+            "type": "object"
+          },
           "new_state": {
             "anyOf": [
               {
@@ -496,26 +767,8 @@
             ],
             "title": "New State"
           },
-          "operation_id": {
-            "title": "Operation Id",
-            "type": "string"
-          },
-          "operation_kind": {
-            "$ref": "#/components/schemas/AsyncOperationKind"
-          },
           "outcome": {
             "$ref": "#/components/schemas/OpsAuditOutcome"
-          },
-          "peer_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Peer Address"
           },
           "previous_state": {
             "anyOf": [
@@ -529,15 +782,8 @@
             "title": "Previous State"
           },
           "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
+            "title": "Reason",
+            "type": "string"
           },
           "request_id": {
             "anyOf": [
@@ -549,22 +795,42 @@
               }
             ],
             "title": "Request Id"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
           }
         },
         "required": [
           "event_id",
           "actor_operator_id",
           "action",
-          "operation_kind",
-          "operation_id",
+          "target_type",
+          "target_id",
           "outcome",
           "error_code",
           "reason",
           "request_id",
-          "peer_address",
-          "client_address",
+          "user_agent",
+          "ip_address",
           "previous_state",
           "new_state",
+          "metadata_json",
           "created_at"
         ],
         "title": "OpsAuditEventRead",
@@ -635,6 +901,58 @@
         "title": "ReadinessUnavailableRead",
         "type": "object"
       },
+      "ReasonCommand": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ReasonCommand",
+        "type": "object"
+      },
+      "RecoveryCodeCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "recovery_code": {
+            "pattern": "^[A-Fa-f0-9]{5}(-[A-Fa-f0-9]{5}){3}$",
+            "title": "Recovery Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recovery_code"
+        ],
+        "title": "RecoveryCodeCommand",
+        "type": "object"
+      },
+      "ResetOperatorPasswordCommand": {
+        "properties": {
+          "password": {
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "Password",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "password"
+        ],
+        "title": "ResetOperatorPasswordCommand",
+        "type": "object"
+      },
       "RetryAsyncOperationCommand": {
         "properties": {
           "reason": {
@@ -649,6 +967,62 @@
         ],
         "title": "RetryAsyncOperationCommand",
         "type": "object"
+      },
+      "TotpCodeCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "TotpCodeCommand",
+        "type": "object"
+      },
+      "TotpEnrollmentRead": {
+        "properties": {
+          "otpauth_uri": {
+            "title": "Otpauth Uri",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "otpauth_uri"
+        ],
+        "title": "TotpEnrollmentRead",
+        "type": "object"
+      },
+      "UpdateOperatorCommand": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/OperatorRole"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OperatorStatus"
+          }
+        },
+        "required": [
+          "reason",
+          "role",
+          "status"
+        ],
+        "title": "UpdateOperatorCommand",
+        "type": "object"
       }
     }
   },
@@ -659,6 +1033,192 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/audit-logs": {
+      "get": {
+        "operationId": "auditLogsList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor_operator_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor Operator Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/OpsAuditOutcome"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffsetPage_OpsAuditEventRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "List Ops Audit Events",
+        "tags": [
+          "Audit"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "operatorLogin",
@@ -673,7 +1233,14 @@
           "required": true
         },
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallengeRead"
+                }
+              }
+            },
             "description": "Successful Response"
           },
           "422": {
@@ -706,24 +1273,6 @@
     "/api/v1/auth/logout": {
       "post": {
         "operationId": "operatorLogout",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_operator_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Operator Session"
-            }
-          }
-        ],
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -758,24 +1307,6 @@
     "/api/v1/auth/me": {
       "get": {
         "operationId": "operatorCurrentGet",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_operator_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Operator Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -811,6 +1342,445 @@
         "summary": "Current Operator",
         "tags": [
           "Operator Authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/enroll/confirm": {
+      "post": {
+        "operationId": "operatorMfaEnrollmentConfirm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpCodeCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Confirm Enrollment",
+        "tags": [
+          "Operator Authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/enroll/start": {
+      "post": {
+        "operationId": "operatorMfaEnrollmentStart",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotpEnrollmentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Start Enrollment",
+        "tags": [
+          "Operator Authentication"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/verify": {
+      "post": {
+        "operationId": "operatorMfaVerify",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TotpCodeCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RecoveryCodeCommand"
+                  }
+                ],
+                "title": "Command"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaVerifiedRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Verify Mfa",
+        "tags": [
+          "Operator Authentication"
+        ]
+      }
+    },
+    "/api/v1/operators": {
+      "get": {
+        "operationId": "operatorsList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffsetPage_OperatorRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "List Operators",
+        "tags": [
+          "Management"
+        ]
+      },
+      "post": {
+        "operationId": "operatorCreate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOperatorCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Add Operator",
+        "tags": [
+          "Management"
+        ]
+      }
+    },
+    "/api/v1/operators/{operator_id}": {
+      "patch": {
+        "operationId": "operatorUpdate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOperatorCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Update Operator",
+        "tags": [
+          "Management"
+        ]
+      }
+    },
+    "/api/v1/operators/{operator_id}/mfa/reset": {
+      "post": {
+        "operationId": "operatorMfaReset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Reset Mfa",
+        "tags": [
+          "Management"
+        ]
+      }
+    },
+    "/api/v1/operators/{operator_id}/password/reset": {
+      "post": {
+        "operationId": "operatorPasswordReset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operator_id",
+            "required": true,
+            "schema": {
+              "title": "Operator Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetOperatorPasswordCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Reset Password",
+        "tags": [
+          "Management"
         ]
       }
     },
@@ -940,22 +1910,6 @@
                 }
               ],
               "title": "Updated Before"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_operator_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Operator Session"
             }
           }
         ],
@@ -1100,22 +2054,6 @@
               ],
               "title": "Updated Before"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_operator_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Operator Session"
-            }
           }
         ],
         "responses": {
@@ -1175,22 +2113,6 @@
             "schema": {
               "title": "Operation Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_operator_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Operator Session"
             }
           }
         ],
@@ -1252,22 +2174,6 @@
               "title": "Operation Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_operator_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Operator Session"
-            }
           }
         ],
         "requestBody": {
@@ -1318,9 +2224,9 @@
         ]
       }
     },
-    "/api/v1/ops/audit-events": {
+    "/api/v1/users": {
       "get": {
-        "operationId": "opsAuditEventsList",
+        "operationId": "customersList",
         "parameters": [
           {
             "in": "query",
@@ -1345,141 +2251,6 @@
               "title": "Offset",
               "type": "integer"
             }
-          },
-          {
-            "in": "query",
-            "name": "actor_operator_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Actor Operator Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "action",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 64,
-                  "minLength": 1,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Action"
-            }
-          },
-          {
-            "in": "query",
-            "name": "operation_kind",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/AsyncOperationKind"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Operation Kind"
-            }
-          },
-          {
-            "in": "query",
-            "name": "operation_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 128,
-                  "minLength": 1,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Operation Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "outcome",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/OpsAuditOutcome"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Outcome"
-            }
-          },
-          {
-            "in": "query",
-            "name": "created_after",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Created After"
-            }
-          },
-          {
-            "in": "query",
-            "name": "created_before",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Created Before"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_operator_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Operator Session"
-            }
           }
         ],
         "responses": {
@@ -1487,7 +2258,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OffsetPage_OpsAuditEventRead_"
+                  "$ref": "#/components/schemas/OffsetPage_CustomerDirectoryRead_"
                 }
               }
             },
@@ -1514,9 +2285,64 @@
             "description": "Default Response"
           }
         },
-        "summary": "List Ops Audit Events",
+        "summary": "List Customers",
         "tags": [
-          "Operations"
+          "Management"
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}/status": {
+      "put": {
+        "operationId": "customerStatusUpdate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerStatusCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlPlaneErrorResponse"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Set Customer Status",
+        "tags": [
+          "Management"
         ]
       }
     },

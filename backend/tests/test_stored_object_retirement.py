@@ -19,13 +19,16 @@ from app.modules.media_storage.references import SEMANTIC_REFERENCES
 from app.modules.media_storage.retirement import (
     retire_after_release,
     retain_for_reference,
-    retirement_delivery,
     delivery_lifecycle,
 )
 from app.worker.execution import stored_object_retirement as worker
 from app.modules.media_storage import retirement_execution
 from app.shared.time import utc_now
 from tests.support.object_storage import InMemoryObjectStorage
+from tests.support.runtime_resources import deliveries
+from tests.support.worker_context import inject_worker
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.fixture
@@ -50,8 +53,8 @@ def retirement_db(postgres_engine, monkeypatch):
                 db.rollback()
                 raise
 
-    monkeypatch.setattr(worker, "SessionLocal", transaction)
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, sessions=transaction)
+    inject_worker(monkeypatch, worker, storage=storage)
     yield engine, storage, transaction
     engine.dispose()
 
@@ -125,7 +128,7 @@ def test_fk_flush_precedes_physical_delete_and_completion(
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "completed"
     with transaction() as db:
         assert db.get(StoredObject, identity) is None
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         assert (
             operation.status is StoredObjectRetirementStatus.COMPLETED
             and operation.stored_object_id is None
@@ -148,11 +151,13 @@ def test_reacquisition_cancels_and_last_release_rearms(retirement_db):
             )
         )
     with transaction() as db:
-        assert retirement_delivery.get(db, uuid).status is StoredObjectRetirementStatus.CANCELLED
+        assert (
+            deliveries().retirement.get(db, uuid).status is StoredObjectRetirementStatus.CANCELLED
+        )
         upload = db.scalar(select(Upload))
         db.delete(upload)
         assert retire_after_release(db, identity) == [uuid]
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         assert (
             operation.status is StoredObjectRetirementStatus.PENDING
             and operation.attempt_count == 0
@@ -176,7 +181,9 @@ def test_worker_cancels_if_reference_appears_before_destruction(retirement_db, m
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "cancelled"
     assert delete.call_count == 0 and storage.exists("immutable/object")
     with transaction() as db:
-        assert retirement_delivery.get(db, uuid).status is StoredObjectRetirementStatus.CANCELLED
+        assert (
+            deliveries().retirement.get(db, uuid).status is StoredObjectRetirementStatus.CANCELLED
+        )
         assert db.get(StoredObject, identity) is not None
 
 
@@ -186,7 +193,7 @@ def test_failures_do_not_retire_live_or_unverified_bytes(retirement_db, monkeypa
     identity, uuid = unowned(retirement_db)
     with transaction() as db:
         if failure == "snapshot":
-            retirement_delivery.get(db, uuid).sha256 = "f" * 64
+            deliveries().retirement.get(db, uuid).sha256 = "f" * 64
         elif failure == "missing":
             db.delete(db.get(StoredObject, identity))
         elif failure == "foreign_key":
@@ -212,7 +219,7 @@ def test_failures_do_not_retire_live_or_unverified_bytes(retirement_db, monkeypa
     assert delete.call_count == (1 if failure == "storage" else 0)
     assert storage.exists("immutable/object")
     with transaction() as db:
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         assert (
             operation.status is StoredObjectRetirementStatus.FAILED and operation.attempt_count == 1
         )
@@ -225,20 +232,20 @@ def test_cancel_rearm_does_not_allow_stale_attempt_aba(retirement_db, monkeypatc
     engine, storage, transaction = retirement_db
     identity, uuid = unowned(retirement_db)
     with transaction() as db:
-        old = retirement_delivery.claim(db, uuid)
+        old = deliveries().retirement.claim(db, uuid)
     with transaction() as db:
         retain_for_reference(db, identity)
         retire_after_release(db, identity)
-        current = retirement_delivery.claim(db, uuid)
+        current = deliveries().retirement.claim(db, uuid)
         assert current.attempt == old.attempt and current.token != old.token
-        assert not retirement_delivery.fail(db, old, "stale")
-    monkeypatch.setattr(retirement_delivery, "claim", lambda *_: old)
+        assert not deliveries().retirement.fail(db, old, "stale")
+    monkeypatch.setattr(deliveries().retirement, "claim", lambda *_: old)
     delete = Mock(wraps=storage.delete)
     monkeypatch.setattr(storage, "delete", delete)
     assert worker.execute_stored_object_retirement_task(None, uuid)["status"] == "ignored"
     assert delete.call_count == 0
     with transaction() as db:
-        assert retirement_delivery.get(db, uuid).attempt_token == current.token
+        assert deliveries().retirement.get(db, uuid).attempt_token == current.token
 
 
 @pytest.mark.parametrize(
@@ -255,19 +262,31 @@ def test_exact_lease_cutoff_is_immediately_due_without_consuming_attempt(
     identity, uuid = unowned(retirement_db)
     now = utc_now()
     with transaction() as db:
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         operation.status = status
         operation.attempt_token = (
             "fixture-token" if status == StoredObjectRetirementStatus.PROCESSING else None
         )
         operation.attempt_count = 2
         setattr(
-            operation, field, now - timedelta(seconds=getattr(delivery_lifecycle().policy, timeout))
+            operation,
+            field,
+            now
+            - timedelta(
+                seconds=getattr(
+                    delivery_lifecycle(
+                        config=StoredObjectRetirementSettings.model_validate(
+                            get_context().settings.model_dump()
+                        )
+                    ).policy,
+                    timeout,
+                )
+            ),
         )
     monkeypatch.setattr("app.modules.media_storage.retirement.utc_now", lambda: now)
     with transaction() as db:
-        assert retirement_delivery.recover_and_list_due(db) == [uuid]
-        operation = retirement_delivery.get(db, uuid)
+        assert deliveries().retirement.recover_and_list_due(db) == [uuid]
+        operation = deliveries().retirement.get(db, uuid)
         assert (
             operation.status is StoredObjectRetirementStatus.FAILED
             and operation.next_attempt_at == now
@@ -312,18 +331,19 @@ def test_every_semantic_reference_has_a_leading_column_lookup_path():
 def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
     retirement_db, monkeypatch, broker_accepts
 ):
-    from app.worker.dispatch import stored_object_retirement as dispatch
-    from app.task_queue import producer
+    from app.runtime.worker.context import get_context as worker_context
+
+    dispatch = worker_context().dispatches.retirement
 
     engine, storage, transaction = retirement_db
     identity, uuid = unowned(retirement_db)
-    monkeypatch.setattr(dispatch, "SessionLocal", transaction)
+    monkeypatch.setattr(dispatch, "sessions", transaction)
 
     def publish(name, *, kwargs, task_id):
         assert name == "app.worker.tasks.stored_object_retirement_task"
         assert kwargs == {"retirement_uuid": uuid} and task_id
         with transaction() as db:
-            operation = retirement_delivery.get(db, uuid)
+            operation = deliveries().retirement.get(db, uuid)
             assert (
                 operation.status is StoredObjectRetirementStatus.DISPATCHED
                 and operation.attempt_count == 0
@@ -331,10 +351,10 @@ def test_dispatch_commits_before_publish_and_rejection_releases_without_attempt(
         if not broker_accepts:
             raise OSError("broker rejected")
 
-    monkeypatch.setattr(producer.celery_app, "send_task", publish)
+    monkeypatch.setattr(dispatch.sender, "send_task", publish)
     assert dispatch.dispatch_stored_object_retirement(uuid) is broker_accepts
     with transaction() as db:
-        operation = retirement_delivery.get(db, uuid)
+        operation = deliveries().retirement.get(db, uuid)
         assert operation.status is (
             StoredObjectRetirementStatus.DISPATCHED
             if broker_accepts

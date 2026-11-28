@@ -1,23 +1,27 @@
 """Canonical Pydantic schemas for the auth module."""
 
 from app.shared.time import Instant
-from typing import Literal
+from typing import Literal, Annotated
+from uuid import UUID
+from pydantic import BeforeValidator
+from app.platform.security.passwords import validate_password, normalize_password
+
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 from app.shared.api_model import ApiModel
 
+Password = Annotated[str, BeforeValidator(validate_password)]
+PasswordInput = Annotated[str, BeforeValidator(normalize_password)]
 
-class TokenPayload(BaseModel):
-    sub: str
-    exp: int
-    iat: int
-    jti: str
-    typ: str
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: PasswordInput = Field(min_length=1, max_length=128)
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr = Field(..., description="Email address")
-    password: str = Field(..., min_length=6, max_length=128, description="Password")
+    password: Password = Field(..., min_length=12, max_length=128, description="Password")
     display_name: str = Field(..., min_length=1, max_length=50, description="Display name")
     locale: Literal["en", "zh"] = "zh"
 
@@ -28,7 +32,9 @@ class VerifyEmailRequest(BaseModel):
 
 class RequestEmailChangeRequest(BaseModel):
     new_email: EmailStr = Field(..., description="New email address")
-    current_password: str = Field(..., min_length=1, description="Current password")
+    current_password: PasswordInput = Field(
+        ..., min_length=1, max_length=128, description="Current password"
+    )
     locale: Literal["en", "zh"] = "zh"
 
 
@@ -46,14 +52,16 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    new_password: str = Field(..., min_length=6, max_length=128, description="New password")
+    new_password: Password = Field(..., min_length=12, max_length=128, description="New password")
     token: str = Field(..., min_length=1, description="Password reset token")
     locale: Literal["en", "zh"] = "zh"
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str = Field(..., min_length=1, description="Current password")
-    new_password: str = Field(..., min_length=6, max_length=128, description="New password")
+    current_password: PasswordInput = Field(
+        ..., min_length=1, max_length=128, description="Current password"
+    )
+    new_password: Password = Field(..., min_length=12, max_length=128, description="New password")
     locale: Literal["en", "zh"] = "zh"
 
     @field_validator("new_password")
@@ -66,13 +74,13 @@ class ChangePasswordRequest(BaseModel):
 
 
 class SessionSummary(BaseModel):
-    id: int
-    device_id: str | None = None
+    id: UUID
     user_agent: str | None = None
     ip_address: str | None = None
     created_at: Instant
-    last_used_at: Instant | None = None
-    expires_at: Instant
+    last_seen_at: Instant
+    idle_expires_at: Instant
+    absolute_expires_at: Instant
     is_current: bool = False
 
 
@@ -134,7 +142,7 @@ __all__ = [
     "ResetPasswordRequest",
     "SecurityRead",
     "SessionsRead",
-    "TokenPayload",
+    "LoginRequest",
     "User",
     "VerifyEmailRequest",
 ]

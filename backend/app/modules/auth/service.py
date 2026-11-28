@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+
 from dataclasses import dataclass
 
 from sqlmodel import select
 from sqlalchemy.orm import Session
 
-from app.core import security
+from app.platform.security import passwords as security
 from app.core.exceptions import AuthenticationException
 from app.db.model_utils import require_persisted_id
 from app.db.models.user import User
@@ -19,16 +20,15 @@ from app.shared.error_codes import CustomerErrorCode
 
 @dataclass(frozen=True)
 class LoginResult:
-    access_token: str
-    refresh_token: str
+    session_token: str
     principal: ProfileUserRead
 
 
 class AuthService:
     """Encapsulate login and session creation."""
 
-    def __init__(self, session_service: SessionService | None = None) -> None:
-        self.session_service = session_service or SessionService()
+    def __init__(self, session_service: SessionService) -> None:
+        self.session_service = session_service
 
     def login(
         self,
@@ -38,10 +38,14 @@ class AuthService:
         *,
         user_agent: str | None = None,
         ip_address: str | None = None,
-        device_id: str | None = None,
     ) -> LoginResult:
         normalized_email = email.strip().lower()
-        result = db.execute(select(User).where(User.email == normalized_email))
+        result = db.execute(
+            select(User)
+            .where(User.email == normalized_email)
+            .with_for_update(key_share=True)
+            .execution_options(populate_existing=True)
+        )
         user = result.scalars().one_or_none()
 
         if not user or not security.verify_password(password, user.password_hash):
@@ -54,13 +58,12 @@ class AuthService:
                 code=CustomerErrorCode.ACCOUNT_INACTIVE,
                 details={"email": user.email},
             )
-        access_token, refresh_token, _ = self.session_service.create_token_pair(
+        token, _ = self.session_service.create_session(
             db,
             require_persisted_id(user.id, entity="user"),
             user_agent=user_agent,
             ip_address=ip_address,
-            device_id=device_id,
         )
         principal = ProfileService().profile_payload(user).user
         db.commit()
-        return LoginResult(access_token, refresh_token, principal)
+        return LoginResult(token, principal)

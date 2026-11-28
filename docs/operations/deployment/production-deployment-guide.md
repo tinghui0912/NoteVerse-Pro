@@ -118,7 +118,7 @@ Production must not copy local-only shortcuts:
    Validate:
 
    - health endpoints;
-   - authentication and CSRF cookie behavior;
+   - authentication cookies and browser Origin admission;
    - realtime/SSE path through Gateway;
    - S3 object writes and reads;
    - upload/review/confirm/edit derived-asset flow;

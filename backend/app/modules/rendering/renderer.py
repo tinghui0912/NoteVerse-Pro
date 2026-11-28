@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from app.core.config import settings
 from app.processing.engines.render import create_score_render_engine
 
 
@@ -23,10 +22,10 @@ class RenderExecutionError(RuntimeError):
         self.engine_code = engine_code
 
 
-def render_musicxml(content: bytes, *, output_name: str) -> list[RenderedPage]:
+def render_musicxml(content: bytes, *, output_name: str, work_root: str) -> list[RenderedPage]:
     try:
-        Path(settings.WORK_ROOT).mkdir(parents=True, exist_ok=True)
-        with TemporaryDirectory(dir=settings.WORK_ROOT) as work_dir:
+        Path(work_root).mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(dir=work_root) as work_dir:
             xml_path = Path(work_dir) / "score.musicxml"
             xml_path.write_bytes(content)
             engine = create_score_render_engine(output_folder=work_dir)

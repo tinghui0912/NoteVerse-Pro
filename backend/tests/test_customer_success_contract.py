@@ -8,26 +8,26 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from fastapi.routing import iter_route_contexts
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db
-from app.main import create_app
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
+from app.runtime.customer_api.main import create_app
 from app.modules.account.dependencies import get_profile_service
 from app.modules.account.schemas import ProfileRead, ProfileUserRead
-from app.api.resource_dependencies import get_upload_service
-from app.api.resource_dependencies import get_import_job_service
+from app.runtime.customer_api.resources import get_upload_service
+from app.runtime.customer_api.resources import get_import_job_service
 from app.modules.import_jobs.schemas import ImportJobSubmitRead
 from app.modules.library.dependencies import get_library_service
 from app.modules.library.schemas import LibraryFolderRead
-from app.modules.collaboration.dependencies import get_invitation_service
+from app.runtime.customer_api.collaboration import get_invitation_service
 from app.modules.collaboration.schemas import InviteListRead
 from app.shared.api_model import ApiModel
 
 
 BODYLESS_COMMANDS = {
     "authLogout",
-    "authRefresh",
     "authRegister",
     "authPasswordResetRequest",
     "authPasswordReset",
@@ -210,7 +210,7 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
     from http.cookies import SimpleCookie
 
     from app.core.generated import customer_browser_protocol as protocol
-    from app.modules.auth.dependencies import get_password_service, get_session_service
+    from app.runtime.customer_api.auth_services import get_password_service, get_session_service
 
     app = create_app()
 
@@ -219,13 +219,11 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
 
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
-    password = SimpleNamespace(
-        change_current_user_password=Mock(return_value=("rotated-access", "rotated-refresh"))
-    )
+    password = SimpleNamespace(change_current_user_password=Mock(return_value="rotated-session"))
     sessions = SimpleNamespace(revoke_user_session=Mock(return_value=True))
     app.dependency_overrides[get_password_service] = lambda: password
     app.dependency_overrides[get_session_service] = lambda: sessions
-    expected = {protocol.AUTH_COOKIE_NAME, protocol.REFRESH_COOKIE_NAME, protocol.CSRF_COOKIE_NAME}
+    expected = {protocol.AUTH_COOKIE_NAME}
 
     def cookies(response):
         result = SimpleCookie()
@@ -240,11 +238,9 @@ def test_bodyless_account_security_commands_preserve_rotated_and_cleared_cookies
         )
         assert changed.status_code == 204 and changed.content == b""
         assert set(cookies(changed)) == expected
-        assert client.cookies[protocol.AUTH_COOKIE_NAME] == "rotated-access"
-        assert client.cookies[protocol.REFRESH_COOKIE_NAME] == "rotated-refresh"
+        assert client.cookies[protocol.AUTH_COOKIE_NAME] == "rotated-session"
         revoked = client.delete(
-            "/api/v1/me/sessions/1",
-            headers={protocol.CSRF_HEADER_NAME: client.cookies[protocol.CSRF_COOKIE_NAME]},
+            "/api/v1/me/sessions/00000000-0000-0000-0000-000000000001",
         )
         assert revoked.status_code == 204 and revoked.content == b""
         assert set(cookies(revoked)) == expected

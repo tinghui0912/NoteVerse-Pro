@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+
 import argparse
 from contextlib import contextmanager
 import importlib
 import importlib.util
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -16,57 +18,74 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-ROLES = ("api", "beat", "worker", "worker-deps")
+ROLES = ("core", "worker", "worker-deps")
+CORE_RUNTIMES = ("customer-api", "control-plane", "beat", "migrator")
 
 
 @contextmanager
 def packaging_environment(role: str):
     """Supply valid, synthetic import-time settings only in this CI process.
 
-    Global Settings requires URLs/cookie policy even for non-HTTP roles. These
-    endpoints are never contacted; workflows additionally use --network none.
+    Each process receives its declared synthetic environment. These endpoints
+    are never contacted; workflows additionally use --network none.
     No production settings/defaults or readiness validators are changed.
     """
     with TemporaryDirectory(prefix="noteverse-image-contract-") as directory:
         root = Path(directory)
         env = {
-            "SECRET_KEY": "image-contract-only-not-a-production-secret",
-            "AUTH_COOKIE_SECURE": "false",
-            "AUTH_COOKIE_SAMESITE": "lax",
             "DATABASE_URL": "postgresql+psycopg://contract:contract@127.0.0.1:1/contract",
-            "SCHEDULER_LOCK_DATABASE_URL": "postgresql+psycopg://contract:contract@127.0.0.1:1/contract",
-            "REDIS_URL": "redis://127.0.0.1:1/0",
-            "CELERY_BROKER_URL": "redis://127.0.0.1:1/1",
-            "CELERY_RESULT_BACKEND": "redis://127.0.0.1:1/2",
             "LOG_FORMAT": "json",
             "OTEL_TRACING_ENABLED": "false",
-            "FRONTEND_BASE_URL": "http://localhost:3000",
-            "BACKEND_CORS_ORIGINS": "[]",
-            "TRUSTED_PROXY_CIDRS": "[]",
-            "REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS": "60",
-            "REALTIME_EVENT_RETENTION_DAYS": "7",
             "WORK_ROOT": str(root / "work"),
-            "S3_ENDPOINT_URL": "http://127.0.0.1:1",
-            "S3_BUCKET": "contract",
-            "S3_ACCESS_KEY_ID": "contract",
-            "S3_SECRET_ACCESS_KEY": "contract-secret",
-            "NOTEVERSE_CELERY_IMPORT_TASKS": "true" if role == "worker" else "false",
-            "HF_HUB_OFFLINE": "1",
-            "TRANSFORMERS_OFFLINE": "1",
-            "PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK": "True",
         }
-        if role == "api":
+        if role in {"customer-api", "control-plane", "beat", "worker"}:
+            env["REDIS_URL"] = "redis://127.0.0.1:1/0"
+        if role in {"customer-api", "beat", "worker"}:
             env.update(
                 {
+                    "CELERY_BROKER_URL": "redis://127.0.0.1:1/1",
+                    "CELERY_RESULT_BACKEND": "redis://127.0.0.1:1/2",
+                }
+            )
+        if role in {"customer-api", "worker"}:
+            env.update(
+                {
+                    "S3_ENDPOINT_URL": "http://127.0.0.1:1",
+                    "S3_BUCKET": "contract",
+                    "S3_ACCESS_KEY_ID": "contract",
+                    "S3_SECRET_ACCESS_KEY": "contract-secret",
+                    "FRONTEND_BASE_URL": "http://localhost:3000",
+                }
+            )
+        if role in {"customer-api", "control-plane"}:
+            env["TRUSTED_PROXY_CIDRS"] = "[]"
+        if role == "customer-api":
+            env.update({"AUTH_COOKIE_SECURE": "false", "BACKEND_CORS_ORIGINS": "[]"})
+        if role == "control-plane":
+            env.update(
+                {
+                    "OPERATOR_TOTP_ENCRYPTION_KEY": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
                     "CONTROL_PLANE_COOKIE_SECURE": "false",
-                    "CONTROL_PLANE_COOKIE_SAMESITE": "lax",
-                    "CONTROL_PLANE_SESSION_EXPIRE_MINUTES": "30",
                     "CONTROL_PLANE_CORS_ORIGINS": '["http://localhost:3001"]',
                 }
             )
+        if role == "beat":
+            env["SCHEDULER_LOCK_DATABASE_URL"] = env["DATABASE_URL"]
+            env["REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS"] = "60"
+        if role in {"worker", "worker-deps"}:
+            env.update(
+                {
+                    "HF_HUB_OFFLINE": "1",
+                    "TRANSFORMERS_OFFLINE": "1",
+                    "PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK": "True",
+                }
+            )
         if role == "worker":
-            # Required setting, intentionally not an existing asset/readiness check.
+            env["SCHEDULER_LOCK_DATABASE_URL"] = env["DATABASE_URL"]
+            env["REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS"] = "60"
+            env["REALTIME_EVENT_RETENTION_DAYS"] = "7"
             env["PLAYBACK_SOUNDFONT_PATH"] = str(root / "not-required.sf2")
+            env["LEGATO_REPO_PATH"] = str(root / "not-required-legato")
         previous = {key: os.environ.get(key) for key in env}
         os.environ.update(env)
         try:
@@ -112,30 +131,30 @@ def run_contract(role: str) -> list[str]:
         raise ValueError(f"Unknown image role: {role}")
     subprocess.run(["uv", "pip", "check", "--python", sys.executable], check=True)
     evidence = ["uv dependency check passed"]
-    if role == "api":
-        for module in ("app.main", "app.control_plane_main", "app.observability_main"):
-            require_import(module, "app")
-            evidence.append(f"{module}:app import passed (lifespan not started)")
-        check_migration_packaging()
-        evidence.append("migration command/revision imports passed (no database execution)")
-    elif role == "beat":
-        require_import("app.task_queue.config", "celery_app")
-        require_import("app.modules.scheduler_lock.beat_leader", "BeatLeader")
-        require_import("app.modules.scheduler_lock.connection", "open_scheduler_lock_connection")
-        require_import("psycopg", "connect")
-        if "app.worker.tasks" in sys.modules:
-            raise RuntimeError("Beat must not import Worker task execution")
-        for module in ("torch", "paddle", "paddleocr", "paddlex", "verovio"):
-            if importlib.util.find_spec(module) is not None:
-                raise RuntimeError(f"Beat must not install Worker dependency: {module}")
-        evidence.append("Beat/Celery/PostgreSQL-lock imports passed; Worker tasks not imported")
+    if role == "core":
+        for runtime in CORE_RUNTIMES:
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve()),
+                    "--role",
+                    "core",
+                    "--runtime",
+                    runtime,
+                ],
+                check=True,
+                env=isolated_environment(),
+            )
+        evidence.append("four isolated core composition-root contracts passed")
     elif role == "worker-deps":
         check_worker_dependency_imports()
         evidence.append("OTLP/Paddle/PaddleOCR/PaddleX imports passed; no models initialized")
     else:
         # The existing contract owns the task list and loads app.worker.tasks.
-        runtime = importlib.import_module("app.core.runtime_checks")
-        tasks = runtime.check_celery_tasks()
+        from app.runtime.diagnostics import checks_for_role
+        from app.platform.runtime import RuntimeRole
+
+        tasks = checks_for_role(RuntimeRole.WORKER).check_celery_tasks()
         if not tasks.ok:
             raise RuntimeError(tasks.message)
         evidence.append(tasks.message)
@@ -147,18 +166,85 @@ def run_contract(role: str) -> list[str]:
     return evidence
 
 
+def isolated_environment() -> dict[str, str]:
+    """Pass process mechanics, never another runtime's injected credentials."""
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key
+        in {
+            "PATH",
+            "PYTHONPATH",
+            "HOME",
+            "TMPDIR",
+            "VIRTUAL_ENV",
+            "UV_CACHE_DIR",
+            "PYTHONDONTWRITEBYTECODE",
+            "PYTHONUNBUFFERED",
+            "LANG",
+            "LC_ALL",
+            "SYSTEMROOT",
+        }
+    }
+
+
+def check_core_runtime(runtime: str) -> None:
+    if runtime not in CORE_RUNTIMES:
+        raise ValueError("Unknown core runtime")
+    for module in ("torch", "paddle", "paddleocr", "paddlex", "verovio", "transformers"):
+        if importlib.util.find_spec(module) is not None:
+            raise RuntimeError(f"Core must not install Worker dependency: {module}")
+    for executable in ("ffmpeg", "fluidsynth"):
+        if shutil.which(executable):
+            raise RuntimeError(f"Core must not install Worker executable: {executable}")
+    with packaging_environment(runtime):
+        if runtime in {"customer-api", "control-plane"}:
+            require_import("app.runtime." + runtime.replace("-", "_") + ".main", "app")
+        elif runtime == "beat":
+            require_import("app.runtime.beat.main", "celery_app")
+            require_import("app.runtime.beat.leader", "BeatLeader")
+            require_import(
+                "app.modules.scheduler_lock.connection", "open_scheduler_lock_connection"
+            )
+        else:
+            require_import("app.runtime.migrations.settings", "MigrationSettings")
+            check_migration_packaging()
+    own = {
+        "customer-api": "customer_api",
+        "control-plane": "control_plane",
+        "beat": "beat",
+        "migrator": "migrations",
+    }[runtime]
+    for name in sys.modules:
+        for other in {"customer_api", "control_plane", "beat", "worker"} - {own}:
+            if name == "app.runtime." + other or name.startswith("app.runtime." + other + "."):
+                raise RuntimeError(f"Cross-runtime import in {runtime}: {name}")
+    if "app.worker.tasks" in sys.modules:
+        raise RuntimeError("Core must not import Worker task execution")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--role", choices=ROLES, required=True)
-    role = parser.parse_args(argv).role
+    parser.add_argument("--runtime", choices=CORE_RUNTIMES)
+    args = parser.parse_args(argv)
+    if args.runtime and args.role != "core":
+        parser.error("--runtime requires --role core")
     try:
-        with packaging_environment(role):
-            evidence = run_contract(role)
+        if args.runtime:
+            check_core_runtime(args.runtime)
+            evidence = [f"{args.runtime} isolated import passed (no infrastructure connections)"]
+        else:
+            with packaging_environment(args.role):
+                evidence = run_contract(args.role)
     except Exception as exc:
-        print(f"PACKAGING_CONTRACT role={role} FAIL: {type(exc).__name__}: {exc}", file=sys.stderr)
+        print(
+            f"PACKAGING_CONTRACT role={args.role} FAIL: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
         return 1
     for message in evidence:
-        print(f"PACKAGING_CONTRACT role={role} OK: {message}")
+        print(f"PACKAGING_CONTRACT role={args.role} OK: {message}")
     return 0
 
 

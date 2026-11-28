@@ -5,7 +5,6 @@ from uuid import uuid4
 from hashlib import md5
 from dataclasses import dataclass, field
 from urllib.parse import quote
-from app.core.config import settings
 from app.storage.base import (
     DirectUploadTarget,
     ObjectWriteResult,
@@ -77,7 +76,7 @@ class InMemoryObjectStorage:
         return self._target(key, content_type, content_length, expires_in, None, None)
 
     def _target(self, key, content_type, length, ttl, upload_id, part_number):
-        ttl = settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS if ttl is None else ttl
+        ttl = 900 if ttl is None else ttl
         if type(length) is not int or length <= 0 or type(ttl) is not int or ttl <= 0:
             raise ValueError("Positive integer length and expiry required")
         key = self._key(key)

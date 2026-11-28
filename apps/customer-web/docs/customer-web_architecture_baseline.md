@@ -175,7 +175,7 @@ features/scores         product composition, shared Score routes and lifecycle c
 features/notifications  durable history/read-state API/query/cache, presentation/targets and Center/Bell
 features/account/profile current profile/Avatar adapters, forms and crop application
 features/account/security security overview, password/email-change workflow and confirmation
-features/account/sessions authenticated refresh-session inventory/revocation and presentation
+features/account/sessions authenticated opaque-session inventory/revocation and presentation
 features/account        Account query identities and cross-lifecycle cache consequences
 features/authentication browser session/principal, auth entry flows and safe return navigation
 features/storage-usage storage API/query identity/query/cache and quota presentation
@@ -225,7 +225,8 @@ query cache. Account Security owns authenticated password/email-change workflows
 including the application behind `/auth/confirm-email-change`. Password change refreshes
 security and session projections. Email confirmation refreshes security and the current
 principal; optional profile refresh failure does not reverse confirmation success.
-Account Sessions owns session inventory and revocation, requesting at most 100 rows.
+Account Sessions owns UUID session inventory and revocation, requesting at most 100 rows.
+It renders last-seen activity, idle/absolute deadlines and the current-device marker.
 `account/query-keys.ts` owns `account/security` and `account/sessions` identities.
 SettingsShell composes Account and Storage tabs. `features/storage-usage` owns the
 `storage-usage` query prefix, authenticated usage read adapter, query, quota presentation
@@ -241,6 +242,12 @@ Authentication owns browser session/principal lifecycle and login, registration,
 and password recovery under `features/authentication`. Its five auth routes are thin entries;
 Account email-change confirmation remains Account Security. Shared `AuthCard` is presentation
 used by both lifecycles.
+
+Login sends JSON `{email,password}`. Email actions capture `#token` into component
+memory and immediately replace history with pathname plus search. Component refs
+preserve the captured value and command promise through Strict Mode effect replay.
+Password admission normalizes NFC, counts Unicode characters and enforces 12–128
+non-blank characters consistently across registration, reset and change forms.
 
 `AuthenticationProvider` consumes the Account Profile read adapter for bootstrap; there is
 no duplicate principal query cache. Status distinguishes `bootstrapping`, `authenticated`,
@@ -261,7 +268,7 @@ invalidation and credential lifecycle.
 
 Logout success and password-reset completion clear the principal. Identity switches clear
 prior principal-sensitive server-state using the same scope rules. Reset revokes existing
-sessions and clears this browser's session/refresh/CSRF cookies before returning 204.
+sessions and clears this browser's session cookie before returning 204.
 Authentication owns parser-validated same-origin app-relative `returnUrl` intent, including
 backslash/open-redirect rejection. Next proxy's cookie-existence check is only a soft routing
 gate; backend authentication and the canonical principal read remain authoritative.
@@ -301,8 +308,8 @@ TypeScript types, flat SDK operations and the bundled Fetch runtime. SDK calls
 receive an explicit browser policy client. Generated operations own method,
 path, path parameters, query serialization and request body encoding.
 
-`src/lib/http/customer-browser-transport.ts` owns credentials, CSRF injection,
-single-flight refresh, one replay, login redirects, cancellation and network
+`src/lib/http/customer-browser-transport.ts` owns credentials,
+session invalidation, login redirects, cancellation and network
 observability. Feature adapters return direct generated representations or apply
 frontend transformations. `responseBody` extracts the HTTP body from SDK result
 metadata; the SDK result `.data` is not a wire envelope. Commands without a
@@ -325,10 +332,10 @@ passes through the domain command. The browser owns Content-Length. Static FIR a
 are resource reads outside Customer HTTP operations.
 
 `contracts/http/customer-browser-protocol.json` owns the fixed Customer API prefix
-and session/CSRF cookie and header identities. Generated TypeScript constants are
+and session cookie identities. Generated TypeScript constants are
 shared by browser transport, Next proxy and Next rewrites; Backend consumes the
-Python projection. `NEXT_BACKEND_ORIGIN`, public origins, cookie Secure/SameSite
-policy and session lifetimes remain deployment policy. Generated SDK paths already
+Python projection. `NEXT_BACKEND_ORIGIN`, public origins, cookie Secure policy, fixed SameSite=Lax
+semantics and session lifetimes remain deployment policy. Generated SDK paths already
 include the API prefix, so browser transport base URLs express only the origin.
 `generate:browser-protocol` and `check:browser-protocol` cover both protocol
 projections and native route metadata from committed OpenAPI.

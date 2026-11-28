@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlmodel import col
 
 from app.db.models import OpsAuditEvent
-from app.modules.ops.schemas import AsyncOperationKind, OpsAuditEventRead, OpsAuditOutcome
+from app.modules.ops.schemas import OpsAuditEventRead, OpsAuditOutcome
 from app.shared.pagination import OffsetPage
 
 
@@ -20,8 +20,8 @@ class OpsAuditService:
         offset: int = 0,
         actor_operator_id: int | None = None,
         action: str | None = None,
-        operation_kind: AsyncOperationKind | None = None,
-        operation_id: str | None = None,
+        target_type: str | None = None,
+        target_id: str | None = None,
         outcome: OpsAuditOutcome | None = None,
         created_after: datetime | None = None,
         created_before: datetime | None = None,
@@ -31,10 +31,10 @@ class OpsAuditService:
             statement = statement.where(OpsAuditEvent.actor_operator_id == actor_operator_id)
         if action is not None:
             statement = statement.where(OpsAuditEvent.action == action)
-        if operation_kind is not None:
-            statement = statement.where(OpsAuditEvent.operation_kind == operation_kind.value)
-        if operation_id is not None:
-            statement = statement.where(OpsAuditEvent.operation_id == operation_id)
+        if target_type is not None:
+            statement = statement.where(OpsAuditEvent.target_type == target_type)
+        if target_id is not None:
+            statement = statement.where(OpsAuditEvent.target_id == target_id)
         if outcome is not None:
             statement = statement.where(OpsAuditEvent.outcome == outcome.value)
         if created_after is not None:
@@ -50,9 +50,8 @@ class OpsAuditService:
         )
 
     def record_event(self, db: Session, **values) -> None:
-        values["operation_kind"] = values["operation_kind"].value
         db.add(OpsAuditEvent(**values))
-        db.commit()
+        db.flush()
 
     @staticmethod
     def _read(event: OpsAuditEvent) -> OpsAuditEventRead:
@@ -60,16 +59,17 @@ class OpsAuditService:
             event_id=event.event_uuid,
             actor_operator_id=event.actor_operator_id,
             action=event.action,
-            operation_kind=AsyncOperationKind(event.operation_kind),
-            operation_id=event.operation_id,
+            target_type=event.target_type,
+            target_id=event.target_id,
             outcome=OpsAuditOutcome(event.outcome),
             error_code=event.error_code,
             reason=event.reason,
             request_id=event.request_id,
-            peer_address=event.peer_address,
-            client_address=event.client_address,
+            user_agent=event.user_agent,
+            ip_address=event.ip_address,
             previous_state=event.previous_state,
             new_state=event.new_state,
+            metadata_json=event.metadata_json,
             created_at=event.created_at,
         )
 

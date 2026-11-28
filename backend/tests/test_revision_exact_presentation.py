@@ -1,7 +1,8 @@
 """Head-exact delivery and owner-exact disposal of derived presentation."""
 
+from tests.support.runtime_resources import resources_for
+
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 from tests.support.retirement import drain_retirements
 
@@ -63,8 +64,8 @@ def test_head_projection_and_playback_do_not_read_other_revision(revisions):
     db, storage, score, rows = revisions
     seed_assets(db, storage, rows[:1])
     detail = ScoreService(
-        lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        lifecycle_service=resources_for().build_score_lifecycle_service(),
+        delivery=resources_for(storage).build_media_delivery_service(),
     ).get(db, score.score_uuid, 1)
     assert detail.head_revision_id == rows[2].revision_uuid
     assert detail.derived_assets.model_dump() == {
@@ -84,7 +85,7 @@ def test_only_head_protects_rows_objects_and_usage(revisions, enabled, mode, mon
     keys = seed_assets(db, storage, rows)
     if enabled:
         GuestPreviewService(
-            delivery=_resource_wiring.build_media_delivery_service(storage)
+            delivery=resources_for(storage).build_media_delivery_service()
         ).issue_credential(db, score.score_uuid, 1)
     cleanup = DerivedAssetRetentionService(usage=_resource_wiring.storage_usage_service)
     if mode == "async":
@@ -141,13 +142,14 @@ def test_background_retention_disposes_old_head_while_new_derivatives_are_pendin
     db, storage, score, rows = revisions
     keys = seed_assets(db, storage, rows[2:])
     token = None
-    previews = GuestPreviewService(delivery=_resource_wiring.build_media_delivery_service(storage))
+    previews = GuestPreviewService(delivery=resources_for(storage).build_media_delivery_service())
     if active_preview:
         token = (previews.issue_credential(db, score.score_uuid, 1)).token
     created = RevisionService(
         quota=_resource_wiring.storage_quota_service,
-        revision_writer=_media_wiring.build_revision_writer(),
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        revision_writer=resources_for().build_revision_writer(),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        post_commit=resources_for().post_commit,
     ).create(
         db,
         score.score_uuid,

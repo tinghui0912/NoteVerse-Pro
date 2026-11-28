@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import ValidationError
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.db.models import (
     PracticeActivity,
@@ -315,7 +315,7 @@ def test_postgres_unique_fence_serializes_simultaneous_session_submissions(
 
 def test_command_rolls_back_on_commit_failure(database, monkeypatch):
     from contextlib import contextmanager
-    from app.api.deps import get_command_db
+    from app.platform.db.dependencies import get_command_db
 
     with Session(database) as db:
         monkeypatch.setattr(
@@ -330,7 +330,7 @@ def test_command_rolls_back_on_commit_failure(database, monkeypatch):
 
 def test_outer_command_failure_rolls_back_a_released_activity_savepoint(database):
     from contextlib import contextmanager
-    from app.api.deps import get_command_db
+    from app.platform.db.dependencies import get_command_db
 
     with Session(database) as db:
         with pytest.raises(RuntimeError, match="endpoint interrupted"):
@@ -451,8 +451,9 @@ def test_current_vocabulary_columns_and_dependencies_are_narrow():
 
 
 def test_http_contract_is_authenticated_typed_and_personal(database):
-    from app.main import create_app
-    from app.api.deps import get_db, get_current_user
+    from app.runtime.customer_api.main import create_app
+    from app.platform.db.dependencies import get_db
+    from app.runtime.customer_api.deps import get_current_user
 
     app = create_app()
     with Session(database) as db:

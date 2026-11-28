@@ -70,7 +70,7 @@ Guest Preview responses use private, no-store caching. The browser page declares
 noindex, nofollow and noarchive. These boundaries do not prevent screenshots or
 browser copying of rendered images.
 
-Customer and operator sessions have separate identities, cookies, CSRF and authorization
+Customer and operator sessions have separate identities, cookies, origin policies and authorization
 policies. Structured logs follow the default-deny
 [log schema](../operations/observability/log-event-schema.md).
 

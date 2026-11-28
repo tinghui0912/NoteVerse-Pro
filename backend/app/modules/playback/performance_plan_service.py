@@ -24,7 +24,7 @@ from .performance_plan_schemas import (
 
 
 def compile_performance_plan(musicxml: str) -> PerformancePlanRead:
-    admitted = admit_musicxml_document(musicxml.encode("utf-8"))
+    admitted = admit_musicxml_document(musicxml)
     model = parse_score_semantics(admitted)
     try:
         validate_verovio_written_realization(admitted, model)

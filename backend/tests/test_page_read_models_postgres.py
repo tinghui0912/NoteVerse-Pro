@@ -1,9 +1,9 @@
 """Fresh-session SQL budgets and stable personal timeline continuations on PostgreSQL."""
 
-from app.storage import object_storage as _storage_provider
+from tests.support.runtime_resources import resources_for
+
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 import ast
 import base64
@@ -15,7 +15,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select, event
 from sqlalchemy.orm import Session
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.db.models import (
     User,
@@ -49,9 +49,11 @@ from app.modules.performance_takes.service import PerformanceTakeService
 from app.modules.media_storage.persistence import object_from_bytes
 from app.shared.time import utc_now
 from app.shared.feed_cursor import encode_cursor
-from app.api.deps import get_current_user, get_db
-from app.main import app
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
+from app.runtime.customer_api.main import app
 from tests.support.take_fixtures import _manifest_row, VALID_WEBM_BYTES
+from tests.support.runtime_resources import storage as _storage_provider
 
 
 @pytest.fixture
@@ -294,8 +296,9 @@ def load(db, kind, limit):
         return (
             RevisionService(
                 quota=_resource_wiring.storage_quota_service,
-                revision_writer=_media_wiring.build_revision_writer(),
-                writes=_resource_wiring.build_object_write_coordinator(_storage_provider),
+                revision_writer=resources_for().build_revision_writer(),
+                writes=resources_for(_storage_provider).build_object_write_coordinator(),
+                post_commit=resources_for().post_commit,
             )
             .list(db, "history", 1, limit=limit)
             .items
@@ -305,7 +308,7 @@ def load(db, kind, limit):
     return (
         PerformanceTakeService(
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         )
         .list_takes(db, 1, limit=limit)
         .items
@@ -364,7 +367,7 @@ def test_keyset_continuation_survives_equal_times_and_anchor_mutation(pages, kin
         if kind == "notifications"
         else PerformanceTakeService(
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         )
     )
 
@@ -547,7 +550,7 @@ def test_take_visibility_query_errors_propagate_instead_of_becoming_access_denia
         ):
             PerformanceTakeService(
                 usage=_resource_wiring.storage_usage_service,
-                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                delivery=resources_for(_storage_provider).build_media_delivery_service(),
             ).list_takes(db, 1)
     finally:
         event.remove(engine, "before_cursor_execute", fail_visibility)
@@ -584,7 +587,7 @@ def test_take_timeline_owns_its_seek_with_other_user_noise(pages, score_filter):
         with Session(engine) as db:
             page = PerformanceTakeService(
                 usage=_resource_wiring.storage_usage_service,
-                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                delivery=resources_for(_storage_provider).build_media_delivery_service(),
             ).list_takes(db, 1, score_id=score_filter, limit=7, cursor=cursor)
             seen.extend(row.take_id for row in page.items)
         if page.next_cursor is None:
@@ -598,7 +601,7 @@ def test_take_timeline_owns_its_seek_with_other_user_noise(pages, score_filter):
     with Session(engine) as db:
         other = PerformanceTakeService(
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         ).list_takes(db, 2, score_id=score_filter, limit=100)
         assert len(other.items) == 100
         assert all(row.take_id.startswith("other-") for row in other.items)
@@ -643,7 +646,7 @@ def test_take_detail_propagates_authorization_system_failures(pages, failure):
         PerformanceTakeService(
             score_access_policy=policy,
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         ).get_take(db, 1, "take-1")
 
 
@@ -665,7 +668,7 @@ def test_take_detail_projects_explicit_access_denial(pages, denial):
         result = PerformanceTakeService(
             score_access_policy=policy,
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         ).get_take(db, 1, "take-1")
         assert result.linked_score_id is None
         assert result.can_open_score is False
@@ -686,7 +689,7 @@ def test_take_detail_does_not_convert_driver_failure_to_a_successful_access_proj
         with Session(engine) as db, pytest.raises(OperationalError) as raised:
             PerformanceTakeService(
                 usage=_resource_wiring.storage_usage_service,
-                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                delivery=resources_for(_storage_provider).build_media_delivery_service(),
             ).get_take(db, 1, "take-1")
         assert raised.value is failure
     finally:

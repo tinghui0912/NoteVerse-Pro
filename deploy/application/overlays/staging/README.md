@@ -12,17 +12,10 @@ kubectl kustomize deploy/application/overlays/staging
 
 Required objects supplied outside this overlay:
 
-- `Secret/noteverse-backend-secret`
-  - `SECRET_KEY`
-  - `DATABASE_URL`
-  - `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session pooling only)
-  - `REDIS_URL`
-  - `CELERY_BROKER_URL`
-  - `CELERY_RESULT_BACKEND`
-  - `S3_ACCESS_KEY_ID`
-  - `S3_SECRET_ACCESS_KEY`
-  - `RESEND_API_KEY` if mail is enabled
-  - `HF_TOKEN` when gated Hugging Face model repositories are enabled
+- Five runtime database Secrets: `noteverse-migrator-secret`, `noteverse-customer-api-secret`,
+  `noteverse-control-plane-secret`, `noteverse-worker-secret`, `noteverse-beat-secret`; exact keys follow
+  [runtime ownership](../../../../docs/architecture/runtime/settings-ownership.md).
+- Optional `noteverse-model-assets-secret` with `HF_TOKEN` only for gated model downloads.
 - `ClusterIssuer/letsencrypt-production-dns01` or another production-equivalent
   cert-manager issuer capable of issuing `Secret/noteverse-staging-tls`
 - GPU worker node labels on nodes that may run worker pods:
@@ -35,13 +28,11 @@ Required objects supplied outside this overlay:
 - Envoy Gateway data-plane exposure through MetalLB or a local port-forward to
   port 443 for minikube production-flow rehearsal
 
-The staging overlay intentionally enables one `control-plane` and one
-`platform-admin` replica. The dedicated `admin.<environment-domain>` Gateway
-listener routes only to Platform Admin; its same-origin BFF is the only
-in-cluster caller admitted to the control-plane Service by NetworkPolicy.
-The control-plane Service itself has no Gateway route. Production remains
-dark-by-default until workforce MFA and the production access review are
-complete.
+The staging overlay enables one Control Plane and one Platform Admin replica.
+The Admin HTTPS listener routes `/api` directly to Control Plane and document
+paths to Platform Admin. CiliumNetworkPolicy admits only Envoy to these surfaces;
+Platform Admin has no Control Plane egress. Production replica counts follow its
+explicit deployment access policy.
 
 Replace all `registry.example.invalid` images in an environment-specific branch
 or private overlay before deployment. The staging overlay is intended for the
@@ -53,16 +44,22 @@ the Cloudflare token or DNS zone permissions are new, then switch the overlay
 back to the production issuer for browser-trusted TLS rehearsal.
 
 The checked-in staging ConfigMaps use repository test OSS bucket settings for
-production-shaped S3 storage and split backend runtime values into shared,
-Worker, and Control Plane ownership files. Keep credentials in
-`Secret/noteverse-backend-secret`; do not commit access keys.
+production-shaped S3 storage and give Customer API, Worker, Beat, Control Plane, exporter and model preparation
+separate ConfigMaps. Credentials belong to the matching runtime Secret; do not commit access keys.
 
 The overlay intentionally does not generate Secrets. Credentials should come
 from the cluster secret management path, not from repository files.
 
 Frontend routing notes:
 
-- `NEXT_BACKEND_ORIGIN` points to the internal backend Service because it is used
-  by Next.js rewrites on the server side.
+- Gateway routes `/api` directly to Customer API; production Next.js performs no API rewrite.
 - Practice source requests are served by the main backend API.
 - Browser API and realtime requests use same-origin `/api/v1`.
+
+## Runtime isolation
+
+All application workloads use UID/GID 10001 and read-only root filesystems.
+`external-egress.json` owns private PostgreSQL/Redis CIDR and exact provider FQDN lists; empty lists deny external
+connectivity. Render `external-egress.yaml` with
+`scripts/container_security_contract.py` after reviewing private networks and exact endpoint hostnames.
+See [Container and Network Hardening](../../../../docs/architecture/runtime/container-and-network-hardening.md).

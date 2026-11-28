@@ -6,8 +6,11 @@ on:
     branches: [main]
     paths:
       - "apps/customer-web/**"
+      - "backend/tests/fixtures/verovio-written-realization.json"
+      - "backend/tests/fixtures/verovio-playback-profile.json"
       - "docker/customer-web/**"
       - ".dockerignore"
+      - ".github/scripts/frontend_image_security_smoke.mjs"
       - ".github/workflows/customer-web-image.yml"
       - ".github/workflows/customer-web-quality.yml"
       - ".github/scripts/customer_web_ci_policy.py"
@@ -15,8 +18,11 @@ on:
   pull_request:
     paths:
       - "apps/customer-web/**"
+      - "backend/tests/fixtures/verovio-written-realization.json"
+      - "backend/tests/fixtures/verovio-playback-profile.json"
       - "docker/customer-web/**"
       - ".dockerignore"
+      - ".github/scripts/frontend_image_security_smoke.mjs"
       - ".github/workflows/customer-web-image.yml"
       - ".github/workflows/customer-web-quality.yml"
       - ".github/scripts/customer_web_ci_policy.py"
@@ -92,8 +98,16 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/customer-web:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/customer-web:build-${{ github.run_id }}
-          build-args: |
-            NEXT_BACKEND_ORIGIN=http://noteverse-backend-api:8000
+
+      - name: Verify non-root read-only HTTP runtime
+        if: steps.changes.outputs.image_pipeline_required == 'true'
+        run: >-
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges
+          --network none --tmpfs /tmp:rw,exec,nosuid,nodev,size=64m,mode=1777
+          --tmpfs /app/.next/cache:rw,nosuid,nodev,size=128m,mode=1777
+          -e SMOKE_PATH=/auth/login -e SMOKE_CACHE_PATH=/app/.next/cache/smoke-write
+          -v "$GITHUB_WORKSPACE/.github/scripts/frontend_image_security_smoke.mjs:/smoke.mjs:ro"
+          --entrypoint node "${{ env.IMAGE_NAMESPACE }}/customer-web:${{ github.sha }}" /smoke.mjs
 
       - name: Generate Customer Web SBOM
         if: steps.changes.outputs.image_pipeline_required == 'true'

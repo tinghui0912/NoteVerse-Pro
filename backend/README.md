@@ -18,16 +18,22 @@ profile management, and Celery-based background workflows.
 Canonical structure:
 
 - `app/modules/*` for feature code
-- `app/core/*` for runtime setup and platform concerns
-- `app/db/*` for DB/session entrypoints and ORM models
+- `app/platform/*` for configuration values, database factories and security primitives
+- `app/runtime/*` for isolated process composition and HTTP adapters
+- `app/core/*` for shared HTTP and logging infrastructure
+- `app/db/*` for ORM models and persistence contracts
 - `app/shared/*` for shared helpers and enums
-- `app/worker/*` for Celery runtime entrypoints
+- `app/worker/*` for task registration and execution handlers
 - `app/modules/import_jobs/pipeline/*` and `app/processing/*` for processing workflows
-- `app/api/v1/router.py` for top-level route aggregation
+- `app/runtime/customer_api/router.py` for top-level route aggregation
 
 `scripts/` owns runtime and operational tools; `tests/` owns core backend behavior
 tests. [Research](research/README.md) owns experiments, qualification, datasets and
 scientific tests, independently of the core quality image.
+
+Customer authentication uses PostgreSQL-backed opaque sessions, Redis identity
+hints and Argon2id passwords. The [Consumer Session Contract](../docs/architecture/consumer-sessions.md)
+defines JSON endpoints, host-only cookies, device revocation and email fragments.
 
 Application modules:
 
@@ -82,20 +88,26 @@ Redis and the database may run on the host.
 Create the required Docker environment file first:
 
 ```powershell
-Copy-Item backend/.env.docker.example backend/.env.docker
+Copy-Item backend/.env.docker.customer-api.example backend/.env.docker.customer-api
+Copy-Item backend/.env.docker.worker.example backend/.env.docker.worker
+Copy-Item backend/.env.docker.beat.example backend/.env.docker.beat
+Copy-Item backend/.env.docker.migrator.example backend/.env.docker.migrator
 ```
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml build worker-deps
 docker compose -f docker-compose.backend-dev.yml build api
-docker compose -f docker-compose.backend-dev.yml run --rm api check
-docker compose -f docker-compose.backend-dev.yml run --rm api migrate
+docker compose -f docker-compose.backend-dev.yml run --rm api check --role api
+docker compose -f docker-compose.backend-dev.yml --profile tools run --rm migrate migrate
 docker compose -f docker-compose.backend-dev.yml up api worker beat
 ```
 
-The database uses one standalone [current-schema baseline](alembic/versions/0001_initial_schema.py).
+The database uses the [schema baseline](alembic/versions/0001_initial_schema.py) and
+[authorization functions](alembic/versions/0002_database_authorization.py).
+Provision the explicit roles and schema owner before migrating; apply
+[reviewed grants](../docs/architecture/runtime/database-role-ownership.md) after migrations.
 Run `alembic upgrade head` against an empty application schema. Development initialization uses an empty database. The baseline installs the
-current FREE quota policy; it does not install users or history.
+current FREE, PLUS and PRO quota policies; it does not install users or history.
 [PostgreSQL schema tests](tests/test_database_schema.py) compare the complete fresh
 schema with ORM metadata and verify bootstrap, teardown and re-creation. Backend CI
 runs this schema contract explicitly against its dedicated PostgreSQL service.
@@ -121,14 +133,12 @@ The runtime check supports process roles:
 
 ```powershell
 docker compose -f docker-compose.backend-dev.yml run --rm api check --role api
-docker compose -f docker-compose.backend-dev.yml run --rm api check --role worker
-docker compose -f docker-compose.backend-dev.yml run --rm api check --role beat
-docker compose -f docker-compose.backend-dev.yml run --rm api check --role all
+docker compose -f docker-compose.backend-dev.yml run --rm worker check --role worker
+docker compose -f docker-compose.backend-dev.yml run --rm beat check --role beat
+docker compose -f docker-compose.backend-dev.yml --profile control-plane run --rm control check --role control
 ```
 
-`--role control` and `--role all` require the independent
-`CONTROL_PLANE_*` configuration described above. This is intentional: a full
-runtime validation must not silently omit the control-plane identity boundary.
+Run each check with that process's isolated environment and database role.
 
 Worker and beat run their own required checks before starting. They fail closed;
 there is no environment switch that bypasses the startup gate. The API exposes
@@ -168,7 +178,7 @@ Avatar uses bounded API upload with JPEG normalization and a 5 MiB limit.
 Playback endpoints return short-lived signed JSON capabilities. Large-media Range
 requests terminate at storage/CDN. Media processing readiness controls Take playback.
 
-Development runtime uses the bucket configured in `backend/.env.docker`; Compose
+Development runtime uses the bucket configured in `backend/.env.docker.customer-api`; Compose
 does not override it. Development and cross-end tests use the configured
 S3-compatible cloud bucket. Unit and CI tests inject InMemoryObjectStorage. Provider policy examples and
 requirements are in [object-storage deployment](../deploy/object-storage/README.md).
@@ -238,3 +248,9 @@ It runs the same baseline checks for pushes and pull requests that touch
 - [Docker backend runtime runbook](../docs/operations/runbooks/docker-backend-runtime-runbook.md)
 
 Durable object ownership and development configuration are described in [ObjectStorage](../docs/architecture/object-storage.md).
+
+Control Plane requires a dedicated generated `OPERATOR_TOTP_ENCRYPTION_KEY` in
+its isolated environment file. Operator bootstrap uses email and a TTY password;
+the first login requires TOTP enrollment. See
+[Control Plane Authentication](../docs/architecture/control-plane-auth.md) for the
+API, role, recovery and audit contracts.

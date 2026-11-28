@@ -1,61 +1,57 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 cd /app
-
 export PYTHONPATH="/app:${PYTHONPATH:-}"
 
-enable_uvicorn_reload() {
-  # Runtime data is bind mounted below /app/data. Watch only application source
-  # so worker artifacts cannot restart an HTTP process during active work.
-  uvicorn_args+=(--reload --reload-dir /app/app)
+http_runtime() {
+  local module="$1"
+  local -a server=("$module" --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log --no-proxy-headers)
+  if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
+    server+=(--reload --reload-dir /app/app)
+  fi
+  exec python -m uvicorn "${server[@]}"
 }
 
-case "${1:-api}" in
-  api)
-    uvicorn_args=(app.main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
-    if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
-      enable_uvicorn_reload
-    fi
-    exec python -m uvicorn "${uvicorn_args[@]}"
+case "${1:?Explicit runtime command is required}" in
+  customer-api)
+    test "$#" -eq 1
+    http_runtime app.runtime.customer_api.main:app
     ;;
-  control)
+  control-plane)
+    test "$#" -eq 1
     python scripts/check_runtime.py --role control
-    uvicorn_args=(app.control_plane_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
-    if [ "${UVICORN_RELOAD:-false}" = "true" ]; then
-      enable_uvicorn_reload
-    fi
-    exec python -m uvicorn "${uvicorn_args[@]}"
-    ;;
-  observability-exporter)
-    python scripts/check_runtime.py --role observability-exporter
-    uvicorn_args=(app.observability_main:app --host 0.0.0.0 --port "${PORT:-8000}" --no-access-log)
-    exec python -m uvicorn "${uvicorn_args[@]}"
-    ;;
-  worker)
-    export NOTEVERSE_CELERY_IMPORT_TASKS=true
-    python scripts/check_runtime.py --role worker
-    exec python -m celery -A app.task_queue.config:celery_app worker \
-      --loglevel="${CELERY_LOGLEVEL:-info}" \
-      --concurrency="${CELERY_WORKER_CONCURRENCY:-1}"
+    http_runtime app.runtime.control_plane.main:app
     ;;
   beat)
+    test "$#" -eq 1
     python scripts/check_runtime.py --role beat
-    exec python -m app.modules.scheduler_lock.beat_leader -- \
-      python -m celery -A app.task_queue.config:celery_app beat \
+    exec python -m app.runtime.beat.leader -- \
+      python -m celery -A app.runtime.beat.main:celery_app beat \
       --loglevel="${CELERY_LOGLEVEL:-info}"
     ;;
-  check)
+  migrator)
+    test "$#" -eq 1
+    alembic upgrade head
+    exec python scripts/provision_database.py grants
+    ;;
+  database-bootstrap)
     shift
-    exec python scripts/check_runtime.py "$@"
+    exec python scripts/provision_database.py bootstrap "$@"
     ;;
-  migrate)
-    exec alembic upgrade head
+  seed-integration)
+    shift
+    exec python scripts/seed_integration_user.py "$@"
     ;;
-  bash)
-    exec /bin/bash
+  create-operator)
+    shift
+    exec python scripts/create_operator.py "$@"
+    ;;
+  contract)
+    shift
+    exec python scripts/check_image_contract.py --role core "$@"
     ;;
   *)
-    exec "$@"
+    echo "Unsupported core runtime command" >&2
+    exit 64
     ;;
 esac

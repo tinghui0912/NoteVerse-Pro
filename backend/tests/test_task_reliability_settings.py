@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.worker_runtime import WorkerRuntimeSettings
-from app.core.settings.task_reliability import TaskReliabilitySettings
+from app.runtime.worker.settings import WorkerSettings
+from app.platform.config.task_reliability import TaskReliabilitySettings
 
 
 def test_task_reliability_settings_accept_an_ordered_shutdown_envelope() -> None:
@@ -38,7 +38,7 @@ def test_task_reliability_settings_reject_invalid_deadline_envelopes(
 
 def test_worker_runtime_settings_reject_ocr_deadline_above_processing_deadline() -> None:
     with pytest.raises(ValidationError, match="PADDLEOCR_TIMEOUT_SECONDS must not exceed"):
-        WorkerRuntimeSettings(
+        WorkerSettings(
             LEGATO_REPO_PATH="/opt/noteverse/legato",
             PLAYBACK_SOUNDFONT_PATH="/opt/noteverse/models/soundfonts/FluidR3_GM.sf2",
             PADDLEOCR_TIMEOUT_SECONDS=901,

@@ -268,13 +268,25 @@ export const AsyncOperationsSummaryReadSchema = {
     type: 'object'
 } as const;
 
+export const ChallengePurposeSchema = {
+    enum: [
+        'ENROLLMENT_REQUIRED',
+        'VERIFICATION_REQUIRED'
+    ],
+    title: 'ChallengePurpose',
+    type: 'string'
+} as const;
+
 export const ControlPlaneErrorCodeSchema = {
     enum: [
         'validation_error',
+        'payload_too_large',
         'token_invalid_expired',
         'invalid_credentials',
         'no_access',
-        'csrf_token_invalid',
+        'unsupported_media_type',
+        'rate_limit_exceeded',
+        'rate_limit_unavailable',
         'request_origin_invalid',
         'resource_not_found',
         'auth_failed',
@@ -308,6 +320,103 @@ export const ControlPlaneErrorResponseSchema = {
     type: 'object'
 } as const;
 
+export const CreateOperatorCommandSchema = {
+    properties: {
+        display_name: {
+            maxLength: 128,
+            minLength: 1,
+            title: 'Display Name',
+            type: 'string'
+        },
+        email: {
+            format: 'email',
+            title: 'Email',
+            type: 'string'
+        },
+        password: {
+            maxLength: 128,
+            minLength: 12,
+            title: 'Password',
+            type: 'string'
+        },
+        reason: {
+            maxLength: 500,
+            minLength: 3,
+            title: 'Reason',
+            type: 'string'
+        },
+        role: {
+            $ref: '#/components/schemas/OperatorRole'
+        }
+    },
+    required: [
+        'reason',
+        'email',
+        'display_name',
+        'password',
+        'role'
+    ],
+    title: 'CreateOperatorCommand',
+    type: 'object'
+} as const;
+
+export const CustomerDirectoryReadSchema = {
+    properties: {
+        display_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Display Name'
+        },
+        email: {
+            title: 'Email',
+            type: 'string'
+        },
+        is_active: {
+            title: 'Is Active',
+            type: 'boolean'
+        },
+        user_id: {
+            title: 'User Id',
+            type: 'integer'
+        }
+    },
+    required: [
+        'user_id',
+        'email',
+        'display_name',
+        'is_active'
+    ],
+    title: 'CustomerDirectoryRead',
+    type: 'object'
+} as const;
+
+export const CustomerStatusCommandSchema = {
+    properties: {
+        is_active: {
+            title: 'Is Active',
+            type: 'boolean'
+        },
+        reason: {
+            maxLength: 500,
+            minLength: 3,
+            title: 'Reason',
+            type: 'string'
+        }
+    },
+    required: [
+        'reason',
+        'is_active'
+    ],
+    title: 'CustomerStatusCommand',
+    type: 'object'
+} as const;
+
 export const DurableFailureClassSchema = {
     enum: [
         'transient',
@@ -331,6 +440,64 @@ export const LivenessReadSchema = {
         'status'
     ],
     title: 'LivenessRead',
+    type: 'object'
+} as const;
+
+export const MfaChallengeReadSchema = {
+    properties: {
+        expires_at: {
+            format: 'date-time',
+            title: 'Expires At',
+            type: 'string'
+        },
+        purpose: {
+            $ref: '#/components/schemas/ChallengePurpose'
+        }
+    },
+    required: [
+        'purpose',
+        'expires_at'
+    ],
+    title: 'MfaChallengeRead',
+    type: 'object'
+} as const;
+
+export const MfaEnrollmentReadSchema = {
+    properties: {
+        operator: {
+            $ref: '#/components/schemas/OperatorRead'
+        },
+        recovery_codes: {
+            items: {
+                type: 'string'
+            },
+            title: 'Recovery Codes',
+            type: 'array'
+        }
+    },
+    required: [
+        'operator',
+        'recovery_codes'
+    ],
+    title: 'MfaEnrollmentRead',
+    type: 'object'
+} as const;
+
+export const MfaVerifiedReadSchema = {
+    properties: {
+        operator: {
+            $ref: '#/components/schemas/OperatorRead'
+        },
+        recovery_codes_remaining: {
+            title: 'Recovery Codes Remaining',
+            type: 'integer'
+        }
+    },
+    required: [
+        'operator',
+        'recovery_codes_remaining'
+    ],
+    title: 'MfaVerifiedRead',
     type: 'object'
 } as const;
 
@@ -363,6 +530,70 @@ export const OffsetPage_AsyncOperationRead_Schema = {
         'has_more'
     ],
     title: 'OffsetPage[AsyncOperationRead]',
+    type: 'object'
+} as const;
+
+export const OffsetPage_CustomerDirectoryRead_Schema = {
+    properties: {
+        has_more: {
+            title: 'Has More',
+            type: 'boolean'
+        },
+        items: {
+            items: {
+                $ref: '#/components/schemas/CustomerDirectoryRead'
+            },
+            title: 'Items',
+            type: 'array'
+        },
+        limit: {
+            title: 'Limit',
+            type: 'integer'
+        },
+        offset: {
+            title: 'Offset',
+            type: 'integer'
+        }
+    },
+    required: [
+        'items',
+        'limit',
+        'offset',
+        'has_more'
+    ],
+    title: 'OffsetPage[CustomerDirectoryRead]',
+    type: 'object'
+} as const;
+
+export const OffsetPage_OperatorRead_Schema = {
+    properties: {
+        has_more: {
+            title: 'Has More',
+            type: 'boolean'
+        },
+        items: {
+            items: {
+                $ref: '#/components/schemas/OperatorRead'
+            },
+            title: 'Items',
+            type: 'array'
+        },
+        limit: {
+            title: 'Limit',
+            type: 'integer'
+        },
+        offset: {
+            title: 'Offset',
+            type: 'integer'
+        }
+    },
+    required: [
+        'items',
+        'limit',
+        'offset',
+        'has_more'
+    ],
+    title: 'OffsetPage[OperatorRead]',
     type: 'object'
 } as const;
 
@@ -400,25 +631,37 @@ export const OffsetPage_OpsAuditEventRead_Schema = {
 
 export const OperatorLoginCommandSchema = {
     properties: {
-        password: {
-            maxLength: 1024,
-            minLength: 1,
-            title: 'Password',
+        email: {
+            format: 'email',
+            title: 'Email',
             type: 'string'
         },
-        username: {
-            maxLength: 255,
-            minLength: 3,
-            title: 'Username',
+        password: {
+            maxLength: 128,
+            minLength: 1,
+            title: 'Password',
             type: 'string'
         }
     },
     required: [
-        'username',
+        'email',
         'password'
     ],
     title: 'OperatorLoginCommand',
     type: 'object'
+} as const;
+
+export const OperatorPermissionSchema = {
+    enum: [
+        'operations.read',
+        'operations.retry',
+        'users.read',
+        'users.suspend',
+        'audit.read',
+        'operators.manage'
+    ],
+    title: 'OperatorPermission',
+    type: 'string'
 } as const;
 
 export const OperatorReadSchema = {
@@ -427,18 +670,41 @@ export const OperatorReadSchema = {
             title: 'Display Name',
             type: 'string'
         },
+        email: {
+            format: 'email',
+            title: 'Email',
+            type: 'string'
+        },
         operator_id: {
             title: 'Operator Id',
             type: 'string'
         },
+        permissions: {
+            items: {
+                $ref: '#/components/schemas/OperatorPermission'
+            },
+            title: 'Permissions',
+            type: 'array'
+        },
         role: {
             $ref: '#/components/schemas/OperatorRole'
+        },
+        status: {
+            $ref: '#/components/schemas/OperatorStatus'
+        },
+        totp_enabled: {
+            title: 'Totp Enabled',
+            type: 'boolean'
         }
     },
     required: [
         'operator_id',
+        'email',
         'display_name',
-        'role'
+        'role',
+        'status',
+        'permissions',
+        'totp_enabled'
     ],
     title: 'OperatorRead',
     type: 'object'
@@ -446,9 +712,20 @@ export const OperatorReadSchema = {
 
 export const OperatorRoleSchema = {
     enum: [
-        'platform_operator'
+        'SUPPORT_READONLY',
+        'PLATFORM_OPERATOR',
+        'SUPER_ADMIN'
     ],
     title: 'OperatorRole',
+    type: 'string'
+} as const;
+
+export const OperatorStatusSchema = {
+    enum: [
+        'active',
+        'disabled'
+    ],
+    title: 'OperatorStatus',
     type: 'string'
 } as const;
 
@@ -468,17 +745,6 @@ export const OpsAuditEventReadSchema = {
                 }
             ],
             title: 'Actor Operator Id'
-        },
-        client_address: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Client Address'
         },
         created_at: {
             format: 'date-time',
@@ -500,6 +766,22 @@ export const OpsAuditEventReadSchema = {
             title: 'Event Id',
             type: 'string'
         },
+        ip_address: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ip Address'
+        },
+        metadata_json: {
+            additionalProperties: true,
+            title: 'Metadata Json',
+            type: 'object'
+        },
         new_state: {
             anyOf: [
                 {
@@ -511,26 +793,8 @@ export const OpsAuditEventReadSchema = {
             ],
             title: 'New State'
         },
-        operation_id: {
-            title: 'Operation Id',
-            type: 'string'
-        },
-        operation_kind: {
-            $ref: '#/components/schemas/AsyncOperationKind'
-        },
         outcome: {
             $ref: '#/components/schemas/OpsAuditOutcome'
-        },
-        peer_address: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Peer Address'
         },
         previous_state: {
             anyOf: [
@@ -544,15 +808,8 @@ export const OpsAuditEventReadSchema = {
             title: 'Previous State'
         },
         reason: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Reason'
+            title: 'Reason',
+            type: 'string'
         },
         request_id: {
             anyOf: [
@@ -564,22 +821,42 @@ export const OpsAuditEventReadSchema = {
                 }
             ],
             title: 'Request Id'
+        },
+        target_id: {
+            title: 'Target Id',
+            type: 'string'
+        },
+        target_type: {
+            title: 'Target Type',
+            type: 'string'
+        },
+        user_agent: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Agent'
         }
     },
     required: [
         'event_id',
         'actor_operator_id',
         'action',
-        'operation_kind',
-        'operation_id',
+        'target_type',
+        'target_id',
         'outcome',
         'error_code',
         'reason',
         'request_id',
-        'peer_address',
-        'client_address',
+        'user_agent',
+        'ip_address',
         'previous_state',
         'new_state',
+        'metadata_json',
         'created_at'
     ],
     title: 'OpsAuditEventRead',
@@ -654,6 +931,61 @@ export const ReadinessUnavailableReadSchema = {
     type: 'object'
 } as const;
 
+export const ReasonCommandSchema = {
+    properties: {
+        reason: {
+            maxLength: 500,
+            minLength: 3,
+            title: 'Reason',
+            type: 'string'
+        }
+    },
+    required: [
+        'reason'
+    ],
+    title: 'ReasonCommand',
+    type: 'object'
+} as const;
+
+export const RecoveryCodeCommandSchema = {
+    additionalProperties: false,
+    properties: {
+        recovery_code: {
+            pattern: '^[A-Fa-f0-9]{5}(-[A-Fa-f0-9]{5}){3}$',
+            title: 'Recovery Code',
+            type: 'string'
+        }
+    },
+    required: [
+        'recovery_code'
+    ],
+    title: 'RecoveryCodeCommand',
+    type: 'object'
+} as const;
+
+export const ResetOperatorPasswordCommandSchema = {
+    properties: {
+        password: {
+            maxLength: 128,
+            minLength: 12,
+            title: 'Password',
+            type: 'string'
+        },
+        reason: {
+            maxLength: 500,
+            minLength: 3,
+            title: 'Reason',
+            type: 'string'
+        }
+    },
+    required: [
+        'reason',
+        'password'
+    ],
+    title: 'ResetOperatorPasswordCommand',
+    type: 'object'
+} as const;
+
 export const RetryAsyncOperationCommandSchema = {
     properties: {
         reason: {
@@ -667,5 +999,64 @@ export const RetryAsyncOperationCommandSchema = {
         'reason'
     ],
     title: 'RetryAsyncOperationCommand',
+    type: 'object'
+} as const;
+
+export const TotpCodeCommandSchema = {
+    additionalProperties: false,
+    properties: {
+        code: {
+            pattern: '^[0-9]{6}$',
+            title: 'Code',
+            type: 'string'
+        }
+    },
+    required: [
+        'code'
+    ],
+    title: 'TotpCodeCommand',
+    type: 'object'
+} as const;
+
+export const TotpEnrollmentReadSchema = {
+    properties: {
+        otpauth_uri: {
+            title: 'Otpauth Uri',
+            type: 'string'
+        },
+        secret: {
+            title: 'Secret',
+            type: 'string'
+        }
+    },
+    required: [
+        'secret',
+        'otpauth_uri'
+    ],
+    title: 'TotpEnrollmentRead',
+    type: 'object'
+} as const;
+
+export const UpdateOperatorCommandSchema = {
+    properties: {
+        reason: {
+            maxLength: 500,
+            minLength: 3,
+            title: 'Reason',
+            type: 'string'
+        },
+        role: {
+            $ref: '#/components/schemas/OperatorRole'
+        },
+        status: {
+            $ref: '#/components/schemas/OperatorStatus'
+        }
+    },
+    required: [
+        'reason',
+        'role',
+        'status'
+    ],
+    title: 'UpdateOperatorCommand',
     type: 'object'
 } as const;

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+
 from pathlib import Path
 from typing import Any
 
-from app.core.config import Settings
-from app.core.settings.task_reliability import TaskReliabilitySettings
+from app.platform.config.queue_schedule import QueueScheduleConfig
+from app.platform.config.task_reliability import TaskReliabilitySettings
 from app.task_queue.schedule import build_beat_schedule
 
 
@@ -14,7 +15,7 @@ CeleryRuntimeOptions = dict[str, Any]
 
 
 def build_celery_runtime_options(
-    settings: Settings,
+    settings: QueueScheduleConfig,
     task_reliability_settings: TaskReliabilitySettings,
     *,
     beat_schedule_filename: Path,

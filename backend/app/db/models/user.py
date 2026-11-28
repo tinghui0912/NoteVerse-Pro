@@ -8,7 +8,6 @@ from .stored_object import StoredObject
 from app.shared.time import utc_now
 
 if TYPE_CHECKING:
-    from .auth import RefreshToken
     from .upload import Upload
 
 
@@ -53,4 +52,3 @@ class User(SQLModel, table=True):  # type: ignore[call-arg]
     )
 
     uploads: List["Upload"] = Relationship(back_populates="uploader")
-    refresh_tokens: List["RefreshToken"] = Relationship(back_populates="user")

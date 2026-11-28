@@ -1,6 +1,7 @@
 """Revision render identity is the exact revision/profile pair."""
 
-from app.composition import storage_resources as _resource_wiring
+from tests.support.runtime_resources import resources_for
+
 
 import zipfile
 
@@ -106,7 +107,7 @@ def test_asset_list_exposes_variants_and_archive_selects_one_profile(score_servi
         for page in (2, 1):
             add_page(db, storage, profile, page)
     db.commit()
-    service = ScoreAssetService(delivery=_resource_wiring.build_media_delivery_service(storage))
+    service = ScoreAssetService(delivery=resources_for(storage).build_media_delivery_service())
     listing = service.list_revision_assets(db, "variant-score", 1)
     assert {asset.render_profile for asset in listing.render_assets} == {
         SCORE_PRESENTATION_RENDER_PROFILE,

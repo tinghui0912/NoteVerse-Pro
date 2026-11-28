@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.modules.scheduler_lock.beat_leader import BeatLeader
+
+from app.runtime.beat.leader import BeatLeader
 from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
 
 

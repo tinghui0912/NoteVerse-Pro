@@ -9,7 +9,7 @@ from app.modules.import_jobs.requested_options import (
 )
 from app.modules.import_jobs.schemas import ImportJobSubmitRequest
 from app.modules.scores.genres import ScoreGenre
-from app.main import app
+from app.runtime.customer_api.main import app
 
 
 def test_default_and_requested_intent_have_canonical_versioned_json():

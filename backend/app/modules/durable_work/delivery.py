@@ -6,6 +6,7 @@ Every transition receives its clock and policy explicitly and performs no IO.
 
 from __future__ import annotations
 
+
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -70,8 +71,85 @@ class ClaimAdmission(Enum):
 
 
 @dataclass(frozen=True)
-class DurableDeliveryLifecycle(Generic[Status]):
+class DeliveryTransitions(Generic[Status]):
+    """Policy-free state transitions with exact attempt fencing."""
+
     statuses: DeliveryStatuses[Status]
+
+    def release_dispatch(
+        self, record: DeliveryRecord[Status], *, error: str, now: datetime
+    ) -> bool:
+        if record.status != self.statuses.dispatched:
+            return False
+        record.status = self.statuses.pending
+        record.attempt_token = None
+        record.dispatched_at = None
+        record.failure_detail = bounded_failure_detail(error)
+        record.updated_at = now
+        return True
+
+    def finish(
+        self, record: DeliveryRecord[Status], *, status: Status, error: str | None, now: datetime
+    ) -> None:
+        """Apply a caller-selected terminal outcome without interpreting its meaning."""
+        if status == self.statuses.processing:
+            raise ValueError("PROCESSING is entered only by claim")
+        record.status = status
+        record.attempt_token = None
+        record.completed_at = now
+        record.failure_detail = bounded_failure_detail(error)
+        record.updated_at = now
+
+    def attempt_matches(self, record: DeliveryRecord[Status], lease: DeliveryAttemptLease) -> bool:
+        return (
+            record.status == self.statuses.processing
+            and record.attempt_count == lease.attempt
+            and record.attempt_token == lease.token
+        )
+
+    def finish_attempt(
+        self,
+        record: DeliveryRecord[Status],
+        *,
+        lease: DeliveryAttemptLease,
+        status: Status,
+        error: str | None,
+        now: datetime,
+    ) -> bool:
+        if not self.attempt_matches(record, lease):
+            return False
+        self.finish(record, status=status, error=error, now=now)
+        return True
+
+    def complete_attempt(
+        self, record: DeliveryRecord[Status], *, lease: DeliveryAttemptLease, now: datetime
+    ) -> bool:
+        return self.finish_attempt(
+            record, lease=lease, status=self.statuses.succeeded, error=None, now=now
+        )
+
+    def reset(
+        self, record: DeliveryRecord[Status], *, status: Status, reset_attempts: bool, now: datetime
+    ) -> None:
+        if status == self.statuses.processing:
+            raise ValueError("PROCESSING is entered only by claim")
+        record.status = status
+        record.attempt_token = None
+        if reset_attempts:
+            record.attempt_count = 0
+        record.next_attempt_at = now
+        record.dispatched_at = None
+        record.started_at = None
+        record.completed_at = None
+        record.failure_detail = None
+        record.updated_at = now
+
+    def rearm(self, record: DeliveryRecord[Status], *, now: datetime) -> None:
+        self.reset(record, status=self.statuses.pending, reset_attempts=True, now=now)
+
+
+@dataclass(frozen=True)
+class DurableDeliveryLifecycle(DeliveryTransitions[Status]):
     policy: DeliveryLifecyclePolicy
 
     def is_dispatchable(self, record: DeliveryRecord[Status], *, now: datetime) -> bool:
@@ -87,18 +165,6 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.status = self.statuses.dispatched
         record.attempt_token = None
         record.dispatched_at = now
-        record.updated_at = now
-        return True
-
-    def release_dispatch(
-        self, record: DeliveryRecord[Status], *, error: str, now: datetime
-    ) -> bool:
-        if record.status != self.statuses.dispatched:
-            return False
-        record.status = self.statuses.pending
-        record.attempt_token = None
-        record.dispatched_at = None
-        record.failure_detail = bounded_failure_detail(error)
         record.updated_at = now
         return True
 
@@ -141,46 +207,6 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.failure_detail = bounded_failure_detail(error)
         record.updated_at = now
 
-    def finish(
-        self, record: DeliveryRecord[Status], *, status: Status, error: str | None, now: datetime
-    ) -> None:
-        """Apply a caller-selected terminal outcome without interpreting its meaning."""
-        if status == self.statuses.processing:
-            raise ValueError("PROCESSING is entered only by claim")
-        record.status = status
-        record.attempt_token = None
-        record.completed_at = now
-        record.failure_detail = bounded_failure_detail(error)
-        record.updated_at = now
-
-    def attempt_matches(self, record: DeliveryRecord[Status], lease: DeliveryAttemptLease) -> bool:
-        return (
-            record.status == self.statuses.processing
-            and record.attempt_count == lease.attempt
-            and record.attempt_token == lease.token
-        )
-
-    def finish_attempt(
-        self,
-        record: DeliveryRecord[Status],
-        *,
-        lease: DeliveryAttemptLease,
-        status: Status,
-        error: str | None,
-        now: datetime,
-    ) -> bool:
-        if not self.attempt_matches(record, lease):
-            return False
-        self.finish(record, status=status, error=error, now=now)
-        return True
-
-    def complete_attempt(
-        self, record: DeliveryRecord[Status], *, lease: DeliveryAttemptLease, now: datetime
-    ) -> bool:
-        return self.finish_attempt(
-            record, lease=lease, status=self.statuses.succeeded, error=None, now=now
-        )
-
     def fail_attempt(
         self,
         record: DeliveryRecord[Status],
@@ -213,25 +239,6 @@ class DurableDeliveryLifecycle(Generic[Status]):
         record.failure_detail = bounded_failure_detail(error)
         record.updated_at = now
         return True
-
-    def reset(
-        self, record: DeliveryRecord[Status], *, status: Status, reset_attempts: bool, now: datetime
-    ) -> None:
-        if status == self.statuses.processing:
-            raise ValueError("PROCESSING is entered only by claim")
-        record.status = status
-        record.attempt_token = None
-        if reset_attempts:
-            record.attempt_count = 0
-        record.next_attempt_at = now
-        record.dispatched_at = None
-        record.started_at = None
-        record.completed_at = None
-        record.failure_detail = None
-        record.updated_at = now
-
-    def rearm(self, record: DeliveryRecord[Status], *, now: datetime) -> None:
-        self.reset(record, status=self.statuses.pending, reset_attempts=True, now=now)
 
     def exhaust(self, record: DeliveryRecord[Status], *, error: str, now: datetime) -> None:
         record.status = self.statuses.failed

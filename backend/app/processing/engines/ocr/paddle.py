@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 import json
 import os
 import subprocess
@@ -9,13 +10,13 @@ import sys
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
-from app.core.settings.worker_runtime import get_worker_runtime_settings
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
 from app.core.logger import logger
 
 _CREATE_NO_WINDOW = int(getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 _BACKEND_DIR = Path(__file__).resolve().parents[3]
-_WORKER_MODULE = "app.processing.engines.ocr.paddle_worker"
+_WORKER_MODULE = "app.runtime.paddle_ocr.main"
 _PADDLEOCR_ENV_NAMES = (
     "PADDLEOCR_MODEL_ROOT",
     "PADDLEOCR_DETECTION_MODEL_DIR",
@@ -77,6 +78,8 @@ def _load_json_payload(stdout: str) -> dict[str, Any] | None:
 def run_ocr_subprocess(
     image_path: str,
     timeout_seconds: int | None = None,
+    *,
+    config: WorkerModelEngineSettings,
 ) -> PaddleOcrResult:
     """Run PaddleOCR in an isolated subprocess and return a JSON-safe result."""
     if not os.path.exists(image_path):
@@ -92,8 +95,27 @@ def run_ocr_subprocess(
         _WORKER_MODULE,
         os.path.abspath(image_path),
     ]
-    env = os.environ.copy()
-    worker_settings = get_worker_runtime_settings()
+    environment_keys = (
+        "PATH",
+        "PYTHONPATH",
+        "HOME",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "SYSTEMROOT",
+        "WINDIR",
+        "LD_LIBRARY_PATH",
+        "CUDA_VISIBLE_DEVICES",
+        "NVIDIA_VISIBLE_DEVICES",
+        "NVIDIA_DRIVER_CAPABILITIES",
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "FLAGS_use_mkldnn",
+        "LANG",
+        "LC_ALL",
+    )
+    env = {name: os.environ[name] for name in environment_keys if name in os.environ}
+    worker_settings = config
     for name in _PADDLEOCR_ENV_NAMES:
         value = getattr(worker_settings, name, None)
         if value:

@@ -1,3 +1,4 @@
+import { navigateWithinPolicy } from './support/document-navigation';
 import {
   compositeVideoOutputFiles,
   installCompositeVideoOutputBarrier,
@@ -72,7 +73,7 @@ for (const [sourceState, sourceKind] of [['LIVE', 'VIDEO'], ['DELETED', 'VIDEO']
     await page.route('**/api/v1/practice/scores/*/revisions/*/bundle*',
       (route) => route.fulfill({
       status: sourceState === 'DELETED' ? 404 : 200, contentType: 'application/json',
-      body: JSON.stringify(sourceState === 'DELETED' ? { code: 'resource_not_found', request_id: null } : {
+      body: JSON.stringify(sourceState === 'DELETED' ? { code: 'resource_not_found', request_id: 'e2e-request' } : {
         binding:{score_id:take.manifest.practice_binding.score_id,revision_id:take.manifest.practice_binding.revision_id,bundle_id:sourceState === 'MISMATCH' ? 'another-bundle' : take.manifest.practice_binding.bundle_id}, artifact,
           notation: { musicxml: musicXml, mime_type: 'application/vnd.recordare.musicxml+xml' },
       }),
@@ -112,8 +113,8 @@ for (const [sourceState, sourceKind] of [['LIVE', 'VIDEO'], ['DELETED', 'VIDEO']
       await page.evaluate(() => (window as unknown as { __videoOutput: { arm(): void } }).__videoOutput.arm());
       await page.getByTestId("generate-composite-video").click();
       await expect.poll(() => page.evaluate(() => (window as unknown as { __videoOutput: { pending: boolean } }).__videoOutput.pending)).toBe(true);
-      await page.getByRole('button',{name:'Back to My Performances',exact:true}).click();
-      await expect(page).toHaveURL(/\/my-performances$/);
+      await page.route('**/api/v1/performance-takes/unavailable', route => route.fulfill({status: 404, json: {code: 'resource_not_found', request_id: 'e2e-request'}}));
+      await navigateWithinPolicy(page, '/en/my-performances/unavailable/score-video');
       expect((await temporaryMediaFiles(page)).filter(
           (name) => !name.endsWith('.crswap'))).toHaveLength(1);
       await page.evaluate(() => (window as unknown as { __videoOutput: { release(): void } }).__videoOutput.release());
@@ -163,9 +164,8 @@ test('route exit during saved-media streaming aborts the writer and removes its 
   await expect.poll(()=>page.evaluate(()=>(window as unknown as {__savedMediaWrite:{pending:boolean}}).__savedMediaWrite.pending)).toBe(true);
   expect((await temporaryMediaFiles(page)).filter(
       (name) =>!name.endsWith('.crswap'))).toHaveLength(1);
-  // Native client navigation preserves this document so the deferred writer can settle after unmount.
-  await page.getByRole('link',{name:'Library',exact:true}).click();
-  await expect(page).toHaveURL(/\/library$/);
+  await page.route('**/api/v1/performance-takes/unavailable', route => route.fulfill({status: 404, json: {code: 'resource_not_found', request_id: 'e2e-request'}}));
+  await navigateWithinPolicy(page, '/en/my-performances/unavailable/score-video');
   await page.evaluate(()=>(window as unknown as {__savedMediaWrite:{release():void}}).__savedMediaWrite.release());
   await expect.poll(()=>temporaryMediaFiles(page)).toEqual([]);
 });

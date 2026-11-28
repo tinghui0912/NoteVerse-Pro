@@ -1,5 +1,7 @@
 """Short database phases surround provider IO; consumption transfers physical authority."""
 
+from app.modules.account.resource_users import resource_user_query
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from hashlib import sha256
@@ -88,7 +90,7 @@ def lock_session(db: Session, uuid: str, user_id: int | None = None) -> UploadSe
 
 def lock_upload_user(db: Session, user_id: int) -> None:
     user = db.scalar(
-        select(User)
+        resource_user_query()
         .where(User.id == user_id, User.is_active.is_(True), User.deleted_at.is_(None))
         .with_for_update()
     )

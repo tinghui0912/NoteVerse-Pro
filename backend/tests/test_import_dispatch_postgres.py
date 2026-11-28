@@ -31,6 +31,7 @@ from app.modules.import_jobs.dispatch_service import (
 from app.modules.import_jobs.execution_recorder import ImportExecutionRecorder
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
+from app.platform.config.import_dispatch import ImportDispatchSettings
 
 
 def test_fresh_import_schema_ownership_token_constraints_and_cascade(monkeypatch):
@@ -181,7 +182,7 @@ def test_mutation_lock_excludes_recovery_and_reclaimed_attempt_fences_cached_wor
             row = ImportDispatch(job_id=job.id)
             setup.add(row)
             setup.commit()
-            service = ImportDispatchService()
+            service = ImportDispatchService(config=ImportDispatchSettings())
             first = service.claim(setup, row.dispatch_uuid).lease
             setup.commit()
             row.started_at = utc_now() - timedelta(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.modules.account.resource_users import resource_user_query
+
 from datetime import datetime
 
 from sqlalchemy import select, and_, or_, exists
@@ -17,7 +19,7 @@ class CollaborationRepository:
             return {}
         return {
             require_persisted_id(user.id, entity="user"): user
-            for user in db.scalars(select(User).where(User.id.in_(user_ids)))
+            for user in db.scalars(resource_user_query().where(User.id.in_(user_ids)))
         }
 
     def scores(self, db: Session, score_ids: set[int]) -> dict[int, Score]:
@@ -42,7 +44,7 @@ class CollaborationRepository:
         if user_id is None:
             return None
         return db.scalar(
-            select(User)
+            resource_user_query()
             .where(User.id == user_id, User.is_active.is_(True), User.deleted_at.is_(None))
             .with_for_update(read=True, key_share=True)
             .execution_options(populate_existing=True)
@@ -262,4 +264,4 @@ class CollaborationRepository:
         return items, next_cursor
 
     def user_by_email(self, db: Session, email: str) -> User | None:
-        return (db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+        return (db.execute(resource_user_query().where(User.email == email))).scalar_one_or_none()

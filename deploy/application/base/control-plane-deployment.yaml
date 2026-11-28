@@ -22,24 +22,31 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: control-plane
-          image: noteverse-backend-api:replace-me
+          image: noteverse-backend-core:replace-me
           args:
-            - control
+            - control-plane
           ports:
             - name: http
               containerPort: 8000
-          env:
-            - name: PORT
-              value: "8000"
-            - name: OTEL_SERVICE_NAME
-              value: noteverse-control-plane
           envFrom:
             - configMapRef:
-                name: noteverse-backend-config
-            - configMapRef:
                 name: noteverse-control-plane-config
-            - secretRef:
-                name: noteverse-backend-secret
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-control-plane-secret
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-control-plane-secret
+                  key: REDIS_URL
+            - name: OPERATOR_TOTP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-control-plane-secret
+                  key: OPERATOR_TOTP_ENCRYPTION_KEY
           readinessProbe:
             httpGet:
               path: /health/ready
@@ -67,6 +74,35 @@ spec:
             requests:
               cpu: 250m
               memory: 512Mi
+              ephemeral-storage: 64Mi
             limits:
-              cpu: "1"
+              cpu: '1'
               memory: 1Gi
+              ephemeral-storage: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 64Mi

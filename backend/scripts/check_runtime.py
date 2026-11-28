@@ -1,8 +1,10 @@
 """Check role-specific runtime dependencies."""
 
+from __future__ import annotations
+
+
 # ruff: noqa: E402 - bootstrap the backend import root before app imports.
 
-from __future__ import annotations
 
 import argparse
 import asyncio
@@ -15,7 +17,8 @@ if str(BACKEND_ROOT) not in sys.path:
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from app.core.runtime_checks import RuntimeRole, run_runtime_checks
+from app.platform.runtime import RuntimeRole
+from app.runtime.diagnostics import run_runtime_checks
 
 
 def parse_args() -> argparse.Namespace:

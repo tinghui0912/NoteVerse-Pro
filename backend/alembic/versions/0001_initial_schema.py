@@ -33,8 +33,12 @@ def upgrade() -> None:
     )
     op.execute("CREATE TYPE membershiprole AS ENUM ('VIEWER', 'PRACTITIONER', 'EDITOR')")
     op.execute("CREATE TYPE metadatastatus AS ENUM ('PENDING', 'READY', 'FAILED')")
-    op.execute("CREATE TYPE operatoridentityprovider AS ENUM ('local_password', 'oidc')")
-    op.execute("CREATE TYPE operatorrole AS ENUM ('platform_operator')")
+    op.execute(
+        "CREATE TYPE operatorrole AS ENUM ('SUPPORT_READONLY', 'PLATFORM_OPERATOR', 'SUPER_ADMIN')"
+    )
+    op.execute(
+        "CREATE TYPE operatorchallengepurpose AS ENUM ('ENROLLMENT_REQUIRED', 'VERIFICATION_REQUIRED')"
+    )
     op.execute("CREATE TYPE operatorstatus AS ENUM ('active', 'disabled')")
     op.execute("CREATE TYPE playbackassetkind AS ENUM ('AUDIO')")
     op.execute(
@@ -220,17 +224,20 @@ def upgrade() -> None:
     )
     op.create_table(
         "operators",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
+        sa.Column("id", sa.BigInteger(), nullable=False),
         sa.Column("operator_uuid", sa.String(length=36), nullable=False),
+        sa.Column("email", sa.String(length=255), nullable=False),
         sa.Column("display_name", sa.String(length=128), nullable=False),
+        sa.Column("password_hash", sa.String(length=255), nullable=False),
         sa.Column(
             "role",
-            postgresql.ENUM("platform_operator", name="operatorrole", create_type=False),
+            postgresql.ENUM(
+                "SUPPORT_READONLY",
+                "PLATFORM_OPERATOR",
+                "SUPER_ADMIN",
+                name="operatorrole",
+                create_type=False,
+            ),
             nullable=False,
         ),
         sa.Column(
@@ -238,12 +245,20 @@ def upgrade() -> None:
             postgresql.ENUM("active", "disabled", name="operatorstatus", create_type=False),
             nullable=False,
         ),
+        sa.Column("totp_secret_encrypted", sa.String(length=512), nullable=True),
+        sa.Column("totp_enabled_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("totp_last_used_step", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.CheckConstraint(
+            "(totp_enabled_at IS NULL AND totp_secret_encrypted IS NULL AND totp_last_used_step IS NULL) OR (totp_enabled_at IS NOT NULL AND totp_secret_encrypted IS NOT NULL AND totp_last_used_step IS NOT NULL)",
+            name="ck_operators_totp_facts",
+        ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("email"),
         sa.UniqueConstraint("operator_uuid"),
     )
-    op.create_index("idx_operators_status", "operators", ["status"], unique=False)
+    op.create_index("idx_operators_status_role", "operators", ["status", "role"], unique=False)
     op.create_table(
         "pending_registrations",
         sa.Column("id", sa.BigInteger(), nullable=False),
@@ -385,37 +400,6 @@ def upgrade() -> None:
     )
     op.create_index("ix_stored_objects_sha256", "stored_objects", ["sha256"], unique=False)
     op.create_table(
-        "operator_identities",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
-        sa.Column("identity_uuid", sa.String(length=36), nullable=False),
-        sa.Column("operator_id", sa.BigInteger(), nullable=False),
-        sa.Column(
-            "provider",
-            postgresql.ENUM(
-                "local_password", "oidc", name="operatoridentityprovider", create_type=False
-            ),
-            nullable=False,
-        ),
-        sa.Column("issuer", sa.String(length=255), nullable=False),
-        sa.Column("subject", sa.String(length=255), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("last_authenticated_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(["operator_id"], ["operators.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("identity_uuid"),
-        sa.UniqueConstraint(
-            "provider", "issuer", "subject", name="uq_operator_identities_provider_issuer_subject"
-        ),
-    )
-    op.create_index(
-        "idx_operator_identities_operator", "operator_identities", ["operator_id"], unique=False
-    )
-    op.create_table(
         "ops_audit_events",
         sa.Column(
             "id",
@@ -425,21 +409,23 @@ def upgrade() -> None:
         ),
         sa.Column("event_uuid", sa.String(length=36), nullable=False),
         sa.Column("actor_operator_id", sa.BigInteger(), nullable=True),
-        sa.Column("actor_identity_provider", sa.String(length=64), nullable=True),
-        sa.Column("actor_identity_issuer", sa.String(length=255), nullable=True),
-        sa.Column("actor_identity_subject", sa.String(length=255), nullable=True),
         sa.Column("action", sa.String(length=64), nullable=False),
-        sa.Column("operation_kind", sa.String(length=40), nullable=False),
-        sa.Column("operation_id", sa.String(length=128), nullable=False),
+        sa.Column("target_type", sa.String(length=40), nullable=False),
+        sa.Column("target_id", sa.String(length=128), nullable=False),
         sa.Column("outcome", sa.String(length=32), nullable=False),
         sa.Column("error_code", sa.String(length=80), nullable=True),
-        sa.Column("reason", sa.String(length=500), nullable=True),
+        sa.Column("reason", sa.String(length=500), nullable=False),
         sa.Column("request_id", sa.String(length=128), nullable=True),
-        sa.Column("peer_address", sa.String(length=64), nullable=True),
-        sa.Column("client_address", sa.String(length=64), nullable=True),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.Column("ip_address", sa.String(length=64), nullable=True),
         sa.Column("previous_state", sa.String(length=128), nullable=True),
         sa.Column("new_state", sa.String(length=128), nullable=True),
+        sa.Column("metadata_json", sa.JSON(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.CheckConstraint(
+            "length(btrim(reason)) BETWEEN 3 AND 500 AND reason=btrim(reason)",
+            name="ck_ops_audit_reason",
+        ),
         sa.ForeignKeyConstraint(["actor_operator_id"], ["operators.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("event_uuid"),
@@ -459,7 +445,7 @@ def upgrade() -> None:
     op.create_index(
         "idx_ops_audit_events_operation",
         "ops_audit_events",
-        ["operation_kind", "operation_id"],
+        ["target_type", "target_id"],
         unique=False,
     )
     op.create_table(
@@ -900,49 +886,32 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_table(
-        "operator_password_credentials",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
-        sa.Column("identity_id", sa.BigInteger(), nullable=False),
-        sa.Column("password_hash", sa.String(length=255), nullable=False),
-        sa.Column("password_changed_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["identity_id"], ["operator_identities.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("identity_id"),
-    )
-    op.create_table(
         "operator_sessions",
-        sa.Column(
-            "id",
-            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
-            autoincrement=True,
-            nullable=False,
-        ),
+        sa.Column("id", sa.BigInteger(), nullable=False),
         sa.Column("session_uuid", sa.String(length=36), nullable=False),
-        sa.Column("identity_id", sa.BigInteger(), nullable=False),
         sa.Column("operator_id", sa.BigInteger(), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
-        sa.Column("user_agent", sa.String(length=512), nullable=True),
         sa.Column("ip_address", sa.String(length=64), nullable=True),
-        sa.Column("authenticated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(["identity_id"], ["operator_identities.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["operator_id"], ["operators.id"], ondelete="CASCADE"),
+        sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("idle_expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("absolute_expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.CheckConstraint(
+            "created_at <= last_seen_at AND last_seen_at < absolute_expires_at AND idle_expires_at <= absolute_expires_at",
+            name="ck_operator_sessions_lifetime",
+        ),
+        sa.ForeignKeyConstraint(["operator_id"], ["operators.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("session_uuid"),
         sa.UniqueConstraint("token_hash"),
     )
     op.create_index(
-        "idx_operator_sessions_expires", "operator_sessions", ["expires_at"], unique=False
+        "idx_operator_sessions_expiry",
+        "operator_sessions",
+        ["idle_expires_at", "absolute_expires_at"],
+        unique=False,
     )
     op.create_index(
         "idx_operator_sessions_operator_created",
@@ -950,8 +919,59 @@ def upgrade() -> None:
         ["operator_id", "created_at"],
         unique=False,
     )
+
+    op.create_table(
+        "operator_mfa_challenges",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("challenge_uuid", sa.String(length=36), nullable=False),
+        sa.Column("operator_id", sa.BigInteger(), nullable=False),
+        sa.Column("token_hash", sa.String(length=64), nullable=False),
+        sa.Column(
+            "purpose",
+            postgresql.ENUM(
+                "ENROLLMENT_REQUIRED",
+                "VERIFICATION_REQUIRED",
+                name="operatorchallengepurpose",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("pending_secret_encrypted", sa.String(length=512), nullable=True),
+        sa.Column("attempt_count", sa.Integer(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("consumed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.CheckConstraint(
+            "attempt_count >= 0 AND attempt_count <= 5", name="ck_operator_mfa_attempts"
+        ),
+        sa.ForeignKeyConstraint(["operator_id"], ["operators.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("challenge_uuid"),
+        sa.UniqueConstraint("token_hash"),
+    )
     op.create_index(
-        "idx_operator_sessions_revoked", "operator_sessions", ["revoked_at"], unique=False
+        "idx_operator_mfa_challenges_operator_expiry",
+        "operator_mfa_challenges",
+        ["operator_id", "expires_at"],
+        unique=False,
+    )
+
+    op.create_table(
+        "operator_recovery_codes",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column("operator_id", sa.BigInteger(), nullable=False),
+        sa.Column("code_hash", sa.String(length=64), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("consumed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.ForeignKeyConstraint(["operator_id"], ["operators.id"], ondelete="RESTRICT"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("code_hash"),
+    )
+    op.create_index(
+        "idx_operator_recovery_codes_owner",
+        "operator_recovery_codes",
+        ["operator_id"],
+        unique=False,
     )
     op.create_table(
         "performance_take_manifests",
@@ -1055,31 +1075,57 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("recipient_user_id"),
     )
     op.create_table(
-        "refresh_tokens",
-        sa.Column("id", sa.BigInteger(), nullable=False),
+        "user_sessions",
+        sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("user_id", sa.BigInteger(), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
-        sa.Column("device_id", sa.String(length=64), nullable=True),
-        sa.Column("user_agent", sa.String(length=512), nullable=True),
-        sa.Column("ip_address", sa.String(length=64), nullable=True),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("replaced_by_token_id", sa.BigInteger(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["replaced_by_token_id"],
-            ["refresh_tokens.id"],
+        sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("idle_expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("absolute_expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "revoked_reason",
+            sa.Enum(
+                "LOGOUT",
+                "DEVICE_REVOKED",
+                "OTHER_SESSIONS",
+                "PASSWORD_CHANGED",
+                "PASSWORD_RESET",
+                "ACCOUNT_CLOSED",
+                name="sessionrevocationreason",
+            ),
+            nullable=True,
+        ),
+        sa.Column("ip_address", sa.String(length=64), nullable=True),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.CheckConstraint(
+            "length(token_hash)=64 AND token_hash ~ '^[0-9a-f]+$'", name="ck_user_sessions_digest"
+        ),
+        sa.CheckConstraint(
+            "(revoked_at IS NULL AND revoked_reason IS NULL) OR (revoked_at IS NOT NULL AND revoked_reason IS NOT NULL)",
+            name="ck_user_sessions_revocation",
+        ),
+        sa.CheckConstraint(
+            "created_at <= last_seen_at AND last_seen_at < absolute_expires_at AND idle_expires_at <= absolute_expires_at",
+            name="ck_user_sessions_lifetime",
         ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("token_hash"),
     )
-    op.create_index("idx_refresh_tokens_expires", "refresh_tokens", ["expires_at"], unique=False)
-    op.create_index("idx_refresh_tokens_revoked", "refresh_tokens", ["revoked_at"], unique=False)
     op.create_index(
-        "idx_refresh_tokens_user_created", "refresh_tokens", ["user_id", "created_at"], unique=False
+        "idx_user_sessions_expiration",
+        "user_sessions",
+        ["idle_expires_at", "absolute_expires_at"],
+        unique=False,
     )
+    op.create_index(
+        "idx_user_sessions_user_created", "user_sessions", ["user_id", "created_at"], unique=False
+    )
+    op.create_index(
+        op.f("ix_user_sessions_token_hash"), "user_sessions", ["token_hash"], unique=True
+    )
+    op.create_index(op.f("ix_user_sessions_user_id"), "user_sessions", ["user_id"], unique=False)
     op.create_table(
         "score_library_folders",
         sa.Column(
@@ -2959,10 +3005,7 @@ def downgrade() -> None:
     op.drop_index("idx_storage_quota_holds_status_expiry", table_name="storage_quota_holds")
     op.drop_table("storage_quota_holds")
     op.drop_table("score_library_folders")
-    op.drop_index("idx_refresh_tokens_user_created", table_name="refresh_tokens")
-    op.drop_index("idx_refresh_tokens_revoked", table_name="refresh_tokens")
-    op.drop_index("idx_refresh_tokens_expires", table_name="refresh_tokens")
-    op.drop_table("refresh_tokens")
+    op.drop_table("user_sessions")
     op.drop_table("realtime_stream_state")
     op.drop_index("idx_realtime_changes_created", table_name="realtime_changes")
     op.drop_table("realtime_changes")
@@ -2974,11 +3017,15 @@ def downgrade() -> None:
         op.f("ix_performance_take_manifests_take_uuid"), table_name="performance_take_manifests"
     )
     op.drop_table("performance_take_manifests")
-    op.drop_index("idx_operator_sessions_revoked", table_name="operator_sessions")
+    op.drop_index("idx_operator_recovery_codes_owner", table_name="operator_recovery_codes")
+    op.drop_table("operator_recovery_codes")
+    op.drop_index(
+        "idx_operator_mfa_challenges_operator_expiry", table_name="operator_mfa_challenges"
+    )
+    op.drop_table("operator_mfa_challenges")
+    op.drop_index("idx_operator_sessions_expiry", table_name="operator_sessions")
     op.drop_index("idx_operator_sessions_operator_created", table_name="operator_sessions")
-    op.drop_index("idx_operator_sessions_expires", table_name="operator_sessions")
     op.drop_table("operator_sessions")
-    op.drop_table("operator_password_credentials")
     op.drop_index("idx_notifications_recipient_read", table_name="notifications")
     op.drop_index("idx_notifications_recipient_created", table_name="notifications")
     op.drop_table("notifications")
@@ -3004,12 +3051,10 @@ def downgrade() -> None:
     op.drop_table("stored_object_retirements")
     op.drop_index("ix_practice_bundles_status_creation", table_name="practice_bundles")
     op.drop_table("practice_bundles")
-    op.drop_index("idx_ops_audit_events_operation", table_name="ops_audit_events")
-    op.drop_index("idx_ops_audit_events_actor_created", table_name="ops_audit_events")
     op.drop_index("idx_ops_audit_events_action_created", table_name="ops_audit_events")
+    op.drop_index("idx_ops_audit_events_actor_created", table_name="ops_audit_events")
+    op.drop_index("idx_ops_audit_events_operation", table_name="ops_audit_events")
     op.drop_table("ops_audit_events")
-    op.drop_index("idx_operator_identities_operator", table_name="operator_identities")
-    op.drop_table("operator_identities")
     op.drop_index("ix_stored_objects_sha256", table_name="stored_objects")
     op.drop_table("stored_objects")
     op.drop_table("storage_plan_policies")
@@ -3022,7 +3067,7 @@ def downgrade() -> None:
     op.drop_index("idx_pending_registrations_email", table_name="pending_registrations")
     op.drop_index("idx_pending_registrations_consumed", table_name="pending_registrations")
     op.drop_table("pending_registrations")
-    op.drop_index("idx_operators_status", table_name="operators")
+    op.drop_index("idx_operators_status_role", table_name="operators")
     op.drop_table("operators")
     op.drop_index("ix_object_write_intent_due", table_name="object_write_intents")
     op.drop_table("object_write_intents")
@@ -3042,7 +3087,7 @@ def downgrade() -> None:
     op.execute("DROP TYPE playbackassetkind")
     op.execute("DROP TYPE operatorstatus")
     op.execute("DROP TYPE operatorrole")
-    op.execute("DROP TYPE operatoridentityprovider")
+    op.execute("DROP TYPE operatorchallengepurpose")
     op.execute("DROP TYPE metadatastatus")
     op.execute("DROP TYPE membershiprole")
     op.execute("DROP TYPE mailoutboxstatus")
@@ -3051,3 +3096,4 @@ def downgrade() -> None:
     op.execute("DROP TYPE importjobstate")
     op.execute("DROP TYPE importdispatchstatus")
     op.execute("DROP TYPE importartifactkind")
+    op.execute("DROP TYPE sessionrevocationreason")

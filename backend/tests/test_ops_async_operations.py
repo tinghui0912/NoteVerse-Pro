@@ -1,21 +1,24 @@
 from __future__ import annotations
 
+from app.runtime.worker.context import get_context as worker_context
+
+from app.observability.async_operation_metrics import MetricsConfig
+
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 
-from app.core.generated.customer_browser_protocol import AUTH_COOKIE_NAME
 
 import os
 from datetime import datetime, timedelta
 from typing import cast
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from sqlalchemy import text
-from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel, select
 
-from app.api.deps import get_db
+from app.platform.db.dependencies import get_db
 from app.db.models import (
     User,
     ImportDispatch,
@@ -31,8 +34,6 @@ from app.db.models import (
     ScoreDeletionOperationStatus,
     ScoreRevision,
     Operator,
-    OperatorIdentity,
-    OperatorIdentityProvider,
     OperatorRole,
     OperatorSession,
 )
@@ -57,24 +58,19 @@ from app.shared.time import utc_now
 
 
 os.environ.setdefault("CONTROL_PLANE_COOKIE_SECURE", "false")
-os.environ.setdefault("CONTROL_PLANE_COOKIE_SAMESITE", "lax")
-os.environ.setdefault("CONTROL_PLANE_SESSION_EXPIRE_MINUTES", "30")
 os.environ.setdefault("CONTROL_PLANE_CORS_ORIGINS", '["http://testserver"]')
 
-from app.core.control_plane_settings import (  # noqa: E402
-    get_control_plane_runtime_settings,
-    require_control_plane_settings,
-)
 
-get_control_plane_runtime_settings.cache_clear()
-
-from app.control_plane_main import create_app  # noqa: E402
-from app.modules.platform_operators.dependencies import OperatorPrincipal, get_current_operator  # noqa: E402
-from app.modules.platform_operators.service import OperatorAuthenticationService  # noqa: E402
+from app.runtime.control_plane.main import create_app  # noqa: E402
+from app.runtime.control_plane.deps import OperatorPrincipal, get_current_operator  # noqa: E402
+from tests.support.control_plane import operator_policy
+from tests.support.runtime_resources import deliveries
+from app.platform.config.delivery import DeliveryConfig
+from app.runtime.customer_api.context import get_context
 
 
 app = create_app()
-control_settings = require_control_plane_settings()
+control_settings = operator_policy()
 
 
 def test_ops_query_and_retry_kind_contracts_cover_every_async_operation_kind() -> None:
@@ -105,7 +101,17 @@ def ops_session(
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         session.add(User(id=1, email="ops@example.test", password_hash="hash"))
-        session.add(Operator(id=1, display_name="Admin"))
+        session.add(
+            Operator(
+                id=1,
+                email="admin@example.test",
+                password_hash="hash",
+                display_name="Admin",
+                totp_enabled_at=utc_now(),
+                totp_secret_encrypted="encrypted",
+                totp_last_used_step=1,
+            )
+        )
         session.commit()
         session.execute(text("SELECT setval(pg_get_serial_sequence('operators', 'id'), 1, true)"))
         session.commit()
@@ -126,143 +132,19 @@ def _override_ops_dependencies(session: Session, *, authorized: bool) -> None:
         if authorized
         else cast(OperatorRole, "unsupported_test_operator_role")
     )
-    principal = OperatorPrincipal(
-        operator=operator,
-        identity=OperatorIdentity(
+    ledger = session.get(OperatorSession, 1)
+    if ledger is None:
+        ledger = OperatorSession(
             id=1,
             operator_id=1,
-            provider=OperatorIdentityProvider.LOCAL_PASSWORD,
-            issuer="test",
-            subject="operator-test",
-        ),
-        session=OperatorSession(
-            id=1,
-            operator_id=1,
-            identity_id=1,
-            token_hash="test",
-            expires_at=utc_now() + timedelta(hours=1),
-        ),
-    )
+            token_hash="e" * 64,
+            idle_expires_at=utc_now() + timedelta(hours=2),
+            absolute_expires_at=utc_now() + timedelta(hours=12),
+        )
+        session.add(ledger)
+        session.commit()
+    principal = OperatorPrincipal(operator=operator, session=ledger)
     app.dependency_overrides[get_current_operator] = lambda: principal
-
-
-def test_local_operator_identity_creates_and_resolves_opaque_session(
-    ops_session: Session,
-) -> None:
-    service = OperatorAuthenticationService()
-    db = ops_session
-    operator = service.create_local_operator(
-        db,
-        username="operator@example.test",
-        password="a-long-operator-password",
-        display_name="Platform Operator",
-    )
-    authenticated_operator, identity, token = service.authenticate_local_password(
-        db,
-        username="operator@example.test",
-        password="a-long-operator-password",
-        user_agent="test-agent",
-        ip_address="198.51.100.10",
-        security_settings=require_control_plane_settings(),
-    )
-    resolved_operator, resolved_identity, resolved_session = service.resolve_session(
-        db, token=token
-    )
-
-    assert authenticated_operator.id == operator.id
-    assert resolved_operator.id == operator.id
-    assert resolved_identity.id == identity.id
-    assert resolved_session.operator_id == operator.id
-    assert resolved_session.token_hash != token
-
-
-def test_operator_enums_bind_the_postgresql_values_declared_by_the_migration() -> None:
-    provider_type = OperatorIdentity.__table__.c.provider.type
-    role_type = Operator.__table__.c.role.type
-
-    assert (
-        provider_type.bind_processor(postgresql.dialect())(OperatorIdentityProvider.LOCAL_PASSWORD)
-        == "local_password"
-    )
-    assert (
-        role_type.bind_processor(postgresql.dialect())(OperatorRole.PLATFORM_OPERATOR)
-        == "platform_operator"
-    )
-
-
-def test_control_plane_login_uses_an_independent_operator_session_cookie(
-    client: TestClient,
-    ops_session: Session,
-) -> None:
-    db = ops_session
-    service = OperatorAuthenticationService()
-    service.create_local_operator(
-        db,
-        username="operator@example.test",
-        password="a-long-operator-password",
-        display_name="Platform Operator",
-    )
-
-    def override_get_db():
-        yield db
-
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        response = client.post(
-            "/api/v1/auth/login",
-            json={"username": "operator@example.test", "password": "a-long-operator-password"},
-        )
-
-        assert response.status_code == 204
-        assert response.content == b""
-        assert control_settings.auth_cookie_name in response.headers["set-cookie"]
-        assert AUTH_COOKIE_NAME not in response.headers["set-cookie"]
-
-        me_response = client.get("/api/v1/auth/me")
-        assert me_response.status_code == 200
-        assert me_response.json()["operator_id"]
-    finally:
-        _clear_ops_dependency_overrides()
-
-
-def test_control_plane_logout_requires_its_own_csrf_header(
-    client: TestClient,
-    ops_session: Session,
-) -> None:
-    db = ops_session
-    service = OperatorAuthenticationService()
-    service.create_local_operator(
-        db,
-        username="operator@example.test",
-        password="a-long-operator-password",
-        display_name="Platform Operator",
-    )
-
-    def override_get_db():
-        yield db
-
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        login = client.post(
-            "/api/v1/auth/login",
-            json={"username": "operator@example.test", "password": "a-long-operator-password"},
-        )
-        assert login.status_code == 204
-
-        missing_csrf = client.post("/api/v1/auth/logout")
-        assert missing_csrf.status_code == 403
-        assert missing_csrf.json()["code"] == "csrf_token_invalid"
-
-        csrf_token = client.cookies.get(control_settings.csrf_cookie_name)
-        assert csrf_token
-        logout = client.post(
-            "/api/v1/auth/logout",
-            headers={control_settings.csrf_header_name: csrf_token},
-        )
-        assert logout.status_code == 204
-        assert client.get("/api/v1/auth/me").status_code == 401
-    finally:
-        _clear_ops_dependency_overrides()
 
 
 def _clear_ops_dependency_overrides() -> None:
@@ -332,7 +214,9 @@ def test_ops_projects_domain_delivery_state(ops_session, status, retryable, expe
         )
     ops_session.add(row)
     ops_session.commit()
-    service = OpsAsyncOperationQueryService()
+    service = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     operation = service.get_operation(
         ops_session, kind=AsyncOperationKind.MAIL, operation_id=row.outbox_uuid
     )
@@ -374,7 +258,9 @@ def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None
     )
     ops_session.commit()
 
-    service = OpsAsyncOperationQueryService()
+    service = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     summary = service.summary(
         ops_session,
         kind=AsyncOperationKind.MAIL,
@@ -390,7 +276,7 @@ def test_ops_summary_uses_aggregated_status_counts(ops_session: Session) -> None
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("get", "/api/v1/ops/audit-events"),
+        ("get", "/api/v1/audit-logs"),
         ("get", "/api/v1/ops/async-operations"),
         ("get", "/api/v1/ops/async-operations/summary"),
         ("post", "/api/v1/ops/async-operations/mail/not-a-real-operation/retry"),
@@ -417,7 +303,7 @@ def test_ops_api_rejects_non_admin_users_without_diagnostics(
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("get", "/api/v1/ops/audit-events"),
+        ("get", "/api/v1/audit-logs"),
         ("get", "/api/v1/ops/async-operations"),
         ("get", "/api/v1/ops/async-operations/summary"),
         ("post", "/api/v1/ops/async-operations/mail/not-a-real-operation/retry"),
@@ -608,23 +494,23 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.actor_operator_id == 1
     assert audit_event.action == "retry_async_operation"
-    assert audit_event.operation_kind == "mail"
-    assert audit_event.operation_id == operation_id
+    assert audit_event.target_type == "mail"
+    assert audit_event.target_id == operation_id
     assert audit_event.outcome == "succeeded"
     assert audit_event.reason == "Retry after storage access was restored."
     assert audit_event.request_id == "ops-retry-success"
-    assert audit_event.peer_address == "testclient"
-    assert audit_event.client_address == "testclient"
+    assert audit_event.user_agent == "testclient"
+    assert audit_event.ip_address == "testclient"
     assert audit_event.previous_state == "FAILED"
     assert audit_event.new_state == "queued"
 
     _override_ops_dependencies(ops_session, authorized=True)
     try:
         audit_response = client.get(
-            "/api/v1/ops/audit-events",
+            "/api/v1/audit-logs",
             params={
-                "operation_kind": "mail",
-                "operation_id": operation_id,
+                "target_type": "mail",
+                "target_id": operation_id,
                 "outcome": "succeeded",
             },
         )
@@ -641,16 +527,17 @@ def test_ops_api_admin_can_retry_failed_mail_operation(
             "event_id": audit_event.event_uuid,
             "actor_operator_id": 1,
             "action": "retry_async_operation",
-            "operation_kind": "mail",
-            "operation_id": operation_id,
+            "target_type": "mail",
+            "target_id": operation_id,
             "outcome": "succeeded",
             "error_code": None,
             "reason": "Retry after storage access was restored.",
             "request_id": "ops-retry-success",
-            "peer_address": "testclient",
-            "client_address": "testclient",
+            "user_agent": "testclient",
+            "ip_address": "testclient",
             "previous_state": "FAILED",
             "new_state": "queued",
+            "metadata_json": {},
             "created_at": _api_utc_datetime(audit_event.created_at),
         }
     ]
@@ -666,24 +553,27 @@ def test_ops_api_audit_events_supports_offset_pagination(
             OpsAuditEvent(
                 actor_operator_id=1,
                 action="retry_async_operation",
-                operation_kind="mail",
-                operation_id="audit-oldest",
+                reason="Review operation history",
+                target_type="mail",
+                target_id="audit-oldest",
                 outcome="succeeded",
                 created_at=now - timedelta(minutes=3),
             ),
             OpsAuditEvent(
                 actor_operator_id=1,
                 action="retry_async_operation",
-                operation_kind="mail",
-                operation_id="audit-middle",
+                reason="Review operation history",
+                target_type="mail",
+                target_id="audit-middle",
                 outcome="succeeded",
                 created_at=now - timedelta(minutes=2),
             ),
             OpsAuditEvent(
                 actor_operator_id=1,
                 action="retry_async_operation",
-                operation_kind="mail",
-                operation_id="audit-newest",
+                reason="Review operation history",
+                target_type="mail",
+                target_id="audit-newest",
                 outcome="succeeded",
                 created_at=now - timedelta(minutes=1),
             ),
@@ -694,8 +584,8 @@ def test_ops_api_audit_events_supports_offset_pagination(
     _override_ops_dependencies(ops_session, authorized=True)
     try:
         response = client.get(
-            "/api/v1/ops/audit-events",
-            params={"limit": 1, "offset": 1, "operation_kind": "mail"},
+            "/api/v1/audit-logs",
+            params={"limit": 1, "offset": 1, "target_type": "mail"},
         )
     finally:
         _clear_ops_dependency_overrides()
@@ -706,7 +596,7 @@ def test_ops_api_audit_events_supports_offset_pagination(
     assert payload["offset"] == 1
     assert payload["has_more"] is True
     assert len(payload["items"]) == 1
-    assert payload["items"][0]["operation_id"] == "audit-middle"
+    assert payload["items"][0]["target_id"] == "audit-middle"
 
 
 def test_ops_api_retry_rejects_completed_mail_and_records_audit(
@@ -744,8 +634,8 @@ def test_ops_api_retry_rejects_completed_mail_and_records_audit(
     assert outbox.status == MailOutboxStatus.SENT
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.action == "retry_async_operation"
-    assert audit_event.operation_kind == "mail"
-    assert audit_event.operation_id == operation_id
+    assert audit_event.target_type == "mail"
+    assert audit_event.target_id == operation_id
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "validation_error"
 
@@ -786,8 +676,8 @@ def test_ops_api_retry_unknown_operation_records_audit(
     assert "internal_details" not in payload
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
     assert audit_event.action == "retry_async_operation"
-    assert audit_event.operation_kind == "mail"
-    assert audit_event.operation_id == operation_id
+    assert audit_event.target_type == "mail"
+    assert audit_event.target_id == operation_id
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "resource_not_found"
 
@@ -832,8 +722,8 @@ def test_ops_api_retry_rejects_confirmed_import_job_and_records_audit(
     ops_session.refresh(job)
     assert job.state == ImportJobState.CONFIRMED
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "import"
-    assert audit_event.operation_id == dispatch.dispatch_uuid
+    assert audit_event.target_type == "import"
+    assert audit_event.target_id == dispatch.dispatch_uuid
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "validation_error"
 
@@ -879,8 +769,8 @@ def test_ops_api_retry_rejects_completed_render_outbox_and_records_audit(
     ops_session.refresh(outbox)
     assert outbox.status == ScoreRevisionRenderStatus.COMPLETED
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "revision_render"
-    assert audit_event.operation_id == outbox.outbox_uuid
+    assert audit_event.target_type == "revision_render"
+    assert audit_event.target_id == outbox.outbox_uuid
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "validation_error"
 
@@ -912,8 +802,8 @@ def test_ops_api_retry_requires_deletion_operation_identity(
     ops_session.refresh(score)
     assert score.deleted_at is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "score_deletion"
-    assert audit_event.operation_id == score.score_uuid
+    assert audit_event.target_type == "score_deletion"
+    assert audit_event.target_id == score.score_uuid
     assert audit_event.outcome == "failed"
     assert audit_event.error_code == "resource_not_found"
 
@@ -982,8 +872,8 @@ def test_ops_api_admin_can_retry_failed_import_job(
     assert job.processing_started_at is None
     assert job.processing_finished_at is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "import"
-    assert audit_event.operation_id == dispatch.dispatch_uuid
+    assert audit_event.target_type == "import"
+    assert audit_event.target_id == dispatch.dispatch_uuid
     assert audit_event.outcome == "succeeded"
 
 
@@ -1053,8 +943,8 @@ def test_ops_api_admin_can_retry_failed_render_outbox(
     assert outbox.failure_classification is None
     assert outbox.failure_retryable is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "revision_render"
-    assert audit_event.operation_id == outbox.outbox_uuid
+    assert audit_event.target_type == "revision_render"
+    assert audit_event.target_id == outbox.outbox_uuid
     assert audit_event.outcome == "succeeded"
 
 
@@ -1116,8 +1006,8 @@ def test_ops_api_admin_can_retry_failed_playback_outbox(
     assert outbox.failure_classification is None
     assert outbox.failure_retryable is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "playback"
-    assert audit_event.operation_id == outbox.outbox_uuid
+    assert audit_event.target_type == "playback"
+    assert audit_event.target_id == outbox.outbox_uuid
     assert audit_event.outcome == "succeeded"
 
 
@@ -1173,8 +1063,8 @@ def test_ops_api_admin_can_rearm_score_deletion_operation(
     assert operation.failure_classification is None
     assert operation.failure_retryable is None
     audit_event = ops_session.scalars(select(OpsAuditEvent)).one()
-    assert audit_event.operation_kind == "score_deletion"
-    assert audit_event.operation_id == operation.operation_uuid
+    assert audit_event.target_type == "score_deletion"
+    assert audit_event.target_id == operation.operation_uuid
     assert audit_event.outcome == "succeeded"
 
 
@@ -1212,7 +1102,9 @@ def test_filtered_pagination_reaches_matching_work_beyond_recent_batches(ops_ses
     )
     ops_session.add(target)
     ops_session.commit()
-    service = OpsAsyncOperationQueryService()
+    service = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     filters = dict(
         kind=AsyncOperationKind.MAIL,
         status=AsyncOperationStatus.RETRYING,
@@ -1240,7 +1132,6 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
     ops_session, model, status, kind, monkeypatch
 ):
     from app.core.exceptions import ValidationException
-    from app.modules.ops.command_service import OpsAsyncOperationCommandService
     from app.observability.async_operation_metrics import (
         _oldest_open_age_lines,
         _oldest_processing_age_lines,
@@ -1263,7 +1154,9 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
     )
     ops_session.add(row)
     ops_session.commit()
-    service = OpsAsyncOperationQueryService()
+    service = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     operation = service.get_operation(ops_session, kind=kind, operation_id=row.outbox_uuid)
     assert operation.status == AsyncOperationStatus.SUPERSEDED and operation.failure is None
     assert (
@@ -1274,11 +1167,11 @@ def test_superseded_work_is_terminal_for_queries_metrics_and_operator_rearm(
         ("oldest_processing_age_seconds", _oldest_processing_age_lines),
         ("completed_duration_average_seconds", _completed_duration_average_lines),
     ]:
-        assert f'noteverse_async_operation_{metric}{{kind="{kind.value}"}} 0' in reader(ops_session)
-    with pytest.raises(ValidationException):
-        OpsAsyncOperationCommandService().retry_operation(
-            ops_session, kind=kind, operation_id=row.outbox_uuid
+        assert f'noteverse_async_operation_{metric}{{kind="{kind.value}"}} 0' in reader(
+            ops_session, config=MetricsConfig.model_validate(get_context().settings.model_dump())
         )
+    with pytest.raises(ValidationException):
+        app.state.ops_commands.retry_operation(ops_session, kind=kind, operation_id=row.outbox_uuid)
     assert row.status == status.SUPERSEDED
 
 
@@ -1344,7 +1237,9 @@ def test_erasure_ops_query_summary_and_audited_rearm_preserve_domain_lineage(
     )
     ops_session.add(row)
     ops_session.commit()
-    query = OpsAsyncOperationQueryService()
+    query = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     item = query.get_operation(ops_session, kind=kind, operation_id=identity)
     assert item.status == AsyncOperationStatus.FAILED and item.can_retry
     assert item.failure.stage == "cleanup" and not item.failure.retryable
@@ -1377,7 +1272,7 @@ def test_erasure_ops_query_summary_and_audited_rearm_preserve_domain_lineage(
             assert row.deletion_fenced_at is not None
         audit = ops_session.scalars(select(OpsAuditEvent)).one()
         assert (
-            audit.operation_kind == kind.value
+            audit.target_type == kind.value
             and audit.previous_state == "FAILED"
             and audit.new_state == "queued"
         )
@@ -1390,7 +1285,6 @@ def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_ses
     from app.db.models import StoredObjectRetirement
     from app.modules.media_storage.domain import StoredObjectRetirementStatus
     from app.observability.async_operation_metrics import async_operation_metrics_text
-    from app.modules.media_storage.retirement import retirement_delivery
     from app.core.exceptions import ValidationException
 
     row = StoredObjectRetirement(
@@ -1402,7 +1296,9 @@ def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_ses
     )
     ops_session.add(row)
     ops_session.commit()
-    query = OpsAsyncOperationQueryService()
+    query = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )
     result = query.list_operations(
         ops_session,
         limit=10,
@@ -1421,10 +1317,10 @@ def test_retirement_cancelled_is_terminal_across_ops_summary_and_metrics(ops_ses
     )
     assert (
         'noteverse_async_operations_by_status{kind="stored_object_retirement",status="cancelled"} 1'
-        in async_operation_metrics_text(ops_session)
+        in async_operation_metrics_text(ops_session, config=MetricsConfig())
     )
     with pytest.raises(ValidationException):
-        retirement_delivery.rearm_for_operator(ops_session, row.retirement_uuid)
+        deliveries().retirement.rearm_for_operator(ops_session, row.retirement_uuid)
 
 
 @pytest.mark.parametrize(
@@ -1437,14 +1333,12 @@ def test_erasure_ops_rejects_live_leases_and_completed_work(ops_session, kind):
         AccountDeletionStatus,
         StoredObjectRetirement,
     )
-    from app.modules.account.deletion_delivery import account_deletion_delivery
-    from app.modules.media_storage.retirement import retirement_delivery
     from app.core.exceptions import ValidationException
 
     if kind == AsyncOperationKind.ACCOUNT_DELETION:
         row = AccountDeletionOperation(user_id=1, user_id_snapshot=1)
         owner, identity, completed = (
-            account_deletion_delivery,
+            deliveries().account_deletion,
             row.operation_uuid,
             AccountDeletionStatus.COMPLETED,
         )
@@ -1453,7 +1347,7 @@ def test_erasure_ops_rejects_live_leases_and_completed_work(ops_session, kind):
             object_key="safe", byte_size=1, sha256="c" * 64, content_type="audio/wav"
         )
         owner, identity, completed = (
-            retirement_delivery,
+            deliveries().retirement,
             row.retirement_uuid,
             StoredObjectRetirementStatus.COMPLETED,
         )
@@ -1473,7 +1367,6 @@ def test_erasure_ops_rejects_live_leases_and_completed_work(ops_session, kind):
 
 def test_operator_rearm_rolls_back_when_audit_persistence_fails(ops_session):
     from app.db.models import AccountDeletionOperation, AccountDeletionStatus
-    from app.modules.ops.command_service import OpsAsyncOperationCommandService
     from app.modules.ops.audit_service import OpsAuditService
     from app.modules.durable_work.failure import DurableFailure, set_failure_facts
     from sqlalchemy.exc import IntegrityError
@@ -1487,7 +1380,7 @@ def test_operator_rearm_rolls_back_when_audit_persistence_fails(ops_session):
     ops_session.add(row)
     ops_session.commit()
     identity = row.operation_uuid
-    OpsAsyncOperationCommandService().retry_operation(
+    app.state.ops_commands.retry_operation(
         ops_session, kind=AsyncOperationKind.ACCOUNT_DELETION, operation_id=identity
     )
     with pytest.raises(IntegrityError):
@@ -1495,8 +1388,8 @@ def test_operator_rearm_rolls_back_when_audit_persistence_fails(ops_session):
             ops_session,
             actor_operator_id=999999,
             action="retry_async_operation",
-            operation_kind=AsyncOperationKind.ACCOUNT_DELETION,
-            operation_id=identity,
+            target_type=AsyncOperationKind.ACCOUNT_DELETION.value,
+            target_id=identity,
             outcome="succeeded",
             reason="Verified repair",
             previous_state="FAILED",
@@ -1534,7 +1427,7 @@ def test_erasure_metrics_measure_total_duration_and_keep_stopped_failures_visibl
     )
     ops_session.add_all([done, stopped])
     ops_session.commit()
-    text = metrics.async_operation_metrics_text(ops_session)
+    text = metrics.async_operation_metrics_text(ops_session, config=MetricsConfig())
     assert (
         'noteverse_async_operation_completed_duration_average_seconds{kind="account_deletion"} 7200'
         in text
@@ -1598,7 +1491,7 @@ def test_media_resource_metrics_expose_unsettled_responsibility_without_locators
         )
     )
     ops_session.commit()
-    result = "\n".join(_media_resource_lines(ops_session))
+    result = "\n".join(_media_resource_lines(ops_session, config=MetricsConfig()))
     for kind in ("write_unknown", "upload_unknown", "upload_expired_uncleaned"):
         assert f'noteverse_media_resource_backlog{{kind="{kind}"}} 1' in result
     assert 'noteverse_media_resource_backlog{kind="take_processing_failed"} 0' in result

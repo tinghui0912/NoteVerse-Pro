@@ -1,6 +1,7 @@
 """Active Score admission serializes child actor commands with parent deletion."""
 
-from app.composition import media_resources as _media_wiring
+from tests.support.runtime_resources import resources_for
+
 
 from datetime import timedelta
 from queue import Queue
@@ -30,6 +31,10 @@ from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 from tests.test_score_revision_services import add_active_score_with_head_revision
+from app.platform.config.application import InvitationConfig
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import ignore_dispatch
 
 
 @pytest.fixture
@@ -70,10 +75,17 @@ def parent_graph(postgres_engine):
 
 
 def run_command(db, action, member_id):
-    invitations, members = InvitationService(), MembershipService()
+    invitations, members = (
+        InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ),
+        MembershipService(),
+    )
     if action == "delete":
         ScoreLifecycleService(
-            deletion_executor=_media_wiring.build_score_deletion_executor()
+            deletion_executor=resources_for().build_score_deletion_executor(),
+            config=ScoreDeletionDeliverySettings(),
+            dispatch_after_commit=ignore_dispatch,
         ).admit_deletions(db, ["shared"], 1)
     elif action == "create":
         invitations.create_invite(
@@ -242,12 +254,16 @@ def test_pending_page_admits_active_parents_before_limit_and_seek(parent_graph):
         )
         db.commit()
         ScoreLifecycleService(
-            deletion_executor=_media_wiring.build_score_deletion_executor()
+            deletion_executor=resources_for().build_score_deletion_executor(),
+            config=ScoreDeletionDeliverySettings(),
+            dispatch_after_commit=ignore_dispatch,
         ).admit_deletions(db, ["shared"], 1)
         db.commit()
         seen, cursor = [], None
         while True:
-            page = InvitationService().list_my_pending_invites(db, 2, limit=1, cursor=cursor)
+            page = InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            ).list_my_pending_invites(db, 2, limit=1, cursor=cursor)
             assert len(page.items) == 1
             seen.extend(item.invite_id for item in page.items)
             cursor = page.next_cursor

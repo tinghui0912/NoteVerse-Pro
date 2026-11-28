@@ -1,4 +1,4 @@
-from app.storage import object_storage as _storage_provider
+from tests.support.runtime_resources import resources_for
 
 from app.composition import storage_resources as _resource_wiring
 from app.modules.import_jobs.requested_options import encode_requested_options
@@ -12,6 +12,7 @@ from app.db.models import ExecutionManifest, ImportJob, User
 from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs import execution_manifest
 from app.modules.import_jobs.service import ImportJobService
+from tests.support.runtime_resources import storage as _storage_provider
 
 
 def _job(job_uuid: str) -> ImportJob:
@@ -74,7 +75,9 @@ def test_import_jobs_reuse_one_execution_manifest_and_preserve_first_binding(
         )
 
         monkeypatch.setattr(
-            execution_manifest, "build_omr_manifest", lambda: _manifest("different")
+            execution_manifest,
+            "build_omr_manifest",
+            lambda: _manifest("different"),
         )
         execution_manifest.bind_import_job_execution_manifest(
             session, processing_lease(session, first_job)
@@ -105,7 +108,7 @@ def test_import_job_detail_exposes_manifest_digest_without_manifest_contents(
         detail = (
             ImportJobService(
                 usage=_resource_wiring.storage_usage_service,
-                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                delivery=resources_for(_storage_provider).build_media_delivery_service(),
             ).detail(session, job.job_uuid, 1)
         ).model_dump()
         assert detail["execution_manifest_sha256"] == manifest_sha256(_manifest())

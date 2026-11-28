@@ -45,18 +45,18 @@ it.each(['mismatch', 'short', 'success'] as const)('handles password %s before p
   client.setQueryData(accountQueryKeys.security(), {});
   client.setQueryData(accountQueryKeys.sessions(), {sessions: []});
   render(<PasswordSettingsForm />, {wrapper});
-  const password = kind === 'short' ? '12345' : '123456';
+  const password = kind === 'short' ? '12345' : 'new-password-123';
   fireEvent.change(screen.getByLabelText('currentPassword'), {target: {value: 'current-password'}});
   fireEvent.change(screen.getByLabelText('newPassword'), {target: {value: password}});
   fireEvent.change(screen.getByLabelText('confirmPasswordLabel'), {target: {value: kind === 'mismatch' ? 'different' : password}});
   await userEvent.click(screen.getByRole('button', {name: 'password.save'}));
   if (kind === 'success') {
-    await waitFor(() => expect(fake.api.changePassword).toHaveBeenCalledWith('current-password', '123456', 'en'));
+    await waitFor(() => expect(fake.api.changePassword).toHaveBeenCalledWith('current-password', 'new-password-123', 'en'));
     await waitFor(() => expect(client.getQueryState(accountQueryKeys.sessions())?.isInvalidated).toBe(true));
     expect(client.getQueryState(accountQueryKeys.security())?.isInvalidated).toBe(true);
   } else {
     expect(fake.api.changePassword).not.toHaveBeenCalled();
-    expect(fake.toast).toHaveBeenCalledWith(expect.objectContaining({title: kind === 'mismatch' ? 'passwordMismatchTitle' : 'passwordTooShortTitle'}));
+    expect(fake.toast).toHaveBeenCalledWith(expect.objectContaining({title: kind === 'mismatch' ? 'passwordMismatchTitle' : 'passwordFailed'}));
     expect(client.getQueryState(accountQueryKeys.security())?.isInvalidated).toBe(false);
   }
 });
@@ -65,8 +65,8 @@ it.each(['en', 'zh'] as const)('uses %s UI locale for password-change notificati
   fake.locale = locale;
   render(<PasswordSettingsForm />, {wrapper});
   fireEvent.change(screen.getByLabelText('currentPassword'), {target: {value: 'current-password'}});
-  fireEvent.change(screen.getByLabelText('newPassword'), {target: {value: '123456'}});
-  fireEvent.change(screen.getByLabelText('confirmPasswordLabel'), {target: {value: '123456'}});
+  fireEvent.change(screen.getByLabelText('newPassword'), {target: {value: 'new-password-123'}});
+  fireEvent.change(screen.getByLabelText('confirmPasswordLabel'), {target: {value: 'new-password-123'}});
   fireEvent.submit(screen.getByLabelText('newPassword').closest('form')!);
-  await waitFor(() => expect(fake.api.changePassword).toHaveBeenCalledWith('current-password', '123456', locale));
+  await waitFor(() => expect(fake.api.changePassword).toHaveBeenCalledWith('current-password', 'new-password-123', locale));
 });

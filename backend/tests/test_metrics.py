@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
 from app.db.models import SchedulerHeartbeat, SchedulerLeaderStatus
 from app.observability.async_operation_metrics import (
@@ -9,6 +9,7 @@ from app.observability.async_operation_metrics import (
     _scheduler_leader_lines,
 )
 from app.modules.scheduler_lock.constants import BEAT_LEADER_SCHEDULER_NAME
+from app.observability.async_operation_metrics import MetricsConfig
 
 
 def test_scheduler_heartbeat_metrics_read_orm_entities() -> None:
@@ -47,23 +48,23 @@ def test_scheduler_leader_metrics_read_dedicated_orm_entity() -> None:
             assert identity == BEAT_LEADER_SCHEDULER_NAME
             return status
 
-    lines = _scheduler_leader_lines(Session())
+    lines = _scheduler_leader_lines(Session(), config=MetricsConfig())
 
     assert "noteverse_scheduler_leader_acquisitions_total 2" in lines
     assert "noteverse_scheduler_leader_standby_total 3" in lines
     assert "noteverse_scheduler_leader_child_exits_total 1" in lines
 
 
-def test_exporter_metrics_endpoint_exposes_durable_projection(
-    exporter_client: TestClient,
+def test_control_plane_metrics_endpoint_exposes_durable_projection(
+    control_plane_client: TestClient,
     monkeypatch,
 ) -> None:
-    def durable_metrics(_db: object) -> str:
+    def durable_metrics(_db: object, *, config: MetricsConfig) -> str:
         return 'noteverse_scheduler_lag_seconds{operation_kind="revision_render"} 0\n'
 
     monkeypatch.setattr("app.api.metrics.async_operation_metrics_text", durable_metrics)
 
-    response = exporter_client.get("/metrics")
+    response = control_plane_client.get("/metrics")
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")

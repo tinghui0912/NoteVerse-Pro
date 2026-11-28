@@ -1,638 +1,165 @@
-from __future__ import annotations
-
-from app.composition import storage_resources as _resource_wiring
+"""Real account email credentials are hashed, expiring and single-use."""
 
 from datetime import timedelta
-
 import pytest
-
-from app.core import security
-from app.core.config import settings
-from app.core.exceptions import ResourceAlreadyExistsException, ValidationException
-from app.db.models.auth import AuthToken, EmailChangeRequest, PendingRegistration, RefreshToken
-from app.db.models.user import User
-from app.db.models import StoragePlanPolicy, UserStorageEntitlement, StorageUsageAccount
-from app.modules.auth.email_change_service import EmailChangeService
-from app.modules.auth.email_verification_service import EmailVerificationService
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from pydantic import ValidationError as SchemaError
+from app.db.models import User, AuthToken, MailOutbox, PendingRegistration, EmailChangeRequest
+from app.platform.security.passwords import hash_password, verify_password
+from app.platform.security.opaque_tokens import generate_token, token_digest
+from app.platform.config.application import AccountEmailConfig
 from app.modules.auth.password_reset_service import PasswordResetService
-from app.modules.auth.password_service import PasswordService
-from app.modules.auth.security_service import SecurityService
+from app.modules.auth.email_verification_service import EmailVerificationService
+from app.modules.auth.email_change_service import EmailChangeService
 from app.modules.auth.schemas import (
-    ChangePasswordRequest,
-    ForgotPasswordRequest,
-    ConfirmEmailChangeRequest,
     RegisterRequest,
-    RequestEmailChangeRequest,
+    ChangePasswordRequest,
     ResetPasswordRequest,
-    User as CustomerUserSchema,
+    ForgotPasswordRequest,
     VerifyEmailRequest,
+    RequestEmailChangeRequest,
+    ConfirmEmailChangeRequest,
 )
-from app.modules.auth.sessions_service import SessionService
-from app.shared.error_codes import CustomerErrorCode
+from app.core.exceptions import ValidationException, ResourceAlreadyExistsException
+from app.db.models import MailOutboxStatus
 from app.shared.time import utc_now
+from tests.support.authentication import session_service
+from tests.support.storage_state import provision_storage_users
+from app.composition.storage_resources import provision_storage_resources
 
-
-class FakeResult:
-    def scalars(self):
-        return self
-
-    def scalar_one_or_none(self):
-        return self.one_or_none()
-
-    def __init__(self, rows: list[object]) -> None:
-        self.rows = rows
-
-    def one_or_none(self):
-        return self.rows[0] if self.rows else None
-
-    def one(self):
-        if len(self.rows) != 1:
-            raise AssertionError(f"Expected one row, got {len(self.rows)}")
-        return self.rows[0]
-
-    def all(self):
-        return self.rows
-
-
-class FakeDb:
-    def __init__(self) -> None:
-        self.users: list[User] = []
-        self.plan_policies = [StoragePlanPolicy(plan_code="FREE", default_limit_bytes=104857600)]
-        self.entitlements: list[UserStorageEntitlement] = []
-        self.accounts: list[StorageUsageAccount] = []
-        self.auth_tokens: list[AuthToken] = []
-        self.email_change_requests: list[EmailChangeRequest] = []
-        self.pending_registrations: list[PendingRegistration] = []
-        self.refresh_tokens: list[RefreshToken] = []
-        self.commits = 0
-        self.rollbacks = 0
-        self._next_id = 1
-
-    def add(self, record) -> None:
-        if isinstance(record, UserStorageEntitlement):
-            self.entitlements.append(record)
-            return
-        if isinstance(record, StorageUsageAccount):
-            self.accounts.append(record)
-            return
-        if getattr(record, "id", None) is None:
-            record.id = self._next_id
-            self._next_id += 1
-        if isinstance(record, User):
-            self.users.append(record)
-        elif isinstance(record, AuthToken):
-            self.auth_tokens.append(record)
-        elif isinstance(record, EmailChangeRequest):
-            self.email_change_requests.append(record)
-        elif isinstance(record, PendingRegistration):
-            self.pending_registrations.append(record)
-        elif isinstance(record, RefreshToken):
-            self.refresh_tokens.append(record)
-
-    def delete(self, record) -> None:
-        if isinstance(record, PendingRegistration):
-            self.pending_registrations = [
-                pending for pending in self.pending_registrations if pending is not record
-            ]
-
-    def flush(self) -> None:
-        return None
-
-    def commit(self) -> None:
-        self.commits += 1
-
-    def rollback(self) -> None:
-        self.rollbacks += 1
-
-    def refresh(self, _record) -> None:
-        return None
-
-    def scalar(self, statement):
-        return self.execute(statement).scalar_one_or_none()
-
-    def execute(self, statement):
-        if not hasattr(statement, "column_descriptions"):
-            return FakeResult([])
-        entity = statement.column_descriptions[0].get("entity")
-        if entity is StoragePlanPolicy:
-            return FakeResult(self.plan_policies)
-        if entity is User:
-            return FakeResult(self.users)
-        if entity is AuthToken:
-            return FakeResult(self.auth_tokens)
-        if entity is EmailChangeRequest:
-            return FakeResult(self.email_change_requests)
-        if entity is PendingRegistration:
-            return FakeResult(self.pending_registrations)
-        if entity is RefreshToken:
-            return FakeResult(self.refresh_tokens)
-        return FakeResult([])
+PASSWORD = "correct-password-123"
+CONFIG = AccountEmailConfig(FRONTEND_BASE_URL="https://app.example.test")
 
 
 @pytest.fixture
-def verification_queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
-    queued: list[dict[str, object]] = []
-
-    def capture_mail(_db, **kwargs) -> None:
-        queued.append(kwargs)
-
-    monkeypatch.setattr("app.modules.auth.email_verification_service.queue_mail", capture_mail)
-    return queued
-
-
-@pytest.fixture
-def auth_queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
-    queued: list[dict[str, object]] = []
-
-    def capture_mail(_db, **kwargs) -> None:
-        queued.append(kwargs)
-
-    monkeypatch.setattr("app.modules.auth.password_reset_service.queue_mail", capture_mail)
-    return queued
-
-
-@pytest.fixture
-def email_change_queued_mail(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
-    queued: list[dict[str, object]] = []
-
-    def capture_mail(_db, **kwargs) -> None:
-        queued.append(kwargs)
-
-    monkeypatch.setattr("app.modules.auth.email_change_service.queue_mail", capture_mail)
-    return queued
-
-
-def test_register_creates_pending_registration_and_sends_verification_link(
-    verification_queued_mail: list[dict[str, object]],
-) -> None:
-    db = FakeDb()
-    service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
-    )
-
-    service.register(
-        db,  # type: ignore[arg-type]
-        RegisterRequest(
-            email="User@Example.com",
-            password="secret123",
-            display_name="User",
-            locale="en",
-        ),
-    )
-
-    assert db.users == []
-    assert db.pending_registrations[0].email == "user@example.com"
-    assert db.pending_registrations[0].consumed_at is None
-    assert verification_queued_mail[0]["recipient"] == "user@example.com"
-    assert "/auth/verify-email?token=" in str(verification_queued_mail[0]["text_body"])
-
-
-def test_register_refreshes_existing_pending_registration(
-    verification_queued_mail: list[dict[str, object]],
-) -> None:
-    db = FakeDb()
-    service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
-    )
-    service.register(
-        db,  # type: ignore[arg-type]
-        RegisterRequest(
-            email="user@example.com",
-            password="secret123",
-            display_name="User",
-            locale="en",
-        ),
-    )
-    first_token_hash = db.pending_registrations[0].token_hash
-
-    service.register(
-        db,  # type: ignore[arg-type]
-        RegisterRequest(
-            email="user@example.com",
-            password="new-secret",
-            display_name="New User",
-            locale="en",
-        ),
-    )
-
-    assert len(db.pending_registrations) == 1
-    assert db.pending_registrations[0].token_hash != first_token_hash
-    assert db.pending_registrations[0].display_name == "New User"
-    assert db.pending_registrations[0].resend_count == 1
-    assert len(verification_queued_mail) == 2
-
-
-def test_verify_email_creates_user_and_removes_pending_registration(
-    verification_queued_mail: list[dict[str, object]],
-) -> None:
-    db = FakeDb()
-    service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
-    )
-    token = service._new_token()
-    db.add(
-        PendingRegistration(
-            email="user@example.com",
-            display_name="User",
-            password_hash=security.get_password_hash("secret123"),
-            token_hash=service._hash_token(token),
-            expires_at=utc_now() + timedelta(minutes=10),
+def account(postgres_engine):
+    with Session(postgres_engine) as db:
+        db.add(
+            User(
+                email="first@example.com",
+                display_name="First",
+                password_hash=hash_password(PASSWORD),
+            )
         )
+        db.flush()
+        provision_storage_users(db)
+        db.commit()
+        yield db
+
+
+@pytest.mark.parametrize(
+    "schema,field",
+    [
+        (RegisterRequest, "password"),
+        (ChangePasswordRequest, "new_password"),
+        (ResetPasswordRequest, "new_password"),
+    ],
+)
+@pytest.mark.parametrize("password", ["a" * 11, "a" * 129, " " * 12])
+def test_password_policy_applies_to_every_credential_admission(schema, field, password):
+    values = {
+        "email": "new@example.com",
+        "display_name": "New",
+        "token": "opaque",
+        "current_password": PASSWORD,
+        field: password,
+    }
+    with pytest.raises(SchemaError):
+        schema(**values)
+
+
+def test_registration_hashes_password_and_sends_fragment_credential(account, monkeypatch):
+    service = EmailVerificationService(provision_storage=provision_storage_resources, config=CONFIG)
+    raw = generate_token()
+    monkeypatch.setattr(service, "_new_token", lambda: raw)
+    service.register(
+        account, RegisterRequest(email="new@example.com", display_name="New", password=PASSWORD)
     )
-
-    user = service.verify_email(
-        db,  # type: ignore[arg-type]
-        VerifyEmailRequest(token=token),
-    )
-
-    assert user.email == "user@example.com"
-    assert user.email_verified_at is not None
-    assert "role" not in CustomerUserSchema.model_validate(user).model_dump()
-    assert len(db.users) == 1
-    assert db.pending_registrations == []
+    row = account.scalar(select(PendingRegistration))
+    assert row.token_hash == token_digest(raw) and verify_password(PASSWORD, row.password_hash)
+    mail = account.scalar(select(MailOutbox))
+    assert "#token=" + raw in mail.text_body and "?token=" not in mail.text_body
+    result = service.verify_email(account, VerifyEmailRequest(token=raw))
+    assert result.email == "new@example.com"
+    assert account.scalar(select(PendingRegistration)) is None
+    with pytest.raises(ValidationException):
+        service.verify_email(account, VerifyEmailRequest(token=raw))
 
 
-def test_register_rejects_existing_verified_user() -> None:
-    db = FakeDb()
-    db.add(
-        User(
-            email="user@example.com",
-            display_name="User",
-            password_hash=security.get_password_hash("secret123"),
-            is_active=True,
-        )
-    )
-    service = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
-    )
-
+def test_registration_rejects_an_existing_account(account):
     with pytest.raises(ResourceAlreadyExistsException):
-        service.register(
-            db,  # type: ignore[arg-type]
-            RegisterRequest(
-                email="user@example.com",
-                password="secret123",
-                display_name="User",
-                locale="en",
-            ),
+        EmailVerificationService(
+            provision_storage=provision_storage_resources, config=CONFIG
+        ).register(
+            account,
+            RegisterRequest(email="first@example.com", display_name="First", password=PASSWORD),
         )
 
 
-def test_request_email_change_creates_request_and_sends_confirmation_link(
-    email_change_queued_mail: list[dict[str, object]],
-) -> None:
-    db = FakeDb()
-    user = User(
-        email="old@example.com",
-        display_name="User",
-        password_hash=security.get_password_hash("current-password"),
-        is_active=True,
-        email_verified_at=utc_now(),
+def test_registration_resend_replaces_the_credential_and_cancels_its_mail(account):
+    service = EmailVerificationService(provision_storage=provision_storage_resources, config=CONFIG)
+    request = RegisterRequest(email="new@example.com", display_name="New", password=PASSWORD)
+    service.register(account, request)
+    pending = account.scalar(select(PendingRegistration))
+    first_hash, identity = pending.token_hash, pending.id
+    service.register(account, request)
+    pending = account.scalar(select(PendingRegistration))
+    assert pending.id == identity and pending.token_hash != first_hash
+    assert pending.resend_count == 1
+    mails = list(account.scalars(select(MailOutbox).order_by(MailOutbox.id)))
+    assert [mail.status for mail in mails] == [MailOutboxStatus.CANCELLED, MailOutboxStatus.PENDING]
+    assert mails[0].text_body is None and mails[0].recipient == ""
+
+
+def test_email_change_keeps_its_source_identity_and_fragment_token(account, monkeypatch):
+    service = EmailChangeService(config=CONFIG)
+    raw = generate_token()
+    monkeypatch.setattr(service, "_new_token", lambda: raw)
+    service.request_email_change(
+        account,
+        account.get(User, 1),
+        RequestEmailChangeRequest(new_email="changed@example.com", current_password=PASSWORD),
     )
-    db.add(user)
+    row = account.scalar(select(EmailChangeRequest))
+    assert row.token_hash == token_digest(raw)
+    assert "#token=" + raw in account.scalar(select(MailOutbox)).text_body
+    result = service.confirm_email_change(account, ConfirmEmailChangeRequest(token=raw))
+    assert result.email == "changed@example.com"
+    with pytest.raises(ValidationException):
+        service.confirm_email_change(account, ConfirmEmailChangeRequest(token=raw))
 
-    EmailChangeService().request_email_change(
-        db,  # type: ignore[arg-type]
-        user,
-        RequestEmailChangeRequest(
-            new_email="New@Example.com",
-            current_password="current-password",
-            locale="en",
-        ),
+
+def test_reset_is_single_use_and_unknown_recipient_is_generic(account, monkeypatch):
+    service = PasswordResetService(session_service(), config=CONFIG)
+    assert (
+        service.request_password_reset(account, ForgotPasswordRequest(email="unknown@example.com"))
+        is None
     )
-
-    assert db.email_change_requests[0].new_email == "new@example.com"
-    assert db.email_change_requests[0].locale == "en"
-    assert db.email_change_requests[0].consumed_at is None
-    assert email_change_queued_mail[0]["recipient"] == "new@example.com"
-    assert "/auth/confirm-email-change?token=" in str(email_change_queued_mail[0]["text_body"])
-    assert db.commits == 1
-
-
-def test_confirm_email_change_updates_user_and_consumes_request(
-    email_change_queued_mail: list[dict[str, object]],
-) -> None:
-    db = FakeDb()
-    service = EmailChangeService()
-    token = service._new_token()
-    user = User(
-        email="old@example.com",
-        display_name="User",
-        password_hash=security.get_password_hash("current-password"),
-        is_active=True,
-        email_verified_at=utc_now() - timedelta(days=1),
-    )
-    db.add(user)
-    db.add(
-        EmailChangeRequest(
-            user_id=user.id,
-            new_email="new@example.com",
-            token_hash=service._hash_token(token),
-            locale="en",
-            expires_at=utc_now() + timedelta(minutes=10),
-        )
-    )
-
-    updated_user = service.confirm_email_change(
-        db,  # type: ignore[arg-type]
-        ConfirmEmailChangeRequest(token=token),
-    )
-
-    assert updated_user.email == "new@example.com"
-    assert db.email_change_requests[0].consumed_at is not None
-    assert email_change_queued_mail[0]["category"] == "email.change.completed"
-    assert email_change_queued_mail[0]["recipient"] == "old@example.com"
-    assert db.commits == 1
-
-
-def test_password_reset_request_is_generic_for_unknown_email(
-    auth_queued_mail: list[dict[str, object]],
-) -> None:
-    db = FakeDb()
-    service = PasswordResetService()
-
-    service.request_password_reset(
-        db,  # type: ignore[arg-type]
-        ForgotPasswordRequest(email="missing@example.com", locale="en"),
-    )
-
-    assert auth_queued_mail == []
-    assert db.auth_tokens == []
-
-
-def test_password_reset_token_is_single_use(
-    auth_queued_mail: list[dict[str, object]],
-) -> None:
-    db = FakeDb()
-    user = User(
-        email="user@example.com",
-        display_name="User",
-        password_hash=security.get_password_hash("old-password"),
-        is_active=True,
-        email_verified_at=utc_now(),
-    )
-    db.add(user)
-
-    service = PasswordResetService()
-    token = service._create_token(
-        db,  # type: ignore[arg-type]
-        user.id,
-        ttl_seconds=settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS,
-    )
-
+    assert account.scalar(select(MailOutbox)) is None
+    raw = generate_token()
+    monkeypatch.setattr(service, "_new_token", lambda: raw)
+    service.request_password_reset(account, ForgotPasswordRequest(email="first@example.com"))
+    assert account.scalar(select(AuthToken)).token_hash == token_digest(raw)
     service.reset_password(
-        db,  # type: ignore[arg-type]
-        ResetPasswordRequest(new_password="new-password", token=token, locale="en"),
+        account, ResetPasswordRequest(token=raw, new_password="new-password-123")
     )
-
-    assert security.verify_password("new-password", user.password_hash)
-    assert db.auth_tokens[0].used_at is not None
-
-    with pytest.raises(ValidationException) as exc:
+    assert verify_password("new-password-123", account.get(User, 1).password_hash)
+    with pytest.raises(ValidationException):
         service.reset_password(
-            db,  # type: ignore[arg-type]
-            ResetPasswordRequest(new_password="newer-password", token=token, locale="en"),
+            account, ResetPasswordRequest(token=raw, new_password="next-password-123")
         )
 
-    assert exc.value.code == CustomerErrorCode.RESET_TOKEN_INVALID
 
-
-def test_expired_password_reset_token_is_rejected(
-    auth_queued_mail: list[dict[str, object]],
-) -> None:
-    db = FakeDb()
-    user = User(
-        email="user@example.com",
-        display_name="User",
-        password_hash=security.get_password_hash("old-password"),
-        is_active=True,
-        email_verified_at=utc_now(),
-    )
-    db.add(user)
-
-    service = PasswordResetService()
-    token = service._create_token(
-        db,  # type: ignore[arg-type]
-        user.id,
-        ttl_seconds=settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS,
-    )
-    db.auth_tokens[0].expires_at = utc_now() - timedelta(seconds=1)
-
-    with pytest.raises(ValidationException) as exc:
+def test_expired_reset_does_not_change_credentials(account, monkeypatch):
+    service = PasswordResetService(session_service(), config=CONFIG)
+    raw = generate_token()
+    monkeypatch.setattr(service, "_new_token", lambda: raw)
+    service.request_password_reset(account, ForgotPasswordRequest(email="first@example.com"))
+    account.scalar(select(AuthToken)).expires_at = utc_now() - timedelta(seconds=1)
+    account.commit()
+    with pytest.raises(ValidationException):
         service.reset_password(
-            db,  # type: ignore[arg-type]
-            ResetPasswordRequest(new_password="new-password", token=token, locale="en"),
+            account, ResetPasswordRequest(token=raw, new_password="new-password-123")
         )
-
-    assert exc.value.code == CustomerErrorCode.RESET_TOKEN_INVALID
-
-
-def test_current_user_password_change_revokes_sessions_and_sends_notice(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    queued: list[dict[str, object]] = []
-
-    def capture_mail(_db, **kwargs) -> None:
-        queued.append(kwargs)
-
-    monkeypatch.setattr("app.modules.auth.password_service.queue_mail", capture_mail)
-
-    db = FakeDb()
-    user = User(
-        email="user@example.com",
-        display_name="User",
-        password_hash=security.get_password_hash("old-password"),
-        is_active=True,
-        email_verified_at=utc_now(),
-    )
-    db.add(user)
-    db.add(
-        RefreshToken(
-            user_id=user.id,
-            token_hash="refresh-token-hash",
-            expires_at=utc_now() + timedelta(days=1),
-        )
-    )
-
-    PasswordService().change_current_user_password(
-        db,  # type: ignore[arg-type]
-        user,
-        ChangePasswordRequest(
-            current_password="old-password",
-            new_password="new-password",
-            locale="en",
-        ),
-    )
-
-    assert security.verify_password("new-password", user.password_hash)
-    assert user.password_changed_at is not None
-    assert len(db.refresh_tokens) == 2
-    assert db.refresh_tokens[0].revoked_at == user.password_changed_at
-    assert db.refresh_tokens[1].revoked_at is None
-    assert queued[0]["category"] == "password.changed"
-    assert queued[0]["recipient"] == "user@example.com"
-    assert db.commits == 1
-
-
-def test_current_user_password_change_rejects_wrong_current_password() -> None:
-    db = FakeDb()
-    user = User(
-        email="user@example.com",
-        display_name="User",
-        password_hash=security.get_password_hash("old-password"),
-        is_active=True,
-        email_verified_at=utc_now(),
-    )
-    db.add(user)
-
-    with pytest.raises(ValidationException) as exc:
-        PasswordService().change_current_user_password(
-            db,  # type: ignore[arg-type]
-            user,
-            ChangePasswordRequest(
-                current_password="wrong-password",
-                new_password="new-password",
-                locale="en",
-            ),
-        )
-
-    assert exc.value.code == CustomerErrorCode.CURRENT_PASSWORD_WRONG
-    assert security.verify_password("old-password", user.password_hash)
-    assert db.commits == 0
-
-
-def test_session_list_marks_current_active_session() -> None:
-    db = FakeDb()
-    service = SessionService()
-    current_token = "current-refresh-token"
-    expired_token = "expired-refresh-token"
-    db.add(
-        RefreshToken(
-            user_id=1,
-            token_hash=service._hash_token(current_token),
-            user_agent="Current Browser",
-            ip_address="127.0.0.1",
-            expires_at=utc_now() + timedelta(days=1),
-        )
-    )
-    db.add(
-        RefreshToken(
-            user_id=1,
-            token_hash=service._hash_token("other-refresh-token"),
-            user_agent="Other Browser",
-            ip_address="127.0.0.2",
-            expires_at=utc_now() + timedelta(days=1),
-        )
-    )
-    db.add(
-        RefreshToken(
-            user_id=1,
-            token_hash=service._hash_token(expired_token),
-            expires_at=utc_now() - timedelta(seconds=1),
-        )
-    )
-    db.add(
-        RefreshToken(
-            user_id=2,
-            token_hash=service._hash_token("another-user-token"),
-            expires_at=utc_now() + timedelta(days=1),
-        )
-    )
-
-    sessions = service.list_user_sessions(
-        db,  # type: ignore[arg-type]
-        1,
-        current_refresh_token=current_token,
-    )
-
-    assert len(sessions) == 2
-    assert [session.is_current for session in sessions].count(True) == 1
-    assert next(session for session in sessions if session.is_current).user_agent == (
-        "Current Browser"
-    )
-
-
-def test_revoke_user_session_revokes_only_target_session() -> None:
-    db = FakeDb()
-    service = SessionService()
-    current_token = "current-refresh-token"
-    target = RefreshToken(
-        user_id=1,
-        token_hash=service._hash_token("target-token"),
-        expires_at=utc_now() + timedelta(days=1),
-    )
-    current = RefreshToken(
-        user_id=1,
-        token_hash=service._hash_token(current_token),
-        expires_at=utc_now() + timedelta(days=1),
-    )
-    db.add(target)
-    db.add(current)
-
-    revoked_current = service.revoke_user_session(
-        db,  # type: ignore[arg-type]
-        1,
-        target.id,
-        current_refresh_token=current_token,
-    )
-
-    assert revoked_current is False
-    assert target.revoked_at is not None
-    assert current.revoked_at is None
-    assert db.commits == 1
-
-
-def test_revoke_other_user_sessions_keeps_current_session() -> None:
-    db = FakeDb()
-    service = SessionService()
-    current_token = "current-refresh-token"
-    current = RefreshToken(
-        user_id=1,
-        token_hash=service._hash_token(current_token),
-        expires_at=utc_now() + timedelta(days=1),
-    )
-    other = RefreshToken(
-        user_id=1,
-        token_hash=service._hash_token("other-refresh-token"),
-        expires_at=utc_now() + timedelta(days=1),
-    )
-    another_user = RefreshToken(
-        user_id=2,
-        token_hash=service._hash_token("another-user-token"),
-        expires_at=utc_now() + timedelta(days=1),
-    )
-    db.add(current)
-    db.add(other)
-    db.add(another_user)
-
-    service.revoke_other_user_sessions(
-        db,  # type: ignore[arg-type]
-        1,
-        current_refresh_token=current_token,
-    )
-
-    assert current.revoked_at is None
-    assert other.revoked_at is not None
-    assert another_user.revoked_at is None
-    assert db.commits == 1
-
-
-def test_security_overview_returns_identity_security_summary() -> None:
-    db = FakeDb()
-    user = User(
-        email="user@example.com",
-        display_name="User",
-        password_hash=security.get_password_hash("password"),
-        is_active=True,
-        email_verified_at=utc_now(),
-        password_changed_at=utc_now(),
-    )
-    db.add(user)
-
-    overview = SecurityService().overview(db, user)  # type: ignore[arg-type]
-
-    assert overview.email == "user@example.com"
-    assert overview.email_verified_at is not None
-    assert overview.password_changed_at is not None
-    assert overview.mfa_enabled is False
-    assert overview.mfa_available is False
+    assert verify_password(PASSWORD, account.get(User, 1).password_hash)

@@ -25,46 +25,39 @@ noteverse-production
 
 Do not share application Secrets across staging and production.
 
-## Backend Secret
+## Runtime Secrets
 
-Required name:
+Each database-connected process uses its own PostgreSQL login and Kubernetes
+Secret. The [runtime ownership contract](../../architecture/runtime/settings-ownership.md)
+defines the exact keys, ConfigMaps and settings schemas. The
+[database role contract](../../architecture/runtime/database-role-ownership.md)
+defines grants, provisioning and guarded erasure functions.
 
-```text
-Secret/noteverse-backend-secret
-```
+| Process | Secret |
+| --- | --- |
+| Migrator | `noteverse-migrator-secret` |
+| Customer API | `noteverse-customer-api-secret` |
+| Control Plane | `noteverse-control-plane-secret` |
+| Worker | `noteverse-worker-secret` |
+| Beat | `noteverse-beat-secret` |
 
-Required keys:
+Each workload references individual keys from its own Secret. Public settings
+come from its own ConfigMap. Secret env files contain exactly the keys in
+`backend/db/secret-templates/<runtime>.env.example`; actual values remain outside
+Git. Apply each file through `scripts/validate_runtime_secrets.py` before creating
+its Secret. `minikube_app_release_prepare.ps1 -RuntimeSecretDirectory <directory>`
+validates and creates all six. Without that argument it validates the six Secrets
+already present in the namespace. Separate databases, passwords and credentials
+are required for staging and production. Rotation restarts only affected workloads.
 
-| Key | Owner | Rotation trigger |
-| --- | --- | --- |
-| `SECRET_KEY` | platform/security | planned security rotation or suspected compromise |
-| `DATABASE_URL` | platform/database | database credential rotation |
-| `SCHEDULER_LOCK_DATABASE_URL` | platform/database | database credential rotation; must target direct PostgreSQL or PgBouncer session pooling, never transaction pooling |
-| `REDIS_URL` | platform/cache | Redis credential or endpoint rotation |
-| `CELERY_BROKER_URL` | platform/cache | Redis credential or endpoint rotation |
-| `CELERY_RESULT_BACKEND` | platform/cache | Redis credential or endpoint rotation |
-| `S3_ACCESS_KEY_ID` | platform/storage | object storage credential rotation |
-| `S3_SECRET_ACCESS_KEY` | platform/storage | object storage credential rotation |
-| `RESEND_API_KEY` | platform/email | mail provider credential rotation |
-| `HF_TOKEN` | platform/ml | Hugging Face access token rotation, only required when model assets are initialized from gated Hugging Face repositories |
+Model initialization uses optional `noteverse-model-assets-secret` with `HF_TOKEN`
+only. This auxiliary download credential contains no database, authentication,
+mail or application object-storage keys. PaddleOCR receives no Secrets.
+Registry, TLS and observability stack storage Secrets have separate infrastructure
+ownership and are not injected into application process environments.
 
-Rules:
-
-- do not commit this Secret to the repository;
-- do not use development credentials in production;
-- rotate staging credentials separately from production;
-- after Secret rotation, restart affected deployments deliberately.
-
-Example command shape:
-
-```bash
-kubectl -n noteverse-production create secret generic noteverse-backend-secret \
-  --from-env-file=/path/to/managed-backend-secret.env
-```
-
-Prefer an external secret manager or sealed-secret mechanism for real clusters.
-The referenced env file must be generated outside this repository and must
-contain the required keys listed above.
+Prefer an external secret manager for real clusters; this repository defines
+references and validation, not populated production Secret objects.
 
 ## Registry Pull Secret
 
@@ -159,7 +152,8 @@ Required backend config keys:
 - `S3_FORCE_PATH_STYLE`
 - `OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS`
 
-Credential keys live in `Secret/noteverse-backend-secret`:
+Customer API and Worker each receive their own bucket credentials in
+`noteverse-customer-api-secret` and `noteverse-worker-secret`:
 
 - `S3_ACCESS_KEY_ID`
 - `S3_SECRET_ACCESS_KEY`

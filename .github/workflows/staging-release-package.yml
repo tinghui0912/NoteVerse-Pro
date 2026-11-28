@@ -4,15 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Shared immutable image tag. Defaults to the current commit SHA."
+        description: "Optional shared source tag for a complete four-image release."
         required: false
         type: string
-      backend_api_image:
-        description: "Optional full backend API image reference override"
-        required: false
-        type: string
-      backend_beat_image:
-        description: "Optional full backend beat image reference override"
+      backend_core_image:
+        description: "Optional full backend core image reference override"
         required: false
         type: string
       backend_worker_image:
@@ -59,6 +55,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install manifest validation dependencies
+        run: python -m pip install -r scripts/requirements-manifests.txt
+
       - name: Install kubectl
         run: |
           KUBECTL_VERSION="$(curl -L -s https://dl.k8s.io/release/stable.txt)"
@@ -73,18 +72,14 @@ jobs:
           IMAGE_NAMESPACE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse"
           IMAGE_TAG="${{ inputs.image_tag }}"
 
-          BACKEND_API_IMAGE="${{ inputs.backend_api_image }}"
-          BACKEND_BEAT_IMAGE="${{ inputs.backend_beat_image }}"
+          BACKEND_CORE_IMAGE="${{ inputs.backend_core_image }}"
           BACKEND_WORKER_IMAGE="${{ inputs.backend_worker_image }}"
           CUSTOMER_WEB_IMAGE="${{ inputs.customer_web_image }}"
           PLATFORM_ADMIN_IMAGE="${{ inputs.platform_admin_image }}"
 
           if [ -n "${IMAGE_TAG}" ]; then
-            if [ -z "${BACKEND_API_IMAGE}" ]; then
-              BACKEND_API_IMAGE="${IMAGE_NAMESPACE}/backend-api:${IMAGE_TAG}"
-            fi
-            if [ -z "${BACKEND_BEAT_IMAGE}" ]; then
-              BACKEND_BEAT_IMAGE="${IMAGE_NAMESPACE}/backend-beat:${IMAGE_TAG}"
+            if [ -z "${BACKEND_CORE_IMAGE}" ]; then
+              BACKEND_CORE_IMAGE="${IMAGE_NAMESPACE}/backend-core:${IMAGE_TAG}"
             fi
             if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
               BACKEND_WORKER_IMAGE="${IMAGE_NAMESPACE}/backend-worker:${IMAGE_TAG}"
@@ -97,21 +92,15 @@ jobs:
             fi
           else
             CURRENT_METADATA="deploy/gitops/environments/staging/release-metadata.json"
-            if [ ! -f "${CURRENT_METADATA}" ]; then
-              echo "::error::${CURRENT_METADATA} is required when image_tag is empty. Provide image_tag for a full release or keep the current staging metadata in GitOps desired state."
-              exit 1
-            fi
 
             read_current_image() {
               local key="$1"
+              test -f "$CURRENT_METADATA" || { echo "::error::No published release. Supply image_tag or all four explicit image inputs." >&2; return 1; }
               python -c 'import json, sys; from pathlib import Path; metadata=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); image=metadata.get("images", {}).get(sys.argv[2]); isinstance(image, str) and "@sha256:" in image or (_ for _ in ()).throw(SystemExit(f"missing digest-pinned current image for {sys.argv[2]}")); print(image)' "${CURRENT_METADATA}" "${key}"
             }
 
-            if [ -z "${BACKEND_API_IMAGE}" ]; then
-              BACKEND_API_IMAGE="$(read_current_image backend_api)"
-            fi
-            if [ -z "${BACKEND_BEAT_IMAGE}" ]; then
-              BACKEND_BEAT_IMAGE="$(read_current_image backend_beat)"
+            if [ -z "${BACKEND_CORE_IMAGE}" ]; then
+              BACKEND_CORE_IMAGE="$(read_current_image backend_core)"
             fi
             if [ -z "${BACKEND_WORKER_IMAGE}" ]; then
               BACKEND_WORKER_IMAGE="$(read_current_image backend_worker)"
@@ -128,8 +117,7 @@ jobs:
 
           {
             echo "IMAGE_TAG=${IMAGE_TAG}"
-            echo "BACKEND_API_IMAGE=${BACKEND_API_IMAGE}"
-            echo "BACKEND_BEAT_IMAGE=${BACKEND_BEAT_IMAGE}"
+            echo "BACKEND_CORE_IMAGE=${BACKEND_CORE_IMAGE}"
             echo "BACKEND_WORKER_IMAGE=${BACKEND_WORKER_IMAGE}"
             echo "CUSTOMER_WEB_IMAGE=${CUSTOMER_WEB_IMAGE}"
             echo "PLATFORM_ADMIN_IMAGE=${PLATFORM_ADMIN_IMAGE}"
@@ -181,32 +169,45 @@ jobs:
             echo "${digest}"
           }
 
-          BACKEND_API_IMAGE_DIGEST="$(inspect_digest "${BACKEND_API_IMAGE}")"
-          BACKEND_BEAT_IMAGE_DIGEST="$(inspect_digest "${BACKEND_BEAT_IMAGE}")"
+          BACKEND_CORE_IMAGE_DIGEST="$(inspect_digest "${BACKEND_CORE_IMAGE}")"
           BACKEND_WORKER_IMAGE_DIGEST="$(inspect_digest "${BACKEND_WORKER_IMAGE}")"
           CUSTOMER_WEB_IMAGE_DIGEST="$(inspect_digest "${CUSTOMER_WEB_IMAGE}")"
           PLATFORM_ADMIN_IMAGE_DIGEST="$(inspect_digest "${PLATFORM_ADMIN_IMAGE}")"
 
           {
-            echo "BACKEND_API_IMAGE_DIGEST=${BACKEND_API_IMAGE_DIGEST}"
-            echo "BACKEND_BEAT_IMAGE_DIGEST=${BACKEND_BEAT_IMAGE_DIGEST}"
+            echo "BACKEND_CORE_IMAGE_DIGEST=${BACKEND_CORE_IMAGE_DIGEST}"
             echo "BACKEND_WORKER_IMAGE_DIGEST=${BACKEND_WORKER_IMAGE_DIGEST}"
             echo "CUSTOMER_WEB_IMAGE_DIGEST=${CUSTOMER_WEB_IMAGE_DIGEST}"
             echo "PLATFORM_ADMIN_IMAGE_DIGEST=${PLATFORM_ADMIN_IMAGE_DIGEST}"
-            echo "BACKEND_API_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_API_IMAGE}")@${BACKEND_API_IMAGE_DIGEST}"
-            echo "BACKEND_BEAT_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_BEAT_IMAGE}")@${BACKEND_BEAT_IMAGE_DIGEST}"
+            echo "BACKEND_CORE_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_CORE_IMAGE}")@${BACKEND_CORE_IMAGE_DIGEST}"
             echo "BACKEND_WORKER_IMAGE_PINNED=$(image_name_without_reference "${BACKEND_WORKER_IMAGE}")@${BACKEND_WORKER_IMAGE_DIGEST}"
             echo "CUSTOMER_WEB_IMAGE_PINNED=$(image_name_without_reference "${CUSTOMER_WEB_IMAGE}")@${CUSTOMER_WEB_IMAGE_DIGEST}"
             echo "PLATFORM_ADMIN_IMAGE_PINNED=$(image_name_without_reference "${PLATFORM_ADMIN_IMAGE}")@${PLATFORM_ADMIN_IMAGE_DIGEST}"
           } >> "$GITHUB_ENV"
 
+      - name: Materialize reviewed Cilium egress inputs
+        env:
+          POSTGRESQL_EGRESS_CIDRS: ${{ vars.STAGING_POSTGRESQL_EGRESS_CIDRS }}
+          REDIS_EGRESS_CIDRS: ${{ vars.STAGING_REDIS_EGRESS_CIDRS }}
+          S3_EGRESS_FQDNS: ${{ vars.STAGING_S3_EGRESS_FQDNS }}
+          MAIL_EGRESS_FQDNS: ${{ vars.STAGING_MAIL_EGRESS_FQDNS }}
+          MODEL_EGRESS_FQDNS: ${{ vars.STAGING_MODEL_EGRESS_FQDNS }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          fields = {"postgresql_cidrs": "POSTGRESQL_EGRESS_CIDRS", "redis_cidrs": "REDIS_EGRESS_CIDRS", "s3_fqdns": "S3_EGRESS_FQDNS", "mail_fqdns": "MAIL_EGRESS_FQDNS", "model_fqdns": "MODEL_EGRESS_FQDNS"}
+          configuration = {key: json.loads(os.environ[value] or "[]") for key, value in fields.items()}
+          Path(os.environ["RUNNER_TEMP"], "external-egress.json").write_text(json.dumps(configuration))
+          PY
+
       - name: Render staging release overlay
         run: |
           python scripts/render_k8s_release_overlay.py \
             --environment staging \
+            --external-egress-config "$RUNNER_TEMP/external-egress.json" \
             --output build/k8s-release/staging \
-            --backend-api-image "${BACKEND_API_IMAGE_PINNED}" \
-            --backend-beat-image "${BACKEND_BEAT_IMAGE_PINNED}" \
+            --backend-core-image "${BACKEND_CORE_IMAGE_PINNED}" \
             --backend-worker-image "${BACKEND_WORKER_IMAGE_PINNED}" \
             --customer-web-image "${CUSTOMER_WEB_IMAGE_PINNED}" \
             --platform-admin-image "${PLATFORM_ADMIN_IMAGE_PINNED}" \
@@ -219,6 +220,7 @@ jobs:
             --trusted-proxy-cidrs '${{ vars.STAGING_TRUSTED_PROXY_CIDRS }}' \
             --auth-cookie-secure "${{ vars.STAGING_AUTH_COOKIE_SECURE }}" \
             --mail-default-sender "${{ vars.STAGING_MAIL_DEFAULT_SENDER }}" \
+            --csp-object-storage-origins "${{ vars.STAGING_CSP_OBJECT_STORAGE_ORIGINS }}" \
             --s3-endpoint-url "${{ vars.STAGING_S3_ENDPOINT_URL }}" \
             --s3-region "${{ vars.STAGING_S3_REGION }}" \
             --s3-bucket "${{ vars.STAGING_S3_BUCKET }}" \
@@ -248,15 +250,13 @@ jobs:
               "rendered_at": datetime.now(timezone.utc).isoformat(),
               "image_tag": os.environ["IMAGE_TAG"],
               "images": {
-                  "backend_api": os.environ["BACKEND_API_IMAGE_PINNED"],
-                  "backend_beat": os.environ["BACKEND_BEAT_IMAGE_PINNED"],
+                  "backend_core": os.environ["BACKEND_CORE_IMAGE_PINNED"],
                   "backend_worker": os.environ["BACKEND_WORKER_IMAGE_PINNED"],
                   "customer_web": os.environ["CUSTOMER_WEB_IMAGE_PINNED"],
                   "platform_admin": os.environ["PLATFORM_ADMIN_IMAGE_PINNED"],
               },
               "requested_images": {
-                  "backend_api": os.environ["BACKEND_API_IMAGE"],
-                  "backend_beat": os.environ["BACKEND_BEAT_IMAGE"],
+                  "backend_core": os.environ["BACKEND_CORE_IMAGE"],
                   "backend_worker": os.environ["BACKEND_WORKER_IMAGE"],
                   "customer_web": os.environ["CUSTOMER_WEB_IMAGE"],
                   "platform_admin": os.environ["PLATFORM_ADMIN_IMAGE"],
@@ -287,8 +287,7 @@ jobs:
             echo "## Staging release package"
             echo ""
             echo "- Image tag: \`${IMAGE_TAG}\`"
-            echo "- Backend API image: \`${BACKEND_API_IMAGE_PINNED}\`"
-            echo "- Backend beat image: \`${BACKEND_BEAT_IMAGE_PINNED}\`"
+            echo "- Shared backend core image: \`${BACKEND_CORE_IMAGE_PINNED}\`"
             echo "- Backend worker image: \`${BACKEND_WORKER_IMAGE_PINNED}\`"
             echo "- Customer Web image: \`${CUSTOMER_WEB_IMAGE_PINNED}\`"
             echo "- Platform Admin image: \`${PLATFORM_ADMIN_IMAGE_PINNED}\`"
@@ -316,6 +315,9 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
+
+      - name: Install manifest validation dependencies
+        run: python -m pip install -r scripts/requirements-manifests.txt
 
       - name: Install kubectl
         run: |

@@ -1,9 +1,10 @@
 """Canonical admission, transactional consequences and metadata fencing on real PostgreSQL."""
 
+from tests.support.runtime_resources import resources_for
+
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 
 from tests.support.quota import admit_hold
@@ -62,11 +63,7 @@ from app.modules.revisions.writer import (
     AppendRevisionWrite,
     RestoreLineage,
 )
-from app.modules.revisions.metadata_delivery import (
-    metadata_delivery,
-    compute_metadata,
-    MetadataResult,
-)
+from app.modules.revisions.metadata_delivery import compute_metadata, MetadataResult
 
 from app.core.exceptions import ConflictException, ResourceNotFoundException
 from app.modules.durable_work.delivery import StaleDeliveryAttempt
@@ -76,8 +73,14 @@ from tests.support.postgres_schema import postgres_schema_database
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.support.write_cleanup import drain_write_cleanup
 from tests.test_score_revision_services import MUSICXML_1, MUSICXML_2
+from tests.support.runtime_resources import deliveries
+from tests.support.worker_context import inject_worker
 
-revision_writer = _media_wiring.build_revision_writer()
+
+revision_writer = resources_for().build_revision_writer()
+
+
+relay = resources_for().post_commit
 
 
 @pytest.fixture
@@ -132,10 +135,14 @@ def prepare(engine, storage, content=MUSICXML_1):
             bytes_count=len(content),
         )
         db.commit()
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key=f"scores/score/revisions/{uuid}/score.musicxml",
-            content=content,
-            content_type="application/vnd.recordare.musicxml+xml",
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(
+                key=f"scores/score/revisions/{uuid}/score.musicxml",
+                content=content,
+                content_type="application/vnd.recordare.musicxml+xml",
+            )
         )
     return PreparedRevisionSource(
         uuid, receipt, sha256(content).hexdigest(), "test", "1", reservation.hold_id
@@ -428,8 +435,8 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
                 db.rollback()
                 raise
 
-    monkeypatch.setattr(worker, "SessionLocal", transaction)
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, sessions=transaction)
+    inject_worker(monkeypatch, worker, storage=storage)
     computed, release = Event(), Event()
     original = worker.compute_metadata
 
@@ -451,8 +458,8 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
                 token = row.attempt_token
                 row.started_at = utc_now() - timedelta(days=1)
                 db.commit()
-                assert metadata_delivery.recover_and_list_due(db) == [uuid]
-                second = metadata_delivery.claim(db, uuid)
+                assert deliveries().metadata.recover_and_list_due(db) == [uuid]
+                second = deliveries().metadata.claim(db, uuid)
                 db.commit()
                 assert second.lease.token != token
         finally:
@@ -466,13 +473,13 @@ def test_metadata_mid_compute_takeover_and_atomic_completion(database, monkeypat
     with Session(engine) as db:
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         assert db.scalar(sa.select(RealtimeChange)) is None
-        metadata_delivery.adopt(db, second, result)
+        deliveries().metadata.adopt(db, second, result)
         db.flush()
         db.rollback()
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         assert db.scalar(sa.select(RevisionMetadataOutbox)).attempt_token == second.lease.token
         assert db.scalar(sa.select(RealtimeChange)) is None
-        metadata_delivery.adopt(db, second, result)
+        deliveries().metadata.adopt(db, second, result)
         db.commit()
         assert (
             db.scalar(sa.select(RevisionMetadataOutbox)).status
@@ -503,17 +510,18 @@ def test_review_confirm_concurrency_uses_one_initial_revision(database, monkeypa
         pass
 
     monkeypatch.setattr(ObjectWriteCoordinator, "write_batch", paused)
-    monkeypatch.setattr(review_module.revision_post_commit, "dispatch_best_effort", latency_only)
+    monkeypatch.setattr(relay, "dispatch_best_effort", latency_only)
 
     def confirm():
         with Session(engine) as db:
             return (
                 review_module.ImportReviewService(
                     quota=_resource_wiring.storage_quota_service,
-                    revision_writer=_media_wiring.build_revision_writer(),
-                    input_assets=_media_wiring.build_input_asset_lifecycle(),
+                    revision_writer=resources_for().build_revision_writer(),
+                    input_assets=resources_for().build_input_asset_lifecycle(),
                     usage=_resource_wiring.storage_usage_service,
-                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                    writes=resources_for(storage).build_object_write_coordinator(),
+                    post_commit=relay,
                 )
                 .confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_2))
                 .score_id
@@ -546,9 +554,10 @@ def test_metadata_relay_releases_broker_failure_without_consuming_attempt_and_be
 ):
     engine, storage = database
     initial(database)
-    from app.modules.revisions import metadata_dispatch
+    from app.runtime.worker.context import get_context as worker_context
+
+    metadata_dispatch = worker_context().dispatches.metadata
     from app.worker.execution import revision_metadata as worker
-    from app.task_queue import producer
     from app.worker import task_runtime
 
     @contextmanager
@@ -561,16 +570,16 @@ def test_metadata_relay_releases_broker_failure_without_consuming_attempt_and_be
                 db.rollback()
                 raise
 
-    monkeypatch.setattr(metadata_dispatch, "SessionLocal", transaction)
-    monkeypatch.setattr(worker, "SessionLocal", transaction)
-    monkeypatch.setattr(task_runtime, "SessionLocal", transaction)
+    monkeypatch.setattr(metadata_dispatch, "sessions", transaction)
+    inject_worker(monkeypatch, worker, sessions=transaction)
+    inject_worker(monkeypatch, task_runtime, sessions=transaction)
     with Session(engine) as db:
         uuid = db.scalar(sa.select(RevisionMetadataOutbox.outbox_uuid))
 
     def reject(*args, **kwargs):
         raise ConnectionError("broker unavailable")
 
-    monkeypatch.setattr(producer.celery_app, "send_task", reject)
+    monkeypatch.setattr(metadata_dispatch.sender, "send_task", reject)
     assert not metadata_dispatch.dispatch_revision_metadata(uuid)
     with Session(engine) as db:
         row = db.scalar(sa.select(RevisionMetadataOutbox))
@@ -581,11 +590,11 @@ def test_metadata_relay_releases_broker_failure_without_consuming_attempt_and_be
         )
     sent = []
     monkeypatch.setattr(
-        producer.celery_app, "send_task", lambda name, **kwargs: sent.append((name, kwargs))
+        metadata_dispatch.sender, "send_task", lambda name, **kwargs: sent.append((name, kwargs))
     )
     assert worker.execute_revision_metadata_maintenance()["dispatched"] == 1
     assert sent[0][0] == "app.worker.tasks.revision_metadata_task"
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, storage=storage)
     assert worker.execute_revision_metadata_task(None, uuid)["status"] == "completed"
 
 
@@ -605,9 +614,9 @@ def test_metadata_database_token_coherence_and_source_failure_are_delivery_seman
                 db.commit()
             db.rollback()
         uuid = db.scalar(sa.select(RevisionMetadataOutbox.outbox_uuid))
-        payload = metadata_delivery.claim(db, uuid)
+        payload = deliveries().metadata.claim(db, uuid)
         db.commit()
-        assert metadata_delivery.fail(db, uuid, payload.lease, "OSError")
+        assert deliveries().metadata.fail(db, uuid, payload.lease, "OSError")
         db.commit()
         assert db.scalar(sa.select(ScoreRevisionMetadata)).status == MetadataStatus.PENDING
         assert (
@@ -615,7 +624,7 @@ def test_metadata_database_token_coherence_and_source_failure_are_delivery_seman
             is RevisionMetadataOutboxStatus.FAILED
         )
         with pytest.raises(StaleDeliveryAttempt):
-            metadata_delivery.adopt(
+            deliveries().metadata.adopt(
                 db, payload, compute_metadata(storage.read_bytes(payload.source.storage_key))
             )
         db.rollback()
@@ -670,8 +679,8 @@ def test_metadata_worker_retries_source_failures_without_metadata_or_realtime_mu
             raise OSError("source temporarily unavailable")
         return b"unexpected physical content"
 
-    monkeypatch.setattr(worker, "SessionLocal", transaction)
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, sessions=transaction)
+    inject_worker(monkeypatch, worker, storage=storage)
     monkeypatch.setattr(storage, "read_bytes", read)
     with Session(engine) as db:
         uuid = db.scalar(sa.select(RevisionMetadataOutbox.outbox_uuid))
@@ -692,10 +701,14 @@ def test_writer_rejects_a_receipt_outside_the_canonical_revision_identity(databa
     engine, storage = database
     source = prepare(engine, storage)
     with Session(engine) as db:
-        wrong = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key="other/source.musicxml",
-            content=storage.read_bytes(source.receipt.object_key),
-            content_type=source.receipt.facts.content_type,
+        wrong = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(
+                key="other/source.musicxml",
+                content=storage.read_bytes(source.receipt.object_key),
+                content_type=source.receipt.facts.content_type,
+            )
         )
         with pytest.raises(ValueError, match="canonical source identity"):
             revision_writer.write(

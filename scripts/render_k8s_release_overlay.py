@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Render a deployable Kubernetes application overlay.
 
 The public overlays under deploy/application/overlays are templates. This
@@ -12,19 +13,21 @@ It intentionally does not generate Kubernetes Secrets or credentials.
 
 from __future__ import annotations
 
+from browser_security_contract import storage_origins
+from production_image_contract import validate_release_snapshot, validate_release_images
 import argparse
+import json
+import yaml
+from container_security_contract import external_network_policies
 import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OVERLAYS_ROOT = REPO_ROOT / "deploy" / "application" / "overlays"
 APPLICATION_BASE_ROOT = REPO_ROOT / "deploy" / "application" / "base"
-BUSYBOX_IMAGE = (
-    "busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"
-)
+BUSYBOX_IMAGE = "busybox@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,10 +39,14 @@ class ImageRef:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--external-egress-config",
+        type=Path,
+        help="Reviewed private-CIDR and exact-FQDN JSON; defaults to deny external egress",
+    )
     parser.add_argument("--environment", choices=("staging", "production"), required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--backend-api-image", required=True)
-    parser.add_argument("--backend-beat-image", required=True)
+    parser.add_argument("--backend-core-image", required=True)
     parser.add_argument("--backend-worker-image", required=True)
     parser.add_argument("--customer-web-image", required=True)
     parser.add_argument("--platform-admin-image", required=True)
@@ -52,6 +59,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trusted-proxy-cidrs", required=True)
     parser.add_argument("--auth-cookie-secure", choices=("true", "false"), required=True)
     parser.add_argument("--mail-default-sender", required=True)
+    parser.add_argument("--csp-object-storage-origins", required=True)
     parser.add_argument("--s3-endpoint-url", required=True)
     parser.add_argument("--s3-region", required=True)
     parser.add_argument("--s3-bucket", required=True)
@@ -66,17 +74,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def parse_image_ref(value: str) -> ImageRef:
-    if "@sha256:" in value:
-        name, digest = value.split("@", 1)
-        return ImageRef(name=name, field="digest", value=digest)
-
-    slash_index = value.rfind("/")
-    colon_index = value.rfind(":")
-    if colon_index <= slash_index:
-        raise ValueError(
-            f"Image reference must include an immutable tag or digest: {value}"
-        )
-    return ImageRef(name=value[:colon_index], field="newTag", value=value[colon_index + 1 :])
+    if not re.fullmatch(r"[a-z0-9][a-z0-9./:_-]*@sha256:[a-f0-9]{64}", value):
+        raise ValueError(f"Image reference must include an immutable sha256 digest: {value}")
+    name, digest = value.split("@", 1)
+    return ImageRef(name=name, field="digest", value=digest)
 
 
 def require_nonblank_arguments(args: argparse.Namespace) -> None:
@@ -88,8 +89,7 @@ def require_nonblank_arguments(args: argparse.Namespace) -> None:
     """
 
     required_fields = (
-        "backend_api_image",
-        "backend_beat_image",
+        "backend_core_image",
         "backend_worker_image",
         "customer_web_image",
         "platform_admin_image",
@@ -102,12 +102,14 @@ def require_nonblank_arguments(args: argparse.Namespace) -> None:
         "trusted_proxy_cidrs",
         "auth_cookie_secure",
         "mail_default_sender",
+        "csp_object_storage_origins",
         "s3_endpoint_url",
         "s3_region",
         "s3_bucket",
         "s3_force_path_style",
         "s3_presign_expire_seconds",
     )
+    storage_origins(args.csp_object_storage_origins)
     missing = [field for field in required_fields if not str(getattr(args, field, "")).strip()]
     if missing:
         formatted = ", ".join(f"--{field.replace('_', '-')}" for field in missing)
@@ -163,19 +165,14 @@ def materialize_base_images(base: Path, images: dict[str, str]) -> None:
 
     replacements = {
         "backend-api-deployment.yaml": {
-            "noteverse-backend-api:replace-me": images["backend_api"]
+            "noteverse-backend-core:replace-me": images["backend_core"]
         },
         "control-plane-deployment.yaml": {
-            "noteverse-backend-api:replace-me": images["backend_api"]
+            "noteverse-backend-core:replace-me": images["backend_core"]
         },
-        "observability-exporter-deployment.yaml": {
-            "noteverse-backend-api:replace-me": images["backend_api"]
-        },
-        "migration-job.yaml": {
-            "noteverse-backend-api:replace-me": images["backend_api"]
-        },
+        "migration-job.yaml": {"noteverse-backend-core:replace-me": images["backend_core"]},
         "backend-beat-deployment.yaml": {
-            "noteverse-backend-beat:replace-me": images["backend_beat"]
+            "noteverse-backend-core:replace-me": images["backend_core"]
         },
         "backend-worker-deployment.yaml": {
             "noteverse-backend-worker:replace-me": images["backend_worker"]
@@ -202,6 +199,13 @@ def materialize_base_images(base: Path, images: dict[str, str]) -> None:
 
 def render_overlay(args: argparse.Namespace) -> Path:
     require_nonblank_arguments(args)
+    for key in ("backend_core", "backend_worker", "customer_web", "platform_admin"):
+        parse_image_ref(getattr(args, key + "_image"))
+    images = {
+        key: getattr(args, key + "_image")
+        for key in ("backend_core", "backend_worker", "customer_web", "platform_admin")
+    }
+    validate_release_images(images)
     source = OVERLAYS_ROOT / args.environment
     if not source.is_dir():
         raise FileNotFoundError(f"Overlay template not found: {source}")
@@ -209,9 +213,17 @@ def render_overlay(args: argparse.Namespace) -> Path:
     output = args.output if args.output.is_absolute() else REPO_ROOT / args.output
     copy_template(source, output, args.overwrite)
     shutil.copytree(APPLICATION_BASE_ROOT, output / "base")
+    if getattr(args, "external_egress_config", None):
+        configuration = json.loads(args.external_egress_config.read_text(encoding="utf-8"))
+        policies = external_network_policies(configuration)
+        (output / "external-egress.json").write_text(
+            json.dumps(configuration, indent=2) + "\n", encoding="utf-8"
+        )
+        (output / "external-egress.yaml").write_text(
+            yaml.safe_dump_all(policies, sort_keys=False), encoding="utf-8"
+        )
 
-    backend_api_ref = parse_image_ref(args.backend_api_image)
-    backend_beat_ref = parse_image_ref(args.backend_beat_image)
+    backend_core_ref = parse_image_ref(args.backend_core_image)
     backend_worker_ref = parse_image_ref(args.backend_worker_image)
     customer_web_ref = parse_image_ref(args.customer_web_image)
     platform_admin_ref = parse_image_ref(args.platform_admin_image)
@@ -223,18 +235,20 @@ def render_overlay(args: argparse.Namespace) -> Path:
         "- ../../base",
         "- base",
     )
-    kustomization = replace_image_block(kustomization, "noteverse-backend-api", backend_api_ref)
-    kustomization = replace_image_block(kustomization, "noteverse-backend-beat", backend_beat_ref)
-    kustomization = replace_image_block(kustomization, "noteverse-backend-worker", backend_worker_ref)
+    kustomization = replace_image_block(kustomization, "noteverse-backend-core", backend_core_ref)
+    kustomization = replace_image_block(
+        kustomization, "noteverse-backend-worker", backend_worker_ref
+    )
     kustomization = replace_image_block(kustomization, "noteverse-customer-web", customer_web_ref)
-    kustomization = replace_image_block(kustomization, "noteverse-platform-admin", platform_admin_ref)
+    kustomization = replace_image_block(
+        kustomization, "noteverse-platform-admin", platform_admin_ref
+    )
     kustomization_path.write_text(kustomization, encoding="utf-8")
 
     materialize_base_images(
         output / "base",
         {
-            "backend_api": args.backend_api_image,
-            "backend_beat": args.backend_beat_image,
+            "backend_core": args.backend_core_image,
             "backend_worker": args.backend_worker_image,
             "customer_web": args.customer_web_image,
             "platform_admin": args.platform_admin_image,
@@ -252,9 +266,7 @@ def render_overlay(args: argparse.Namespace) -> Path:
         else "admin.noteverse.example.invalid"
     )
     tls_placeholder = (
-        "noteverse-staging-tls"
-        if args.environment == "staging"
-        else "noteverse-production-tls"
+        "noteverse-staging-tls" if args.environment == "staging" else "noteverse-production-tls"
     )
 
     gateway_path = output / "gateway.yaml"
@@ -264,59 +276,33 @@ def render_overlay(args: argparse.Namespace) -> Path:
     gateway = replace_required(gateway, tls_placeholder, args.tls_secret)
     gateway_path.write_text(gateway, encoding="utf-8")
 
-    backend_config_path = output / "backend-config.env"
-    backend_config = backend_config_path.read_text(encoding="utf-8")
-    backend_config = replace_env_value(
-        backend_config,
-        "FRONTEND_BASE_URL",
-        args.customer_web_base_url,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "BACKEND_CORS_ORIGINS",
-        args.backend_cors_origins,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "TRUSTED_PROXY_CIDRS",
-        args.trusted_proxy_cidrs,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "AUTH_COOKIE_SECURE",
-        args.auth_cookie_secure,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "MAIL_DEFAULT_SENDER",
-        args.mail_default_sender,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "S3_ENDPOINT_URL",
-        args.s3_endpoint_url,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "S3_REGION",
-        args.s3_region,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "S3_BUCKET",
-        args.s3_bucket,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "S3_FORCE_PATH_STYLE",
-        args.s3_force_path_style,
-    )
-    backend_config = replace_env_value(
-        backend_config,
-        "OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS",
-        args.s3_presign_expire_seconds,
-    )
-    backend_config_path.write_text(backend_config, encoding="utf-8")
+    changes = {
+        "customer-api-config.env": {
+            "FRONTEND_BASE_URL": args.customer_web_base_url,
+            "BACKEND_CORS_ORIGINS": args.backend_cors_origins,
+            "TRUSTED_PROXY_CIDRS": args.trusted_proxy_cidrs,
+            "AUTH_COOKIE_SECURE": args.auth_cookie_secure,
+        },
+        "worker-config.env": {"MAIL_DEFAULT_SENDER": args.mail_default_sender},
+    }
+    changes["customer-web-config.env"] = {
+        "CSP_OBJECT_STORAGE_ORIGINS": args.csp_object_storage_origins
+    }
+    storage_values = {
+        "S3_ENDPOINT_URL": args.s3_endpoint_url,
+        "S3_REGION": args.s3_region,
+        "S3_BUCKET": args.s3_bucket,
+        "S3_FORCE_PATH_STYLE": args.s3_force_path_style,
+        "OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS": args.s3_presign_expire_seconds,
+    }
+    for filename in ("customer-api-config.env", "worker-config.env"):
+        changes[filename].update(storage_values)
+    for filename, values in changes.items():
+        path = output / filename
+        text = path.read_text(encoding="utf-8")
+        for key, value in values.items():
+            text = replace_env_value(text, key, value)
+        path.write_text(text, encoding="utf-8")
 
     control_plane_config_path = output / "control-plane-config.env"
     control_plane_config = control_plane_config_path.read_text(encoding="utf-8")
@@ -325,8 +311,12 @@ def render_overlay(args: argparse.Namespace) -> Path:
         "CONTROL_PLANE_CORS_ORIGINS",
         args.control_plane_cors_origins,
     )
+    control_plane_config = replace_env_value(
+        control_plane_config, "TRUSTED_PROXY_CIDRS", args.trusted_proxy_cidrs
+    )
     control_plane_config_path.write_text(control_plane_config, encoding="utf-8")
 
+    validate_release_snapshot(output, images)
     return output
 
 

@@ -1,10 +1,11 @@
 from __future__ import annotations
+
+
+from tests.support.runtime_resources import resources_for
 from tests.support.uploads import complete_image_upload
 
-from app.storage import object_storage as _storage_provider
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 import json
 import hashlib
@@ -45,6 +46,13 @@ from tests.support.object_storage import InMemoryObjectStorage
 from app.storage.s3_compatible import S3CompatibleObjectStorage
 from app.modules.media_storage.reads import materialize_admitted_object, StoredObjectReadTarget
 from app.shared.time import utc_now
+from tests.support.runtime_resources import storage as _storage_provider
+from app.platform.config.import_dispatch import ImportDispatchSettings
+from app.platform.config.storage import MediaStoragePolicyConfig
+from app.platform.config.storage import ObjectStorageConfig
+from app.runtime.customer_api.context import get_context
+from app.platform.config.application import ImportExecutionConfig
+from app.runtime.worker.settings import WorkerSettings
 
 
 class FakeS3Client:
@@ -132,8 +140,10 @@ def test_artifact_recorder_persists_intent_before_upload(
 
     path = tmp_path / f"output.{extension}"
     path.write_bytes(content)
-    item = _media_wiring.build_import_artifact_recorder(storage).prepare_file_item(
-        "task-1", kind, str(path), page=1
+    item = (
+        resources_for(storage)
+        .build_import_artifact_recorder()
+        .prepare_file_item("task-1", kind, str(path), page=1)
     )
     row = db.scalar(select(ObjectWriteIntent))
     assert set(item) == {"write_intent_uuid", "write_token", "filename", "page_number"}
@@ -150,8 +160,9 @@ def test_avatar_service_stores_processed_image_through_storage(mode: str) -> Non
     with tempfile.TemporaryDirectory():
         storage = InMemoryObjectStorage()
         service = AvatarService(
-            writes=_resource_wiring.build_object_write_coordinator(storage),
-            delivery=_resource_wiring.build_media_delivery_service(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            delivery=resources_for(storage).build_media_delivery_service(),
+            config=MediaStoragePolicyConfig.model_validate(get_context().settings.model_dump()),
         )
         put = Mock(wraps=storage.put_bytes)
         storage.put_bytes = put
@@ -207,8 +218,9 @@ def test_avatar_service_replaces_user_avatar_and_queues_old_object(
     with tempfile.TemporaryDirectory():
         session, storage = score_service_session
         service = AvatarService(
-            writes=_resource_wiring.build_object_write_coordinator(storage),
-            delivery=_resource_wiring.build_media_delivery_service(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            delivery=resources_for(storage).build_media_delivery_service(),
+            config=MediaStoragePolicyConfig.model_validate(get_context().settings.model_dump()),
         )
         storage.put_bytes(key="avatars/old.jpg", content=b"old", content_type="image/jpeg")
         user = User(
@@ -250,19 +262,20 @@ def test_avatar_service_replaces_user_avatar_and_queues_old_object(
 
 def test_s3_storage_put_and_materialize() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = S3CompatibleObjectStorage()
+        storage = S3CompatibleObjectStorage(
+            config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+        )
         storage.bucket = "bucket"
         storage.endpoint_url = "https://storage.example.test"
         storage._client = FakeS3Client()
         storage._mutation_client = storage._client
 
-        with patch("app.storage.s3_compatible.settings.WORK_ROOT", temp_dir):
-            stored = storage.put_bytes(key="objects/example.bin", content=b"score")
-            path = materialize_admitted_object(
-                storage,
-                StoredObjectReadTarget(1, stored.object_key, 5, "application/octet-stream"),
-                os.path.join(temp_dir, "scratch.png"),
-            )
+        stored = storage.put_bytes(key="objects/example.bin", content=b"score")
+        path = materialize_admitted_object(
+            storage,
+            StoredObjectReadTarget(1, stored.object_key, 5, "application/octet-stream"),
+            os.path.join(temp_dir, "scratch.png"),
+        )
 
         assert stored.object_key == "objects/example.bin"
         assert os.path.exists(path)
@@ -275,7 +288,9 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
     storage = Mock()
     storage.delete.return_value = True
     service = ImportJobMaintenanceService(
-        repository=repository, usage=_resource_wiring.storage_usage_service
+        repository=repository,
+        usage=_resource_wiring.storage_usage_service,
+        config=ImportDispatchSettings(),
     )
     db = MagicMock()
 
@@ -294,10 +309,7 @@ def test_import_job_maintenance_releases_orphan_upload_and_queues_retirement() -
     db.execute.return_value.scalar_one.return_value = 0
 
     with (
-        patch(
-            "app.modules.import_jobs.maintenance_service.settings.ORPHAN_UPLOAD_TTL_SECONDS",
-            86400,
-        ),
+        patch.object(service.config, "ORPHAN_UPLOAD_TTL_SECONDS", 86400),
         patch.object(service.usage, "record_release") as release_usage,
         patch(
             "app.modules.import_jobs.maintenance_service.retire_after_release",
@@ -395,16 +407,18 @@ def test_import_worker_materializes_admitted_input_bytes(tmp_path, monkeypatch) 
     destination = tmp_path / "input.png"
     storage = Mock(iter_bytes=Mock(return_value=iter([b"input"])))
     monkeypatch.setattr(
-        "app.modules.import_jobs.pipeline_runner.object_work_path", lambda _: str(destination)
+        "app.modules.import_jobs.pipeline_runner.object_work_path",
+        lambda _, **kwargs: str(destination),
     )
     service = ImportPipelineRunner(
-        recorder=_media_wiring.build_import_artifact_recorder().recorder,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
-        sessions=_resource_wiring.write_sessions,
+        recorder=resources_for().build_import_artifact_recorder().recorder,
+        writes=resources_for(storage).build_object_write_coordinator(),
+        sessions=resources_for().sessions,
+        config=ImportExecutionConfig.model_validate(WorkerSettings().model_dump()),
     )
     assert service._resolve_input_paths([target]) == [str(destination)]
     assert destination.read_bytes() == b"input"
-    storage.iter_bytes.assert_called_once_with(target.storage_key)
+    storage.iter_bytes.assert_called_once_with(target.storage_key, chunk_size=64 * 1024)
 
 
 def test_import_job_submission_rejects_upload_owned_by_another_user() -> None:
@@ -439,7 +453,7 @@ def test_upload_commands_have_independent_physical_objects(score_service_session
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
     user = session.get(User, 1)
     complete_image_upload(
@@ -472,7 +486,7 @@ def test_delete_upload_rejects_non_owner() -> None:
         repository=repository,
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(_storage_provider),
+        uploads=resources_for(_storage_provider).build_upload_session_service(),
     )
     db = Mock()
     current_user = SimpleNamespace(id=1)
@@ -497,7 +511,7 @@ def test_delete_upload_removes_owned_upload_and_reference() -> None:
         repository=repository,
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(_storage_provider),
+        uploads=resources_for(_storage_provider).build_upload_session_service(),
     )
     db = Mock()
     db.get.return_value = SimpleNamespace(
@@ -519,7 +533,7 @@ def test_delete_upload_removes_owned_upload_and_reference() -> None:
             repository=repository,
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            uploads=_resource_wiring.build_upload_session_service(storage),
+            uploads=resources_for(storage).build_upload_session_service(),
         )
         with (
             patch.object(service.usage, "record_release") as release_usage,
@@ -543,16 +557,18 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
     score_service_session, source
 ):
     from httpx import ASGITransport, AsyncClient
-    from app.api.deps import get_current_user, get_db
-    from app.main import create_app
-    from app.api.resource_dependencies import get_avatar_service
+    from app.platform.db.dependencies import get_db
+    from app.runtime.customer_api.deps import get_current_user
+    from app.runtime.customer_api.main import create_app
+    from app.runtime.customer_api.resources import get_avatar_service
 
     session, storage = score_service_session
     db = session
     user = session.get(User, 1)
     service = AvatarService(
-        writes=_resource_wiring.build_object_write_coordinator(storage),
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        delivery=resources_for(storage).build_media_delivery_service(),
+        config=MediaStoragePolicyConfig.model_validate(get_context().settings.model_dump()),
     )
     image = io.BytesIO()
     Image.new("RGB", (2, 2), "red").save(image, format="PNG")
@@ -572,7 +588,10 @@ async def test_avatar_response_url_routes_to_current_customer_resolver(
     capabilities = ["https://objects.example/lease-one", "https://objects.example/lease-two"]
     storage.download_url = Mock(side_effect=[*capabilities, "https://objects.example/after-loss"])
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://testserver", follow_redirects=False
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        headers={"Origin": "http://testserver"},
+        follow_redirects=False,
     ) as client:
         if source == "profile":
             response = await client.get("/api/v1/me/profile")

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.revision_render_delivery import RevisionRenderDeliverySettings
+from app.platform.config.revision_render_delivery import RevisionRenderDeliverySettings
 
 
 @pytest.mark.parametrize(
@@ -21,7 +21,7 @@ def test_revision_render_delivery_settings_reject_non_positive_values(field_name
 
 
 def test_derived_asset_retention_interval_is_positive() -> None:
-    from app.core.settings.derived_asset_retention import DerivedAssetRetentionSettings
+    from app.platform.config.derived_asset_retention import DerivedAssetRetentionSettings
 
     with pytest.raises(ValidationError, match="cleanup interval must be positive"):
         DerivedAssetRetentionSettings(DERIVED_ASSET_CLEANUP_INTERVAL_SECONDS=0)

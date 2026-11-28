@@ -5,11 +5,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.api.deps import get_current_user, get_db
-from app.api.resource_dependencies import get_import_review_service
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
+from app.runtime.customer_api.resources import get_import_review_service
 from app.shared.time import utc_now
 
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.import_jobs.review.service import ImportReviewService
 from app.modules.import_jobs.review.read_model import ImportReviewReadModel
 from app.modules.import_jobs.pipeline.context import JobContext

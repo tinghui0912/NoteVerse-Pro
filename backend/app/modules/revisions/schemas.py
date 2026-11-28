@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from app.shared.time import Instant
 
+from app.platform.document_admission.musicxml import MUSICXML_LIMITS
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.revisions.domain import RevisionOrigin
@@ -13,7 +15,7 @@ from app.shared.api_model import ApiModel
 class RevisionCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=MUSICXML_LIMITS.max_bytes)
     expected_head_revision_id: str
     idempotency_key: str | None = Field(default=None, min_length=8, max_length=128)
     origin: RevisionOrigin = RevisionOrigin.EDIT

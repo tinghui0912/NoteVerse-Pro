@@ -1,34 +1,4 @@
 name: noteverse-integration
-
-x-backend-integration: &backend-integration
-  image: noteverse-backend-api:integration
-  build:
-    context: .
-    dockerfile: docker/backend/Dockerfile.api
-  env_file:
-    - path: backend/.env.docker
-      required: true
-  environment:
-    DEBUG: "false"
-    FRONTEND_BASE_URL: http://localhost:3000
-    BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
-    AUTH_COOKIE_SECURE: "false"
-    AUTH_COOKIE_SAMESITE: lax
-    WORK_ROOT: /tmp/noteverse-integration/work
-    UPLOAD_URL_TTL_SECONDS: "120"
-    UPLOAD_SESSION_TTL_SECONDS: "600"
-    DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_test_integration
-    SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_test_integration
-    REDIS_URL: redis://redis:6379/0
-    CELERY_BROKER_URL: redis://redis:6379/0
-    CELERY_RESULT_BACKEND: redis://redis:6379/0
-    NOTEVERSE_INTEGRATION_RUN_ID: ${NOTEVERSE_INTEGRATION_RUN_ID:?Integration run identity is required}
-    NOTEVERSE_INTEGRATION_PASSWORD: ${NOTEVERSE_INTEGRATION_PASSWORD:?Integration password is required}
-  volumes:
-    - integration_work:/tmp/noteverse-integration
-  extra_hosts:
-    - "host.docker.internal:host-gateway"
-
 services:
   postgres:
     image: postgres:17
@@ -37,101 +7,197 @@ services:
       POSTGRES_PASSWORD: noteverse
       POSTGRES_DB: noteverse_test_integration
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U noteverse -d noteverse_test_integration"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U noteverse -d noteverse_test_integration
       interval: 2s
       timeout: 3s
       retries: 30
     volumes:
-      - integration_database:/var/lib/postgresql/data
+    - integration_database:/var/lib/postgresql/data
   redis:
     image: redis:8
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - ping
       interval: 2s
       timeout: 3s
       retries: 30
   migrate:
-    <<: *backend-integration
+    image: noteverse-backend-core:integration
+    volumes:
+    - integration_work:/tmp/noteverse-integration
+    extra_hosts:
+    - host.docker.internal:host-gateway
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: migrate
-    restart: "no"
-
+      bootstrap:
+        condition: service_completed_successfully
+    command: migrator
+    restart: 'no'
+    environment:
+      DATABASE_URL: postgresql+psycopg://nv_migrator:${NV_MIGRATOR_PASSWORD:?Runtime database password is required}@postgres:5432/noteverse_test_integration
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.core
   seed:
-    <<: *backend-integration
-    command: python scripts/seed_integration_user.py
+    image: noteverse-backend-core:integration
+    volumes:
+    - integration_work:/tmp/noteverse-integration
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    command: seed-integration
     depends_on:
       migrate:
         condition: service_completed_successfully
-    restart: "no"
-
+    restart: 'no'
+    env_file:
+    - path: backend/.env.docker.customer-api
+      required: true
+    environment:
+      LOG_FORMAT: json
+      DATABASE_URL: postgresql+psycopg://nv_customer_api:${NV_CUSTOMER_API_PASSWORD:?Runtime database password is required}@postgres:5432/noteverse_test_integration
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      WORK_ROOT: /tmp/noteverse-integration/work
+      DEBUG: 'false'
+      FRONTEND_BASE_URL: http://localhost:3000
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
+      AUTH_COOKIE_SECURE: 'false'
+      UPLOAD_URL_TTL_SECONDS: '120'
+      UPLOAD_SESSION_TTL_SECONDS: '600'
+      NOTEVERSE_INTEGRATION_RUN_ID: ${NOTEVERSE_INTEGRATION_RUN_ID:?Integration run identity is required}
+      NOTEVERSE_INTEGRATION_PASSWORD: ${NOTEVERSE_INTEGRATION_PASSWORD:?Integration password is required}
   api:
-    <<: *backend-integration
-    command: api
+    image: noteverse-backend-core:integration
+    volumes:
+    - integration_work:/tmp/noteverse-integration
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    command: customer-api
     ports:
-      - "3011:8000"
+    - 3011:8000
     depends_on:
       seed:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)
       interval: 5s
       timeout: 3s
       retries: 20
-
-  worker:
-    <<: *backend-integration
     env_file:
-      - path: backend/.env.docker
-        required: true
-      - path: backend/.env.docker.worker
-        required: true
+    - path: backend/.env.docker.customer-api
+      required: true
+    environment:
+      LOG_FORMAT: json
+      DATABASE_URL: postgresql+psycopg://nv_customer_api:${NV_CUSTOMER_API_PASSWORD:?Runtime database password is required}@postgres:5432/noteverse_test_integration
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      WORK_ROOT: /tmp/noteverse-integration/work
+      DEBUG: 'false'
+      FRONTEND_BASE_URL: http://localhost:3000
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
+      AUTH_COOKIE_SECURE: 'false'
+      UPLOAD_URL_TTL_SECONDS: '120'
+      UPLOAD_SESSION_TTL_SECONDS: '600'
+      NOTEVERSE_INTEGRATION_RUN_ID: ${NOTEVERSE_INTEGRATION_RUN_ID:?Integration run identity is required}
+      NOTEVERSE_INTEGRATION_PASSWORD: ${NOTEVERSE_INTEGRATION_PASSWORD:?Integration password is required}
+  worker:
     image: noteverse-backend-worker:integration
+    volumes:
+    - integration_work:/tmp/noteverse-integration
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    command: worker
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    env_file:
+    - path: backend/.env.docker.worker
+      required: true
+    environment:
+      LOG_FORMAT: json
+      DATABASE_URL: postgresql+psycopg://nv_worker:${NV_WORKER_PASSWORD:?Runtime database password is required}@postgres:5432/noteverse_test_integration
+      SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://nv_worker:${NV_WORKER_PASSWORD:?Runtime database password is required}@postgres:5432/noteverse_test_integration
+      REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS: '60'
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      WORK_ROOT: /tmp/noteverse-integration/work
+      REALTIME_EVENT_RETENTION_DAYS: '7'
     build:
       context: .
       dockerfile: docker/backend/Dockerfile.worker
       args:
         WORKER_DEPS_IMAGE: ${WORKER_DEPS_IMAGE:-noteverse-backend-worker-deps:dev}
-    command: worker
-    depends_on:
-      seed:
-        condition: service_completed_successfully
-
   beat:
-    <<: *backend-integration
-    image: noteverse-backend-beat:integration
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile.beat
+    image: noteverse-backend-core:integration
+    volumes:
+    - integration_work:/tmp/noteverse-integration
+    extra_hosts:
+    - host.docker.internal:host-gateway
     command: beat
     depends_on:
       seed:
         condition: service_completed_successfully
-
+    environment:
+      LOG_FORMAT: json
+      DATABASE_URL: postgresql+psycopg://nv_beat:${NV_BEAT_PASSWORD:?Runtime database password is required}@postgres:5432/noteverse_test_integration
+      SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://nv_beat:${NV_BEAT_PASSWORD:?Runtime database password is required}@postgres:5432/noteverse_test_integration
+      REALTIME_EVENT_CLEANUP_INTERVAL_SECONDS: '60'
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      WORK_ROOT: /tmp/noteverse-integration/work
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.core
   customer-web:
     image: noteverse-customer-web-integration:dev
     build:
       context: .
       dockerfile: docker/customer-web/Dockerfile.dev
     environment:
-      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_TELEMETRY_DISABLED: '1'
       NEXT_BACKEND_ORIGIN: http://api:8000
       NEXT_ALLOWED_DEV_ORIGINS: http://localhost:3000
     volumes:
-      - ./apps/customer-web:/app
-      - integration_customer_web_node_modules:/app/node_modules
+    - ./apps/customer-web:/app
+    - integration_customer_web_node_modules:/app/node_modules
     tmpfs:
-      - /app/.next
+    - /app/.next
     ports:
-      - "3000:3000"
+    - 3000:3000
     depends_on:
       api:
         condition: service_healthy
-
+  bootstrap:
+    image: noteverse-backend-core:integration
+    volumes:
+    - integration_work:/tmp/noteverse-integration
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    command:
+    - database-bootstrap
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NOTEVERSE_DB_ADMIN_URL: postgresql+psycopg://noteverse:noteverse@postgres:5432/noteverse_test_integration
+      NV_MIGRATOR_PASSWORD: ${NV_MIGRATOR_PASSWORD:?Runtime database password is required}
+      NV_CUSTOMER_API_PASSWORD: ${NV_CUSTOMER_API_PASSWORD:?Runtime database password is required}
+      NV_CONTROL_PLANE_PASSWORD: ${NV_CONTROL_PLANE_PASSWORD:?Runtime database password is required}
+      NV_WORKER_PASSWORD: ${NV_WORKER_PASSWORD:?Runtime database password is required}
+      NV_BEAT_PASSWORD: ${NV_BEAT_PASSWORD:?Runtime database password is required}
 volumes:
-  integration_customer_web_node_modules:
-  integration_work:
-  integration_database:
+  integration_customer_web_node_modules: null
+  integration_work: null
+  integration_database: null

@@ -38,80 +38,43 @@ and update process.
 
 ## Files
 
-- `docker/backend/Dockerfile.api`: API and migration runtime image.
-- `docker/backend/Dockerfile.beat`: Celery beat scheduler runtime image.
+- `docker/backend/Dockerfile.core`: shared Customer API, Control Plane, Beat and migration runtime image.
 - `docker/backend/Dockerfile.worker-deps`: shared worker dependency base image.
 - `docker/backend/Dockerfile.worker`: Celery worker and model-cache-agent runtime image.
 - `docker/backend/Dockerfile.quality`: local core backend quality-check image.
-- `docker/backend/entrypoint.sh`: service command switch.
-- `docker-compose.backend-dev.yml`: API, worker, beat, and quality services.
-- `backend/.env.docker.example`: Docker-specific backend environment template.
-- `backend/.env.docker.worker.example`: Worker-process-only local environment
-  template.
-- `.dockerignore`: prevents caches, data, models, and local external checkouts
-  from being copied into images.
+- `docker/backend/entrypoint.sh`: explicit core runtime/administrative commands.
+- `docker/backend/worker-entrypoint.sh`: Worker and model-preparation commands.
+- `docker-compose.backend-dev.yml`: runtime-specific development processes.
+- `docker-compose.backend-quality.yml`: isolated test database and quality process.
+- `backend/.env.docker.<runtime>.example`: isolated configuration for each process.
+- `.dockerignore`: excludes local environment files, caches and model data.
 
 ## Prepare Environment
 
-`backend/.env.docker` is required. Docker Compose fails before starting services
-when this file is missing.
-
-Copy both Docker environment templates:
+Copy each example needed by the processes you run:
 
 ```powershell
-Copy-Item backend/.env.docker.example backend/.env.docker
-Copy-Item backend/.env.docker.worker.example backend/.env.docker.worker
+'customer-api','control-plane','worker','beat','migrator','model-assets' | ForEach-Object {
+    Copy-Item "backend/.env.docker.$_.example" "backend/.env.docker.$_"
+}
 ```
 
-Update database and Redis URLs if your Windows host does not expose them through
-`host.docker.internal`:
+Supply actual credentials locally. Each `DATABASE_URL` uses its explicit runtime
+role; Worker and Beat scheduler-lock URLs use the same respective role and a
+direct PostgreSQL or session-pooling connection. Never use transaction pooling
+for advisory-lock leadership. Configure independent role passwords using the
+[database authorization procedure](../../architecture/runtime/database-role-ownership.md)
+before migrating. The migrator tools service runs migrations and the reviewed
+grant contract; application processes do not own DDL.
 
-```dotenv
-DATABASE_URL=postgresql+psycopg://postgres:password@host.docker.internal:5432/noteverse_pro
-SCHEDULER_LOCK_DATABASE_URL=postgresql+psycopg://postgres:password@host.docker.internal:5432/noteverse_pro
-REDIS_URL=redis://host.docker.internal:6379/0
-CELERY_BROKER_URL=redis://host.docker.internal:6379/0
-CELERY_RESULT_BACKEND=redis://host.docker.internal:6379/0
-```
-
-If `host.docker.internal` cannot reach Redis or the database, use the Windows
-LAN IP:
-
-```dotenv
-REDIS_URL=redis://192.168.31.59:6379/0
-DATABASE_URL=postgresql+psycopg://postgres:password@192.168.31.59:5432/noteverse_pro
-```
-
-Do not commit `backend/.env.docker`.
-
-The backend settings loader does not read `backend/.env`. Local development and
-tests must run through Docker with environment provided by `backend/.env.docker`
-or deployment-level environment variables.
-
-### Local configuration boundary
-
-`backend/.env.docker` is an untracked local runtime manifest. It may contain
-developer-specific infrastructure endpoints, local credentials, and non-secret
-development tuning such as Task reliability intervals, retry limits, and batch
-sizes. Keep the shared developer baseline in
-`backend/.env.docker.example`; do not commit the local copy.
-
-Keep each local file synchronized with its committed example when changing the
-local contract. Both examples are checked against the application settings
-schema in CI, so they cannot silently accumulate obsolete variables.
-`CELERY_WORKER_CONCURRENCY` belongs only in `.env.docker.worker`: it is
-consumed by the Worker entrypoint rather than Pydantic settings and must not be
-injected into API, Beat, or quality containers.
-
-Task reliability values belong in this local file because Docker Compose must
-pass the same values to API, Worker, and Beat while developing. They are not a
-production source of truth. Production reliability policy must be reviewed and
-versioned with its deployment configuration, tuned against throughput and SLO
-evidence, and released with the affected workloads. Kubernetes uses a shared
-backend ConfigMap for cross-role baseline values and role-specific ConfigMaps
-for Worker/model assets and Control Plane browser security settings. Keep
-database URLs, Redis URLs, object-storage keys, mail keys, and cookie secrets in
-the deployment secret store rather than a ConfigMap or repository file.
+Environment loading belongs to launchers. Settings schemas do not discover local
+files. Compose supplies each service only its own file. `quality` receives isolated
+test configuration and uses `InMemoryObjectStorage`, with no cloud credentials.
+Untracked `.env.docker.*` files never belong in Git. Exact accepted fields and
+Secret keys follow [runtime ownership](../../architecture/runtime/settings-ownership.md).
+`CELERY_WORKER_CONCURRENCY` is a Worker setting. Public runtime policy belongs to
+each process's ConfigMap in Kubernetes; connection credentials and authentication
+keys belong only to that process's Secret.
 
 ## Prepare Model Volume
 
@@ -222,7 +185,8 @@ Every backend dependency image uses the same `backend/pyproject.toml` and
 venv at `/opt/noteverse/venv`, outside the `/app` source bind mount.
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml build api beat quality worker-deps
+docker compose -f docker-compose.backend-dev.yml build api beat worker-deps
+docker compose -f docker-compose.backend-quality.yml build quality
 docker compose -f docker-compose.backend-dev.yml build worker
 ```
 
@@ -245,7 +209,8 @@ Final composition uses the dependency OCI. PR validation builds locally and
 cannot publish. Security/SBOM work keeps lifecycle-scoped disk cleanup; disk
 exhaustion is a failure, never a reason to skip a gate.
 
-API selects only `api`; Beat selects only `beat`; Quality selects only `quality`.
+Core selects `api` and `beat`; Quality selects `quality`. Core includes HTTP,
+Celery and migrations without Worker processing dependencies.
 API owns customer/control-plane/observability and migration entrypoints. Beat
 owns PostgreSQL scheduler locking and Celery, without Worker task implementations.
 Worker owns render and heavy OCR/ML.
@@ -286,22 +251,22 @@ npm run dev
 Check runtime dependencies inside the container:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api check
+docker compose -f docker-compose.backend-dev.yml run --rm --entrypoint python api scripts/check_runtime.py --role api
 ```
 
-The default is `--role all`. Role-specific checks are also available:
+Run checks in the matching process environment:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api check --role api
-docker compose -f docker-compose.backend-dev.yml run --rm api check --role worker
-docker compose -f docker-compose.backend-dev.yml run --rm api check --role beat
+docker compose -f docker-compose.backend-dev.yml run --rm --entrypoint python api scripts/check_runtime.py --role api
+docker compose -f docker-compose.backend-dev.yml run --rm --entrypoint python worker scripts/check_runtime.py --role worker
+docker compose -f docker-compose.backend-dev.yml run --rm --entrypoint python beat scripts/check_runtime.py --role beat
 ```
 
 The roles intentionally have different boundaries:
 
-- `api`: async database, Redis, storage configuration, SoundFont, and API runtime checks.
+- `api`: database, Redis, storage configuration and API runtime checks.
 - `worker`: sync database, Redis, work directory, Celery task registration, selected OMR/render engines, and OCR/Hugging Face models.
-- `beat`: Redis and the writable beat schedule directory only.
+- `beat`: its database, Redis, scheduler leadership connection and writable schedule directory.
 
 Worker and beat execute their role checks before starting Celery. A failed
 required check exits the process; there is no bypass environment variable.
@@ -323,7 +288,7 @@ request probes.
 Run migrations:
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml run --rm api migrate
+docker compose -f docker-compose.backend-dev.yml --profile tools run --rm migrate migrate
 ```
 
 Open a shell:

@@ -1,15 +1,17 @@
 """Score deletion durable delivery, row locks and attempt fencing."""
 
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+
 from dataclasses import dataclass
 from datetime import timedelta
 from uuid import uuid4
 from sqlalchemy import select, or_, and_
 from sqlalchemy.orm import Session
-from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, ValidationException
 from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus as Status
 from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
+    DeliveryTransitions,
     DeliveryAttemptLease,
     DeliveryStatuses,
     DeliveryLifecyclePolicy,
@@ -50,7 +52,15 @@ def require_current_attempt(db: Session, lease: ScoreDeletionLease) -> ScoreDele
     row = lock_operation(db, lease.operation_uuid)
     if (
         row is None
-        or not ScoreDeletionDeliveryService.lifecycle().attempt_matches(row, lease)
+        or not DeliveryTransitions(
+            DeliveryStatuses(
+                Status.PENDING,
+                Status.DISPATCHED,
+                Status.PROCESSING,
+                Status.FAILED,
+                Status.COMPLETED,
+            )
+        ).attempt_matches(row, lease)
         or row.score_uuid != lease.score_uuid
     ):
         raise StaleScoreDeletionAttempt("Score deletion execution lease is stale")
@@ -58,8 +68,12 @@ def require_current_attempt(db: Session, lease: ScoreDeletionLease) -> ScoreDele
 
 
 class ScoreDeletionDeliveryService:
-    @staticmethod
-    def lifecycle() -> DurableDeliveryLifecycle[Status]:
+    def __init__(self, *, config: ScoreDeletionDeliverySettings) -> None:
+        self.config = config
+
+    def lifecycle(
+        self,
+    ) -> DurableDeliveryLifecycle[Status]:
         return DurableDeliveryLifecycle(
             statuses=DeliveryStatuses(
                 Status.PENDING,
@@ -69,11 +83,11 @@ class ScoreDeletionDeliveryService:
                 Status.COMPLETED,
             ),
             policy=DeliveryLifecyclePolicy(
-                max_attempts=settings.SCORE_DELETION_MAX_ATTEMPTS,
-                retry_base_seconds=settings.SCORE_DELETION_RETRY_BASE_SECONDS,
-                retry_max_seconds=settings.SCORE_DELETION_RETRY_BASE_SECONDS * 64,
-                dispatch_timeout_seconds=settings.SCORE_DELETION_DISPATCH_TIMEOUT_SECONDS,
-                processing_timeout_seconds=settings.SCORE_DELETION_PROCESSING_TIMEOUT_SECONDS,
+                max_attempts=self.config.SCORE_DELETION_MAX_ATTEMPTS,
+                retry_base_seconds=self.config.SCORE_DELETION_RETRY_BASE_SECONDS,
+                retry_max_seconds=self.config.SCORE_DELETION_RETRY_BASE_SECONDS * 64,
+                dispatch_timeout_seconds=self.config.SCORE_DELETION_DISPATCH_TIMEOUT_SECONDS,
+                processing_timeout_seconds=self.config.SCORE_DELETION_PROCESSING_TIMEOUT_SECONDS,
             ),
         )
 
@@ -159,24 +173,24 @@ class ScoreDeletionDeliveryService:
                     and_(
                         columns.status.in_([Status.PENDING, Status.FAILED]),
                         columns.next_attempt_at <= now,
-                        columns.attempt_count < settings.SCORE_DELETION_MAX_ATTEMPTS,
+                        columns.attempt_count < self.config.SCORE_DELETION_MAX_ATTEMPTS,
                     ),
                     and_(
                         columns.status == Status.DISPATCHED,
                         columns.dispatched_at
                         <= now
-                        - timedelta(seconds=settings.SCORE_DELETION_DISPATCH_TIMEOUT_SECONDS),
+                        - timedelta(seconds=self.config.SCORE_DELETION_DISPATCH_TIMEOUT_SECONDS),
                     ),
                     and_(
                         columns.status == Status.PROCESSING,
                         columns.started_at
                         <= now
-                        - timedelta(seconds=settings.SCORE_DELETION_PROCESSING_TIMEOUT_SECONDS),
+                        - timedelta(seconds=self.config.SCORE_DELETION_PROCESSING_TIMEOUT_SECONDS),
                     ),
                 )
             )
             .order_by(columns.next_attempt_at, columns.id)
-            .limit(settings.SCORE_DELETION_BATCH_SIZE)
+            .limit(self.config.SCORE_DELETION_BATCH_SIZE)
             .with_for_update(skip_locked=True)
             .execution_options(populate_existing=True)
         ).all()
@@ -209,11 +223,15 @@ class ScoreDeletionDeliveryService:
         self.lifecycle().rearm(row, now=utc_now())
         clear_failure_facts(row)
 
-    @staticmethod
     def _record_failure(
-        row: ScoreDeletionOperation, *, code: str, stage: str, classification: DurableFailureClass
+        self,
+        row: ScoreDeletionOperation,
+        *,
+        code: str,
+        stage: str,
+        classification: DurableFailureClass,
     ) -> None:
-        retryable = row.attempt_count < settings.SCORE_DELETION_MAX_ATTEMPTS
+        retryable = row.attempt_count < self.config.SCORE_DELETION_MAX_ATTEMPTS
         set_failure_facts(
             row,
             DurableFailure(
@@ -224,6 +242,3 @@ class ScoreDeletionDeliveryService:
             ),
             detail=row.failure_detail,
         )
-
-
-score_deletion_delivery = ScoreDeletionDeliveryService()

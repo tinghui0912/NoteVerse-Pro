@@ -1,9 +1,6 @@
 name: noteverse-backend-dev
 
 x-backend-common: &backend-common
-  env_file:
-    - path: backend/.env.docker
-      required: true
   environment:
     PYTHONPATH: /app
     UVICORN_RELOAD: "true"
@@ -15,6 +12,7 @@ x-backend-common: &backend-common
   volumes:
     - ./backend:/app
     - ./docker/backend/entrypoint.sh:/docker/entrypoint.sh:ro
+    - ./docker/backend/worker-entrypoint.sh:/docker/worker-entrypoint.sh:ro
     - ${NOTEVERSE_MODEL_ROOT:-./models}:/opt/noteverse/models:ro
     - ./backend/data:/app/data
   extra_hosts:
@@ -24,11 +22,14 @@ x-backend-common: &backend-common
 services:
   api:
     <<: *backend-common
-    image: noteverse-backend-api:dev
+    env_file:
+      - path: backend/.env.docker.customer-api
+        required: true
+    image: noteverse-backend-core:dev
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.api
-    command: api
+      dockerfile: docker/backend/Dockerfile.core
+    command: customer-api
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     healthcheck:
@@ -45,15 +46,13 @@ services:
   control:
     <<: *backend-common
     env_file:
-      - path: backend/.env.docker
-        required: true
       - path: backend/.env.docker.control-plane
         required: true
-    image: noteverse-backend-api:dev
+    image: noteverse-backend-core:dev
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.api
-    command: control
+      dockerfile: docker/backend/Dockerfile.core
+    command: control-plane
     profiles:
       - control-plane
     ports:
@@ -71,9 +70,8 @@ services:
 
   worker:
     <<: *backend-common
+    entrypoint: ["/usr/bin/tini", "--", "/bin/bash", "/docker/worker-entrypoint.sh"]
     env_file:
-      - path: backend/.env.docker
-        required: true
       - path: backend/.env.docker.worker
         required: true
     image: noteverse-backend-worker:dev
@@ -97,55 +95,21 @@ services:
     restart: "no"
   beat:
     <<: *backend-common
-    image: noteverse-backend-beat:dev
+    env_file:
+      - path: backend/.env.docker.beat
+        required: true
+    image: noteverse-backend-core:dev
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile.beat
+      dockerfile: docker/backend/Dockerfile.core
     command: beat
 
-  quality-postgres:
-    image: postgres:17
-    profiles: [quality]
-    environment:
-      POSTGRES_USER: noteverse
-      POSTGRES_PASSWORD: noteverse
-      POSTGRES_DB: noteverse_test_quality
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U noteverse -d noteverse_test_quality"]
-      interval: 2s
-      timeout: 3s
-      retries: 30
-  quality:
-    profiles: [quality]
+  migrate:
     <<: *backend-common
-    working_dir: /repo/backend
-    environment:
-      PYTHONPATH: /repo/backend
-      NOTEVERSE_REPO_ROOT: /repo
-      CONTROL_PLANE_COOKIE_SECURE: "false"
-      CONTROL_PLANE_COOKIE_SAMESITE: lax
-      CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
-      CONTROL_PLANE_CORS_ORIGINS: '["http://localhost:3001"]'
-      DATABASE_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
-      SCHEDULER_LOCK_DATABASE_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
-      NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL: postgresql+psycopg://noteverse:noteverse@quality-postgres:5432/noteverse_test_quality
-      PLAYBACK_SOUNDFONT_PATH: /usr/share/sounds/sf2/FluidR3_GM.sf2
-      LEGATO_REPO_PATH: /opt/noteverse/legato
-    volumes:
-      - ./:/repo:ro
-      - ./backend:/repo/backend
+    image: noteverse-backend-core:dev
     env_file:
-      - path: backend/.env.docker
+      - path: backend/.env.docker.migrator
         required: true
-      - path: backend/.env.docker.worker
-        required: true
-    depends_on:
-      quality-postgres:
-        condition: service_healthy
-    image: noteverse-backend-quality:dev
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile.quality
-    entrypoint: []
-    command: bash
+    command: migrator
+    profiles: [tools]
     restart: "no"

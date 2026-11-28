@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import html
+from app.platform.document_admission.musicxml import (
+    parse_musicxml_file,
+    parse_svg,
+)
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
@@ -45,10 +49,7 @@ class SvgPreviewPostProcessor:
         if not any((header.title, header.subtitle, header.composer, header.lyricist)):
             return svg
 
-        try:
-            root = ET.fromstring(svg)
-        except ET.ParseError:
-            return svg
+        root = parse_svg(svg)
 
         definition_svg = self._find_definition_svg(root)
         if definition_svg is None:
@@ -61,10 +62,7 @@ class SvgPreviewPostProcessor:
     def _extract_header(self, xml_path: str) -> ScoreHeader:
         """Read title and creator metadata from MusicXML."""
 
-        try:
-            root = ET.parse(xml_path).getroot()
-        except ET.ParseError:
-            return ScoreHeader()
+        root = parse_musicxml_file(xml_path).getroot()
 
         return ScoreHeader(
             title=self._find_text(root, ["work", "work-title"]),

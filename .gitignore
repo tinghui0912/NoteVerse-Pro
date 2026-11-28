@@ -32,9 +32,6 @@ logs/
 .env.local
 .env.*.local
 backend/.env.docker
-backend/.env.docker.worker
-backend/.env.docker.practice
-backend/.env.docker.control-plane
 
 # Temporary scratch files at repo root
 tmp/
@@ -51,3 +48,8 @@ backend/celerybeat-schedule.*
 # Local checkouts for pinned third-party source tools.
 # See docs/external_dependencies.md.
 /external/
+
+# Per-process local credentials
+backend/.env.docker.*
+!backend/.env.docker.*.example
+backend/db/secret-templates/*.env

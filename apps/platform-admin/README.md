@@ -1,78 +1,109 @@
 # NoteVerse Platform Admin
 
-This is the independent operator-facing Next.js application. It only calls the
-Control Plane API through its own same-origin proxy and does not share customer
-authentication cookies, API clients, layouts, or runtime configuration.
+The independent operator application consumes the generated Control Plane API.
+It uses a host-only opaque operator session and a separate MFA challenge cookie.
+Customer authentication clients, cookies and layouts have independent ownership.
 
-Local commands require Node.js 24, matching the CI and runtime image toolchain.
+## Authentication
 
-Required environment variable:
+Password sign-in sends JSON `{email,password}` and receives only an MFA challenge.
+Enrollment uses a locally generated SVG QR from `qrcode-generator` and a copyable
+manual secret. Verification accepts exactly one authenticator or recovery code.
+Challenges expire after five minutes; five failed verification attempts return
+the operator to password sign-in. A server-side rejection remains authoritative.
 
-```text
-NEXT_CONTROL_PLANE_ORIGIN=http://127.0.0.1:8002
-```
+Enrollment returns ten single-use recovery codes once. The acknowledgment screen
+holds them only in component memory until the operator confirms secure storage.
+Copy and text download require explicit actions. Downloads use a transient Blob
+URL that is revoked immediately. Reloading or leaving the page loses the displayed
+codes; an enrolled operator can ask a super administrator for an MFA reset.
+Secrets and codes are never placed in browser storage, query strings or external
+QR services. The session context stores only the operator profile and a remaining
+recovery-code count. A low count displays a dismissible warning.
 
-Run the local development containers with the Control Plane runtime enabled:
+The shared session boundary removes authenticated page state on a 401 and routes
+to sign-in. A generation fence prevents a late session probe from restoring a
+cleared identity. MFA failures on the sign-in page preserve the active step until
+expiry, lockout or an explicit restart. Browser mutations require same-origin Fetch Metadata, an explicit configured Origin and JSON bodies.
+
+## Console
+
+Navigation, page admission and action controls use the profile's typed permissions:
+
+| Surface                                        | Permission         |
+| ---------------------------------------------- | ------------------ |
+| Operations                                     | `operations.read`  |
+| Audited retries                                | `operations.retry` |
+| User directory and inline details              | `users.read`       |
+| User suspension/reactivation                   | `users.suspend`    |
+| Filtered, paginated audit logs                 | `audit.read`       |
+| Operator create/access/password/MFA management | `operators.manage` |
+
+Operational and management mutations require a trimmed reason of 3–500 characters.
+Operator passwords use NFC normalization and 12–128 Unicode code points, rejecting
+blank input. Passwords and enrollment material remain transient. Permission gates
+control presentation; the backend independently enforces every operation.
+
+The API contract, role mapping, cookies and challenge/session lifetime are defined
+in [Control Plane Authentication](../../docs/architecture/control-plane-auth.md).
+Directory details contain only the fields provided by the directory API. Audit
+filters use actor ID, action, target type/ID, outcome and aware timestamps.
+
+## Local runtime
+
+Node.js 24 runs the application and its quality tools. Set
+`NEXT_CONTROL_PLANE_ORIGIN=http://127.0.0.1:8002` for the local Control Plane.
+The checked-in development routing configuration supplies same-origin API access.
 
 ```powershell
-docker compose -f docker-compose.backend-dev.yml --profile control-plane up control
 Copy-Item apps/platform-admin/.env.docker.example apps/platform-admin/.env.docker
+docker compose -f docker-compose.backend-dev.yml --profile control-plane up control
 docker compose -f docker-compose.platform-admin-dev.yml up platform-admin
 ```
 
-The Platform Admin development server is available at `http://localhost:3001`.
-The environment file points its same-origin Next.js proxy to the local Control
-Plane API at `http://host.docker.internal:8002`.
-`npm run dev` uses the same port, so use either the Docker server or the host
-process at one time.
+The development application uses `http://localhost:3001`; `npm run dev` uses the
+same port. Use one launcher at a time. Operator bootstrap runs from `backend/`
+with an explicitly configured Control Plane database connection:
 
-Create a local operator only in a trusted development environment:
-
-```powershell
-docker compose -f docker-compose.backend-dev.yml exec api python scripts/create_operator.py --username <operator>
+```text
+python scripts/create_operator.py --email admin@example.com --display-name Admin
 ```
 
-## Quality Checks
+It prompts for a password through a TTY and creates a SUPER_ADMIN requiring TOTP
+enrollment. The Control Plane requires its independently provisioned TOTP encryption
+key; the browser does not receive that key.
 
-Run the independent operator application checks with deterministic local Control
-Plane configuration:
+## Generated contracts and verification
 
-```powershell
-.\scripts\quality.ps1 -Check platform-admin-lint
-.\scripts\quality.ps1 -Check platform-admin-typecheck
-.\scripts\quality.ps1 -Check platform-admin-test
-.\scripts\quality.ps1 -Check platform-admin-build
+`generated/api` is produced from the committed Control Plane OpenAPI snapshot.
+`lib/control-plane-api.ts` composes generated operations without duplicating paths
+or DTOs. `lib/control-plane-browser-transport.ts` owns same-origin credentials,
+bounded error classification; request bodies and private server error
+text are excluded from error presentation.
+
+```text
+npm run generate:api
+npm run generate:browser-protocol
+npm run check:api
+npm run check:browser-protocol
+npm run typecheck
+npm run lint
+npm test
+npm run build
 ```
 
-`Platform Admin Quality` in GitHub Actions runs the same lint, typecheck,
-unit-test, and production-build gate whenever this application changes. The
-initial unit coverage protects the Control Plane client contract: same-origin
-routing, operator CSRF, pagination, and safe error mapping.
+API verification regenerates into an owned temporary directory, compares the
+complete artifact tree to the working copy and removes the temporary directory.
+Browser protocol checks validate both Python and TypeScript projections. Unit and
+component tests cover MFA, local QR output, recovery-code hygiene, session expiry,
+permissions, reason/password admission and administrative query/mutation surfaces.
+The repository's Platform Admin workflow runs the corresponding quality commands.
 
-The Docker development image installs the same development dependencies as
-local `npm ci`. Run individual checks without installing Node.js dependencies
-on the host:
+See [Browser Security Baseline](../../docs/architecture/browser-security-baseline.md) for per-request nonce CSP, route capabilities, header ownership and Gateway HSTS.
 
-```powershell
-docker compose -f docker-compose.platform-admin-dev.yml run --rm platform-admin npm run lint
-docker compose -f docker-compose.platform-admin-dev.yml run --rm platform-admin npm run typecheck
-docker compose -f docker-compose.platform-admin-dev.yml run --rm platform-admin npm run test
-```
+## Deployment network boundary
 
-HTTP operations and DTOs come from `generated/api`, generated by
-`npm run generate:api` from the committed Control Plane OpenAPI. Run
-`npm run check:api` to verify committed SDK freshness. The versioned Control Plane
-browser protocol generates `generated/browser-protocol.ts`; run
-`npm run generate:browser-protocol` or `npm run check:browser-protocol`.
-
-`lib/control-plane-browser-transport.ts` owns same-origin credentials, CSRF and
-bounded error normalization. `lib/control-plane-api.ts` composes generated operations
-without defining HTTP paths or DTOs. Login/logout acknowledge with empty 204 bodies;
-other operations return their direct typed representation. Errors contain only
-machine-readable code and request correlation; UI owns presentation.
-
-Browser failures distinguish canonical application errors (HTTP status, server code
-and body request ID), noncanonical HTTP/proxy failures (HTTP status and optionally
-validated response-header correlation), and network failures (no application facts).
-Only canonical application errors carry an application code. Runtime validation
-consumes the SDK-generated Control Plane error schema; cancellation propagates intact.
+Production `/api` requests route directly from the same-origin Edge Gateway to
+its HTTP runtime. Next.js rewrites are development-only. Production containers
+use numeric UID/GID 10001, read-only image layers and bounded temporary storage.
+See [Container and Network Hardening](../../docs/architecture/runtime/container-and-network-hardening.md).

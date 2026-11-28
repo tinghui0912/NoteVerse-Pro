@@ -1,9 +1,7 @@
 """Atomic domain batch admission and unique-row races on real PostgreSQL."""
 
-from app.storage import object_storage as _storage_provider
+from tests.support.runtime_resources import resources_for
 
-from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -44,6 +42,9 @@ from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService
 from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
+from tests.support.runtime_resources import storage as _storage_provider
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+from tests.support.runtime_resources import ignore_dispatch
 
 
 @pytest.fixture
@@ -108,8 +109,8 @@ def test_score_batch_invalid_member_admits_nothing(batch_database, invalid, erro
     engine, _ = batch_database
     with Session(engine) as db, pytest.raises(error) as denied:
         ScoreService(
-            lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            lifecycle_service=resources_for().build_score_lifecycle_service(),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         ).batch_delete(db, ["score-1", "score-2", invalid], 1)
     assert denied.value.code == code
     with Session(engine) as db:
@@ -124,8 +125,8 @@ def test_score_batch_commit_failure_rolls_back_the_complete_graph(batch_database
         monkeypatch.setattr(db, "commit", Mock(side_effect=failure))
         with pytest.raises(RuntimeError) as raised:
             ScoreService(
-                lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                lifecycle_service=resources_for().build_score_lifecycle_service(),
+                delivery=resources_for(_storage_provider).build_media_delivery_service(),
             ).batch_delete(db, ["score-1", "score-2"], 1)
         assert raised.value is failure
     with Session(engine) as db:
@@ -137,7 +138,9 @@ def test_score_admission_participates_in_outer_transaction(batch_database):
     engine, _ = batch_database
     with Session(engine) as db:
         operations = ScoreLifecycleService(
-            deletion_executor=_media_wiring.build_score_deletion_executor()
+            deletion_executor=resources_for().build_score_deletion_executor(),
+            config=ScoreDeletionDeliverySettings(),
+            dispatch_after_commit=ignore_dispatch,
         ).admit_deletions(db, ["score-2", "score-1", "score-1"], 1)
         assert len(operations) == 2
         assert db.scalar(select(func.count()).select_from(ScoreDeletionOperation)) == 2
@@ -158,16 +161,15 @@ def test_score_batch_commits_once_and_fault_isolates_fast_dispatch(batch_databas
         attempted.append(identity)
         raise RuntimeError("broker unavailable")
 
-    monkeypatch.setattr(
-        "app.worker.dispatch.score_deletion.dispatch_score_deletion_best_effort", dispatch
-    )
+    resources = resources_for()
+    resources.score_dispatch = dispatch
     with Session(engine) as db:
         commit = Mock(wraps=db.commit)
         monkeypatch.setattr(db, "commit", commit)
         assert (
             ScoreService(
-                lifecycle_service=_media_wiring.build_score_lifecycle_service(),
-                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                lifecycle_service=resources.build_score_lifecycle_service(),
+                delivery=resources_for(_storage_provider).build_media_delivery_service(),
             ).batch_delete(db, ["score-2", "score-1", "score-1"], 1)
             == 2
         )
@@ -176,7 +178,9 @@ def test_score_batch_commits_once_and_fault_isolates_fast_dispatch(batch_databas
         operations = list(db.scalars(select(ScoreDeletionOperation)))
         assert len({row.created_at for row in operations}) == 1
         assert set(attempted) == {row.operation_uuid for row in operations}
-        due = ScoreDeletionDeliveryService().recover_and_list_due(db)
+        due = ScoreDeletionDeliveryService(
+            config=ScoreDeletionDeliverySettings()
+        ).recover_and_list_due(db)
         assert set(due) == set(attempted)
 
 
@@ -195,9 +199,11 @@ def test_overlapping_score_batches_lock_in_one_order_and_admit_one_complete_set(
             service = ScoreService(
                 lifecycle_service=ScoreLifecycleService(
                     repository=RacingRepository(),
-                    deletion_executor=_media_wiring.build_score_deletion_executor(),
+                    deletion_executor=resources_for().build_score_deletion_executor(),
+                    config=ScoreDeletionDeliverySettings(),
+                    dispatch_after_commit=ignore_dispatch,
                 ),
-                delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+                delivery=resources_for(_storage_provider).build_media_delivery_service(),
             )
             try:
                 return service.batch_delete(db, identities, 1)
@@ -223,7 +229,9 @@ def test_batch_statement_cost_is_bounded_for_one_and_fifty(batch_database, kind)
             identities = [f"score-{i}" for i in range(1, count + 1)]
             if kind == "score":
                 ScoreLifecycleService(
-                    deletion_executor=_media_wiring.build_score_deletion_executor()
+                    deletion_executor=resources_for().build_score_deletion_executor(),
+                    config=ScoreDeletionDeliverySettings(),
+                    dispatch_after_commit=ignore_dispatch,
                 ).admit_deletions(db, identities, 1)
             elif kind == "move":
                 LibraryService().batch_move(
@@ -386,7 +394,9 @@ def test_batch_deletion_eligibility_matches_delete_action_semantics(batch_databa
             assert (
                 len(
                     ScoreLifecycleService(
-                        deletion_executor=_media_wiring.build_score_deletion_executor()
+                        deletion_executor=resources_for().build_score_deletion_executor(),
+                        config=ScoreDeletionDeliverySettings(),
+                        dispatch_after_commit=ignore_dispatch,
                     ).admit_deletions(db, ["score-1"], user_id)
                 )
                 == 1
@@ -394,7 +404,9 @@ def test_batch_deletion_eligibility_matches_delete_action_semantics(batch_databa
         else:
             with pytest.raises(UnauthorizedException) as denied:
                 ScoreLifecycleService(
-                    deletion_executor=_media_wiring.build_score_deletion_executor()
+                    deletion_executor=resources_for().build_score_deletion_executor(),
+                    config=ScoreDeletionDeliverySettings(),
+                    dispatch_after_commit=ignore_dispatch,
                 ).admit_deletions(db, ["score-1"], user_id)
             assert denied.value.code is semantics_for(ScoreAction.DELETE).denial_code
         db.rollback()

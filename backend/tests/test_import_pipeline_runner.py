@@ -1,6 +1,5 @@
-from app.composition import media_resources as _media_wiring
+from tests.support.runtime_resources import resources_for
 
-from app.composition import storage_resources as _resource_wiring
 from app.modules.media_storage.reads import StoredObjectReadTarget
 from contextlib import contextmanager
 from types import SimpleNamespace
@@ -19,6 +18,8 @@ from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.modules.durable_work.failure import DurableFailure
 from app.shared.durable_failure import DurableFailureClass
 from app.modules.media_storage.reads import StoredObjectIntegrityError
+from app.platform.config.application import ImportExecutionConfig
+from app.runtime.worker.settings import WorkerSettings
 
 
 def test_soft_time_limit_maps_to_pipeline_timeout() -> None:
@@ -64,9 +65,10 @@ def test_pipeline_rejections_have_explicit_failure_facts(code, expected, classif
 
 def test_successful_pipeline_records_progress_and_accepts_its_review_outcome():
     service = ImportPipelineRunner(
-        recorder=_media_wiring.build_import_artifact_recorder().recorder,
-        writes=_resource_wiring.build_object_write_coordinator(Mock()),
-        sessions=_resource_wiring.write_sessions,
+        recorder=resources_for().build_import_artifact_recorder().recorder,
+        writes=resources_for(Mock()).build_object_write_coordinator(),
+        sessions=resources_for().sessions,
+        config=ImportExecutionConfig.model_validate(WorkerSettings().model_dump()),
     )
     task, context, pipeline = Mock(), Mock(), Mock()
     lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
@@ -113,9 +115,10 @@ def test_successful_pipeline_records_progress_and_accepts_its_review_outcome():
 
 def test_pipeline_failure_is_persisted_and_reraised() -> None:
     service = ImportPipelineRunner(
-        recorder=_media_wiring.build_import_artifact_recorder().recorder,
-        writes=_resource_wiring.build_object_write_coordinator(Mock()),
-        sessions=_resource_wiring.write_sessions,
+        recorder=resources_for().build_import_artifact_recorder().recorder,
+        writes=resources_for(Mock()).build_object_write_coordinator(),
+        sessions=resources_for().sessions,
+        config=ImportExecutionConfig.model_validate(WorkerSettings().model_dump()),
     )
     service.storage.iter_bytes.return_value = iter([b"input"])
     task = SimpleNamespace(
@@ -173,9 +176,10 @@ def test_pipeline_failure_is_persisted_and_reraised() -> None:
 
 def test_stale_execution_aborts_before_materialization_without_domain_failure():
     service = ImportPipelineRunner(
-        recorder=_media_wiring.build_import_artifact_recorder().recorder,
-        writes=_resource_wiring.build_object_write_coordinator(Mock()),
-        sessions=_resource_wiring.write_sessions,
+        recorder=resources_for().build_import_artifact_recorder().recorder,
+        writes=resources_for(Mock()).build_object_write_coordinator(),
+        sessions=resources_for().sessions,
+        config=ImportExecutionConfig.model_validate(WorkerSettings().model_dump()),
     )
     lease = ImportExecutionLease(dispatch_uuid="delivery", job_uuid="job", attempt=1, token="token")
 

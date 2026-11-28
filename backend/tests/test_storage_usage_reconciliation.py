@@ -509,13 +509,12 @@ def test_operator_command_has_explicit_transaction_ownership_and_opaque_output(
     database, monkeypatch, capsys, command
 ):
     import sys
-    from sqlalchemy.orm import sessionmaker
     from scripts import reconcile_storage_usage as cli
 
     with Session(database) as db:
         upload(db, "sensitive-filename-and-locator", 13)
         db.commit()
-    monkeypatch.setattr(cli, "SessionLocal", sessionmaker(database))
+    monkeypatch.setattr(cli, "build_engine", lambda config: database)
     monkeypatch.setattr(sys, "argv", ["reconcile_storage_usage.py", command, "1"])
     cli.main()
     output = capsys.readouterr().out

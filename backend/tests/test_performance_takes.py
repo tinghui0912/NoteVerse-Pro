@@ -1,5 +1,7 @@
 """Take API commands expose upload sessions, immutable manifests and signed delivery."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.practice_bundle import bind_bundle
 
 
@@ -15,7 +17,6 @@ from tests.support.take_fixtures import (
     _create_default_take,
     _performance_take_service,
     _reservation_request_payload,
-    _resource_wiring,
     canonical_practice_artifact_bytes,
     json,
 )
@@ -27,10 +28,11 @@ from app.modules.practice.bundle.repository import PracticeBundleRepository
 from app.modules.practice.bundle.content import read_verified_bundle
 
 import pytest
-from fastapi.testclient import TestClient
-from app.main import app
-from app.api.deps import get_db, get_current_user
-from app.api.resource_dependencies import (
+from tests.support.browser import BrowserTestClient as TestClient
+from app.runtime.customer_api.main import app
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
+from app.runtime.customer_api.resources import (
     get_performance_take_service,
     get_performance_take_reservation_service,
     get_performance_take_finalization_service,
@@ -150,8 +152,8 @@ def test_invalid_stored_scope_reports_validation_error(test_env):
     document["manifest"]["scope"]["kind"] = "INVALID"
     take.manifest.manifest_json = json.dumps(document)
     service = PerformanceTakeService(
-        usage=_resource_wiring.storage_usage_service,
-        delivery=_resource_wiring.build_media_delivery_service(storage),
+        usage=resources_for(storage).build_revision_writer().usage,
+        delivery=resources_for(storage).build_media_delivery_service(),
     )
     with pytest.raises(ValidationException) as raised:
         service._to_read_dto(take)

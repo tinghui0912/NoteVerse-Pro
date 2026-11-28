@@ -6,6 +6,7 @@ from enum import StrEnum
 class CustomerErrorCode(StrEnum):
     INTERNAL_ERROR = "internal_error"
     VALIDATION_ERROR = "validation_error"
+    PAYLOAD_TOO_LARGE = "payload_too_large"
     RESOURCE_NOT_FOUND = "resource_not_found"
     RESOURCE_ALREADY_EXISTS = "resource_already_exists"
     BUSINESS_RULE_VIOLATION = "business_rule_violation"
@@ -13,7 +14,9 @@ class CustomerErrorCode(StrEnum):
     AUTH_FAILED = "auth_failed"
     UNAUTHORIZED = "unauthorized"
     TOKEN_INVALID_EXPIRED = "token_invalid_expired"
-    CSRF_TOKEN_INVALID = "csrf_token_invalid"
+    UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
+    RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
+    RATE_LIMIT_UNAVAILABLE = "rate_limit_unavailable"
     REQUEST_ORIGIN_INVALID = "request_origin_invalid"
     ACCOUNT_INACTIVE = "account_inactive"
     INVALID_CREDENTIALS = "invalid_credentials"

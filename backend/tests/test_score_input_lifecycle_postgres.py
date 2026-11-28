@@ -1,9 +1,10 @@
 """Same-user classification preserves admitted occupancy; extra semantic inputs need capacity."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import settled_upload_session
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 
 from concurrent.futures import ThreadPoolExecutor
@@ -32,7 +33,7 @@ from app.modules.storage_governance.usage.reconciliation import StorageUsageReco
 from app.composition.storage_inventory import build_storage_inventory_registry
 from tests.support.storage_state import provision_storage_users
 
-lifecycle = _media_wiring.build_input_asset_lifecycle()
+lifecycle = resources_for().build_input_asset_lifecycle()
 
 
 @pytest.fixture

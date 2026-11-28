@@ -5,6 +5,7 @@ import { NotificationBell } from './notification-bell';
 
 const data = vi.hoisted(() => ({ pending: 0, unread: 0, more: false,
   pendingQuery: vi.fn(), unreadQuery: vi.fn() }));
+vi.mock('@/features/authentication/session/authentication-context', () => ({ useAuthentication: () => ({ isAuthenticated: true }) }));
 vi.mock('@/features/scores/collaboration/queries', () => ({
   useMyPendingScoreInvites: (enabled: boolean) => {
     data.pendingQuery(enabled);

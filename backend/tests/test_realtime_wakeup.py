@@ -7,6 +7,7 @@ import pytest
 
 from app.modules.realtime.wakeup import RealtimeWakeupHub
 from tests.test_realtime_changes import realtime_session as realtime_session, change
+from app.runtime.customer_api.context import get_context
 
 
 class Connection:
@@ -30,7 +31,7 @@ class Connection:
 
 
 def test_all_tabs_for_a_recipient_receive_coalesced_scoped_wakes():
-    hub = RealtimeWakeupHub(enabled=False)
+    hub = RealtimeWakeupHub(enabled=False, engine=get_context().engine)
     with hub.subscribe(1) as first, hub.subscribe(1) as second, hub.subscribe(2) as other:
         for _ in range(100):
             hub.notify('{"recipient_user_id":1}')
@@ -52,7 +53,7 @@ async def test_many_subscriptions_share_one_listener_and_shutdown_closes_it():
         connections.append(connection)
         return connection
 
-    hub = RealtimeWakeupHub(connect=connect, enabled=True)
+    hub = RealtimeWakeupHub(connect=connect, enabled=True, engine=get_context().engine)
     await hub.start()
     try:
         await asyncio.wait_for(hub.listening.wait(), 1)
@@ -69,7 +70,7 @@ async def test_many_subscriptions_share_one_listener_and_shutdown_closes_it():
 
 @pytest.mark.asyncio
 async def test_many_sse_streams_share_the_process_listener(monkeypatch):
-    from app.modules.realtime import router
+    from app.runtime.customer_api.routers.realtime import router
     from app.modules.realtime.replay import ReplayPage
 
     opened = []
@@ -79,10 +80,12 @@ async def test_many_sse_streams_share_the_process_listener(monkeypatch):
         opened.append(connection)
         return connection
 
-    hub = RealtimeWakeupHub(connect=connect, enabled=True)
+    hub = RealtimeWakeupHub(connect=connect, enabled=True, engine=get_context().engine)
     monkeypatch.setattr(router, "_fetch_page", lambda *_: ReplayPage(0))
     request = SimpleNamespace(
-        is_disconnected=lambda: None, state=SimpleNamespace(realtime_wakeup_hub=hub)
+        is_disconnected=lambda *args: None,
+        app=SimpleNamespace(state=SimpleNamespace(settings=get_context().settings)),
+        state=SimpleNamespace(realtime_wakeup_hub=hub),
     )
     streams = [router._event_stream(request, 1, None) for _ in range(30)]
     await hub.start()
@@ -109,7 +112,9 @@ async def test_listener_reconnects_and_keeps_existing_subscribers():
             await connection.messages.put(OSError("connection lost"))
         return connection
 
-    hub = RealtimeWakeupHub(connect=connect, enabled=True, reconnect_seconds=0)
+    hub = RealtimeWakeupHub(
+        connect=connect, enabled=True, reconnect_seconds=0, engine=get_context().engine
+    )
     with hub.subscribe(1) as signal:
         await hub.start()
         try:
@@ -128,14 +133,13 @@ async def test_listener_reconnects_and_keeps_existing_subscribers():
 
 @pytest.mark.asyncio
 async def test_non_postgresql_runtime_keeps_the_listener_inactive(monkeypatch):
-    from app.modules.realtime import wakeup
 
-    monkeypatch.setattr(wakeup, "engine", SimpleNamespace(dialect=SimpleNamespace(name="sqlite")))
+    engine = SimpleNamespace(dialect=SimpleNamespace(name="sqlite"))
 
     async def connect():
         raise AssertionError("No LISTEN is configured")
 
-    hub = RealtimeWakeupHub(connect=connect)
+    hub = RealtimeWakeupHub(connect=connect, engine=engine)
     await hub.start()
     assert hub._task is None
     await hub.stop()
@@ -145,16 +149,19 @@ async def test_non_postgresql_runtime_keeps_the_listener_inactive(monkeypatch):
 async def test_only_api_lifespan_owns_the_process_hub(monkeypatch):
     from unittest.mock import AsyncMock
     from app.core.lifespan import create_app_lifespan
-    from app.core.runtime_checks import RuntimeRole
+    from app.platform.runtime import RuntimeRole
     from app.modules.realtime import wakeup
     from app.core import lifespan
 
     hub = SimpleNamespace(start=AsyncMock(), stop=AsyncMock())
-    monkeypatch.setattr(wakeup, "RealtimeWakeupHub", lambda: hub)
-    monkeypatch.setattr(lifespan, "ensure_runtime_directories", lambda: None)
-    monkeypatch.setattr(lifespan, "log_external_tool_status", lambda role: None)
-    for role in [RuntimeRole.API, RuntimeRole.CONTROL_PLANE, RuntimeRole.OBSERVABILITY_EXPORTER]:
-        async with create_app_lifespan(role)(SimpleNamespace()) as state:
+    monkeypatch.setattr(wakeup, "RealtimeWakeupHub", lambda **kwargs: hub)
+    monkeypatch.setattr(lifespan, "ensure_runtime_directories", lambda *args: None)
+    for role in [RuntimeRole.API, RuntimeRole.CONTROL_PLANE]:
+        async with create_app_lifespan(role)(
+            SimpleNamespace(
+                state=SimpleNamespace(settings=get_context().settings, engine=get_context().engine)
+            )
+        ) as state:
             assert state == ({"realtime_wakeup_hub": hub} if role is RuntimeRole.API else {})
     hub.start.assert_awaited_once()
     hub.stop.assert_awaited_once()
@@ -162,9 +169,9 @@ async def test_only_api_lifespan_owns_the_process_hub(monkeypatch):
 
 def test_api_lifespan_keeps_request_wakeup_state_with_its_own_event_loop(monkeypatch):
     from fastapi import FastAPI, Request
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
     from app.core import lifespan
-    from app.core.runtime_checks import RuntimeRole
+    from app.platform.runtime import RuntimeRole
     from app.modules.realtime import wakeup
 
     hubs = []
@@ -172,15 +179,16 @@ def test_api_lifespan_keeps_request_wakeup_state_with_its_own_event_loop(monkeyp
     async def connect():
         return Connection()
 
-    def hub():
-        instance = RealtimeWakeupHub(connect=connect, enabled=True)
+    def hub(**kwargs):
+        instance = RealtimeWakeupHub(connect=connect, enabled=True, engine=get_context().engine)
         hubs.append(instance)
         return instance
 
     monkeypatch.setattr(wakeup, "RealtimeWakeupHub", hub)
-    monkeypatch.setattr(lifespan, "ensure_runtime_directories", lambda: None)
-    monkeypatch.setattr(lifespan, "log_external_tool_status", lambda role: None)
+    monkeypatch.setattr(lifespan, "ensure_runtime_directories", lambda *args: None)
     app = FastAPI(lifespan=lifespan.create_app_lifespan(RuntimeRole.API))
+    app.state.settings = get_context().settings
+    app.state.engine = get_context().engine
 
     @app.get("/hub")
     def identity(request: Request):
@@ -212,7 +220,7 @@ async def test_postgresql_commit_wakes_the_process_and_rollback_does_not(realtim
         opened.append(connection)
         return connection
 
-    hub = RealtimeWakeupHub(enabled=True, connect=connect)
+    hub = RealtimeWakeupHub(enabled=True, connect=connect, engine=get_context().engine)
     await hub.start()
     try:
         await asyncio.wait_for(hub.listening.wait(), 5)

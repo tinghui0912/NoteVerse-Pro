@@ -19,4 +19,5 @@ spec:
             path: /var/lib/noteverse/models
             type: Directory
         - name: work
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: 8Gi

@@ -122,8 +122,7 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
         python $K8sReleaseOverlayRenderer `
             --environment staging `
             --output $OutputDir `
-            --backend-api-image "ghcr.io/example/noteverse/backend-api@sha256:1111111111111111111111111111111111111111111111111111111111111111" `
-            --backend-beat-image "ghcr.io/example/noteverse/backend-beat@sha256:4444444444444444444444444444444444444444444444444444444444444444" `
+            --backend-core-image "ghcr.io/example/noteverse/backend-core@sha256:1111111111111111111111111111111111111111111111111111111111111111" `
             --backend-worker-image "ghcr.io/example/noteverse/backend-worker@sha256:3333333333333333333333333333333333333333333333333333333333333333" `
             --customer-web-image "ghcr.io/example/noteverse/customer-web@sha256:2222222222222222222222222222222222222222222222222222222222222222" `
             --platform-admin-image "ghcr.io/example/noteverse/platform-admin@sha256:6666666666666666666666666666666666666666666666666666666666666666" `
@@ -136,6 +135,7 @@ function Invoke-K8sReleaseOverlaySmokeCheck {
             --trusted-proxy-cidrs '["10.244.0.0/16"]' `
             --auth-cookie-secure true `
             --mail-default-sender "NoteVerse Pro <no-reply@staging.noteverse.test>" `
+            --csp-object-storage-origins "https://object-storage.noteverse.test" `
             --s3-endpoint-url "https://object-storage.noteverse.test" `
             --s3-region "auto" `
             --s3-bucket "noteverse-staging" `

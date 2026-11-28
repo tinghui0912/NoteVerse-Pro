@@ -5,11 +5,15 @@ accepted current decisions and their rationale.
 
 ## Runtime and Integrations
 
+- [Security and Runtime Foundation](../adr/0010-security-and-runtime-foundation.md)
+- [Control Plane Authentication](control-plane-auth.md)
 - [Realtime change delivery](realtime-changes.md)
 - [Runtime Dependency Ownership](runtime/runtime-dependency-ownership.md)
 - [Durable Asynchronous Delivery](durable-asynchronous-delivery.md)
 - [Backend Settings Ownership](runtime/settings-ownership.md)
+- [Database Role and Secret Ownership](runtime/database-role-ownership.md)
 - [Import Processing](runtime/import-processing.md)
+- [Container and Network Hardening](runtime/container-and-network-hardening.md)
 - [Kubernetes Application Runtime](runtime/k8s-application-runtime-contract.md)
 - [External Dependencies](integrations/external-dependencies.md)
 
@@ -62,5 +66,13 @@ accepted current decisions and their rationale.
 
 ## Security Boundaries
 
+- [Document Admission and Ingress Limits](document-admission-and-ingress-limits.md)
+
+- [Consumer Sessions](consumer-sessions.md)
+
 - [Control-Plane Identity](../security/control-plane-identity-contract.md)
 - [Score Access](../security/score-access-contract.md)
+
+- [Browser Request Security](browser-request-security.md): exact origins, JSON admission, trusted proxies and distributed Redis windows.
+
+See [Browser Security Baseline](browser-security-baseline.md) for per-request nonce CSP, route capabilities, header ownership and Gateway HSTS.

@@ -85,13 +85,11 @@ def test_fluidsynth_synthesizer_uses_configured_soundfont_and_sample_rate(
         wav_path.write_bytes(_wav_bytes(sample_rate=8))
         return SimpleNamespace(returncode=0, stderr="", stdout="")
 
-    monkeypatch.setattr(
-        "app.processing.engines.playback.fluidsynth.settings.WORK_ROOT", str(tmp_path / "work")
-    )
     monkeypatch.setattr("app.processing.engines.playback.fluidsynth.subprocess.run", fake_run)
 
     rendered = FluidSynthAudioSynthesizer(
         soundfont_path=str(soundfont),
+        work_root=str(tmp_path / "work"),
         profile=PlaybackProfile(sample_rate=8, max_duration_seconds=2),
     ).synthesize(b"MThd-midi")
 

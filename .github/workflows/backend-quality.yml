@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17.11
         env:
           POSTGRES_DB: noteverse_test
           POSTGRES_USER: noteverse
@@ -90,7 +90,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       redis:
-        image: redis:8
+        image: redis:8.10.2
         ports:
           - 6379:6379
         options: >-
@@ -104,12 +104,9 @@ jobs:
     env:
       QUALITY_IMAGE: noteverse-backend-quality:ci
       QUALITY_ENV_FILE: /tmp/backend-quality.env
-      SECRET_KEY: ci-test-secret-key-that-is-long-enough
       AUTH_COOKIE_SECURE: "false"
-      AUTH_COOKIE_SAMESITE: lax
+      OPERATOR_TOTP_ENCRYPTION_KEY: "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
       CONTROL_PLANE_COOKIE_SECURE: "false"
-      CONTROL_PLANE_COOKIE_SAMESITE: lax
-      CONTROL_PLANE_SESSION_EXPIRE_MINUTES: "30"
       CONTROL_PLANE_CORS_ORIGINS: '["http://localhost:3001"]'
       LOG_FORMAT: json
       FRONTEND_BASE_URL: http://localhost:3000
@@ -123,6 +120,10 @@ jobs:
       REDIS_URL: redis://127.0.0.1:6379/0
       CELERY_BROKER_URL: redis://127.0.0.1:6379/1
       CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/2
+      S3_ENDPOINT_URL: https://storage.example.test
+      S3_BUCKET: unit-tests
+      S3_ACCESS_KEY_ID: test-key
+      S3_SECRET_ACCESS_KEY: test-secret
       LEGATO_REPO_PATH: /tmp/noteverse/legato
 
     steps:
@@ -137,12 +138,17 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE/backend:/project:ro" --entrypoint uv
           "$QUALITY_IMAGE" lock --project /project --check
 
+      - name: Check numeric container identity
+        run: >-
+          docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro"
+          "$QUALITY_IMAGE" python /repo/scripts/container_security_contract.py
+
       - name: Check Worker workflow trust and promotion contracts
         run: >-
           docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
           "$QUALITY_IMAGE" /repo/.github/scripts/backend_worker_image_publication.py check-workflows --repo /repo
 
-      - name: Check API/Beat candidate publication contracts
+      - name: Check Core candidate publication contracts
         run: >-
           docker run --rm --network none -v "$GITHUB_WORKSPACE:/repo:ro" --entrypoint python
           "$QUALITY_IMAGE" /repo/.github/scripts/backend_service_image_publication.py check-workflows --repo /repo
@@ -150,12 +156,9 @@ jobs:
       - name: Write backend quality environment
         run: |
           cat > "$QUALITY_ENV_FILE" <<EOF
-          SECRET_KEY=$SECRET_KEY
           AUTH_COOKIE_SECURE=$AUTH_COOKIE_SECURE
-          AUTH_COOKIE_SAMESITE=$AUTH_COOKIE_SAMESITE
+          OPERATOR_TOTP_ENCRYPTION_KEY=$OPERATOR_TOTP_ENCRYPTION_KEY
           CONTROL_PLANE_COOKIE_SECURE=$CONTROL_PLANE_COOKIE_SECURE
-          CONTROL_PLANE_COOKIE_SAMESITE=$CONTROL_PLANE_COOKIE_SAMESITE
-          CONTROL_PLANE_SESSION_EXPIRE_MINUTES=$CONTROL_PLANE_SESSION_EXPIRE_MINUTES
           CONTROL_PLANE_CORS_ORIGINS=$CONTROL_PLANE_CORS_ORIGINS
           LOG_FORMAT=$LOG_FORMAT
           FRONTEND_BASE_URL=$FRONTEND_BASE_URL
@@ -169,6 +172,10 @@ jobs:
           REDIS_URL=$REDIS_URL
           CELERY_BROKER_URL=$CELERY_BROKER_URL
           CELERY_RESULT_BACKEND=$CELERY_RESULT_BACKEND
+          S3_ENDPOINT_URL=$S3_ENDPOINT_URL
+          S3_BUCKET=$S3_BUCKET
+          S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID
+          S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY
           LEGATO_REPO_PATH=$LEGATO_REPO_PATH
           EOF
 
@@ -179,8 +186,8 @@ jobs:
           "$QUALITY_IMAGE" bash -c
           "cd /repo &&
           python scripts/generate_realtime_contract.py --check &&
-          python scripts/generate_customer_browser_protocol.py --check &&
-          python scripts/generate_control_plane_browser_protocol.py --check &&
+          python scripts/generate_customer_browser_protocol.py --target backend --check &&
+          python scripts/generate_control_plane_browser_protocol.py --target backend --check &&
           python scripts/generate_practice_acoustic_runtime.py --check &&
           python scripts/verify_practice_acoustic_implementation.py &&
           python scripts/generate_score_tempo_policy.py --check &&
@@ -236,8 +243,16 @@ jobs:
           -e NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL="$DATABASE_URL"
           "$QUALITY_IMAGE" python -m pytest tests/test_database_schema.py -q
 
+      - name: Run mandatory zero-skip security and architecture regression
+        run: >-
+          docker run --rm --network host --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev,size=2g,mode=1777 --env-file "$QUALITY_ENV_FILE"
+          -e NOTEVERSE_TEST_PRACTICE_BUNDLE_POSTGRES_URL="$DATABASE_URL"
+          -e NOTEVERSE_TEST_REDIS_URL="$REDIS_URL"
+          -e NOTEVERSE_REPO_ROOT=/repo -v "$GITHUB_WORKSPACE:/repo:ro"
+          "$QUALITY_IMAGE" python /repo/.github/scripts/backend_security_regression.py
+
       - name: Run full backend pytest
         run: >-
-          docker run --rm --network host --env-file "$QUALITY_ENV_FILE"
+          docker run --rm --network host --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev,size=2g,mode=1777 --env-file "$QUALITY_ENV_FILE"
           -e NOTEVERSE_REPO_ROOT=/repo -v "$GITHUB_WORKSPACE:/repo:ro" "$QUALITY_IMAGE" bash -c
           "python -m pytest tests -q"

@@ -77,12 +77,3 @@ updates:
     commit-message:
       prefix: chore
       include: scope
-
-  - package-ecosystem: docker
-    directory: /docker/transcoda
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: chore
-      include: scope

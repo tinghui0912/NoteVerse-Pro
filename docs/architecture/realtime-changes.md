@@ -112,6 +112,11 @@ Score, revision/assets and library queries.
 
 ## Machine contract
 
+SSE admission authenticates the Consumer opaque session cookie. Each replay or
+catchup batch revalidates the session and active User in PostgreSQL; revocation
+ends delivery. Database sessions close before stream waits. See
+[Consumer Sessions](consumer-sessions.md).
+
 `contracts/realtime/events.schema.json` owns the Draft 2020-12 exact JSON payloads
 for checkpoints, resync controls and the five change kinds. The offline generator
 `scripts/generate_realtime_contract.py` projects typed Python payloads into

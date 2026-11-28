@@ -135,9 +135,14 @@ export type AsyncOperationsSummaryRead = {
 };
 
 /**
+ * ChallengePurpose
+ */
+export type ChallengePurpose = 'ENROLLMENT_REQUIRED' | 'VERIFICATION_REQUIRED';
+
+/**
  * ControlPlaneErrorCode
  */
-export type ControlPlaneErrorCode = 'validation_error' | 'token_invalid_expired' | 'invalid_credentials' | 'no_access' | 'csrf_token_invalid' | 'request_origin_invalid' | 'resource_not_found' | 'auth_failed' | 'unauthorized' | 'unknown_error' | 'internal_error';
+export type ControlPlaneErrorCode = 'validation_error' | 'payload_too_large' | 'token_invalid_expired' | 'invalid_credentials' | 'no_access' | 'unsupported_media_type' | 'rate_limit_exceeded' | 'rate_limit_unavailable' | 'request_origin_invalid' | 'resource_not_found' | 'auth_failed' | 'unauthorized' | 'unknown_error' | 'internal_error';
 
 /**
  * ControlPlaneErrorResponse
@@ -148,6 +153,65 @@ export type ControlPlaneErrorResponse = {
      * Request Id
      */
     request_id: string;
+};
+
+/**
+ * CreateOperatorCommand
+ */
+export type CreateOperatorCommand = {
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Password
+     */
+    password: string;
+    /**
+     * Reason
+     */
+    reason: string;
+    role: OperatorRole;
+};
+
+/**
+ * CustomerDirectoryRead
+ */
+export type CustomerDirectoryRead = {
+    /**
+     * Display Name
+     */
+    display_name: string | null;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * User Id
+     */
+    user_id: number;
+};
+
+/**
+ * CustomerStatusCommand
+ */
+export type CustomerStatusCommand = {
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * Reason
+     */
+    reason: string;
 };
 
 /**
@@ -166,6 +230,39 @@ export type LivenessRead = {
 };
 
 /**
+ * MfaChallengeRead
+ */
+export type MfaChallengeRead = {
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    purpose: ChallengePurpose;
+};
+
+/**
+ * MfaEnrollmentRead
+ */
+export type MfaEnrollmentRead = {
+    operator: OperatorRead;
+    /**
+     * Recovery Codes
+     */
+    recovery_codes: Array<string>;
+};
+
+/**
+ * MfaVerifiedRead
+ */
+export type MfaVerifiedRead = {
+    operator: OperatorRead;
+    /**
+     * Recovery Codes Remaining
+     */
+    recovery_codes_remaining: number;
+};
+
+/**
  * OffsetPage[AsyncOperationRead]
  */
 export type OffsetPageAsyncOperationRead = {
@@ -177,6 +274,50 @@ export type OffsetPageAsyncOperationRead = {
      * Items
      */
     items: Array<AsyncOperationRead>;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
+
+/**
+ * OffsetPage[CustomerDirectoryRead]
+ */
+export type OffsetPageCustomerDirectoryRead = {
+    /**
+     * Has More
+     */
+    has_more: boolean;
+    /**
+     * Items
+     */
+    items: Array<CustomerDirectoryRead>;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
+
+/**
+ * OffsetPage[OperatorRead]
+ */
+export type OffsetPageOperatorRead = {
+    /**
+     * Has More
+     */
+    has_more: boolean;
+    /**
+     * Items
+     */
+    items: Array<OperatorRead>;
     /**
      * Limit
      */
@@ -214,14 +355,19 @@ export type OffsetPageOpsAuditEventRead = {
  */
 export type OperatorLoginCommand = {
     /**
+     * Email
+     */
+    email: string;
+    /**
      * Password
      */
     password: string;
-    /**
-     * Username
-     */
-    username: string;
 };
+
+/**
+ * OperatorPermission
+ */
+export type OperatorPermission = 'operations.read' | 'operations.retry' | 'users.read' | 'users.suspend' | 'audit.read' | 'operators.manage';
 
 /**
  * OperatorRead
@@ -232,16 +378,34 @@ export type OperatorRead = {
      */
     display_name: string;
     /**
+     * Email
+     */
+    email: string;
+    /**
      * Operator Id
      */
     operator_id: string;
+    /**
+     * Permissions
+     */
+    permissions: Array<OperatorPermission>;
     role: OperatorRole;
+    status: OperatorStatus;
+    /**
+     * Totp Enabled
+     */
+    totp_enabled: boolean;
 };
 
 /**
  * OperatorRole
  */
-export type OperatorRole = 'platform_operator';
+export type OperatorRole = 'SUPPORT_READONLY' | 'PLATFORM_OPERATOR' | 'SUPER_ADMIN';
+
+/**
+ * OperatorStatus
+ */
+export type OperatorStatus = 'active' | 'disabled';
 
 /**
  * OpsAuditEventRead
@@ -256,10 +420,6 @@ export type OpsAuditEventRead = {
      */
     actor_operator_id: number | null;
     /**
-     * Client Address
-     */
-    client_address: string | null;
-    /**
      * Created At
      */
     created_at: string;
@@ -272,19 +432,20 @@ export type OpsAuditEventRead = {
      */
     event_id: string;
     /**
+     * Ip Address
+     */
+    ip_address: string | null;
+    /**
+     * Metadata Json
+     */
+    metadata_json: {
+        [key: string]: unknown;
+    };
+    /**
      * New State
      */
     new_state: string | null;
-    /**
-     * Operation Id
-     */
-    operation_id: string;
-    operation_kind: AsyncOperationKind;
     outcome: OpsAuditOutcome;
-    /**
-     * Peer Address
-     */
-    peer_address: string | null;
     /**
      * Previous State
      */
@@ -292,11 +453,23 @@ export type OpsAuditEventRead = {
     /**
      * Reason
      */
-    reason: string | null;
+    reason: string;
     /**
      * Request Id
      */
     request_id: string | null;
+    /**
+     * Target Id
+     */
+    target_id: string;
+    /**
+     * Target Type
+     */
+    target_type: string;
+    /**
+     * User Agent
+     */
+    user_agent: string | null;
 };
 
 /**
@@ -337,6 +510,40 @@ export type ReadinessUnavailableRead = {
 };
 
 /**
+ * ReasonCommand
+ */
+export type ReasonCommand = {
+    /**
+     * Reason
+     */
+    reason: string;
+};
+
+/**
+ * RecoveryCodeCommand
+ */
+export type RecoveryCodeCommand = {
+    /**
+     * Recovery Code
+     */
+    recovery_code: string;
+};
+
+/**
+ * ResetOperatorPasswordCommand
+ */
+export type ResetOperatorPasswordCommand = {
+    /**
+     * Password
+     */
+    password: string;
+    /**
+     * Reason
+     */
+    reason: string;
+};
+
+/**
  * RetryAsyncOperationCommand
  */
 export type RetryAsyncOperationCommand = {
@@ -345,6 +552,108 @@ export type RetryAsyncOperationCommand = {
      */
     reason: string;
 };
+
+/**
+ * TotpCodeCommand
+ */
+export type TotpCodeCommand = {
+    /**
+     * Code
+     */
+    code: string;
+};
+
+/**
+ * TotpEnrollmentRead
+ */
+export type TotpEnrollmentRead = {
+    /**
+     * Otpauth Uri
+     */
+    otpauth_uri: string;
+    /**
+     * Secret
+     */
+    secret: string;
+};
+
+/**
+ * UpdateOperatorCommand
+ */
+export type UpdateOperatorCommand = {
+    /**
+     * Reason
+     */
+    reason: string;
+    role: OperatorRole;
+    status: OperatorStatus;
+};
+
+export type AuditLogsListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Actor Operator Id
+         */
+        actor_operator_id?: number | null;
+        /**
+         * Action
+         */
+        action?: string | null;
+        /**
+         * Target Type
+         */
+        target_type?: string | null;
+        /**
+         * Target Id
+         */
+        target_id?: string | null;
+        /**
+         * Outcome
+         */
+        outcome?: OpsAuditOutcome | null;
+        /**
+         * Created After
+         */
+        created_after?: string | null;
+        /**
+         * Created Before
+         */
+        created_before?: string | null;
+    };
+    url: '/api/v1/audit-logs';
+};
+
+export type AuditLogsListErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type AuditLogsListError = AuditLogsListErrors[keyof AuditLogsListErrors];
+
+export type AuditLogsListResponses = {
+    /**
+     * Successful Response
+     */
+    200: OffsetPageOpsAuditEventRead;
+};
+
+export type AuditLogsListResponse = AuditLogsListResponses[keyof AuditLogsListResponses];
 
 export type OperatorLoginData = {
     body: OperatorLoginCommand;
@@ -370,7 +679,7 @@ export type OperatorLoginResponses = {
     /**
      * Successful Response
      */
-    204: void;
+    200: MfaChallengeRead;
 };
 
 export type OperatorLoginResponse = OperatorLoginResponses[keyof OperatorLoginResponses];
@@ -432,6 +741,265 @@ export type OperatorCurrentGetResponses = {
 };
 
 export type OperatorCurrentGetResponse = OperatorCurrentGetResponses[keyof OperatorCurrentGetResponses];
+
+export type OperatorMfaEnrollmentConfirmData = {
+    body: TotpCodeCommand;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/enroll/confirm';
+};
+
+export type OperatorMfaEnrollmentConfirmErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OperatorMfaEnrollmentConfirmError = OperatorMfaEnrollmentConfirmErrors[keyof OperatorMfaEnrollmentConfirmErrors];
+
+export type OperatorMfaEnrollmentConfirmResponses = {
+    /**
+     * Successful Response
+     */
+    200: MfaEnrollmentRead;
+};
+
+export type OperatorMfaEnrollmentConfirmResponse = OperatorMfaEnrollmentConfirmResponses[keyof OperatorMfaEnrollmentConfirmResponses];
+
+export type OperatorMfaEnrollmentStartData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/enroll/start';
+};
+
+export type OperatorMfaEnrollmentStartErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OperatorMfaEnrollmentStartError = OperatorMfaEnrollmentStartErrors[keyof OperatorMfaEnrollmentStartErrors];
+
+export type OperatorMfaEnrollmentStartResponses = {
+    /**
+     * Successful Response
+     */
+    200: TotpEnrollmentRead;
+};
+
+export type OperatorMfaEnrollmentStartResponse = OperatorMfaEnrollmentStartResponses[keyof OperatorMfaEnrollmentStartResponses];
+
+export type OperatorMfaVerifyData = {
+    /**
+     * Command
+     */
+    body: TotpCodeCommand | RecoveryCodeCommand;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/mfa/verify';
+};
+
+export type OperatorMfaVerifyErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OperatorMfaVerifyError = OperatorMfaVerifyErrors[keyof OperatorMfaVerifyErrors];
+
+export type OperatorMfaVerifyResponses = {
+    /**
+     * Successful Response
+     */
+    200: MfaVerifiedRead;
+};
+
+export type OperatorMfaVerifyResponse = OperatorMfaVerifyResponses[keyof OperatorMfaVerifyResponses];
+
+export type OperatorsListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/v1/operators';
+};
+
+export type OperatorsListErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OperatorsListError = OperatorsListErrors[keyof OperatorsListErrors];
+
+export type OperatorsListResponses = {
+    /**
+     * Successful Response
+     */
+    200: OffsetPageOperatorRead;
+};
+
+export type OperatorsListResponse = OperatorsListResponses[keyof OperatorsListResponses];
+
+export type OperatorCreateData = {
+    body: CreateOperatorCommand;
+    path?: never;
+    query?: never;
+    url: '/api/v1/operators';
+};
+
+export type OperatorCreateErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OperatorCreateError = OperatorCreateErrors[keyof OperatorCreateErrors];
+
+export type OperatorCreateResponses = {
+    /**
+     * Successful Response
+     */
+    201: OperatorRead;
+};
+
+export type OperatorCreateResponse = OperatorCreateResponses[keyof OperatorCreateResponses];
+
+export type OperatorUpdateData = {
+    body: UpdateOperatorCommand;
+    path: {
+        /**
+         * Operator Id
+         */
+        operator_id: string;
+    };
+    query?: never;
+    url: '/api/v1/operators/{operator_id}';
+};
+
+export type OperatorUpdateErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OperatorUpdateError = OperatorUpdateErrors[keyof OperatorUpdateErrors];
+
+export type OperatorUpdateResponses = {
+    /**
+     * Successful Response
+     */
+    200: OperatorRead;
+};
+
+export type OperatorUpdateResponse = OperatorUpdateResponses[keyof OperatorUpdateResponses];
+
+export type OperatorMfaResetData = {
+    body: ReasonCommand;
+    path: {
+        /**
+         * Operator Id
+         */
+        operator_id: string;
+    };
+    query?: never;
+    url: '/api/v1/operators/{operator_id}/mfa/reset';
+};
+
+export type OperatorMfaResetErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OperatorMfaResetError = OperatorMfaResetErrors[keyof OperatorMfaResetErrors];
+
+export type OperatorMfaResetResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type OperatorMfaResetResponse = OperatorMfaResetResponses[keyof OperatorMfaResetResponses];
+
+export type OperatorPasswordResetData = {
+    body: ResetOperatorPasswordCommand;
+    path: {
+        /**
+         * Operator Id
+         */
+        operator_id: string;
+    };
+    query?: never;
+    url: '/api/v1/operators/{operator_id}/password/reset';
+};
+
+export type OperatorPasswordResetErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type OperatorPasswordResetError = OperatorPasswordResetErrors[keyof OperatorPasswordResetErrors];
+
+export type OperatorPasswordResetResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type OperatorPasswordResetResponse = OperatorPasswordResetResponses[keyof OperatorPasswordResetResponses];
 
 export type OpsAsyncOperationsListData = {
     body?: never;
@@ -619,7 +1187,7 @@ export type OpsAsyncOperationRetryResponses = {
 
 export type OpsAsyncOperationRetryResponse = OpsAsyncOperationRetryResponses[keyof OpsAsyncOperationRetryResponses];
 
-export type OpsAuditEventsListData = {
+export type CustomersListData = {
     body?: never;
     path?: never;
     query?: {
@@ -631,39 +1199,11 @@ export type OpsAuditEventsListData = {
          * Offset
          */
         offset?: number;
-        /**
-         * Actor Operator Id
-         */
-        actor_operator_id?: number | null;
-        /**
-         * Action
-         */
-        action?: string | null;
-        /**
-         * Operation Kind
-         */
-        operation_kind?: AsyncOperationKind | null;
-        /**
-         * Operation Id
-         */
-        operation_id?: string | null;
-        /**
-         * Outcome
-         */
-        outcome?: OpsAuditOutcome | null;
-        /**
-         * Created After
-         */
-        created_after?: string | null;
-        /**
-         * Created Before
-         */
-        created_before?: string | null;
     };
-    url: '/api/v1/ops/audit-events';
+    url: '/api/v1/users';
 };
 
-export type OpsAuditEventsListErrors = {
+export type CustomersListErrors = {
     /**
      * Unprocessable Entity
      */
@@ -674,16 +1214,50 @@ export type OpsAuditEventsListErrors = {
     default: ControlPlaneErrorResponse;
 };
 
-export type OpsAuditEventsListError = OpsAuditEventsListErrors[keyof OpsAuditEventsListErrors];
+export type CustomersListError = CustomersListErrors[keyof CustomersListErrors];
 
-export type OpsAuditEventsListResponses = {
+export type CustomersListResponses = {
     /**
      * Successful Response
      */
-    200: OffsetPageOpsAuditEventRead;
+    200: OffsetPageCustomerDirectoryRead;
 };
 
-export type OpsAuditEventsListResponse = OpsAuditEventsListResponses[keyof OpsAuditEventsListResponses];
+export type CustomersListResponse = CustomersListResponses[keyof CustomersListResponses];
+
+export type CustomerStatusUpdateData = {
+    body: CustomerStatusCommand;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/api/v1/users/{user_id}/status';
+};
+
+export type CustomerStatusUpdateErrors = {
+    /**
+     * Unprocessable Entity
+     */
+    422: ControlPlaneErrorResponse;
+    /**
+     * Default Response
+     */
+    default: ControlPlaneErrorResponse;
+};
+
+export type CustomerStatusUpdateError = CustomerStatusUpdateErrors[keyof CustomerStatusUpdateErrors];
+
+export type CustomerStatusUpdateResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type CustomerStatusUpdateResponse = CustomerStatusUpdateResponses[keyof CustomerStatusUpdateResponses];
 
 export type HealthLiveData = {
     body?: never;

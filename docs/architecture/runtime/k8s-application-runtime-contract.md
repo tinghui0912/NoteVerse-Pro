@@ -142,7 +142,7 @@ Runtime:
 
 Required environment variables:
 
-- `NEXT_BACKEND_ORIGIN`: backend origin used by Next rewrites.
+- Production `/api` routing is owned by Gateway; development-only Next rewrites use `NEXT_BACKEND_ORIGIN`.
 
 Development-only environment variables:
 
@@ -150,7 +150,7 @@ Development-only environment variables:
 - polling variables such as `WATCHPACK_POLLING` and `CHOKIDAR_USEPOLLING`.
 
 Production frontend builds must fail fast when required runtime config is
-missing. Customer API prefix and session/CSRF names come from the generated
+missing. Customer API prefix and session names come from the generated
 versioned browser protocol, not environment variables. OpenAPI route metadata
 owns browser-native realtime and media paths.
 
@@ -166,9 +166,10 @@ into the browser bundle.
 
 Backend application database access is configured by one PostgreSQL psycopg
 `DATABASE_URL` (`postgresql+psycopg://...`). Domain, application, repository, API,
-Control Plane, worker and maintenance persistence use the synchronous engine and
-SessionLocal factory in `app.db.session`. Alembic uses synchronous PostgreSQL
-execution with the same configuration. The `database` runtime check validates
+Control Plane, worker and maintenance persistence use process-owned synchronous
+engines and SessionFactory instances built by `app.platform.db.engine`. Each
+runtime loads its own settings. Alembic loads only `MigrationSettings` and uses
+synchronous PostgreSQL execution. The `database` runtime check validates
 this application database authority for each role.
 
 FastAPI executes ordinary database-backed path operations in worker threads.
@@ -179,82 +180,41 @@ catch-up batches run off the event loop in their own short-lived synchronous Ses
 `SCHEDULER_LOCK_DATABASE_URL` configures the Beat advisory-lock session and retains
 its direct PostgreSQL or session-pooling policy.
 
-Store these as Secrets:
-
-- `SECRET_KEY`;
-- `DATABASE_URL`;
-- `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session-pooling endpoint only);
-- `REDIS_URL`;
-- `CELERY_BROKER_URL`;
-- `CELERY_RESULT_BACKEND`;
-- `S3_ACCESS_KEY_ID`;
-- `S3_SECRET_ACCESS_KEY`;
-- mail provider API keys such as `RESEND_API_KEY`.
-
-The frontend currently does not require a dedicated Secret. Its required
-runtime value is the backend service origin, which belongs in the frontend
-ConfigMap. Cookie Secure/SameSite policy and lifetimes remain Backend deployment
-policy.
+Every process references only its own credential keys. The
+[Settings Ownership matrix](settings-ownership.md) defines exact Secret names,
+keys and Pydantic schemas. The [Database Role contract](database-role-ownership.md)
+defines explicit table/column privileges and provisioning order. The migration
+Job owns schema changes and receives only `noteverse-migrator-secret`.
+Long-running processes use their separate restricted database roles. Public
+settings never enter Secrets. Registry pull and TLS Secrets have infrastructure
+ownership and are not process environment inputs.
 
 ### Kubernetes ConfigMaps
 
-Store non-secret runtime values as ConfigMaps. Use a shared backend baseline
-only for values that are safe and meaningful across backend roles, then add
-role-specific ConfigMaps for runtime-owned settings:
+| Process | ConfigMap |
+| --- | --- |
+| Customer API | `noteverse-customer-api-config` |
+| Control Plane | `noteverse-control-plane-config` |
+| Worker | `noteverse-worker-config` |
+| Beat | `noteverse-beat-config` |
+| Model preparation | `noteverse-model-assets-config` |
+| Migrator | none |
 
-- shared backend public URLs and origins:
-  - `FRONTEND_BASE_URL`;
-  - `BACKEND_CORS_ORIGINS`;
-  - `TRUSTED_PROXY_CIDRS`;
-- shared storage mode and non-secret S3 settings:
-  - configured object-store endpoint, bucket and credentials;
-  - `S3_ENDPOINT_URL`;
-  - `S3_REGION`;
-  - `S3_BUCKET`;
-  - `S3_FORCE_PATH_STYLE`;
-  - `OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS`;
-- shared runtime paths:
+Each ConfigMap contains only non-credential fields from that process's Settings.
+Worker owns resource processing, model paths, mail sender, delivery and maintenance
+policy. Beat owns schedule and leadership policy. Control Plane owns its browser
+policy and Ops delivery configuration. Exporter owns metrics policy. Customer API
+owns customer origins, resource admission and delivery policy. Model preparation
+owns model paths and controlled online cache hydration; optional download access
+comes only from `noteverse-model-assets-secret` (`HF_TOKEN`). PaddleOCR receives
+local model paths and an allowlist of operating-system variables, with no Worker
+credential inheritance. Frontend configuration remains public origin values.
 
-  - `WORK_ROOT`;
-- shared task reliability settings:
-  - import, render, playback, mail, realtime, notification, and cleanup interval,
-    timeout, retry, batch, and retention settings;
-- Worker/model-asset ConfigMap:
-  - `MODEL_ROOT`;
-  - `PLAYBACK_SOUNDFONT_PATH`;
-  - `HF_HOME`;
-  - `HF_HUB_OFFLINE`;
-  - `TRANSFORMERS_OFFLINE`;
-  - `PADDLEOCR_MODEL_ROOT`;
-  - `PADDLEOCR_DETECTION_MODEL_DIR`;
-  - `PADDLEOCR_RECOGNITION_MODEL_DIR`;
-  - `PADDLEOCR_TEXTLINE_ORIENTATION_MODEL_DIR`;
-  - `PADDLEOCR_TIMEOUT_SECONDS`;
-  - `LEGATO_REPO_PATH`;
-  - `LEGATO_PYTHON`;
-  - `LEGATO_DEVICE`;
-  - `LEGATO_FP16`;
-  - `LEGATO_BEAM_SIZE`;
-  - `LEGATO_BATCH_SIZE`;
-  - `LEGATO_TIMEOUT_SECONDS`;
-- model-cache agent:
-  - consumes the shared backend and Worker/model-asset ConfigMaps;
-  - prepares and verifies playback soundfont targets before
-    application pods rely on the node-local model cache;
-  - overrides Hugging Face offline flags to online mode only for controlled
-    cache hydration.
-- Control Plane ConfigMap:
-  - `CONTROL_PLANE_COOKIE_SECURE`;
-  - `CONTROL_PLANE_COOKIE_SAMESITE`;
-  - `CONTROL_PLANE_SESSION_EXPIRE_MINUTES`;
-  - `CONTROL_PLANE_CORS_ORIGINS`;
-- frontend ConfigMap:
-  - `NEXT_BACKEND_ORIGIN`;
-- versioned algorithm profiles:
-  - LEGATO engine/model identity and Verovio SVG output options are sourced
-    from reviewed application modules, not Kubernetes environment variables;
-  - playback and practice tuning remain source-owned unless an explicitly
-    versioned, audited profile rollout is introduced.
+Versioned algorithm profiles belong to reviewed source modules. ConfigMap values
+do not redefine engine identity, render profiles or browser protocol identities.
+`check_k8s_config_ownership.py` validates rendered application and GitOps overlays
+against the generated runtime deployment contract. Release-package validation and
+exporter manifest checks use the same rules.
 
 ### Mounted Volumes
 
@@ -402,3 +362,11 @@ credentials. See `scripts/render_k8s_release_overlay.py`.
 
 Before applying private production manifests, run the strict preflight check in
 `docs/operations/deployment/k8s-production-preflight-checklist.md`.
+
+## Container and network isolation
+
+[Container and Network Hardening](container-and-network-hardening.md) defines
+numeric UID/GID 10001, read-only filesystems, bounded scratch mounts, default-deny
+CiliumNetworkPolicy and per-runtime traffic. Gateway routes both Customer and Admin
+API traffic directly to their HTTP runtimes. External FQDN and private database CIDR lists default to empty and
+must be explicitly reviewed before external connectivity is enabled.

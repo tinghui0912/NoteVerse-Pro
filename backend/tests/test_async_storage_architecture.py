@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
-from app.storage import AsyncObjectReader, object_storage
+from app.storage import AsyncObjectReader
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import storage as object_storage
+
+settings = get_context().settings
 
 ROOT = Path(__file__).resolve().parents[1] / "app"
 PROVIDER_IO = {
@@ -20,7 +24,7 @@ PROVIDER_IO = {
 
 def test_database_backed_delivery_executes_in_synchronous_http_operations():
     import inspect
-    from app.modules.uploads.router import create_upload_request
+    from app.runtime.customer_api.routers.uploads.router import create_upload_request
     from app.api.storage_streaming import stream_storage_object
 
     assert not __import__("inspect").iscoroutinefunction(create_upload_request)
@@ -38,7 +42,6 @@ def test_coordinator_exposes_only_independent_write_commands():
 
 def test_score_upload_admission_uses_the_image_domain_policy_and_session_plan():
     from app.modules.uploads.upload_admission import SCORE_IMPORT_IMAGES
-    from app.core.config import settings
 
     assert {item.container for item in SCORE_IMPORT_IMAGES} == {
         "PNG",
@@ -49,6 +52,6 @@ def test_score_upload_admission_uses_the_image_domain_policy_and_session_plan():
         "TIFF",
     }
     assert settings.SCORE_IMPORT_MAX_BYTES == 20 * 1024 * 1024
-    from app.modules.uploads.router import create_upload_request
+    from app.runtime.customer_api.routers.uploads.router import create_upload_request
 
     assert not __import__("inspect").iscoroutinefunction(create_upload_request)

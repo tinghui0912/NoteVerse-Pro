@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from app.modules.scores.input_asset_lifecycle import ScoreInputAssetLifecycle
 from app.modules.storage_governance.usage.service import StorageUsageService
 from app.modules.media_storage.retirement import retire_after_release
@@ -40,14 +41,14 @@ class ScoreDeletionExecutor:
 
     def __init__(
         self,
-        delivery: ScoreDeletionDeliveryService | None = None,
+        delivery: ScoreDeletionDeliveryService,
         *,
         input_assets: ScoreInputAssetLifecycle,
         usage: StorageUsageService,
     ) -> None:
         self.input_assets = input_assets
         self.usage = usage
-        self.delivery = delivery or ScoreDeletionDeliveryService()
+        self.delivery = delivery
 
     def execute(self, db: Session, lease: ScoreDeletionLease) -> ScoreDeletionResult:
         operation = require_current_attempt(db, lease)

@@ -1,8 +1,11 @@
 """Durable save admission ordering and source-independent media on PostgreSQL."""
 
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 from tests.support.take_lifecycle import initialize_reservation
 
-from app.composition import media_resources as _media_wiring
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
@@ -31,9 +34,12 @@ from app.modules.performance_takes.upload_reservation.domain import FinalizeLeas
 from app.modules.performance_takes.upload_reservation.persistence import (
     lifecycle_from_row,
 )
-from app.modules.practice.bundle.retention import practice_bundle_retention
+from app.modules.practice.bundle.retention import PracticeBundleRetention
 from app.modules.scores.lifecycle_service import ScoreLifecycleService
 from tests.test_upload_reservation_postgres import setup_bundle, MEDIA
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+from tests.support.runtime_resources import ignore_dispatch
+from app.runtime.customer_api.context import get_context
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -60,7 +66,9 @@ def test_save_admission_commits_before_waiting_score_deletion(postgres_bundle):
         with sessions() as db:
             pid.append(db.scalar(text("SELECT pg_backend_pid()")))
             ScoreLifecycleService(
-                deletion_executor=_media_wiring.build_score_deletion_executor()
+                deletion_executor=resources_for().build_score_deletion_executor(),
+                config=ScoreDeletionDeliverySettings(),
+                dispatch_after_commit=ignore_dispatch,
             ).delete_score(db, postgres_bundle[1].test_score_uuid, 1)
 
     with (
@@ -108,7 +116,9 @@ def test_score_deletion_commit_denies_waiting_new_save(postgres_bundle):
     def delete_score():
         with DeletionSession(postgres_bundle[0], expire_on_commit=False) as db:
             ScoreLifecycleService(
-                deletion_executor=_media_wiring.build_score_deletion_executor()
+                deletion_executor=resources_for().build_score_deletion_executor(),
+                config=ScoreDeletionDeliverySettings(),
+                dispatch_after_commit=ignore_dispatch,
             ).delete_score(db, postgres_bundle[1].test_score_uuid, 1)
 
     def reserve():
@@ -161,14 +171,20 @@ def test_snapshot_replay_finalize_and_take_reads_survive_bundle_gc(postgres_bund
         score.display_title = "Title after admission"
         db.commit()
         ScoreLifecycleService(
-            deletion_executor=_media_wiring.build_score_deletion_executor()
+            deletion_executor=resources_for().build_score_deletion_executor(),
+            config=ScoreDeletionDeliverySettings(),
+            dispatch_after_commit=ignore_dispatch,
         ).delete_score(db, score.score_uuid, 1)
         score.head_revision_id = None
         db.flush()
         db.execute(delete(ScoreRevision))
         db.execute(delete(Score))
         db.commit()
-        due = practice_bundle_retention.collect_unowned_ready(db)
+        due = PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ).collect_unowned_ready(db)
         assert len(due) == 2
         from tests.support.retirement import drain_retirements
 
@@ -263,13 +279,24 @@ def test_revision_only_retention_with_existing_reservation_or_take(postgres_bund
             )
             db.commit()
         source_row = db.scalar(select(PracticeBundleRecord))
-        assert practice_bundle_retention.collect_unowned_ready(db) == []
+        assert (
+            PracticeBundleRetention(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ).collect_unowned_ready(db)
+            == []
+        )
         score = db.scalar(select(Score))
         score.head_revision_id = None
         db.flush()
         db.execute(delete(ScoreRevision))
         db.commit()
-        due = practice_bundle_retention.collect_unowned_ready(db)
+        due = PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ).collect_unowned_ready(db)
         assert len(due) == 2
         assert db.get(PracticeBundleRecord, source_row.id) is None
         assert (

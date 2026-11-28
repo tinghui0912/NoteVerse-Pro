@@ -227,7 +227,7 @@ def test_corrupt_jsonb_is_rejected_after_postgresql_reload(persisted_projection)
 
 def test_metadata_domain_and_public_events_share_one_fixed_shape_authority():
     from typing import get_type_hints
-    from app.main import app
+    from app.runtime.customer_api.main import app
 
     domain_fields = get_type_hints(MusicXMLMetadata)
     schemas = app.openapi()["components"]["schemas"]
@@ -274,7 +274,9 @@ def test_written_metadata_does_not_construct_performance_chronology(monkeypatch,
         pytest.fail("written metadata must not construct performed chronology")
 
     monkeypatch.setattr(
-        performance_plan, "build_performance_plan", unexpected_performance_construction
+        performance_plan,
+        "build_performance_plan",
+        unexpected_performance_construction,
     )
     monkeypatch.setattr(
         performance_navigation,
@@ -303,7 +305,7 @@ def test_written_metadata_does_not_construct_performance_chronology(monkeypatch,
 def test_metadata_schema_contains_only_written_projection_facts():
     from dataclasses import fields
     from app.db.models import ScorePlaybackAsset
-    from app.main import app
+    from app.runtime.customer_api.main import app
 
     expected = {
         "measure_count",

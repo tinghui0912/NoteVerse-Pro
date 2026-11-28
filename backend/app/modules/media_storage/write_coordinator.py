@@ -1,6 +1,7 @@
 """Independent durable write transactions and generation-fenced provider execution."""
 
 from collections.abc import Callable, Sequence
+from app.platform.config.object_writes import ObjectWriteSettings
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -16,7 +17,7 @@ from app.modules.media_storage.write_intents import (
     lock_intent,
     require_generation,
 )
-from app.modules.media_storage.write_lifecycle import cleanup_lifecycle
+from app.modules.media_storage.write_lifecycle import cleanup_transitions
 from app.shared.time import utc_now
 from app.storage import ObjectStorage, ObjectWriteResult
 from app.storage.base import ObjectStorageUnavailableError
@@ -38,7 +39,10 @@ class ObjectWriteCoordinator:
     Unknown mutations remain fail-closed and retain their physical responsibility.
     """
 
-    def __init__(self, storage: ObjectStorage, sessions: SessionFactory) -> None:
+    def __init__(
+        self, storage: ObjectStorage, sessions: SessionFactory, *, config: ObjectWriteSettings
+    ) -> None:
+        self.config = config
         self.storage = storage
         self.sessions = sessions
 
@@ -114,8 +118,11 @@ class ObjectWriteCoordinator:
         }
         with self.sessions() as db:
             for op in ordered:
-                reserve_intent(db, facts[op.item.key])
-            prepared = {op.item.key: prepare_write(db, facts[op.item.key]) for op in ordered}
+                reserve_intent(db, facts[op.item.key], config=self.config)
+            prepared = {
+                op.item.key: prepare_write(db, facts[op.item.key], config=self.config)
+                for op in ordered
+            }
             pending = []
             for op in ordered:
                 row, needs_write = inspect_write(db, prepared[op.item.key], op.item.content)
@@ -181,7 +188,7 @@ class ObjectWriteCoordinator:
                     ObjectWriteIntentStatus.WRITING,
                     ObjectWriteIntentStatus.WRITTEN,
                 ):
-                    cleanup_lifecycle().reset(
+                    cleanup_transitions().reset(
                         row,
                         status=ObjectWriteIntentStatus.CLEANUP_PENDING,
                         reset_attempts=True,

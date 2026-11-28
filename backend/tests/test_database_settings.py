@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.database import DatabaseSettings
+from app.platform.config.database import DatabaseSettings
 
 
 def test_database_settings_preserve_the_explicit_psycopg_identity() -> None:

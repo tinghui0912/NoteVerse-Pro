@@ -1,7 +1,5 @@
 """Request-scoped HTTP correlation, established once before application dispatch."""
 
-from contextvars import ContextVar
-from dataclasses import dataclass
 from uuid import uuid4
 
 from starlette.datastructures import Headers, MutableHeaders
@@ -10,23 +8,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 from app.shared.request_id import REQUEST_ID_PATTERN
-
-
-@dataclass
-class _RequestCorrelation:
-    request_id: str
-    active: bool = True
-
-
-_request_correlation: ContextVar[_RequestCorrelation | None] = ContextVar(
-    "request_correlation", default=None
-)
-
-
-def get_request_id() -> str | None:
-    """Read ambient HTTP correlation only while its owning request is active."""
-    context = _request_correlation.get()
-    return context.request_id if context is not None and context.active else None
+from app.platform.correlation import RequestCorrelation, request_correlation
 
 
 def request_correlation_id(request: Request) -> str:
@@ -52,8 +34,8 @@ class RequestCorrelationMiddleware:
         request_id = (
             incoming if incoming and REQUEST_ID_PATTERN.fullmatch(incoming) else uuid4().hex
         )
-        context = _RequestCorrelation(request_id)
-        token = _request_correlation.set(context)
+        context = RequestCorrelation(request_id)
+        token = request_correlation.set(context)
 
         async def send_correlated(message: Message) -> None:
             if message["type"] == "http.response.start":
@@ -67,4 +49,4 @@ class RequestCorrelationMiddleware:
             # Detached tasks inherit ContextVar values. Closing the shared request
             # binding also prevents them from retaining ambient HTTP correlation.
             context.active = False
-            _request_correlation.reset(token)
+            request_correlation.reset(token)

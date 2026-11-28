@@ -1,5 +1,10 @@
 """Import async operation projection and SQL summary share delivery/resource truth."""
 
+from app.runtime.worker.context import get_context as worker_context
+
+from app.runtime.control_plane.main import create_app as create_control_app
+
+
 from app.modules.import_jobs.requested_options import encode_requested_options
 
 from datetime import timedelta
@@ -7,12 +12,10 @@ from app.shared.durable_failure import DurableFailureClass
 
 import pytest
 
-from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import ImportJob, ImportDispatch, ImportDispatchStatus
 from app.modules.import_jobs.domain import ImportJobState
 from app.modules.import_jobs.dispatch_service import ImportDispatchService
-from app.modules.ops.command_service import OpsAsyncOperationCommandService
 from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.ops.operation_summary import AsyncOperationSummaryQuery
 from app.modules.ops.operation_filters import AsyncOperationFilters
@@ -24,6 +27,11 @@ from app.shared.time import utc_now
 from tests.test_score_revision_services import (
     score_service_session as score_service_session,
 )
+from app.runtime.customer_api.context import get_context
+from app.platform.config.delivery import OpsDeliveryConfig
+from app.platform.config.delivery import DeliveryConfig
+
+settings = get_context().settings
 
 
 CASES = [
@@ -89,9 +97,9 @@ def test_import_projection_and_summary_agree(
     )
     db.add(dispatch)
     db.commit()
-    operation = OpsAsyncOperationQueryService().get_operation(
-        db, kind=AsyncOperationKind.IMPORT, operation_id=dispatch.dispatch_uuid
-    )
+    operation = OpsAsyncOperationQueryService(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    ).get_operation(db, kind=AsyncOperationKind.IMPORT, operation_id=dispatch.dispatch_uuid)
     assert operation.operation_id == dispatch.dispatch_uuid
     assert operation.resource_type == "import_job" and operation.resource_id == job.job_uuid
     assert operation.status == AsyncOperationStatus(expected)
@@ -99,7 +107,7 @@ def test_import_projection_and_summary_agree(
     assert operation.failure.classification.value == (
         "permanent" if owner == "job" else "transient"
     )
-    summary = AsyncOperationSummaryQuery().summary(
+    summary = AsyncOperationSummaryQuery(config=OpsDeliveryConfig()).summary(
         db,
         kinds=(AsyncOperationKind.IMPORT,),
         filters=AsyncOperationFilters(
@@ -107,7 +115,7 @@ def test_import_projection_and_summary_agree(
         ),
     )
     assert summary.total == 1 and summary.statuses[0].status == operation.status
-    excluded = AsyncOperationSummaryQuery().summary(
+    excluded = AsyncOperationSummaryQuery(config=OpsDeliveryConfig()).summary(
         db,
         kinds=(AsyncOperationKind.IMPORT,),
         filters=AsyncOperationFilters(
@@ -148,11 +156,16 @@ def test_delivery_updates_drive_operation_order_and_timestamp_filters(score_serv
     )
     db.add_all([d1, d2])
     db.commit()
-    service, adapter = OpsAsyncOperationQueryService(), db
+    service, adapter = (
+        OpsAsyncOperationQueryService(
+            config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+        ),
+        db,
+    )
     before = service.list_operations(adapter, limit=1, kind=AsyncOperationKind.IMPORT).items
     assert before[0].operation_id == d2.dispatch_uuid
     job_updated_at = first.updated_at
-    assert ImportDispatchService().mark_dispatched(db, d1.dispatch_uuid)
+    assert ImportDispatchService(config=OpsDeliveryConfig()).mark_dispatched(db, d1.dispatch_uuid)
     db.commit()
     assert first.updated_at == job_updated_at
     assert (
@@ -218,7 +231,7 @@ def test_ops_retry_uses_dispatch_identity_only(score_service_session):
     )
     db.add(dispatch)
     db.commit()
-    service, adapter = OpsAsyncOperationCommandService(), db
+    service, adapter = create_control_app().state.ops_commands, db
     with pytest.raises(ResourceNotFoundException):
         service.retry_operation(adapter, kind=AsyncOperationKind.IMPORT, operation_id=job.job_uuid)
     result = service.retry_operation(

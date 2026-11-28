@@ -13,6 +13,10 @@ from app.storage.base import (
 )
 from app.storage.s3_compatible import S3CompatibleObjectStorage, ClientError
 from tests.support.object_storage import InMemoryObjectStorage
+from app.runtime.customer_api.context import get_context
+from app.platform.config.storage import ObjectStorageConfig
+
+settings = get_context().settings
 
 
 OPERATIONS = {
@@ -52,7 +56,9 @@ def test_every_wire_operation_sanitizes_provider_errors(operation, status, code,
         },
         "provider",
     )
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     storage._signing_client = storage._client
@@ -77,7 +83,9 @@ def test_every_wire_operation_sanitizes_provider_errors(operation, status, code,
 
 @pytest.mark.parametrize("operation", OPERATIONS)
 def test_network_failure_retains_uncertain_outcome_for_each_operation(operation):
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     storage._signing_client = storage._client
@@ -101,7 +109,9 @@ def test_network_failure_retains_uncertain_outcome_for_each_operation(operation)
 
 
 def test_delete_is_one_idempotent_request_and_abort_requires_definitive_404():
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     storage.delete("k")
@@ -123,7 +133,9 @@ def test_delete_is_one_idempotent_request_and_abort_requires_definitive_404():
 
 
 def test_metadata_distinguishes_native_composite_checksum_from_user_metadata():
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     storage.client.head_object.return_value = {
@@ -143,7 +155,9 @@ def test_metadata_distinguishes_native_composite_checksum_from_user_metadata():
 def test_pagination_and_embedded_completion_error():
     from app.storage.base import UploadedPart
 
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     storage.client.list_parts.side_effect = [
@@ -163,10 +177,11 @@ def test_pagination_and_embedded_completion_error():
 
 
 def test_part_sigv4_binds_handle_number_length_and_expiry(monkeypatch):
-    from app.core.config import settings
 
     monkeypatch.setattr(settings, "S3_SIGNED_ENDPOINT_URL", None)
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     target = storage.generate_part_upload_url(
         "final/key", "exact-handle", 3, content_length=123, expires_in=67
     )
@@ -216,10 +231,11 @@ def test_memory_multipart_assembles_parts_and_rejects_invalid_manifest():
 
 
 def test_signature_expiry_uses_settings_and_requires_integer_lengths(monkeypatch):
-    from app.core.config import settings
 
     monkeypatch.setattr(settings, "OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS", 83)
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     storage.generate_put_upload_url("k", content_type="image/png", content_length=1)
@@ -233,7 +249,9 @@ def test_signature_expiry_uses_settings_and_requires_integer_lengths(monkeypatch
 def test_lazy_stream_error_is_normalized_and_body_closed(failure):
     from app.storage.s3_compatible import ResponseStreamingError, IncompleteReadError
 
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     body = Mock()
@@ -256,7 +274,9 @@ def test_lazy_stream_error_is_normalized_and_body_closed(failure):
 
 
 def test_multipart_discovery_paginates_and_matches_exact_key():
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     storage._client = Mock()
     storage._mutation_client = storage._client
     storage.client.list_multipart_uploads.side_effect = [
@@ -288,7 +308,6 @@ def test_multipart_discovery_paginates_and_matches_exact_key():
 def test_s3_connection_policy_is_configured_without_provider_branches(
     monkeypatch, endpoint, region, path_style
 ):
-    from app.core.config import settings
 
     for name, value in {
         "S3_ENDPOINT_URL": endpoint,
@@ -303,7 +322,9 @@ def test_s3_connection_policy_is_configured_without_provider_branches(
         "S3_MAX_ATTEMPTS": 4,
     }.items():
         monkeypatch.setattr(settings, name, value)
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     try:
         for client in (storage.client, storage.mutation_client):
             config = client.meta.config

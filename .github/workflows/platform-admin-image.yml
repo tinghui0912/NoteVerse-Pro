@@ -57,8 +57,14 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/platform-admin:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/platform-admin:build-${{ github.run_id }}
-          build-args: |
-            NEXT_CONTROL_PLANE_ORIGIN=http://noteverse-control-plane:8000
+
+      - name: Verify non-root read-only HTTP runtime
+        run: >-
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges
+          --network none --tmpfs /tmp:rw,exec,nosuid,nodev,size=64m,mode=1777
+          -e SMOKE_PATH=/login
+          -v "$GITHUB_WORKSPACE/.github/scripts/frontend_image_security_smoke.mjs:/smoke.mjs:ro"
+          --entrypoint node "${{ env.IMAGE_NAMESPACE }}/platform-admin:${{ github.sha }}" /smoke.mjs
 
       - name: Generate Platform Admin SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3

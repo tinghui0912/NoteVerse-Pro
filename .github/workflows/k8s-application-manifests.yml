@@ -4,20 +4,40 @@ on:
   push:
     branches: [main]
     paths:
+      - "backend/docs/contracts/runtime-deployment.json"
+      - "scripts/check_k8s_config_ownership.py"
+      - "scripts/container_security_contract.py"
+      - "scripts/cilium_schema.py"
+      - "deploy/platform/cilium/**"
+      - ".github/scripts/test_cilium_network_policy.py"
+      - "docker/**"
+      - ".github/scripts/test_container_security_policy.py"
+      - "scripts/requirements-manifests.txt"
       - "deploy/application/**"
       - "deploy/gitops/**"
       - "scripts/check_k8s_application_manifests.py"
-      - "scripts/check_k8s_config_ownership.py"
+      - "scripts/browser_security_contract.py"
+      - ".github/scripts/test_browser_security_manifest_policy.py"
       - "scripts/check_gitops_manifests.py"
       - "scripts/promote_release_package_to_gitops.py"
       - "scripts/render_k8s_release_overlay.py"
       - ".github/workflows/k8s-application-manifests.yml"
   pull_request:
     paths:
+      - "backend/docs/contracts/runtime-deployment.json"
+      - "scripts/check_k8s_config_ownership.py"
+      - "scripts/container_security_contract.py"
+      - "scripts/cilium_schema.py"
+      - "deploy/platform/cilium/**"
+      - ".github/scripts/test_cilium_network_policy.py"
+      - "docker/**"
+      - ".github/scripts/test_container_security_policy.py"
+      - "scripts/requirements-manifests.txt"
       - "deploy/application/**"
       - "deploy/gitops/**"
       - "scripts/check_k8s_application_manifests.py"
-      - "scripts/check_k8s_config_ownership.py"
+      - "scripts/browser_security_contract.py"
+      - ".github/scripts/test_browser_security_manifest_policy.py"
       - "scripts/check_gitops_manifests.py"
       - "scripts/promote_release_package_to_gitops.py"
       - "scripts/render_k8s_release_overlay.py"
@@ -40,12 +60,24 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install manifest validation dependencies
+        run: python -m pip install -r scripts/requirements-manifests.txt
+
       - name: Install kubectl
         run: |
           KUBECTL_VERSION="$(curl -L -s https://dl.k8s.io/release/stable.txt)"
           curl -L -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
           kubectl version --client
+
+      - name: Verify browser security manifest contracts
+        run: python -m unittest discover -s .github/scripts -p test_browser_security_manifest_policy.py -v
+
+      - name: Check container and network policy contracts
+        run: |
+          python scripts/container_security_contract.py
+          python -m unittest discover -s .github/scripts -p test_container_security_policy.py -v
+          python -m unittest discover -s .github/scripts -p test_cilium_network_policy.py -v
 
       - name: Validate Kubernetes env-file ownership
         run: python scripts/check_k8s_config_ownership.py
@@ -69,8 +101,7 @@ jobs:
           python scripts/render_k8s_release_overlay.py \
             --environment staging \
             --output build/k8s-release-check/staging \
-            --backend-api-image ghcr.io/example/noteverse/backend-api@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
-            --backend-beat-image ghcr.io/example/noteverse/backend-beat@sha256:4444444444444444444444444444444444444444444444444444444444444444 \
+            --backend-core-image ghcr.io/example/noteverse/backend-core@sha256:1111111111111111111111111111111111111111111111111111111111111111 \
             --backend-worker-image ghcr.io/example/noteverse/backend-worker@sha256:3333333333333333333333333333333333333333333333333333333333333333 \
             --customer-web-image ghcr.io/example/noteverse/customer-web@sha256:2222222222222222222222222222222222222222222222222222222222222222 \
             --platform-admin-image ghcr.io/example/noteverse/platform-admin@sha256:6666666666666666666666666666666666666666666666666666666666666666 \
@@ -83,6 +114,7 @@ jobs:
             --trusted-proxy-cidrs '["10.244.0.0/16"]' \
             --auth-cookie-secure true \
             --mail-default-sender 'NoteVerse Pro <no-reply@staging.noteverse.test>' \
+            --csp-object-storage-origins https://object-storage.noteverse.test \
             --s3-endpoint-url https://object-storage.noteverse.test \
             --s3-region auto \
             --s3-bucket noteverse-staging \
@@ -92,7 +124,17 @@ jobs:
           python scripts/check_k8s_application_manifests.py build/k8s-release-check/staging --strict
 
           test -f build/k8s-release-check/staging/base/kustomization.yaml
-          cp deploy/gitops/environments/staging/release-metadata.json build/k8s-release-check/staging/release-metadata.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+          directory = Path("build/k8s-release-check/staging")
+          configuration = yaml.safe_load((directory / "kustomization.yaml").read_text())
+          images = {item["name"].removeprefix("noteverse-").replace("-", "_"):
+                    item["newName"] + "@" + item["digest"] for item in configuration["images"]}
+          (directory / "release-metadata.json").write_text(json.dumps({
+              "environment": "staging", "images": images, "purpose": "CI validation fixture"}))
+          PY
           python scripts/promote_release_package_to_gitops.py \
             --source build/k8s-release-check/staging \
             --environment staging \

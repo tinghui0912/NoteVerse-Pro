@@ -8,7 +8,10 @@ manifests so chart/value compatibility can be checked before an operator runs
 from __future__ import annotations
 
 import argparse
+import yaml
+from harden_observability_manifests import harden
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -113,11 +116,7 @@ def require_helm_repos(releases: list[Release]) -> None:
         return
 
     commands = "\n".join(f"helm repo add {name} {HELM_REPOS[name]}" for name in missing)
-    raise RuntimeError(
-        "missing Helm chart repositories. Run:\n"
-        f"{commands}\n"
-        "helm repo update"
-    )
+    raise RuntimeError(f"missing Helm chart repositories. Run:\n{commands}\nhelm repo update")
 
 
 def selected_releases(names: list[str] | None) -> list[Release]:
@@ -155,10 +154,15 @@ def render_release(release: Release, namespace: str, output_dir: Path, profile: 
         raise RuntimeError(
             f"helm template failed for {release.name}\n"
             f"chart: {release.chart}\n"
-            f"stderr:\n{result.stderr.strip()}"
+            f"stderr:\n{re.sub(r'https?://[^\s]+', '<redacted-url>', result.stderr.strip())}"
         )
 
-    output_path.write_text(result.stdout, encoding="utf-8")
+    output_path.write_text(
+        yaml.safe_dump_all(
+            harden([d for d in yaml.safe_load_all(result.stdout) if d]), sort_keys=False
+        ),
+        encoding="utf-8",
+    )
     return output_path
 
 

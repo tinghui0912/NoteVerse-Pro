@@ -30,6 +30,10 @@ from app.modules.performance_takes.upload_reservation.states import UploadReserv
 from app.shared.time import utc_now
 from tests.test_delivery_attempt_postgres import database  # noqa: F401
 from tests.test_performance_take_schema import manifest_values
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import deliveries
+
+settings = get_context().settings
 
 CONTRACTS = [
     (RevisionMetadataOutbox, RevisionMetadataOutboxStatus),
@@ -192,10 +196,8 @@ def test_attempt_token_constraint_consumes_enum_authority():
 
 
 def test_metadata_batch_limit_uses_current_settings(status_database, monkeypatch):
-    from app.core.config import settings
     from app.db.models import ScoreRevision
     from app.modules.revisions.domain import RevisionOrigin
-    from app.modules.revisions.metadata_delivery import metadata_delivery
 
     engine, _ = status_database
     with Session(engine) as db:
@@ -211,7 +213,11 @@ def test_metadata_batch_limit_uses_current_settings(status_database, monkeypatch
         db.flush()
         db.add(RevisionMetadataOutbox(revision_id=revision.id, source_fingerprint="b" * 64))
         db.commit()
-        monkeypatch.setattr(settings, "REVISION_METADATA_DISPATCH_BATCH_SIZE", 1)
-        assert len(metadata_delivery.recover_and_list_due(db)) == 1
-        monkeypatch.setattr(settings, "REVISION_METADATA_DISPATCH_BATCH_SIZE", 2)
-        assert len(metadata_delivery.recover_and_list_due(db)) == 2
+        monkeypatch.setattr(
+            deliveries().metadata.config, "REVISION_METADATA_DISPATCH_BATCH_SIZE", 1
+        )
+        assert len(deliveries().metadata.recover_and_list_due(db)) == 1
+        monkeypatch.setattr(
+            deliveries().metadata.config, "REVISION_METADATA_DISPATCH_BATCH_SIZE", 2
+        )
+        assert len(deliveries().metadata.recover_and_list_due(db)) == 2

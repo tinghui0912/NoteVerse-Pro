@@ -17,6 +17,7 @@ CAPABILITIES = {
     "cache",
     "celery",
     "tracing",
+    "metrics",
     "http",
     "auth",
     "storage",
@@ -65,6 +66,8 @@ def test_capability_and_runtime_composition():
     assert groups["worker-app"] == [
         {"include-group": role}
         for role in (
+            "auth",
+            "metrics",
             "db",
             "storage",
             "celery",
@@ -110,7 +113,7 @@ def test_worker_sources_are_explicit_and_platform_scoped():
 
 @pytest.mark.parametrize(
     ("image", "group"),
-    [("api", "api"), ("beat", "beat"), ("quality", "quality"), ("worker-deps", "worker")],
+    [("core", "api"), ("quality", "quality"), ("worker-deps", "worker")],
 )
 def test_docker_self_enforces_project_authority(image, group):
     dockerfile = (ROOT / f"docker/backend/Dockerfile.{image}").read_text(encoding="utf-8")

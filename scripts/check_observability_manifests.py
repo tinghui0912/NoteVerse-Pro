@@ -1,6 +1,7 @@
+#!/usr/bin/env python3
 """Validate NoteVerse observability Helm values skeletons.
 
-This guard is intentionally lightweight and dependency-free. It validates the
+This guard validates the
 plain YAML-like files for risky values and high-cardinality label policy before
 they are wired into a real Helm release.
 """
@@ -8,11 +9,13 @@ they are wired into a real Helm release.
 from __future__ import annotations
 
 import argparse
+import yaml
+from container_security_contract import validate_workloads, validate_dockerfiles
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from check_k8s_config_ownership import validate_rendered
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGET = Path("deploy/observability")
@@ -29,7 +32,10 @@ class Finding:
 FORBIDDEN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "local-dev-endpoint",
-        re.compile(r"\b(localhost|127\.0\.0\.1|192\.168\.|host\.docker\.internal)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(localhost|127\.0\.0\.1|192\.168\.|host\.docker\.internal)\b",
+            re.IGNORECASE,
+        ),
     ),
     (
         "obvious-secret-value",
@@ -78,7 +84,9 @@ def target_files(target: Path) -> list[Path]:
     target_path = target if target.is_absolute() else REPO_ROOT / target
     if target_path.is_file():
         return [target_path]
-    return sorted(path for path in target_path.rglob("*") if path.suffix in {".yaml", ".yml", ".md"})
+    return sorted(
+        path for path in target_path.rglob("*") if path.suffix in {".yaml", ".yml", ".md"}
+    )
 
 
 def scan_file(path: Path) -> list[Finding]:
@@ -173,7 +181,9 @@ def validate_fluent_bit_values(target: Path) -> list[Finding]:
     }
     for rule, snippet in required_snippets.items():
         if snippet not in text:
-            findings.append(add_file_finding(fluent_bit_path, rule, f"missing required snippet: {snippet}"))
+            findings.append(
+                add_file_finding(fluent_bit_path, rule, f"missing required snippet: {snippet}")
+            )
 
     if re.search(r"\bName\s+parser\b.*\bKey_Name\s+log\b", text, re.IGNORECASE | re.DOTALL):
         findings.append(
@@ -184,7 +194,10 @@ def validate_fluent_bit_values(target: Path) -> list[Finding]:
             )
         )
 
-    labels_line = next((line.strip() for line in text.splitlines() if line.strip().startswith("Labels ")), "")
+    labels_line = next(
+        (line.strip() for line in text.splitlines() if line.strip().startswith("Labels ")),
+        "",
+    )
     if labels_line and "=" in labels_line:
         allowed_label_names = {"job", "namespace", "container"}
         label_names = {
@@ -213,10 +226,37 @@ def print_findings(findings: list[Finding]) -> None:
 def main() -> int:
     args = parse_args()
     findings: list[Finding] = []
+    for error in validate_dockerfiles():
+        findings.append(add_file_finding(args.target, "container-identity", error))
     for path in target_files(args.target):
         findings.extend(scan_file(path))
+    from cilium_schema import validate_cilium_documents
+
+    network_path = REPO_ROOT / "deploy/observability/application-network-policy.yaml"
+    for error in validate_cilium_documents(list(yaml.safe_load_all(network_path.read_text()))):
+        findings.append(add_file_finding(network_path, "cilium-schema", error))
     findings.extend(validate_fluent_bit_values(args.target))
     findings.extend(validate_environment_object_storage(args.target))
+    for base in ("deploy/application/base", "deploy/gitops/environments/staging/base"):
+        if (
+            base == "deploy/gitops/environments/staging/base"
+            and (REPO_ROOT / "deploy/gitops/environments/staging/publication-block.json").is_file()
+        ):
+            from check_gitops_manifests import validate_publication_block
+
+            gate = Path("deploy/gitops/environments/staging")
+            findings.extend(
+                add_file_finding(gate, "publication-block", str(finding))
+                for finding in validate_publication_block(gate)
+            )
+            continue
+        path = REPO_ROOT / base / "control-plane-deployment.yaml"
+        for problem in validate_workloads(list(yaml.safe_load_all(path.read_text()))):
+            findings.append(add_file_finding(path, "control-plane-container-security", problem))
+        for problem in validate_rendered(
+            path.read_text(), require_workloads=False, require_configuration=False
+        ):
+            findings.append(add_file_finding(path, "control-plane-settings-ownership", problem))
 
     if findings:
         print_findings(findings)

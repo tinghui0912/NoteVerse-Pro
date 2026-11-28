@@ -1,11 +1,13 @@
 """Concrete Take command idempotency, capacity and transport binding on PostgreSQL."""
 
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from sqlalchemy import select, func
 from sqlalchemy.orm import sessionmaker
-from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as wiring
 from app.db.models import (
     StoragePlanPolicy,
     UserStorageEntitlement,
@@ -19,6 +21,8 @@ from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.performance_takes.schemas import PerformanceTakeUploadReservationRequest
 from app.modules.practice.bundle.service import PracticeBundleService
 from tests.support.practice_bundle import bind_bundle
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+from app.runtime.customer_api.context import get_context
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 MEDIA = b"\x1aE\xdf\xa3recording"
@@ -44,7 +48,13 @@ def setup_bundle(postgres_bundle):
             db, storage, bundle, revision_id=repository.test_revision_id
         )
     source = PracticeBundleService(
-        repository=repository, writes=_resource_wiring.build_object_write_coordinator(storage)
+        repository=repository,
+        writes=resources_for(storage).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
     )
     request = PerformanceTakeUploadReservationRequest.model_validate(
         {
@@ -84,7 +94,11 @@ def test_two_creators_share_one_reservation_session_and_hold(postgres_bundle):
     def reserve():
         with sessions() as db:
             barrier.wait(10)
-            return wiring.build_take_reservation_service(storage).reserve_upload(db, 1, request)
+            return (
+                resources_for(storage)
+                .build_take_reservation_service()
+                .reserve_upload(db, 1, request)
+            )
 
     with ThreadPoolExecutor(2) as pool:
         results = list(pool.map(lambda _: reserve(), range(2)))

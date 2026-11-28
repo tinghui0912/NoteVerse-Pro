@@ -1,8 +1,8 @@
-from app.db.session import engine
+from app.runtime.customer_api.context import get_context
 
 
 def test_application_engine_uses_stale_connection_protection() -> None:
-    pool = engine.pool
+    pool = get_context().engine.pool
 
     assert getattr(pool, "_pre_ping", False) is True
     assert getattr(pool, "_recycle", None) == 3600

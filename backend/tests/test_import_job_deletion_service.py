@@ -274,8 +274,9 @@ def test_import_release_requires_delivery_ownership(score_service_session, keep_
 @pytest.mark.parametrize("state", list(ImportJobState))
 async def test_customer_delete_http_state_matrix_preserves_owned_data(score_service_session, state):
     from httpx import ASGITransport, AsyncClient
-    from app.api.deps import get_current_user, get_db
-    from app.main import app
+    from app.platform.db.dependencies import get_db
+    from app.runtime.customer_api.deps import get_current_user
+    from app.runtime.customer_api.main import app
     from app.shared.error_codes import CustomerErrorCode
 
     db, storage = score_service_session
@@ -371,7 +372,11 @@ async def test_customer_delete_http_state_matrix_preserves_owned_data(score_serv
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.delete("/api/v1/import-jobs/http-delete")
     finally:
         app.dependency_overrides.pop(get_db, None)

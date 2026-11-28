@@ -8,6 +8,7 @@ import { navigateToLogin } from './document-navigation';
 import { profileApi } from '@/features/account/profile/api';
 import type { ProfileUserRead } from '@/generated/api';
 import { ApiError } from '@/lib/http/customer-browser-transport';
+import { subscribeToSessionInvalidation } from '@/lib/http/session-invalidation';
 import { reportUnexpectedClientError } from '@/lib/observability';
 
 type AuthenticationState =
@@ -21,7 +22,7 @@ interface AuthenticationContextValue {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshPrincipal: () => Promise<void>;
+  refreshPrincipal: () => Promise<boolean | undefined>;
   replacePrincipal: (principal: ProfileUserRead) => void;
   clearPrincipal: () => void;
 }
@@ -51,17 +52,20 @@ export function AuthenticationProvider({ children }: { children: ReactNode }) {
     updateState({status: 'authenticated', principal});
   }, [client, updateState]);
 
+  useEffect(() => subscribeToSessionInvalidation(clearPrincipal), [clearPrincipal]);
+
   const refreshPrincipal = useCallback(async () => {
     const generation = ++readGeneration.current;
     try {
       const response = await profileApi.getProfile({suppressAuthRedirect: true});
       if (!mounted.current || generation !== readGeneration.current) return;
       replacePrincipal(response.user);
+      return true;
     } catch (error) {
       if (!mounted.current || generation !== readGeneration.current) return;
       if (error instanceof ApiError && error.status === 401) {
         clearPrincipal();
-        return;
+        return false;
       }
       if (current.current.status !== 'authenticated') updateState({status: 'unavailable', principal: null});
       reportUnexpectedClientError(error, {area: 'authentication', action: 'refresh_principal'});

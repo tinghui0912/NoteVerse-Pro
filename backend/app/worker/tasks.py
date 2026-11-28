@@ -14,7 +14,7 @@ from app.worker.execution.take_processing import (
     execute_take_processing,
     execute_take_processing_maintenance,
 )
-from app.task_queue.config import celery_app
+from app.runtime.worker.main import celery_app
 from app.worker.execution.object_write_cleanup import execute_object_write_cleanup_task
 from app.worker.execution.maintenance_dispatch import execute_object_write_cleanup_maintenance
 from app.worker.execution.import_job import execute_import_dispatch_task

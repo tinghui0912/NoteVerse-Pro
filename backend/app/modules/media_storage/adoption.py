@@ -16,7 +16,7 @@ from app.modules.media_storage.write_intents import (
     intent_facts,
     _matching_object,
 )
-from app.modules.media_storage.write_lifecycle import cleanup_lifecycle
+from app.modules.media_storage.write_lifecycle import cleanup_transitions
 from app.modules.media_storage.retirement import retain_for_reference
 
 
@@ -52,7 +52,7 @@ def adopt_written_object(db: Session, receipt: ObjectWriteReceipt) -> StoredObje
         existing = retain_for_reference(db, existing.id)
         if existing is None:
             raise ValueError("Committed object retired during adoption")
-    cleanup_lifecycle().finish(
+    cleanup_transitions().finish(
         row, status=ObjectWriteIntentStatus.ADOPTED, error=None, now=utc_now()
     )
     return existing

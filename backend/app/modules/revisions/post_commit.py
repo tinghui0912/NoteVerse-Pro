@@ -1,6 +1,7 @@
 """Ephemeral latency hints for work already durably admitted by a revision transaction."""
 
 from dataclasses import dataclass
+from collections.abc import Callable
 
 from app.core.logger import logger
 
@@ -15,25 +16,27 @@ class RevisionPostCommitWork:
 
 
 class RevisionPostCommitCoordinator:
+    def __init__(
+        self,
+        render: Callable[[str], bool],
+        playback: Callable[[str], bool],
+        metadata: Callable[[str], bool],
+    ) -> None:
+        self.render, self.playback, self.metadata = render, playback, metadata
+
     def dispatch_best_effort(self, work: RevisionPostCommitWork) -> None:
         try:
-            from app.modules.revisions.render_dispatch import dispatch_score_revision_render
-
-            dispatch_score_revision_render(work.render_outbox_uuid)
+            self.render(work.render_outbox_uuid)
         except Exception as exc:
             _log_failure(work, "revision_render", work.render_outbox_uuid, exc)
 
         try:
-            from app.modules.playback.dispatch import dispatch_playback_outbox
-
-            dispatch_playback_outbox(work.playback_outbox_uuid)
+            self.playback(work.playback_outbox_uuid)
         except Exception as exc:
             _log_failure(work, "playback", work.playback_outbox_uuid, exc)
 
         try:
-            from app.modules.revisions.metadata_dispatch import dispatch_revision_metadata
-
-            dispatch_revision_metadata(work.metadata_outbox_uuid)
+            self.metadata(work.metadata_outbox_uuid)
         except Exception as exc:
             _log_failure(work, "revision_metadata", work.metadata_outbox_uuid, exc)
 
@@ -49,6 +52,3 @@ def _log_failure(
         operation_kind=operation_kind,
         exception_type=type(exc).__name__,
     ).warning("revision_post_commit.fast_dispatch_failed")
-
-
-revision_post_commit = RevisionPostCommitCoordinator()

@@ -3,9 +3,6 @@ import { mockGuestPreview } from './support/guest-preview';
 
 const scoreId = 'shell-score';
 test.beforeEach(async ({ page }) => {
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
-  );
   await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
   );

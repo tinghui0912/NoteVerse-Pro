@@ -65,13 +65,25 @@ spec:
       timeouts:
         request: 0s
         backendRequest: 0s
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=63072000; includeSubDomains
       backendRefs:
         - name: noteverse-backend-api
           port: 8000
     - matches:
         - path:
             type: PathPrefix
-            value: /api/v1
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=63072000; includeSubDomains
       backendRefs:
         - name: noteverse-backend-api
           port: 8000
@@ -79,6 +91,12 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=63072000; includeSubDomains
       backendRefs:
         - name: noteverse-customer-web
           port: 3000
@@ -99,7 +117,50 @@ spec:
     - matches:
         - path:
             type: PathPrefix
+            value: /api
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=63072000; includeSubDomains
+      backendRefs:
+        - name: noteverse-control-plane
+          port: 8000
+    - matches:
+        - path:
+            type: PathPrefix
             value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: max-age=63072000; includeSubDomains
       backendRefs:
         - name: noteverse-platform-admin
           port: 3000
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: noteverse-customer-body-limit
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: noteverse-web
+  requestBuffer:
+    limit: 32Mi
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: noteverse-operator-body-limit
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: noteverse-platform-admin
+  requestBuffer:
+    limit: 512Ki

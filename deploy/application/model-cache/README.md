@@ -98,3 +98,12 @@ models at runtime.
 The agent validates the manifest-defined model set; it does not garbage collect
 old repositories removed by a manifest update. Clean stale node-local cache
 manually after changing the model set.
+
+## Filesystem identity
+
+Node administrators provision the cache directories with owner/group 10001 and
+sufficient capacity before scheduling preparation. hostPath uses `Directory`;
+Pod fsGroup does not change hostPath ownership. Preparation runs as UID/GID 10001
+with a read-only root filesystem, bounded `/tmp`, and the single writable cache
+mount. Worker model mounts are read-only. Model downloads require explicit
+`model_assets` CIDRs in the environment's external egress configuration.

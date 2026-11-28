@@ -1,8 +1,9 @@
 """Content-verified Upload facts and bounded admission before durable prewrite."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import complete_image_upload
 
-from app.storage import object_storage as _storage_provider
 
 from app.composition import storage_resources as _resource_wiring
 
@@ -27,6 +28,7 @@ from app.storage import AsyncObjectReader
 from tests.support.images import image_bytes
 from tests.support.object_storage import InMemoryObjectStorage
 from tests.test_score_revision_services import score_service_session as score_service_session
+from tests.support.runtime_resources import storage as _storage_provider
 
 
 def test_upload_delete_identifies_the_missing_resource():
@@ -39,7 +41,7 @@ def test_upload_delete_identifies_the_missing_resource():
             repository=repository,
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            uploads=_resource_wiring.build_upload_session_service(_storage_provider),
+            uploads=resources_for(_storage_provider).build_upload_session_service(),
         ).delete_upload(db, SimpleNamespace(id=1), "upload-missing")
 
     assert failure.value.code == "resource_not_found"
@@ -65,7 +67,7 @@ def test_upload_delete_requires_its_persisted_stored_object():
             repository=repository,
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            uploads=_resource_wiring.build_upload_session_service(_storage_provider),
+            uploads=resources_for(_storage_provider).build_upload_session_service(),
         ).delete_upload(db, SimpleNamespace(id=1), "upload-present")
 
     db.get.assert_called_once_with(StoredObject, 7)
@@ -96,7 +98,7 @@ def test_upload_records_detected_container_facts(
         UploadService(
             quota=_resource_wiring.storage_quota_service,
             usage=_resource_wiring.storage_usage_service,
-            uploads=_resource_wiring.build_upload_session_service(storage),
+            uploads=resources_for(storage).build_upload_session_service(),
         ),
         db,
         db.get(User, 1),
@@ -137,7 +139,7 @@ def test_invalid_images_do_not_create_semantic_resources(score_service_session, 
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
     mime = (
         "image/jpeg"
@@ -193,7 +195,7 @@ def test_declared_mime_must_match_image_admission(score_service_session, mime):
     service = UploadService(
         quota=_resource_wiring.storage_quota_service,
         usage=_resource_wiring.storage_usage_service,
-        uploads=_resource_wiring.build_upload_session_service(storage),
+        uploads=resources_for(storage).build_upload_session_service(),
     )
     with pytest.raises(ValidationException):
         service.create_request(

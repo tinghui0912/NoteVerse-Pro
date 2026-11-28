@@ -13,6 +13,8 @@ FROM node-base AS deps
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+ENV TMPDIR=/tmp HOME=/tmp npm_config_cache=/tmp/npm
+
 WORKDIR /app
 
 COPY apps/platform-admin/package.json apps/platform-admin/package-lock.json ./
@@ -24,17 +26,14 @@ FROM node-base AS builder
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 
-ARG NEXT_CONTROL_PLANE_ORIGIN
-
-ENV NEXT_CONTROL_PLANE_ORIGIN=${NEXT_CONTROL_PLANE_ORIGIN}
+ENV TMPDIR=/tmp HOME=/tmp npm_config_cache=/tmp/npm
 
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/platform-admin/ ./
 
-RUN test -n "$NEXT_CONTROL_PLANE_ORIGIN" \
-    && npm run build \
+RUN npm run build \
     && npm prune --omit=dev
 
 
@@ -44,20 +43,19 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000
 
-ARG NEXT_CONTROL_PLANE_ORIGIN
-
-ENV NEXT_CONTROL_PLANE_ORIGIN=${NEXT_CONTROL_PLANE_ORIGIN}
+ENV TMPDIR=/tmp HOME=/tmp npm_config_cache=/tmp/npm
 
 WORKDIR /app
 
-COPY --from=builder --chown=node:node /app/package.json ./package.json
-COPY --from=builder --chown=node:node /app/package-lock.json ./package-lock.json
-COPY --from=builder --chown=node:node /app/next.config.ts ./next.config.ts
-COPY --from=builder --chown=node:node /app/generated/browser-protocol.ts ./generated/browser-protocol.ts
-COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
+COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder /app/generated/browser-protocol.ts ./generated/browser-protocol.ts
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
 
-USER node
+RUN groupadd --gid 10001 noteverse && useradd --uid 10001 --gid 10001 --no-create-home --home-dir /tmp noteverse
+USER 10001:10001
 
 EXPOSE 3000
 

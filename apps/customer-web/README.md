@@ -114,3 +114,12 @@ MediaStream/MIDIAccess objects. End and same-page Retry retain them; Setup, Revi
 leaving the flow and provider disposal release them. Full reload requires Setup again.
 Production Playwright tests witness physical acquisition counts, exact stream identity,
 Source handoff and the selection-only reservation/PUT/finalize protocol.
+
+See [Browser Security Baseline](../../docs/architecture/browser-security-baseline.md) for per-request nonce CSP, route capabilities, header ownership and Gateway HSTS.
+
+## Deployment network boundary
+
+Production `/api` requests route directly from the same-origin Edge Gateway to
+its HTTP runtime. Next.js rewrites are development-only. Production containers
+use numeric UID/GID 10001, read-only image layers and bounded scratch/cache mounts.
+See [Container and Network Hardening](../../docs/architecture/runtime/container-and-network-hardening.md).

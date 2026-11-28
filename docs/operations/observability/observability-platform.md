@@ -6,8 +6,12 @@ OpenTelemetry Collector and Tempo. The pinned install commands and values live
 in `deploy/observability/README.md` and its environment-specific values.
 
 Application namespaces own their workloads, probes, ServiceMonitors and
-PrometheusRules. The internal observability exporter reads database-backed
-operational state and exposes metrics; the customer API does not own that scrape.
+PrometheusRules. Control Plane reads database-backed operational state and exposes it on its
+internal `/metrics` scrape; Customer API exports its own process metrics.
+PostgreSQL connections, locks, bloat and replication metrics belong to standard
+`postgres_exporter`, managed by the database infrastructure owner using its own
+infrastructure credentials. The application role set grants no infrastructure
+monitoring authority.
 Application pods emit JSON and explicitly configured OTLP. They do not manage
 telemetry storage or receiver credentials.
 

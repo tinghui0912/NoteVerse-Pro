@@ -147,11 +147,10 @@ def test_backend_audio_timing_follows_product_policy(tmp_path, monkeypatch):
     assert shutil.which("fluidsynth")
     soundfont = Path("/usr/share/sounds/sf2/FluidR3_GM.sf2")
     assert soundfont.is_file()
-    monkeypatch.setattr(
-        "app.processing.engines.playback.fluidsynth.settings.WORK_ROOT", str(tmp_path)
-    )
     renderer = FluidSynthAudioRenderer(
-        audio_synthesizer=FluidSynthAudioSynthesizer(soundfont_path=str(soundfont))
+        audio_synthesizer=FluidSynthAudioSynthesizer(
+            soundfont_path=str(soundfont), work_root=str(tmp_path)
+        )
     )
     default = renderer.render(score(note() + note()))
     explicit = renderer.render(score(direction(120) + note() + note()))

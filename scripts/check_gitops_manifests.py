@@ -7,6 +7,14 @@ dev endpoints, raw credentials, or mutable image tags.
 
 from __future__ import annotations
 
+from browser_security_contract import validate_browser_documents
+from container_security_contract import (
+    validate_application_documents,
+    validate_dockerfiles,
+    validate_external_files,
+)
+import yaml
+from production_image_contract import validate_release_images, validate_release_snapshot
 import argparse
 import json
 import re
@@ -78,6 +86,7 @@ REQUIRED_RENDERED_SNIPPETS = (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("targets", nargs="*", type=Path, default=list(DEFAULT_TARGETS))
+    parser.add_argument("--require-published", action="store_true")
     return parser.parse_args()
 
 
@@ -146,6 +155,11 @@ def validate_files(target: Path) -> list[Finding]:
     if metadata_path.exists():
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         images = metadata.get("images")
+        try:
+            validate_release_images(images)
+            validate_release_snapshot(target_path, images)
+        except (ValueError, OSError) as exc:
+            findings.append(Finding(str(metadata_path), 1, "four-image-contract", str(exc)))
         if not isinstance(images, dict) or not images:
             findings.append(
                 Finding(str(metadata_path), 1, "release-metadata-images", "missing images")
@@ -159,6 +173,30 @@ def validate_files(target: Path) -> list[Finding]:
                         )
                     )
     return findings
+
+
+def validate_publication_block(target: Path) -> list[Finding]:
+    path = repo_path(target)
+    expected = {
+        "state": "AWAITING_TRUSTED_PUBLICATION",
+        "required_images": ["backend_core", "backend_worker", "customer_web", "platform_admin"],
+    }
+    expected_kustomization = {
+        "apiVersion": "kustomize.config.k8s.io/v1beta1",
+        "kind": "Kustomization",
+        "resources": ["published-release"],
+    }
+    if (
+        json.loads((path / "publication-block.json").read_text(encoding="utf-8")) != expected
+        or yaml.safe_load((path / "kustomization.yaml").read_text(encoding="utf-8"))
+        != expected_kustomization
+        or {item.name for item in path.iterdir()}
+        != {"publication-block.json", "kustomization.yaml", "README.md"}
+    ):
+        return [
+            Finding(str(target), 1, "publication-block", "invalid fail-closed publication gate")
+        ]
+    return []
 
 
 def print_findings(findings: list[Finding]) -> None:
@@ -182,8 +220,32 @@ def main() -> int:
     args = parse_args()
     findings: list[Finding] = []
     for target in args.targets:
+        if (repo_path(target) / "publication-block.json").exists():
+            findings.extend(validate_publication_block(target))
+            if args.require_published:
+                findings.append(
+                    Finding(str(target), 1, "publication-block", "release is not published")
+                )
+            print(
+                f"{target}: BLOCKED - awaiting trusted four-image publication; no deployable state"
+            )
+            continue
         findings.extend(validate_files(target))
         rendered = render_kustomize(target)
+        findings.extend(
+            Finding(str(target), 1, "container-network-security", message)
+            for message in validate_application_documents(
+                [doc for doc in yaml.safe_load_all(rendered) if doc]
+            )
+            + validate_dockerfiles()
+            + validate_external_files(target, [doc for doc in yaml.safe_load_all(rendered) if doc])
+        )
+        findings.extend(
+            Finding(str(target), 1, "browser-security-contract", message)
+            for message in validate_browser_documents(
+                [doc for doc in yaml.safe_load_all(rendered) if doc]
+            )
+        )
         findings.extend(scan_text(f"{target} (rendered)", rendered))
         findings.extend(validate_rendered_images(f"{target} (rendered)", rendered))
         for snippet in REQUIRED_RENDERED_SNIPPETS:
@@ -196,7 +258,10 @@ def main() -> int:
     if findings:
         print_findings(findings)
         return 1
-    print("GitOps manifest check passed: " + ", ".join(str(target) for target in args.targets))
+    print(
+        "GitOps configuration check passed (publication gates are not deployment qualification): "
+        + ", ".join(str(target) for target in args.targets)
+    )
     return 0
 
 

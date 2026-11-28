@@ -3,7 +3,12 @@
 import json
 from urllib import error, request
 
-from app.core.config import settings
+from app.platform.config.transactional_mail_provider import TransactionalMailProviderSettings
+from app.platform.config.service_identity import ServiceIdentitySettings
+
+
+class MailTransportConfig(TransactionalMailProviderSettings, ServiceIdentitySettings):
+    pass
 
 
 class MailTransientError(RuntimeError):
@@ -19,10 +24,14 @@ def send_email(
     subject: str,
     body: str,
     html_body: str | None = None,
+    *,
+    config: MailTransportConfig,
 ) -> str | None:
     """Send an email using Resend's transactional email API."""
 
-    return _send_resend(to_email=to_email, subject=subject, body=body, html_body=html_body)
+    return _send_resend(
+        to_email=to_email, subject=subject, body=body, html_body=html_body, config=config
+    )
 
 
 def _send_resend(
@@ -31,9 +40,10 @@ def _send_resend(
     subject: str,
     body: str,
     html_body: str | None,
+    config: MailTransportConfig,
 ) -> str | None:
-    sender = settings.MAIL_DEFAULT_SENDER
-    if not settings.RESEND_API_KEY or not sender:
+    sender = config.MAIL_DEFAULT_SENDER
+    if not config.RESEND_API_KEY or not sender:
         raise MailPermanentError("Resend mail provider is not configured")
 
     payload: dict[str, object] = {
@@ -46,13 +56,13 @@ def _send_resend(
         payload["html"] = html_body
 
     api_request = request.Request(
-        settings.RESEND_API_URL,
+        config.RESEND_API_URL,
         data=json.dumps(payload).encode("utf-8"),
         headers={
-            "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+            "Authorization": f"Bearer {config.RESEND_API_KEY}",
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "User-Agent": f"{settings.PROJECT_NAME}/transactional-mail",
+            "User-Agent": f"{config.PROJECT_NAME}/transactional-mail",
         },
         method="POST",
     )

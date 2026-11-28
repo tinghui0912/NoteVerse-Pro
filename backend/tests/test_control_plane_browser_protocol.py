@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 import pytest
 from app.core.generated import control_plane_browser_protocol as protocol
-from app.core.control_plane_settings import ControlPlaneRuntimeSettings
 from tests.support.control_plane import control_app as control_app
+from app.runtime.control_plane.settings import ControlPlaneSettings
 
 ROOT = Path(os.environ.get("NOTEVERSE_REPO_ROOT", Path(__file__).resolve().parents[2]))
 spec = importlib.util.spec_from_file_location(
@@ -25,31 +25,14 @@ def test_generated_protocol_matches_the_canonical_identity_and_composition(contr
     identity = source()
     for key, name in generator.EXPORTS.items():
         assert getattr(protocol, name) == identity[key]
-    assert generator.generate(ROOT, check=True) == 0
+    assert generator.generate(ROOT, check=True, target="backend") == 0
     assert control_app.openapi_url == protocol.CONTROL_PLANE_API_PREFIX + "/openapi.json"
-    csrf = next(
-        item.kwargs["csrf_settings"]
-        for item in control_app.user_middleware
-        if item.cls.__name__ == "CsrfProtectionMiddleware"
-    )
-    assert csrf.session_cookie_names == (protocol.OPERATOR_AUTH_COOKIE_NAME,)
-    assert csrf.csrf_cookie_name == protocol.OPERATOR_CSRF_COOKIE_NAME
-    assert csrf.csrf_header_name == protocol.OPERATOR_CSRF_HEADER_NAME
-    assert csrf.api_prefix == protocol.CONTROL_PLANE_API_PREFIX
-    assert set(ControlPlaneRuntimeSettings.model_fields) == {
+    assert {
+        name for name in ControlPlaneSettings.model_fields if name.startswith("CONTROL_PLANE_")
+    } == {
         "CONTROL_PLANE_COOKIE_SECURE",
-        "CONTROL_PLANE_COOKIE_SAMESITE",
-        "CONTROL_PLANE_SESSION_EXPIRE_MINUTES",
         "CONTROL_PLANE_CORS_ORIGINS",
     }
-    cookies = [
-        parameter["name"]
-        for parameter in control_app.openapi()["paths"][identity["api_prefix"] + "/auth/me"]["get"][
-            "parameters"
-        ]
-        if parameter["in"] == "cookie"
-    ]
-    assert cookies == [identity["auth_cookie_name"]]
 
 
 def test_generation_is_deterministic_and_checks_drift_without_mutation(tmp_path):
@@ -76,11 +59,11 @@ def test_generation_is_deterministic_and_checks_drift_without_mutation(tmp_path)
         ("api_prefix", "relative"),
         ("api_prefix", "/api/v1/"),
         ("api_prefix", "/api?v=1"),
-        ("csrf_header_name", "X-CSRF"),
         ("auth_cookie_name", "invalid cookie"),
-        ("csrf_cookie_name", ""),
-        ("csrf_header_name", "x:test"),
-        ("csrf_cookie_name", 123),
+        ("auth_cookie_name", "invalid cookie"),
+        ("auth_cookie_name", ""),
+        ("auth_cookie_name", "x:test"),
+        ("auth_cookie_name", 123),
         ("extra", "value"),
     ],
 )
@@ -107,19 +90,27 @@ def test_protocol_source_requires_strict_json(document, tmp_path):
 
 
 def test_policy_templates_describe_deployment_policy_and_topology():
-    allowed = set(ControlPlaneRuntimeSettings.model_fields)
+    from app.runtime.deployment import DEPLOYMENTS
+
+    contract = DEPLOYMENTS["control_plane"]
+    policy = {
+        name for name in ControlPlaneSettings.model_fields if name.startswith("CONTROL_PLANE_")
+    }
     for relative in [
         "backend/.env.docker.control-plane.example",
         "deploy/application/overlays/staging/control-plane-config.env",
         "deploy/application/overlays/production/control-plane-config.env",
-        "deploy/gitops/environments/staging/control-plane-config.env",
     ]:
         keys = {
             line.split("=", 1)[0]
             for line in (ROOT / relative).read_text().splitlines()
             if line and not line.startswith("#")
         }
-        assert keys == allowed
+        assert policy <= keys <= set(ControlPlaneSettings.model_fields)
+        if relative.startswith("deploy/"):
+            assert keys.isdisjoint(contract.secret_keys)
+        else:
+            assert set(contract.secret_keys) <= keys
     keys = {
         line.split("=", 1)[0]
         for line in (ROOT / "apps/platform-admin/.env.docker.example").read_text().splitlines()
@@ -143,7 +134,9 @@ def test_check_rejects_stale_projection_without_rewriting(output, tmp_path):
 def test_protocol_requires_distinct_cookie_identities_and_complete_fields():
     identity = source()
     with pytest.raises(ValueError):
-        generator.validate_protocol({**identity, "csrf_cookie_name": identity["auth_cookie_name"]})
+        generator.validate_protocol(
+            {**identity, "challenge_cookie_name": identity["auth_cookie_name"]}
+        )
     identity.pop("api_prefix")
     with pytest.raises(ValueError):
         generator.validate_protocol(identity)

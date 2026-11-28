@@ -5,10 +5,9 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.core.config import settings
 from app.core.logger import logger
-from app.core.runtime_checks import RuntimeRole
-from app.core.startup_checks import ensure_runtime_directories, log_external_tool_status
+from app.platform.runtime import RuntimeRole
+from app.core.startup_checks import ensure_runtime_directories
 
 
 def create_app_lifespan(
@@ -18,6 +17,7 @@ def create_app_lifespan(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, object]]:
+        settings = app.state.settings
         logger.bind(
             event="app.starting",
             project_name=settings.PROJECT_NAME,
@@ -26,20 +26,23 @@ def create_app_lifespan(
             api_docs_path="/docs",
             runtime_role=role.value,
         ).info("Application starting")
-        ensure_runtime_directories()
-        log_external_tool_status(role)
+        if role is RuntimeRole.API:
+            ensure_runtime_directories(settings.WORK_ROOT)
 
         state: dict[str, object] = {}
         hub = None
         if role is RuntimeRole.API:
             from app.modules.realtime.wakeup import RealtimeWakeupHub
 
-            hub = RealtimeWakeupHub()
+            hub = RealtimeWakeupHub(engine=app.state.engine)
             await hub.start()
             state["realtime_wakeup_hub"] = hub
         try:
             yield state
         finally:
+            limiter = getattr(app.state, "rate_limiter", None)
+            if limiter is not None:
+                limiter.client.close()
             if hub is not None:
                 await hub.stop()
             logger.bind(

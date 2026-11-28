@@ -1,5 +1,7 @@
 """Transactional reference release/retention and durable physical retirement delivery."""
 
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
 from app.modules.media_storage.domain import StoredObjectRetirementStatus
 
 from dataclasses import dataclass
@@ -10,13 +12,13 @@ from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app.core.config import settings
 from app.db.models.stored_object import StoredObject
 from app.db.models.stored_object_retirement import StoredObjectRetirement
 from app.modules.durable_work.delivery import (
     DeliveryLifecyclePolicy,
     DeliveryStatuses,
     DurableDeliveryLifecycle,
+    DeliveryTransitions,
     DeliveryAttemptLease,
 )
 from app.modules.media_storage.persistence import object_from_row
@@ -29,7 +31,9 @@ from app.shared.durable_failure import DurableFailureClass
 from app.storage.base import ObjectStorageUnavailableError
 
 
-def delivery_lifecycle() -> DurableDeliveryLifecycle[StoredObjectRetirementStatus]:
+def delivery_lifecycle(
+    *, config: StoredObjectRetirementSettings
+) -> DurableDeliveryLifecycle[StoredObjectRetirementStatus]:
     return DurableDeliveryLifecycle(
         DeliveryStatuses(
             StoredObjectRetirementStatus.PENDING,
@@ -39,10 +43,10 @@ def delivery_lifecycle() -> DurableDeliveryLifecycle[StoredObjectRetirementStatu
             StoredObjectRetirementStatus.COMPLETED,
         ),
         DeliveryLifecyclePolicy(
-            settings.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS,
-            settings.STORED_OBJECT_RETIREMENT_RETRY_BASE_SECONDS,
-            settings.STORED_OBJECT_RETIREMENT_DISPATCH_TIMEOUT_SECONDS,
-            settings.STORED_OBJECT_RETIREMENT_PROCESSING_TIMEOUT_SECONDS,
+            config.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS,
+            config.STORED_OBJECT_RETIREMENT_RETRY_BASE_SECONDS,
+            config.STORED_OBJECT_RETIREMENT_DISPATCH_TIMEOUT_SECONDS,
+            config.STORED_OBJECT_RETIREMENT_PROCESSING_TIMEOUT_SECONDS,
         ),
     )
 
@@ -78,7 +82,7 @@ def retain_for_reference(db: Session, object_id: int) -> StoredObject | None:
             )
         if operation.status == StoredObjectRetirementStatus.COMPLETED:
             raise ValueError("Completed retirement still references a physical object")
-        delivery_lifecycle().finish(
+        retirement_transitions().finish(
             operation, status=StoredObjectRetirementStatus.CANCELLED, error=None, now=utc_now()
         )
         clear_failure_facts(operation)
@@ -108,7 +112,7 @@ def retire_if_unreferenced(db: Session, object_id: int) -> StoredObjectRetiremen
     elif operation.status == StoredObjectRetirementStatus.CANCELLED:
         if not snapshot(operation).agrees_with(facts):
             raise ValueError("Retirement snapshot disagrees with StoredObject")
-        delivery_lifecycle().rearm(operation, now=utc_now())
+        retirement_transitions().rearm(operation, now=utc_now())
         clear_failure_facts(operation)
     return operation
 
@@ -138,6 +142,9 @@ class RetirementAttempt(DeliveryAttemptLease):
 
 
 class StoredObjectRetirementDelivery:
+    def __init__(self, *, config: StoredObjectRetirementSettings) -> None:
+        self.config = config
+
     @staticmethod
     def get(db: Session, uuid: str, *, lock: bool = False) -> StoredObjectRetirement | None:
         statement = select(StoredObjectRetirement).where(
@@ -151,7 +158,7 @@ class StoredObjectRetirementDelivery:
         row = self.get(db, uuid, lock=True)
         if row is None or row.failure_retryable is False:
             return None
-        lease = delivery_lifecycle().claim(row, token=str(uuid4()), now=utc_now())
+        lease = delivery_lifecycle(config=self.config).claim(row, token=str(uuid4()), now=utc_now())
         if lease is None:
             return None
         clear_failure_facts(row)
@@ -167,12 +174,12 @@ class StoredObjectRetirementDelivery:
         return (
             row is not None
             and row.failure_retryable is not False
-            and delivery_lifecycle().dispatch(row, now=utc_now())
+            and delivery_lifecycle(config=self.config).dispatch(row, now=utc_now())
         )
 
     def release_dispatch(self, db: Session, uuid: str, error: str) -> None:
         row = self.get(db, uuid, lock=True)
-        if row is not None and delivery_lifecycle().release_dispatch(
+        if row is not None and delivery_lifecycle(config=self.config).release_dispatch(
             row, error="Dispatch failed", now=utc_now()
         ):
             self._failure(row, "dispatch_failed", "dispatch", DurableFailureClass.TRANSIENT)
@@ -186,7 +193,7 @@ class StoredObjectRetirementDelivery:
         stage: str = "retirement",
     ) -> bool:
         row = self.get(db, attempt.retirement_uuid, lock=True)
-        if row is None or not delivery_lifecycle().fail_attempt(
+        if row is None or not delivery_lifecycle(config=self.config).fail_attempt(
             row, lease=attempt, error="Retirement failed", now=utc_now()
         ):
             return False
@@ -216,15 +223,18 @@ class StoredObjectRetirementDelivery:
         if not self.can_rearm(row.status.value, row.failure_code):
             raise ValidationException(field="status", details={"status": row.status.value})
         previous = row.status.value
-        delivery_lifecycle().rearm(row, now=utc_now())
+        delivery_lifecycle(config=self.config).rearm(row, now=utc_now())
         clear_failure_facts(row)
         return previous
 
-    @staticmethod
     def _failure(
-        row: StoredObjectRetirement, code: str, stage: str, classification: DurableFailureClass
+        self,
+        row: StoredObjectRetirement,
+        code: str,
+        stage: str,
+        classification: DurableFailureClass,
     ) -> None:
-        exhausted = row.attempt_count >= settings.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS
+        exhausted = row.attempt_count >= self.config.STORED_OBJECT_RETIREMENT_MAX_ATTEMPTS
         set_failure_facts(
             row,
             DurableFailure(
@@ -238,7 +248,7 @@ class StoredObjectRetirementDelivery:
 
     def recover_and_list_due(self, db: Session) -> list[str]:
         now = utc_now()
-        lifecycle = delivery_lifecycle()
+        lifecycle = delivery_lifecycle(config=self.config)
         rows = list(
             db.scalars(
                 select(StoredObjectRetirement)
@@ -250,7 +260,7 @@ class StoredObjectRetirementDelivery:
                             StoredObjectRetirement.dispatched_at
                             <= now
                             - timedelta(
-                                seconds=settings.STORED_OBJECT_RETIREMENT_DISPATCH_TIMEOUT_SECONDS
+                                seconds=self.config.STORED_OBJECT_RETIREMENT_DISPATCH_TIMEOUT_SECONDS
                             ),
                         ),
                         and_(
@@ -259,13 +269,13 @@ class StoredObjectRetirementDelivery:
                             StoredObjectRetirement.started_at
                             <= now
                             - timedelta(
-                                seconds=settings.STORED_OBJECT_RETIREMENT_PROCESSING_TIMEOUT_SECONDS
+                                seconds=self.config.STORED_OBJECT_RETIREMENT_PROCESSING_TIMEOUT_SECONDS
                             ),
                         ),
                     )
                 )
                 .order_by(StoredObjectRetirement.id)
-                .limit(settings.STORED_OBJECT_RETIREMENT_DISPATCH_BATCH_SIZE)
+                .limit(self.config.STORED_OBJECT_RETIREMENT_DISPATCH_BATCH_SIZE)
                 .with_for_update(skip_locked=True)
                 .execution_options(populate_existing=True)
             )
@@ -286,9 +296,18 @@ class StoredObjectRetirementDelivery:
                     StoredObjectRetirement.attempt_count < lifecycle.policy.max_attempts,
                 )
                 .order_by(StoredObjectRetirement.created_at, StoredObjectRetirement.id)
-                .limit(settings.STORED_OBJECT_RETIREMENT_DISPATCH_BATCH_SIZE)
+                .limit(self.config.STORED_OBJECT_RETIREMENT_DISPATCH_BATCH_SIZE)
             )
         )
 
 
-retirement_delivery = StoredObjectRetirementDelivery()
+def retirement_transitions() -> DeliveryTransitions[StoredObjectRetirementStatus]:
+    return DeliveryTransitions(
+        DeliveryStatuses(
+            StoredObjectRetirementStatus.PENDING,
+            StoredObjectRetirementStatus.DISPATCHED,
+            StoredObjectRetirementStatus.PROCESSING,
+            StoredObjectRetirementStatus.FAILED,
+            StoredObjectRetirementStatus.COMPLETED,
+        )
+    )

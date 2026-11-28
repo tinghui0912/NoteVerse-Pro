@@ -19,7 +19,7 @@ enum/value. Retry failure audit events record the admitted operator-facing strin
 code. HTTP statuses retain their exception semantics.
 
 Composition roots supply `HttpRuntimeErrorCodes` and their response factory to
-shared exception handlers and CSRF/origin middleware. Shared HTTP mechanics do not
+shared exception handlers and Origin middleware. Shared HTTP mechanics do not
 select a product vocabulary.
 
 The committed OpenAPI contracts are the generator source for both clients. Customer

@@ -7,6 +7,7 @@ Platform resources are owned by operators, not application releases.
 
 Included examples:
 
+- `cilium/*`: self-hosted VM cluster CNI, L7 DNS proxy and pinned policy schema;
 - `gateway-api/*`: Gateway API and Envoy Gateway installation guidance;
 - `cert-manager/*`: cert-manager `ClusterIssuer` examples for Let's Encrypt
   DNS-01 through Cloudflare;
@@ -15,3 +16,15 @@ Included examples:
 
 Apply these before deploying the application overlay when running production or
 production-flow rehearsal.
+
+## Infrastructure privilege boundary
+
+Application runtime security is defined by
+[Container and Network Hardening](../../docs/architecture/runtime/container-and-network-hardening.md).
+Envoy Gateway, cert-manager and Argo CD reconcile Kubernetes resources and retain
+chart-defined service-account RBAC. Storage and network controllers (OpenEBS LVM,
+MetalLB and the cluster CNI) need node/network capabilities independently of the
+application's UID and CiliumNetworkPolicy. Application manifests do not grant these
+privileges. Audit the exact rendered platform chart version and cluster admission
+policy before installation; application policy tests do not certify infrastructure
+controller privileges or CNI enforcement.

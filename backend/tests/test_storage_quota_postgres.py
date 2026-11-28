@@ -9,8 +9,9 @@ import pytest
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from app.api.deps import get_current_user, get_db
-from app.main import app
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
+from app.runtime.customer_api.main import app
 from app.core.exceptions import ConflictException, ValidationException
 from app.composition.storage_resources import read_storage_usage
 from app.composition.storage_resources import storage_quota_service as quota, storage_quota_expiry
@@ -29,6 +30,7 @@ from app.composition.storage_resources import storage_usage_service as usage
 from app.modules.storage_governance.quota.domain import hold_transition
 from app.shared.time import utc_now
 from tests.support.storage_state import provision_storage_users
+from tests.support.worker_context import inject_worker
 
 
 @pytest.fixture
@@ -403,7 +405,7 @@ def test_expiry_execution_owns_batch_commit_and_rollback(database, monkeypatch, 
     with Session(database) as db:
         claim = hold(db, now=now - timedelta(hours=2), expiry=now - timedelta(hours=1))
         db.commit()
-    monkeypatch.setattr(execution, "SessionLocal", sessionmaker(database))
+    inject_worker(monkeypatch, execution, sessions=sessionmaker(database))
     monkeypatch.setattr(execution, "run_scheduler_scan", lambda key, scan: scan())
     expire = storage_quota_expiry.expire_due
     if failure:

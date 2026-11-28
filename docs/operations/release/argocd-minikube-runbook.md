@@ -60,7 +60,7 @@ The application runtime Secrets must already exist in the cluster. The GitOps
 directory references Secrets by name and does not store Secret values:
 
 ```powershell
-kubectl -n noteverse-staging get secret noteverse-backend-secret
+kubectl -n noteverse-staging get secret noteverse-migrator-secret noteverse-customer-api-secret noteverse-control-plane-secret noteverse-worker-secret noteverse-beat-secret
 kubectl -n noteverse-staging get secret noteverse-registry-credentials
 kubectl -n noteverse-staging get secret cloudflare-api-token-secret
 ```
@@ -176,7 +176,7 @@ deploy/gitops/environments/staging
 Then perform a manual sync.
 
 The `noteverse` AppProject explicitly whitelists every namespaced resource used
-by the desired state, including `networking.k8s.io/NetworkPolicy`. Keep that
+by the desired state, including `cilium.io/CiliumNetworkPolicy`. Keep that
 allowlist in step with the rendered application manifests. A rejected resource
 is a delivery-boundary failure, not a reason to broaden the project to `*/*`.
 

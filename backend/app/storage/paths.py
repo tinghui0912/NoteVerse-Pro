@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+
 from pathlib import Path
-from app.core.config import settings
 
 
-def object_work_path(key: str) -> str:
-    root = Path(settings.WORK_ROOT).resolve() / "object-cache"
+def object_work_path(key: str, *, work_root: str) -> str:
+    root = Path(work_root).resolve() / "object-cache"
     path = (root / key).resolve()
     if not path.is_relative_to(root):
         raise ValueError("Invalid object key")

@@ -4,13 +4,15 @@ import os
 from uuid import UUID, uuid5
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
-from app.core.config import settings
 from app.db.models import ObjectWriteIntent, Score, StoredObject, UploadSession
-from app.db.session import SessionLocal
 from app.storage.s3_compatible import S3CompatibleObjectStorage
 from app.modules.media_storage.domain import ObjectWriteIntentStatus
 from app.shared.time import utc_now
 import time
+from app.runtime.customer_api.context import get_context
+from app.platform.config.storage import ObjectStorageConfig
+
+settings = get_context().settings
 
 
 def registered_keys(db, run_id: str) -> set[str]:
@@ -46,7 +48,7 @@ def main() -> int:
     url = make_url(settings.DATABASE_URL)
     if url.database != "noteverse_test_integration" or url.host != "postgres":
         raise RuntimeError("Cloud teardown requires the isolated integration database")
-    with SessionLocal() as db:
+    with get_context().sessions() as db:
         keys = registered_keys(db, os.environ["NOTEVERSE_INTEGRATION_RUN_ID"])
         capabilities = [
             row.capability_expires_at
@@ -64,7 +66,9 @@ def main() -> int:
         deadline = max(capabilities)
         while (remaining := (deadline - utc_now()).total_seconds()) > 0:
             time.sleep(min(5, remaining))
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     failures = []
     for key in sorted(keys):
         try:

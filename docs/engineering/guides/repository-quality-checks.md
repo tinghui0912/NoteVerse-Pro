@@ -62,14 +62,14 @@ The command starts a dedicated PostgreSQL database, Redis, migration job,
 deterministic integration user, backend API, and Customer Web container. Its
 Playwright test uses the browser-facing Customer Web origin, so calls traverse
 the Next rewrite before reaching the real API. It verifies login cookies, an
-authenticated profile read, rejected CSRF-less logout, accepted logout with the
-issued CSRF token, and the score-import entry flow: upload an input image,
+authenticated profile read, rejected originless logout, accepted logout with the
+explicit configured Origin, and the score-import entry flow: upload an input image,
 submit an import job, and read its queued status.
 
 The stack uses a `noteverse-integration-<run UUID>` Compose project and removes
 its own containers and named volumes on completion. It never uses the development
 database, synchronous database, scheduler-lock database, or Redis URLs from
-`backend/.env.docker`; all are overridden to isolated Compose services. Durable uploads use the real S3-compatible development bucket injected through
+the individual `backend/.env.docker.<runtime>` files; all are overridden to isolated Compose services. Durable uploads use the real S3-compatible development bucket injected through
 the ignored local environment file. Unit/CI storage is InMemoryObjectStorage.
 Worker scratch remains disposable. The seeded email and password exist only in
 the disposable test database and are not application credentials.
@@ -131,8 +131,7 @@ Current GitHub Actions workflows:
 | Workflow | Trigger scope | Purpose |
 | --- | --- | --- |
 | `.github/workflows/backend-quality.yml` | `backend/**`, `.github/scripts/*.py`, backend-quality wrappers and quality Dockerfiles | Backend ruff, mypy, model-layer mypy, OpenAPI contract verification, pytest |
-| `.github/workflows/backend-api-image.yml` | backend API runtime files | Builds and scans the backend API image |
-| `.github/workflows/backend-beat-image.yml` | backend beat runtime files | Builds and scans the backend beat image |
+| `.github/workflows/backend-core-image.yml` | backend core runtime files | Qualifies the shared Customer API, Control Plane, Beat and migrator image |
 | `.github/workflows/backend-worker-image.yml` | manual | Qualifies Worker candidates before canonical promotion |
 | `.github/workflows/customer-web-image.yml` | Customer Web runtime files | Builds and scans the Customer Web image |
 | `.github/workflows/customer-web-quality.yml` | `apps/customer-web/**` and shared API constants | Customer Web lint, i18n guard, typecheck, tests, build, e2e |
@@ -273,3 +272,8 @@ The guard checks explicit locations and work-tracking filename suffixes; it
 does not lint prose or ban valid protocol, package, database-migration or runtime
 lifecycle terminology. Current references belong in the documented category;
 implementation outcomes belong in focused GitHub Issues.
+
+Backend quality uses `docker-compose.backend-quality.yml` with explicit test-only
+configuration and its dedicated PostgreSQL service. It requires no development
+credential files or cloud access. Runtime development uses the separate
+`docker-compose.backend-dev.yml` process environment files.

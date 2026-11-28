@@ -4,6 +4,9 @@ Every path locking both records locks ImportDispatch before ImportJob.
 """
 
 from __future__ import annotations
+
+
+from app.platform.config.import_dispatch import ImportDispatchSettings
 from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.media_storage.reads import StoredObjectReadTarget
 
@@ -13,7 +16,6 @@ from uuid import uuid4
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from sqlmodel import col
-from app.core.config import settings
 from app.db.models import (
     ImportDispatch,
     ImportDispatchStatus,
@@ -26,6 +28,7 @@ from app.db.models import (
 from app.modules.import_jobs.domain import ImportJobState
 from app.modules.durable_work.delivery import (
     DurableDeliveryLifecycle,
+    DeliveryTransitions,
     DeliveryAttemptLease,
     DeliveryStatuses,
     DeliveryLifecyclePolicy,
@@ -46,10 +49,10 @@ from app.modules.import_jobs.lifecycle import (
 from app.shared.time import utc_now
 
 
-def import_delivery_exhausted(dispatch: ImportDispatch) -> bool:
+def import_delivery_exhausted(dispatch: ImportDispatch, *, config: ImportDispatchSettings) -> bool:
     return (
         dispatch.status == ImportDispatchStatus.FAILED
-        and dispatch.attempt_count >= settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+        and dispatch.attempt_count >= config.IMPORT_DISPATCH_MAX_ATTEMPTS
     )
 
 
@@ -88,7 +91,15 @@ def lock_dispatch_job(db: Session, dispatch: ImportDispatch) -> ImportJob:
 
 def require_current_attempt(db: Session, lease: ImportExecutionLease) -> ImportJob:
     dispatch = lock_dispatch(db, lease.dispatch_uuid)
-    if dispatch is None or not ImportDispatchService.lifecycle().attempt_matches(dispatch, lease):
+    if dispatch is None or not DeliveryTransitions(
+        statuses=DeliveryStatuses(
+            pending=ImportDispatchStatus.PENDING,
+            dispatched=ImportDispatchStatus.DISPATCHED,
+            processing=ImportDispatchStatus.PROCESSING,
+            succeeded=ImportDispatchStatus.COMPLETED,
+            failed=ImportDispatchStatus.FAILED,
+        )
+    ).attempt_matches(dispatch, lease):
         raise StaleImportDispatchAttempt("Import execution lease is stale")
     job = lock_dispatch_job(db, dispatch)
     if job.job_uuid != lease.job_uuid:
@@ -110,8 +121,12 @@ class ImportDispatchPayload:
 
 
 class ImportDispatchService:
-    @staticmethod
-    def lifecycle() -> DurableDeliveryLifecycle[ImportDispatchStatus]:
+    def __init__(self, *, config: ImportDispatchSettings) -> None:
+        self.config = config
+
+    def lifecycle(
+        self,
+    ) -> DurableDeliveryLifecycle[ImportDispatchStatus]:
         return DurableDeliveryLifecycle(
             statuses=DeliveryStatuses(
                 pending=ImportDispatchStatus.PENDING,
@@ -121,10 +136,10 @@ class ImportDispatchService:
                 succeeded=ImportDispatchStatus.COMPLETED,
             ),
             policy=DeliveryLifecyclePolicy(
-                max_attempts=settings.IMPORT_DISPATCH_MAX_ATTEMPTS,
-                retry_base_seconds=settings.IMPORT_DISPATCH_INTERVAL_SECONDS,
-                dispatch_timeout_seconds=settings.IMPORT_DISPATCH_TIMEOUT_SECONDS,
-                processing_timeout_seconds=settings.IMPORT_PROCESSING_TIMEOUT_SECONDS,
+                max_attempts=self.config.IMPORT_DISPATCH_MAX_ATTEMPTS,
+                retry_base_seconds=self.config.IMPORT_DISPATCH_INTERVAL_SECONDS,
+                dispatch_timeout_seconds=self.config.IMPORT_DISPATCH_TIMEOUT_SECONDS,
+                processing_timeout_seconds=self.config.IMPORT_PROCESSING_TIMEOUT_SECONDS,
             ),
         )
 
@@ -133,7 +148,7 @@ class ImportDispatchService:
         if (
             row is None
             or row.status == ImportDispatchStatus.COMPLETED
-            or import_delivery_exhausted(row)
+            or import_delivery_exhausted(row, config=self.config)
         ):
             return False
         job = lock_dispatch_job(db, row)
@@ -150,7 +165,7 @@ class ImportDispatchService:
         if (
             row is None
             or row.status == ImportDispatchStatus.COMPLETED
-            or import_delivery_exhausted(row)
+            or import_delivery_exhausted(row, config=self.config)
         ):
             return None
         lifecycle, now = self.lifecycle(), utc_now()
@@ -269,7 +284,7 @@ class ImportDispatchService:
                 ImportDispatch.attempt_count < lifecycle.policy.max_attempts,
             )
             .order_by(ImportDispatch.created_at, ImportDispatch.id)
-            .limit(settings.IMPORT_DISPATCH_BATCH_SIZE)
+            .limit(self.config.IMPORT_DISPATCH_BATCH_SIZE)
             .with_for_update(of=ImportDispatch, skip_locked=True)
         ).all()
         db.commit()
@@ -298,9 +313,8 @@ class ImportDispatchService:
             mark_failed(job, failure=failure, detail=error, now=now)
             admit_import_processing_outcome(db, job, created_at=now)
 
-    @staticmethod
-    def _record_failure(row: ImportDispatch, *, code: str) -> None:
-        retryable = row.attempt_count < settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+    def _record_failure(self, row: ImportDispatch, *, code: str) -> None:
+        retryable = row.attempt_count < self.config.IMPORT_DISPATCH_MAX_ATTEMPTS
         set_failure_facts(
             row,
             DurableFailure(
@@ -335,6 +349,3 @@ class ImportDispatchService:
         self.lifecycle().rearm(dispatch, now=utc_now())
         clear_failure_facts(dispatch)
         return previous
-
-
-import_dispatch_service = ImportDispatchService()

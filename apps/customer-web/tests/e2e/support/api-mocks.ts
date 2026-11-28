@@ -1,4 +1,4 @@
-import { AUTH_COOKIE_NAME, REFRESH_COOKIE_NAME } from '../../../src/generated/browser-protocol';
+import { AUTH_COOKIE_NAME } from '../../../src/generated/browser-protocol';
 import type { Page } from '@playwright/test';
 
 const testUserProfile = {
@@ -12,21 +12,12 @@ const testUserProfile = {
 };
 
 export async function mockAnonymousSession(page: Page): Promise<void> {
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({
-      status: 401,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        code: 'unauthorized', request_id: null,
-      }),
-    })
-  );
   await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({
       status: 401,
       contentType: 'application/json',
       body: JSON.stringify({
-        code: 'unauthorized', request_id: null,
+        code: 'unauthorized', request_id: 'e2e-request',
       }),
     })
   );
@@ -40,19 +31,7 @@ export async function mockAuthenticatedSession(page: Page): Promise<void> {
       domain: 'localhost',
       path: '/',
     },
-    {
-      name: REFRESH_COOKIE_NAME,
-      value: 'test-refresh',
-      domain: 'localhost',
-      path: '/',
-    },
   ]);
-  await page.route('**/api/v1/auth/refresh', (route) =>
-    route.fulfill({
-      status: 204,
-      body: '',
-    })
-  );
   await page.route('**/api/v1/me/profile**', (route) =>
     route.fulfill({
       status: 200,

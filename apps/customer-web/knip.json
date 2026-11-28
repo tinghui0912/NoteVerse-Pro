@@ -7,7 +7,7 @@
     "src/app/**/error.tsx",
     "src/app/**/not-found.tsx",
     "src/app/**/route.ts",
-    "src/middleware.ts",
+    "src/proxy.ts",
     "next.config.ts",
     "postcss.config.mjs",
     "eslint.config.mjs",
@@ -32,9 +32,18 @@
     "@/generated/api"
   ],
   "ignoreIssues": {
-    "next.config.ts": ["exports"],
-    "openapi-ts.config.ts": ["exports"],
-    "vitest.config.mts": ["exports"]
+    "next.config.ts": [
+      "exports"
+    ],
+    "openapi-ts.config.ts": [
+      "exports"
+    ],
+    "vitest.config.mts": [
+      "exports"
+    ],
+    "playwright.security.config.ts": [
+      "exports"
+    ]
   },
   "ignoreDependencies": [
     "@hey-api/openapi-ts",

@@ -1,20 +1,13 @@
-# Staging GitOps Environment
+# Staging GitOps publication gate
 
-This directory contains the current digest-pinned NoteVerse staging
-desired state promoted from a release package.
+Status: **BLOCKED — awaiting a qualified four-image release package**.
 
-Release metadata:
+`published-release` is deliberately absent. Kustomize manifest generation fails,
+so neither a manual sync nor pruning can apply an empty or unqualified release.
+The Argo CD Application uses manual sync.
 
-- commit: `3aede931f19d3a350cd7400d2fa18a2947230191`
-- rendered at: `2026-08-06T05:22:54.659902+00:00`
-- workflow run: `31073929743`
-
-Rules:
-
-- Do not commit raw Secret values here.
-- Keep image references digest-pinned.
-- The `base/` directory is a release-scoped application manifest snapshot.
-- Update this directory through the release-package promotion flow, not by
-  manually editing generated values.
-- Apply only after required cluster Secrets, CRDs, Gateway API, cert-manager,
-  object storage, and observability prerequisites exist.
+Publish and qualify all four production images on trusted main, resolve their
+registry digests, render a release package, then promote it with
+`scripts/promote_release_package_to_gitops.py --overwrite`. Promotion replaces
+this gate with the self-contained digest-pinned release. Review its GitOps PR
+before syncing. No deployment digest is inferred from a different image.

@@ -1,9 +1,12 @@
 """Fixture composition for exercising reservation and finalization through one test handle."""
 
+from tests.support.runtime_resources import resources_for
+
 from app.modules.performance_takes.upload_reservation.reservation_service import (
     PerformanceTakeReservationService,
 )
 from app.modules.performance_takes.finalization import PerformanceTakeFinalizationService
+from tests.support.runtime_resources import storage as provider
 
 
 class TakeLifecycleServices:
@@ -17,8 +20,6 @@ class TakeLifecycleServices:
         practice_bundle_service=None,
     ):
         from app.composition import storage_resources as resources
-        from app.storage import object_storage as provider
-        from app.composition.media_resources import build_practice_bundle_service
         from app.modules.storage_governance.quota.service import StorageQuotaService
 
         storage = storage if storage is not None else provider
@@ -28,15 +29,15 @@ class TakeLifecycleServices:
             else resources.storage_usage_service
         )
         quota = StorageQuotaService(usage)
-        delivery = resources.build_media_delivery_service(storage)
+        delivery = resources_for(storage).build_media_delivery_service()
         bundle = (
             practice_bundle_service
             if practice_bundle_service is not None
-            else build_practice_bundle_service(storage)
+            else resources_for(storage).build_practice_bundle_service()
         )
         self.reservations = PerformanceTakeReservationService(
             repository=repository,
-            uploads=resources.build_upload_session_service(storage),
+            uploads=resources_for(storage).build_upload_session_service(),
             storage_usage_service=usage,
             score_access_policy=score_access_policy,
             practice_bundle_service=bundle,
@@ -45,7 +46,7 @@ class TakeLifecycleServices:
         )
         self.finalization = PerformanceTakeFinalizationService(
             repository=self.reservations.repository,
-            uploads=resources.build_upload_session_service(storage),
+            uploads=resources_for(storage).build_upload_session_service(),
             storage_usage_service=usage,
             quota=quota,
             delivery=delivery,

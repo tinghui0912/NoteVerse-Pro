@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -11,8 +12,8 @@ from opentelemetry.trace import SpanKind
 
 from app.core import background_tracing
 from app.core.logger import get_otel_trace_context, set_otel_trace_context
-from app.task_queue import config as celery_config
-from app.worker.dispatch import import_jobs
+from app.runtime.worker import main as celery_config
+from app.composition.dispatch import imports as import_jobs
 from app.task_queue import producer as dispatch_runtime
 from app.task_queue.tracing import DurableTraceContext
 
@@ -141,8 +142,9 @@ def test_relay_dispatch_log_is_emitted_inside_its_producer_span(
         def info(self, _message: str) -> None:
             log_contexts.append(get_otel_trace_context())
 
-    monkeypatch.setattr(import_jobs, "SessionLocal", fake_db)
-    monkeypatch.setattr(import_jobs.import_dispatch_service, "mark_dispatched", lambda *_: True)
+    dispatcher = celery_config.context.dispatches.imports
+    monkeypatch.setattr(dispatcher, "sessions", fake_db)
+    monkeypatch.setattr(dispatcher.delivery, "mark_dispatched", lambda *_: True)
     monkeypatch.setattr(
         import_jobs,
         "import_dispatch_trace_context",
@@ -150,13 +152,13 @@ def test_relay_dispatch_log_is_emitted_inside_its_producer_span(
     )
     published = []
     monkeypatch.setattr(
-        dispatch_runtime.celery_app,
+        dispatcher.sender,
         "send_task",
         lambda *args, **kwargs: published.append((args, kwargs)),
     )
     monkeypatch.setattr(dispatch_runtime, "logger", CapturingLogger())
 
-    assert import_jobs.dispatch_import_dispatch("dispatch-1")
+    assert dispatcher.dispatch_import_dispatch("dispatch-1")
     assert published[0][0] == ("app.worker.tasks.import_dispatch_task",)
     assert published[0][1]["kwargs"] == {"dispatch_uuid": "dispatch-1"}
 
@@ -173,9 +175,9 @@ def test_celery_worker_process_initialization_configures_background_tracing(
 ) -> None:
     configured: list[bool] = []
     monkeypatch.setattr(
-        background_tracing,
+        celery_config,
         "configure_background_tracing",
-        lambda: configured.append(True),
+        lambda config: configured.append(True),
     )
 
     celery_config.setup_worker_tracing()

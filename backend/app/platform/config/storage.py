@@ -1,0 +1,90 @@
+"""Durable object storage and local runtime-directory settings."""
+
+from __future__ import annotations
+
+
+import os
+from pathlib import Path
+from typing import Optional, Self
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+from app.platform.config.maintenance_defaults import DEFAULT_TAKE_PROCESSING_LEASE_SECONDS
+
+
+class ObjectStorageConfig(BaseModel):
+    S3_ENDPOINT_URL: Optional[str] = None
+    S3_SIGNED_ENDPOINT_URL: Optional[str] = None
+    S3_REGION: str = "auto"
+    S3_BUCKET: Optional[str] = None
+    S3_ACCESS_KEY_ID: Optional[str] = None
+    S3_SECRET_ACCESS_KEY: Optional[str] = None
+    S3_FORCE_PATH_STYLE: bool = True
+    S3_CONNECT_TIMEOUT_SECONDS: float = Field(default=10, gt=0, le=120)
+    S3_READ_TIMEOUT_SECONDS: float = Field(default=45, gt=0, le=300)
+    S3_MAX_ATTEMPTS: int = Field(default=3, ge=1, le=10)
+    OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS: int = Field(default=900, gt=0)
+
+    @field_validator("S3_ENDPOINT_URL", "S3_SIGNED_ENDPOINT_URL")
+    @classmethod
+    def normalize_optional_url(cls, value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        normalized = value.strip().rstrip("/")
+        return (
+            normalized
+            if normalized.startswith(("http://", "https://"))
+            else f"https://{normalized}"
+        )
+
+    @model_validator(mode="after")
+    def validate_s3_settings(self) -> Self:
+        missing = [
+            name
+            for name, value in (
+                ("S3_ENDPOINT_URL", self.S3_ENDPOINT_URL),
+                ("S3_BUCKET", self.S3_BUCKET),
+                ("S3_ACCESS_KEY_ID", self.S3_ACCESS_KEY_ID),
+                ("S3_SECRET_ACCESS_KEY", self.S3_SECRET_ACCESS_KEY),
+            )
+            if not value
+        ]
+        if missing:
+            raise ValueError("Missing required S3 storage settings: " + ", ".join(missing))
+        return self
+
+
+class MediaStoragePolicyConfig(BaseModel):
+    AVATAR_MAX_UPLOAD_BYTES: int = Field(default=5 * 1024 * 1024, gt=0, le=5 * 1024 * 1024)
+    AVATAR_MAX_PIXELS: int = Field(default=16_000_000, gt=0)
+    AVATAR_MAX_DIMENSION: int = Field(default=8192, gt=0)
+    MEDIA_DELIVERY_CACHE_SECONDS: int = Field(default=900, gt=0)
+    MEDIA_DELIVERY_MAX_STREAM_MEDIA_BYTES: int = Field(default=20 * 1024 * 1024, gt=0)
+    SCORE_IMPORT_MAX_BYTES: int = Field(default=20 * 1024 * 1024, gt=0, le=20 * 1024 * 1024)
+    TAKE_AUDIO_MAX_BYTES: int = Field(default=500 * 1024 * 1024, gt=0, le=500 * 1024 * 1024)
+    TAKE_VIDEO_MAX_BYTES: int = Field(
+        default=2 * 1024 * 1024 * 1024, gt=0, le=2 * 1024 * 1024 * 1024
+    )
+    UPLOAD_SINGLE_PUT_MAX_BYTES: int = Field(default=20 * 1024 * 1024, gt=0, le=20 * 1024 * 1024)
+    UPLOAD_PART_BYTES: int = Field(default=16 * 1024 * 1024, ge=5 * 1024 * 1024)
+    UPLOAD_URL_TTL_SECONDS: int = Field(default=900, gt=0)
+    UPLOAD_SESSION_TTL_SECONDS: int = Field(default=86400, gt=0)
+    UPLOAD_CLIENT_CONCURRENCY: int = Field(default=3, gt=0)
+    UPLOAD_MAX_ACTIVE_SESSIONS: int = Field(default=5, gt=0)
+    UPLOAD_TEMP_BYTE_BUDGET: int = Field(default=4 * 1024 * 1024 * 1024, gt=0)
+    TAKE_PROCESSING_MAX_ATTEMPTS: int = Field(default=5, gt=0)
+    TAKE_PROCESSING_RETRY_SECONDS: int = Field(default=60, gt=0)
+    TAKE_PROCESSING_LEASE_SECONDS: int = Field(default=DEFAULT_TAKE_PROCESSING_LEASE_SECONDS, gt=0)
+
+
+class WorkDirectoryConfig(BaseModel):
+    WORK_ROOT: str = "data/work"
+
+    @field_validator("WORK_ROOT")
+    @classmethod
+    def resolve_runtime_folders(cls, value: str) -> str:
+        path = Path(value)
+        if not os.path.isabs(value):
+            path = (Path(__file__).resolve().parents[3] / path).resolve()
+        if path.exists() and not path.is_dir():
+            raise ValueError(f"{value} exists but is not a directory")
+        return str(path)

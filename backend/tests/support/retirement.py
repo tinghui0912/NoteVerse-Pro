@@ -1,7 +1,7 @@
 """Explicit worker execution after a unit/application semantic transaction commits."""
 
 from contextlib import contextmanager
-from unittest.mock import patch
+from tests.support.worker_context import patch_worker
 from sqlalchemy import select
 from app.db.models import StoredObjectRetirement
 from app.worker.execution import stored_object_retirement as worker
@@ -27,8 +27,5 @@ def drain_retirements(db, storage):
             db.rollback()
             raise
 
-    with (
-        patch.object(worker, "SessionLocal", transaction),
-        patch.object(worker, "object_storage", storage),
-    ):
+    with patch_worker(worker, sessions=transaction, storage=storage):
         return [worker.execute_stored_object_retirement_task(None, uuid) for uuid in uuids]

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
+
 from .base import OmrEngine
 from .legato import LegatoOmrEngine
 from .legato_manifest import OMR_ENGINE_NAME
@@ -10,6 +13,7 @@ from .legato_manifest import OMR_ENGINE_NAME
 def create_omr_engine(
     *,
     output_folder: str,
+    config: WorkerModelEngineSettings,
     timeout_seconds: int,
     engine_name: str | None = None,
 ) -> OmrEngine:
@@ -19,6 +23,7 @@ def create_omr_engine(
     if selected == OMR_ENGINE_NAME:
         return LegatoOmrEngine(
             output_folder=output_folder,
+            config=config,
             timeout_seconds=timeout_seconds,
         )
 

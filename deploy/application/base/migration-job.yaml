@@ -3,11 +3,9 @@ kind: Job
 metadata:
   name: noteverse-db-migrate
   annotations:
-    # Argo CD runs the schema gate before synchronizing ordinary workloads.
-    # Direct kubectl release preparation preserves the same ordering itself.
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
-    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-wave: '-1'
   labels:
     app.kubernetes.io/component: migration
 spec:
@@ -24,11 +22,44 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: migrate
-          image: noteverse-backend-api:replace-me
+          image: noteverse-backend-core:replace-me
           args:
-            - migrate
-          envFrom:
-            - configMapRef:
-                name: noteverse-backend-config
-            - secretRef:
-                name: noteverse-backend-secret
+            - migrator
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-migrator-secret
+                  key: DATABASE_URL
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+          resources:
+            requests:
+              ephemeral-storage: 32Mi
+            limits:
+              ephemeral-storage: 128Mi
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 32Mi

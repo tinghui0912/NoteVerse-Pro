@@ -1,5 +1,7 @@
 """Single canonical revision persistence algorithm; the use case owns commit."""
 
+from app.modules.account.resource_users import resource_user_query
+
 from app.modules.storage_governance.usage.service import StorageUsageService
 from app.modules.storage_governance.quota.service import StorageQuotaService
 
@@ -12,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.exceptions import ConflictException, ResourceNotFoundException
 from app.core.async_trace_context import get_async_trace_context
-from app.core.request_correlation import get_request_id
+from app.platform.correlation import get_request_id
 from app.db.model_utils import require_persisted_id
 from app.db.models import (
     Score,
@@ -249,7 +251,7 @@ class RevisionWriter:
             object_id=source_uuid,
             storage_key=prepared.receipt.object_key,
         )
-        actor = db.get(User, command.actor_user_id)
+        actor = db.scalar(resource_user_query().where(User.id == command.actor_user_id))
         if actor is None:
             raise ValueError("Revision actor must exist")
         if not initial:

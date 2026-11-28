@@ -49,6 +49,18 @@ kubectl apply --server-side \
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.1/standard-install.yaml
 ```
 
+Install the Envoy Gateway extension CRDs, including BackendTrafficPolicy,
+with the same pinned release as the controller. Gateway API CRDs retain their
+separate ownership:
+
+```bash
+helm template eg-crds oci://docker.io/envoyproxy/gateway-crds-helm \
+  --version v1.8.3 \
+  --set crds.gatewayAPI.enabled=false \
+  --set crds.envoyGateway.enabled=true \
+  | kubectl apply --server-side -f -
+```
+
 Install Envoy Gateway:
 
 ```bash

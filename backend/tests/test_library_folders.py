@@ -346,9 +346,10 @@ def test_workspace_request_and_response_contract():
 @pytest.mark.asyncio
 async def test_workspace_http_routes_use_current_access_and_score_identity(workspace):
     from httpx import ASGITransport, AsyncClient
-    from app.api.deps import get_current_user, get_db
+    from app.platform.db.dependencies import get_db
+    from app.runtime.customer_api.deps import get_current_user
     from app.db.models import User
-    from app.main import app
+    from app.runtime.customer_api.main import app
 
     sync, db, _, _ = workspace
 
@@ -361,7 +362,11 @@ async def test_workspace_http_routes_use_current_access_and_score_identity(works
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = user
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.get("/api/v1/library/scores")
             assert response.status_code == 200, response.text
             assert {row["score_id"] for row in response.json()["items"]} == {"A", "B"}

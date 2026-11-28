@@ -1,11 +1,8 @@
-# kube-prometheus-stack values skeleton for NoteVerse Pro.
-#
-# Chart family: prometheus-community/kube-prometheus-stack
-# Namespace: observability
-#
-# Validate against the exact chart version before installation.
-
 grafana:
+  rbac:
+    namespaced: true
+  initChownData:
+    enabled: false
   enabled: true
   defaultDashboardsEnabled: true
   grafana.ini:
@@ -23,8 +20,9 @@ grafana:
     dashboards:
       enabled: true
       label: grafana_dashboard
-      labelValue: "1"
-      searchNamespace: ALL
+      labelValue: '1'
+      searchNamespace: observability
+      resource: configmap
       folderAnnotation: grafana_folder
     datasources:
       enabled: false
@@ -49,9 +47,9 @@ grafana:
           jsonData:
             derivedFields:
               - name: TraceID
-                matcherRegex: '\"trace_id\":\\s*\"([0-9a-f]{32})\"'
+                matcherRegex: \"trace_id\":\\s*\"([0-9a-f]{32})\"
                 datasourceUid: tempo
-                url: '$${__value.raw}'
+                url: $${__value.raw}
                 urlDisplayLabel: View trace
         - name: Tempo
           uid: tempo
@@ -65,7 +63,6 @@ grafana:
                 - key: namespace
                   value: namespace
               filterByTraceID: true
-
 prometheus:
   prometheusSpec:
     retention: 15d
@@ -76,10 +73,8 @@ prometheus:
     podMonitorNamespaceSelector: {}
     ruleNamespaceSelector: {}
     scrapeInterval: 30s
-
 alertmanager:
   enabled: true
-
 prometheusOperator:
   livenessProbe:
     initialDelaySeconds: 30
@@ -89,15 +84,7 @@ prometheusOperator:
     initialDelaySeconds: 30
     timeoutSeconds: 5
     failureThreshold: 6
-
 kubeStateMetrics:
   enabled: true
-
 nodeExporter:
   enabled: true
-
-# Do not add raw request_id, score_id, job_id, user_id, storage_key, or email as
-# Prometheus labels.
-#
-# Grafana admin credentials must be provided through external secret management,
-# not committed values.

@@ -8,14 +8,20 @@ from typing import Iterator
 import psycopg
 from psycopg import sql
 
-from app.db.session import engine
+from sqlalchemy import Engine
 from app.modules.realtime.publisher import REALTIME_NOTIFY_CHANNEL
 
 
 class RealtimeWakeupHub:
     def __init__(
-        self, *, reconnect_seconds: float = 1.0, connect=None, enabled: bool | None = None
+        self,
+        *,
+        engine: Engine,
+        reconnect_seconds: float = 1.0,
+        connect=None,
+        enabled: bool | None = None,
     ):
+        self.engine = engine
         self._connect = connect
         self._enabled = engine.dialect.name == "postgresql" if enabled is None else enabled
         self._reconnect_seconds = reconnect_seconds
@@ -63,7 +69,7 @@ class RealtimeWakeupHub:
     async def _open(self):
         if self._connect is not None:
             return await self._connect()
-        args, kwargs = engine.dialect.create_connect_args(engine.url)
+        args, kwargs = self.engine.dialect.create_connect_args(self.engine.url)
         return await psycopg.AsyncConnection.connect(
             *args, **kwargs, autocommit=True, connect_timeout=5
         )

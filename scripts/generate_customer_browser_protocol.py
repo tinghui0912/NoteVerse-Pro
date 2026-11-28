@@ -14,9 +14,7 @@ ROUTES = "apps/customer-web/src/generated/customer-routes.ts"
 EXPORTS = {
     "api_prefix": "CUSTOMER_API_PREFIX",
     "auth_cookie_name": "AUTH_COOKIE_NAME",
-    "refresh_cookie_name": "REFRESH_COOKIE_NAME",
-    "csrf_cookie_name": "CSRF_COOKIE_NAME",
-    "csrf_header_name": "CSRF_HEADER_NAME",
+    "secure_auth_cookie_name": "SECURE_AUTH_COOKIE_NAME",
 }
 METHODS = {"get", "put", "post", "patch", "delete", "head", "options", "trace"}
 
@@ -44,7 +42,7 @@ def load_json(path):
 
 def validate_protocol(protocol):
     if not isinstance(protocol, dict) or set(protocol) != set(EXPORTS):
-        raise ValueError("Customer browser protocol requires exactly its five identity fields")
+        raise ValueError("Customer browser protocol requires exactly its three identity fields")
     prefix = protocol["api_prefix"]
     if not isinstance(prefix, str) or not re.fullmatch(
         r"/[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*", prefix
@@ -54,17 +52,7 @@ def validate_protocol(protocol):
         value = protocol[key]
         if not isinstance(value, str) or not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", value):
             raise ValueError(f"{key} must be a nonempty HTTP token")
-    if protocol["csrf_header_name"] != protocol["csrf_header_name"].lower():
-        raise ValueError("csrf_header_name must use canonical lowercase")
-    if (
-        len(
-            {
-                protocol[key]
-                for key in ("auth_cookie_name", "refresh_cookie_name", "csrf_cookie_name")
-            }
-        )
-        != 3
-    ):
+    if len({protocol[key] for key in ("auth_cookie_name", "secure_auth_cookie_name")}) != 2:
         raise ValueError("Customer cookie identities must be distinct")
 
 
@@ -109,10 +97,12 @@ def projections(protocol, openapi):
     }
 
 
-def generate(root, *, check=False):
+def generate(root, *, check=False, target="all"):
     outputs = projections(load_json(root / PROTOCOL), load_json(root / OPENAPI))
     stale = []
     for relative, content in outputs.items():
+        if target == "backend" and not relative.startswith("backend/"):
+            continue
         path = root / relative
         if check:
             if not path.is_file() or path.read_text(encoding="utf-8") != content:
@@ -130,8 +120,9 @@ def generate(root, *, check=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--target", choices=("all", "backend"), default="all")
     args = parser.parse_args()
-    return generate(ROOT, check=args.check)
+    return generate(ROOT, check=args.check, target=args.target)
 
 
 if __name__ == "__main__":

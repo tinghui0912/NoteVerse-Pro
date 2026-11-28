@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+
+from app.platform.config.beat_scheduler import BeatSchedulerSettings
+
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -12,10 +15,13 @@ from app.modules.scheduler_lock.keys import scheduler_lock_key
 class SchedulerLockService:
     """PostgreSQL advisory locks for cluster-safe scheduler scans."""
 
+    def __init__(self, config: BeatSchedulerSettings) -> None:
+        self.config = config
+
     @contextmanager
     def try_acquire(self, job_key: str) -> Iterator[bool]:
         connection = open_scheduler_lock_connection(
-            application_name=f"noteverse-scheduler-{job_key}"
+            application_name=f"noteverse-scheduler-{job_key}", config=self.config
         )
         acquired = False
         try:
@@ -37,6 +43,3 @@ class SchedulerLockService:
     def _unlock(self, connection: Connection, job_key: str) -> None:
         with connection.cursor() as cursor:
             cursor.execute("select pg_advisory_unlock(%s)", (self.lock_key(job_key),))
-
-
-scheduler_lock_service = SchedulerLockService()

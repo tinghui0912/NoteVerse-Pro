@@ -133,69 +133,11 @@
         "title": "Body_accountAvatarUpload",
         "type": "object"
       },
-      "Body_authLogin": {
-        "properties": {
-          "client_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Client Id"
-          },
-          "client_secret": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "format": "password",
-            "title": "Client Secret"
-          },
-          "grant_type": {
-            "anyOf": [
-              {
-                "pattern": "^password$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Grant Type"
-          },
-          "password": {
-            "format": "password",
-            "title": "Password",
-            "type": "string"
-          },
-          "scope": {
-            "default": "",
-            "title": "Scope",
-            "type": "string"
-          },
-          "username": {
-            "title": "Username",
-            "type": "string"
-          }
-        },
-        "required": [
-          "username",
-          "password"
-        ],
-        "title": "Body_authLogin",
-        "type": "object"
-      },
       "ChangePasswordRequest": {
         "properties": {
           "current_password": {
             "description": "Current password",
+            "maxLength": 128,
             "minLength": 1,
             "title": "Current Password",
             "type": "string"
@@ -212,7 +154,7 @@
           "new_password": {
             "description": "New password",
             "maxLength": 128,
-            "minLength": 6,
+            "minLength": 12,
             "title": "New Password",
             "type": "string"
           }
@@ -264,6 +206,7 @@
         "enum": [
           "internal_error",
           "validation_error",
+          "payload_too_large",
           "resource_not_found",
           "resource_already_exists",
           "business_rule_violation",
@@ -271,7 +214,9 @@
           "auth_failed",
           "unauthorized",
           "token_invalid_expired",
-          "csrf_token_invalid",
+          "unsupported_media_type",
+          "rate_limit_exceeded",
+          "rate_limit_unavailable",
           "request_origin_invalid",
           "account_inactive",
           "invalid_credentials",
@@ -375,6 +320,7 @@
       "FingeringRequest": {
         "properties": {
           "content": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Content",
             "type": "string"
@@ -1821,6 +1767,27 @@
         "title": "LivenessRead",
         "type": "object"
       },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
       "MediaAccessRead": {
         "properties": {
           "download_url": {
@@ -2423,6 +2390,7 @@
       "PerformancePlanRequest": {
         "properties": {
           "musicxml": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Musicxml",
             "type": "string"
@@ -3789,7 +3757,7 @@
           "password": {
             "description": "Password",
             "maxLength": 128,
-            "minLength": 6,
+            "minLength": 12,
             "title": "Password",
             "type": "string"
           }
@@ -3873,6 +3841,7 @@
         "properties": {
           "current_password": {
             "description": "Current password",
+            "maxLength": 128,
             "minLength": 1,
             "title": "Current Password",
             "type": "string"
@@ -3914,7 +3883,7 @@
           "new_password": {
             "description": "New password",
             "maxLength": 128,
-            "minLength": 6,
+            "minLength": 12,
             "title": "New Password",
             "type": "string"
           },
@@ -4000,6 +3969,7 @@
         "additionalProperties": false,
         "properties": {
           "content": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Content",
             "type": "string"
@@ -4071,6 +4041,7 @@
         "additionalProperties": false,
         "properties": {
           "content": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Content",
             "type": "string"
@@ -4194,6 +4165,7 @@
         "additionalProperties": false,
         "properties": {
           "content": {
+            "maxLength": 5242880,
             "minLength": 1,
             "title": "Content",
             "type": "string"
@@ -5165,30 +5137,25 @@
       },
       "SessionSummary": {
         "properties": {
+          "absolute_expires_at": {
+            "format": "date-time",
+            "title": "Absolute Expires At",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
-          "device_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Device Id"
-          },
-          "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
+          "id": {
+            "format": "uuid",
+            "title": "Id",
             "type": "string"
           },
-          "id": {
-            "title": "Id",
-            "type": "integer"
+          "idle_expires_at": {
+            "format": "date-time",
+            "title": "Idle Expires At",
+            "type": "string"
           },
           "ip_address": {
             "anyOf": [
@@ -5206,17 +5173,10 @@
             "title": "Is Current",
             "type": "boolean"
           },
-          "last_used_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Used At"
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
           },
           "user_agent": {
             "anyOf": [
@@ -5233,7 +5193,9 @@
         "required": [
           "id",
           "created_at",
-          "expires_at"
+          "last_seen_at",
+          "idle_expires_at",
+          "absolute_expires_at"
         ],
         "title": "SessionSummary",
         "type": "object"
@@ -5893,9 +5855,9 @@
         "operationId": "authLogin",
         "requestBody": {
           "content": {
-            "application/x-www-form-urlencoded": {
+            "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_authLogin"
+                "$ref": "#/components/schemas/LoginRequest"
               }
             }
           },
@@ -5933,7 +5895,7 @@
             "description": "Application failure."
           }
         },
-        "summary": "Login Access Token",
+        "summary": "Login",
         "tags": [
           "Authentication"
         ]
@@ -5942,24 +5904,6 @@
     "/api/v1/auth/logout": {
       "post": {
         "operationId": "authLogout",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_refresh",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Refresh"
-            }
-          }
-        ],
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -6074,58 +6018,6 @@
           }
         },
         "summary": "Reset Password",
-        "tags": [
-          "Authentication"
-        ]
-      }
-    },
-    "/api/v1/auth/refresh": {
-      "post": {
-        "operationId": "authRefresh",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_refresh",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Refresh"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Request or application validation failure."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Application failure."
-          }
-        },
-        "summary": "Refresh Access Token",
         "tags": [
           "Authentication"
         ]
@@ -6367,22 +6259,6 @@
               "title": "Page Size",
               "type": "integer"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -6424,24 +6300,6 @@
       },
       "post": {
         "operationId": "importJobsSubmit",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6493,24 +6351,6 @@
     "/api/v1/import-jobs/status/batch": {
       "post": {
         "operationId": "importJobsBatchStatusGet",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6571,22 +6411,6 @@
               "title": "Job Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -6629,22 +6453,6 @@
             "schema": {
               "title": "Job Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -6707,22 +6515,6 @@
               "title": "Artifact Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -6776,22 +6568,6 @@
               "title": "Job Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -6844,22 +6620,6 @@
               "title": "Job Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -6909,22 +6669,6 @@
             "schema": {
               "title": "Job Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -6988,22 +6732,6 @@
               "title": "Job Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "requestBody": {
@@ -7066,22 +6794,6 @@
               "title": "Token",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -7134,22 +6846,6 @@
               "title": "Token",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -7193,24 +6889,6 @@
     "/api/v1/library/folders": {
       "get": {
         "operationId": "libraryFoldersOverviewGet",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -7250,24 +6928,6 @@
       },
       "post": {
         "operationId": "libraryFoldersCreate",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -7328,22 +6988,6 @@
               "title": "Folder Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -7386,22 +7030,6 @@
             "schema": {
               "title": "Folder Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -7529,22 +7157,6 @@
               "title": "Page Size",
               "type": "integer"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -7588,24 +7200,6 @@
     "/api/v1/library/scores/batch-favorite": {
       "post": {
         "operationId": "libraryScoresBatchFavorite",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -7657,24 +7251,6 @@
     "/api/v1/library/scores/batch-move": {
       "post": {
         "operationId": "libraryScoresBatchMove",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -7726,24 +7302,6 @@
     "/api/v1/me": {
       "delete": {
         "operationId": "accountDelete",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -7795,24 +7353,6 @@
     "/api/v1/me/avatar": {
       "delete": {
         "operationId": "accountAvatarDelete",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -7845,24 +7385,6 @@
       },
       "post": {
         "operationId": "accountAvatarUpload",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -7968,24 +7490,6 @@
     "/api/v1/me/email/change": {
       "post": {
         "operationId": "accountEmailChangeRequest",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -8058,22 +7562,6 @@
               ],
               "title": "Cursor"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -8126,22 +7614,6 @@
               "title": "Invite Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -8193,22 +7665,6 @@
             "schema": {
               "title": "Invite Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -8281,22 +7737,6 @@
               ],
               "title": "Cursor"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -8340,24 +7780,6 @@
     "/api/v1/me/notifications/read-all": {
       "post": {
         "operationId": "notificationsMarkAllRead",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -8399,24 +7821,6 @@
     "/api/v1/me/notifications/unread-count": {
       "get": {
         "operationId": "notificationsUnreadCountGet",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -8467,22 +7871,6 @@
               "title": "Notification Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -8526,24 +7914,6 @@
     "/api/v1/me/password": {
       "put": {
         "operationId": "accountPasswordChange",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -8588,24 +7958,6 @@
     "/api/v1/me/profile": {
       "get": {
         "operationId": "accountProfileGet",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -8645,24 +7997,6 @@
       },
       "put": {
         "operationId": "accountProfileUpdate",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -8716,22 +8050,6 @@
               "title": "Score Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -8768,24 +8086,6 @@
     "/api/v1/me/security": {
       "get": {
         "operationId": "accountSecurityGet",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -8827,40 +8127,6 @@
     "/api/v1/me/sessions": {
       "delete": {
         "operationId": "accountOtherSessionsRevoke",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_refresh",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Refresh"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -8904,38 +8170,6 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_refresh",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Refresh"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -8986,40 +8220,9 @@
             "name": "session_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Session Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_refresh",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Refresh"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
+              "type": "string"
             }
           }
         ],
@@ -9057,24 +8260,6 @@
     "/api/v1/me/storage-usage": {
       "get": {
         "operationId": "accountStorageUsageGet",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -9117,24 +8302,6 @@
       "get": {
         "description": "Asset delivery only; no server Practice execution.",
         "operationId": "practiceAcousticModelAccessGet",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -9220,22 +8387,6 @@
               ],
               "title": "Cursor"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -9279,24 +8430,6 @@
     "/api/v1/performance-takes/upload-reservations": {
       "post": {
         "operationId": "performanceTakeUploadsReserve",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9357,22 +8490,6 @@
               "title": "Reservation Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -9417,22 +8534,6 @@
             "schema": {
               "title": "Reservation Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -9486,22 +8587,6 @@
               "title": "Take Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -9544,22 +8629,6 @@
             "schema": {
               "title": "Take Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -9612,22 +8681,6 @@
             "schema": {
               "title": "Take Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -9723,24 +8776,6 @@
     "/api/v1/practice-activities": {
       "post": {
         "operationId": "practiceActivityCreate",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -9820,22 +8855,6 @@
               "title": "Include Notation",
               "type": "boolean"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -9895,22 +8914,6 @@
               ],
               "title": "Last-Event-Id"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -9963,22 +8966,6 @@
               "title": "Render Asset Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -10030,22 +9017,6 @@
             "schema": {
               "title": "Render Asset Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -10100,22 +9071,6 @@
               "title": "Render Asset Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -10169,22 +9124,6 @@
               "title": "Source Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -10237,22 +9176,6 @@
               "title": "Source Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -10297,24 +9220,6 @@
     "/api/v1/scores/batch-delete": {
       "post": {
         "operationId": "scoresBatchDelete",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -10375,22 +9280,6 @@
               "title": "Score Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -10440,22 +9329,6 @@
             "schema": {
               "title": "Score Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -10519,22 +9392,6 @@
               "title": "Score Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "requestBody": {
@@ -10597,22 +9454,6 @@
               "title": "Score Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -10665,22 +9506,6 @@
               "title": "Score Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -10723,22 +9548,6 @@
             "schema": {
               "title": "Score Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -10791,22 +9600,6 @@
             "schema": {
               "title": "Score Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -10868,22 +9661,6 @@
             "schema": {
               "title": "Asset Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -10966,22 +9743,6 @@
               ],
               "title": "Cursor"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -11031,22 +9792,6 @@
             "schema": {
               "title": "Score Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -11118,22 +9863,6 @@
             "schema": {
               "title": "Invite Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -11215,22 +9944,6 @@
               ],
               "title": "Cursor"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -11292,22 +10005,6 @@
               "title": "Membership Id",
               "type": "integer"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -11359,22 +10056,6 @@
             "schema": {
               "title": "Membership Id",
               "type": "integer"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -11472,22 +10153,6 @@
               ],
               "title": "Revision Id"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -11556,22 +10221,6 @@
                 }
               ],
               "title": "Revision Id"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -11654,22 +10303,6 @@
               ],
               "title": "Cursor"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -11719,22 +10352,6 @@
             "schema": {
               "title": "Score Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -11807,22 +10424,6 @@
               "title": "Revision Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -11883,22 +10484,6 @@
             "schema": {
               "title": "Revision Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -11971,22 +10556,6 @@
               "title": "Revision Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -12047,22 +10616,6 @@
             "schema": {
               "title": "Revision Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -12126,22 +10679,6 @@
               "title": "Session Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -12194,22 +10731,6 @@
               "title": "Session Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -12261,22 +10782,6 @@
             "schema": {
               "title": "Session Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -12343,22 +10848,6 @@
               "title": "Part Number",
               "type": "integer"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -12402,24 +10891,6 @@
     "/api/v1/uploads": {
       "post": {
         "operationId": "uploadRequestsCreate",
-        "parameters": [
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -12480,22 +10951,6 @@
               "title": "Session Id",
               "type": "string"
             }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
-            }
           }
         ],
         "responses": {
@@ -12540,22 +10995,6 @@
             "schema": {
               "title": "Session Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],
@@ -12608,22 +11047,6 @@
             "schema": {
               "title": "Upload Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "noteverse_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Noteverse Session"
             }
           }
         ],

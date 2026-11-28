@@ -32,6 +32,9 @@ from app.modules.realtime import publisher
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
 from tests.support.import_execution import processing_lease
+from app.platform.config.import_dispatch import ImportDispatchSettings
+
+policy_import_dispatch = ImportDispatchSettings()
 
 
 @pytest.fixture
@@ -85,13 +88,15 @@ def finish(db, lease, result):
             ),
         )
     else:
-        dispatch_service.ImportDispatchService().recover_and_list_due(db)
+        dispatch_service.ImportDispatchService(config=policy_import_dispatch).recover_and_list_due(
+            db
+        )
 
 
 def exhaust(engine):
     with Session(engine) as db:
         row = db.scalar(sa.select(ImportDispatch))
-        row.attempt_count = dispatch_service.settings.IMPORT_DISPATCH_MAX_ATTEMPTS
+        row.attempt_count = policy_import_dispatch.IMPORT_DISPATCH_MAX_ATTEMPTS
         row.started_at = utc_now() - timedelta(days=1)
         db.commit()
 

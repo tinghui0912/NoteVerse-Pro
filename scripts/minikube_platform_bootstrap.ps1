@@ -162,6 +162,17 @@ Invoke-Checked "gateway-api:crds" {
     kubectl apply --server-side -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/$GatewayApiVersion/standard-install.yaml"
 }
 
+Invoke-Checked "envoy-gateway:crds" {
+    $envoyCrds = helm template eg-crds oci://docker.io/envoyproxy/gateway-crds-helm `
+        --version $EnvoyGatewayChartVersion `
+        --set crds.gatewayAPI.enabled=false `
+        --set crds.envoyGateway.enabled=true
+    if ($LASTEXITCODE -ne 0) {
+        throw "Envoy Gateway extension CRDs could not be rendered."
+    }
+    $envoyCrds | kubectl apply --server-side -f -
+}
+
 Invoke-WithRetry "envoy-gateway:install" {
     helm upgrade --install envoy-gateway oci://docker.io/envoyproxy/gateway-helm `
         --version $EnvoyGatewayChartVersion `

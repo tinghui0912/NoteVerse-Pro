@@ -1,8 +1,9 @@
 """Feature failures leave committed intent evidence, not best-effort orphan cleanup."""
 
+from tests.support.runtime_resources import resources_for
+
 from app.storage.base import ObjectStorageOperationFailedError
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 
 from app.modules.import_jobs.domain import ImportArtifactKind
@@ -42,8 +43,11 @@ from tests.test_score_revision_services import (
     MUSICXML_1,
     add_active_score_with_head_revision,
 )
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import deliveries
 
-import_execution_recorder = _media_wiring.build_import_artifact_recorder().recorder
+
+import_execution_recorder = resources_for().build_import_artifact_recorder().recorder
 
 
 def test_review_confirm_source_survives_failed_semantic_adoption_as_intent(
@@ -64,10 +68,11 @@ def test_review_confirm_source_survives_failed_semantic_adoption_as_intent(
     db.commit()
     service = ImportReviewService(
         quota=_resource_wiring.storage_quota_service,
-        revision_writer=_media_wiring.build_revision_writer(),
-        input_assets=_media_wiring.build_input_asset_lifecycle(),
+        revision_writer=resources_for().build_revision_writer(),
+        input_assets=resources_for().build_input_asset_lifecycle(),
         usage=_resource_wiring.storage_usage_service,
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        post_commit=resources_for().post_commit,
     )
     monkeypatch.setattr(
         "app.modules.import_jobs.review.service.ImportJobDeletionService.cleanup_binary_artifacts",
@@ -141,7 +146,9 @@ def test_render_partial_pages_remain_cleanup_owned(score_service_session, monkey
     with pytest.raises(ObjectStorageOperationFailedError, match="third page"):
         ScoreRevisionRenderService(
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            delivery=deliveries().render,
+            work_root=get_context().settings.WORK_ROOT,
         ).render_for_worker(
             db,
             score.score_uuid,
@@ -181,7 +188,7 @@ def test_import_artifact_handoff_failure_leaves_intent_until_cleanup(
     db.commit()
     lease = processing_lease(db, job)
 
-    artifacts = _media_wiring.build_import_artifact_recorder(storage)
+    artifacts = resources_for(storage).build_import_artifact_recorder()
     monkeypatch.setattr(
         artifacts.recorder,
         "replace_artifacts",

@@ -3,6 +3,7 @@ import type { CustomerErrorCode } from '@/generated/api';
 export const CUSTOMER_ERROR_MESSAGE_KEYS = {
   internal_error: 'internal_error',
   validation_error: 'validation_error',
+  payload_too_large: 'payload_too_large',
   resource_not_found: 'resource_not_found',
   resource_already_exists: 'resource_already_exists',
   business_rule_violation: 'business_rule_violation',
@@ -10,7 +11,9 @@ export const CUSTOMER_ERROR_MESSAGE_KEYS = {
   auth_failed: 'auth_failed',
   unauthorized: 'unauthorized',
   token_invalid_expired: 'token_invalid_expired',
-  csrf_token_invalid: 'csrf_token_invalid',
+  unsupported_media_type: 'unsupported_media_type',
+  rate_limit_exceeded: 'rate_limit_exceeded',
+  rate_limit_unavailable: 'rate_limit_unavailable',
   request_origin_invalid: 'request_origin_invalid',
   account_inactive: 'account_inactive',
   invalid_credentials: 'invalid_credentials',

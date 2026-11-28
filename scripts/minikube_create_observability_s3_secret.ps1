@@ -1,5 +1,5 @@
 param(
-    [string] $EnvFile = "backend/.env.docker",
+    [Parameter(Mandatory = $true)] [string] $EnvFile,
     [string] $Namespace = "observability",
     [string] $SecretName = "observability-s3",
     [string] $LokiBucket = "noteverse-loki-staging",

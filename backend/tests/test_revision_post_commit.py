@@ -1,7 +1,8 @@
 """Committed revision work is an immutable hint, never durable execution authority."""
 
+from tests.support.runtime_resources import resources_for
+
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 
 
 from dataclasses import fields, MISSING, FrozenInstanceError
@@ -22,8 +23,7 @@ from app.db.models import (
     ImportJob,
 )
 from app.modules.import_jobs.domain import ImportJobState
-from app.modules.revisions import post_commit, render_dispatch, metadata_dispatch
-from app.modules.playback import dispatch as playback_dispatch
+from app.modules.revisions import post_commit
 from app.modules.revisions.post_commit import RevisionPostCommitWork, RevisionPostCommitCoordinator
 from app.modules.revisions.writer import RevisionWriteResult, InitialRevisionWrite
 from app.modules.revisions.service import RevisionService
@@ -33,8 +33,12 @@ from app.modules.import_jobs.review.schemas import ReviewConfirmRequest
 from tests.test_revision_writer_postgres import database as database, prepare, initial, snapshot
 from tests.test_score_revision_services import MUSICXML_1, MUSICXML_2
 from tests.test_import_confirmation_postgres import confirmation as confirmation
+from tests.support.runtime_resources import deliveries
 
-revision_writer = _media_wiring.build_revision_writer()
+
+revision_post_commit = resources_for().post_commit
+
+revision_writer = resources_for().build_revision_writer()
 
 
 def ticket():
@@ -42,17 +46,11 @@ def ticket():
 
 
 def dispatchers(monkeypatch, failure):
-    targets = [
-        (render_dispatch, "dispatch_score_revision_render", "revision_render"),
-        (playback_dispatch, "dispatch_playback_outbox", "playback"),
-        (metadata_dispatch, "dispatch_revision_metadata", "revision_metadata"),
-    ]
     mocks = []
-    for module, name, kind in targets:
+    for kind in ("revision_render", "playback", "revision_metadata"):
         mock = Mock(return_value=False)
         if failure in {kind, "all"}:
             mock.side_effect = RuntimeError("dispatcher unavailable")
-        monkeypatch.setattr(module, name, mock)
         mocks.append(mock)
     return mocks
 
@@ -64,7 +62,7 @@ def test_each_domain_dispatch_is_attempted_once_and_failure_context_is_exact(mon
     mocks = dispatchers(monkeypatch, failure)
     log = Mock()
     monkeypatch.setattr(post_commit, "logger", log)
-    RevisionPostCommitCoordinator().dispatch_best_effort(ticket())
+    RevisionPostCommitCoordinator(*mocks).dispatch_best_effort(ticket())
     for mock, identity in zip(mocks, ["render", "playback", "metadata"], strict=True):
         mock.assert_called_once_with(identity)
     kinds = {"revision_render": "render", "playback": "playback", "revision_metadata": "metadata"}
@@ -154,8 +152,9 @@ def test_committed_business_success_survives_dispatch_and_coordinator_errors(
             current = (
                 RevisionService(
                     quota=_resource_wiring.storage_quota_service,
-                    revision_writer=_media_wiring.build_revision_writer(),
-                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                    revision_writer=resources_for().build_revision_writer(),
+                    writes=resources_for(storage).build_object_write_coordinator(),
+                    post_commit=revision_post_commit,
                 )
                 .create(
                     db,
@@ -167,7 +166,7 @@ def test_committed_business_success_survives_dispatch_and_coordinator_errors(
             )
     mocks = dispatchers(monkeypatch, failure)
     seen = []
-    real = RevisionPostCommitCoordinator()
+    real = RevisionPostCommitCoordinator(*mocks)
     with Session(engine) as db:
         rollback = Mock(wraps=db.rollback)
         monkeypatch.setattr(db, "rollback", rollback)
@@ -194,21 +193,23 @@ def test_committed_business_success_survives_dispatch_and_coordinator_errors(
                 raise RuntimeError("unexpected coordinator bug")
             real.dispatch_best_effort(work)
 
-        monkeypatch.setattr(post_commit.revision_post_commit, "dispatch_best_effort", after_commit)
+        monkeypatch.setattr(revision_post_commit, "dispatch_best_effort", after_commit)
         if operation == "confirm":
             response = ImportReviewService(
                 quota=_resource_wiring.storage_quota_service,
-                revision_writer=_media_wiring.build_revision_writer(),
-                input_assets=_media_wiring.build_input_asset_lifecycle(),
+                revision_writer=resources_for().build_revision_writer(),
+                input_assets=resources_for().build_input_asset_lifecycle(),
                 usage=_resource_wiring.storage_usage_service,
-                writes=_resource_wiring.build_object_write_coordinator(storage),
+                writes=resources_for(storage).build_object_write_coordinator(),
+                post_commit=revision_post_commit,
             ).confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_2))
             assert response.score_id
         elif operation == "restore":
             response = RevisionService(
                 quota=_resource_wiring.storage_quota_service,
-                revision_writer=_media_wiring.build_revision_writer(),
-                writes=_resource_wiring.build_object_write_coordinator(storage),
+                revision_writer=resources_for().build_revision_writer(),
+                writes=resources_for(storage).build_object_write_coordinator(),
+                post_commit=revision_post_commit,
             ).restore(
                 db, "score", head, 1, RevisionRestoreRequest(expected_head_revision_id=current)
             )
@@ -216,8 +217,9 @@ def test_committed_business_success_survives_dispatch_and_coordinator_errors(
         else:
             response = RevisionService(
                 quota=_resource_wiring.storage_quota_service,
-                revision_writer=_media_wiring.build_revision_writer(),
-                writes=_resource_wiring.build_object_write_coordinator(storage),
+                revision_writer=resources_for().build_revision_writer(),
+                writes=resources_for(storage).build_object_write_coordinator(),
+                post_commit=revision_post_commit,
             ).create(
                 db,
                 "score",
@@ -228,13 +230,10 @@ def test_committed_business_success_survives_dispatch_and_coordinator_errors(
         rollback.assert_not_called()
         assert len(seen) == 1
         work = seen[0]
-        from app.modules.revisions.render_delivery import revision_render_delivery
-        from app.modules.playback.outbox_service import playback_outbox_service
-        from app.modules.revisions.metadata_delivery import metadata_delivery
 
-        assert work.render_outbox_uuid in revision_render_delivery.recover_and_list_due(db)
-        assert work.playback_outbox_uuid in playback_outbox_service.recover_and_list_due(db)
-        assert work.metadata_outbox_uuid in metadata_delivery.recover_and_list_due(db)
+        assert work.render_outbox_uuid in deliveries().render.recover_and_list_due(db)
+        assert work.playback_outbox_uuid in deliveries().playback.recover_and_list_due(db)
+        assert work.metadata_outbox_uuid in deliveries().metadata.recover_and_list_due(db)
         for mock in mocks:
             assert mock.call_count == (0 if failure == "coordinator" else 1)
 
@@ -244,12 +243,13 @@ def test_revision_service_replay_does_not_fast_dispatch_existing_work(database, 
     engine, storage = database
     head = initial(database)
     hint = Mock()
-    monkeypatch.setattr(post_commit.revision_post_commit, "dispatch_best_effort", hint)
+    monkeypatch.setattr(revision_post_commit, "dispatch_best_effort", hint)
     with Session(engine) as db:
         service = RevisionService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            revision_writer=resources_for().build_revision_writer(),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=revision_post_commit,
         )
         if kind == "idempotency":
             request = RevisionCreateRequest(
@@ -284,17 +284,18 @@ def test_confirm_dispatch_failure_preserves_committed_input_ownership_handoff(
     engine, storage = confirmation
     mocks = dispatchers(monkeypatch, "all")
     monkeypatch.setattr(
-        post_commit.revision_post_commit,
+        revision_post_commit,
         "dispatch_best_effort",
-        RevisionPostCommitCoordinator().dispatch_best_effort,
+        RevisionPostCommitCoordinator(*mocks).dispatch_best_effort,
     )
     with Session(engine) as db:
         response = ImportReviewService(
             quota=_resource_wiring.storage_quota_service,
-            revision_writer=_media_wiring.build_revision_writer(),
-            input_assets=_media_wiring.build_input_asset_lifecycle(),
+            revision_writer=resources_for().build_revision_writer(),
+            input_assets=resources_for().build_input_asset_lifecycle(),
             usage=_resource_wiring.storage_usage_service,
-            writes=_resource_wiring.build_object_write_coordinator(storage),
+            writes=resources_for(storage).build_object_write_coordinator(),
+            post_commit=revision_post_commit,
         ).confirm(db, "job", 1, ReviewConfirmRequest(content=MUSICXML_1.decode()))
     with Session(engine) as db:
         score = db.scalar(sa.select(Score).where(Score.score_uuid == response.score_id))

@@ -1,17 +1,19 @@
 """Take media task wiring and durable dispatch recovery."""
 
-from app.composition.media_resources import build_take_processing_service
-from app.task_queue.config import celery_app
+from app.runtime.worker.main import celery_app
 from app.worker.task_runtime import run_scheduler_scan
+from app.runtime.worker.context import get_context
 
 
 def execute_take_processing(operation_uuid: str) -> dict[str, str]:
-    return {"status": build_take_processing_service().execute(operation_uuid)}
+    return {
+        "status": get_context().resources.build_take_processing_service().execute(operation_uuid)
+    }
 
 
 def execute_take_processing_maintenance() -> dict[str, int]:
     def scan():
-        service = build_take_processing_service()
+        service = get_context().resources.build_take_processing_service()
         due, dispatched = service.due(), 0
         for uuid in due:
             try:

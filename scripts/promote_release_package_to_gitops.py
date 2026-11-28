@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Promote a rendered release package into GitOps desired state.
 
 The input is an environment directory from a release package, for example:
@@ -19,17 +20,26 @@ import argparse
 import json
 import shutil
 from pathlib import Path
-
+from production_image_contract import validate_release_images, validate_release_snapshot
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GITOPS_ENV_ROOT = REPO_ROOT / "deploy" / "gitops" / "environments"
 ALLOWED_FILES = {
     "README.md",
-    "backend-config.env",
-    "backend-worker-config.env",
+    "external-egress.json",
+    "external-egress.yaml",
+    "customer-api-config.env",
+    "worker-config.env",
+    "beat-config.env",
+    "model-assets-config.env",
     "control-plane-config.env",
     "customer-web-config.env",
     "gateway.yaml",
+    "hpa-backend-api.yaml",
+    "hpa-customer-web.yaml",
+    "pdb-backend-api.yaml",
+    "pdb-customer-web.yaml",
+    "patch-production-resources.yaml",
     "kustomization.yaml",
     "patch-backend-api-runtime-volumes.yaml",
     "patch-backend-beat-runtime-volumes.yaml",
@@ -39,7 +49,10 @@ ALLOWED_FILES = {
 }
 ALLOWED_DIRECTORIES = {"base"}
 AUXILIARY_IMAGES = {
-    "busybox": ("busybox", "sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662"),
+    "busybox": (
+        "busybox",
+        "sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662",
+    ),
 }
 
 
@@ -66,11 +79,8 @@ def load_metadata(source: Path, expected_environment: str) -> dict[str, object]:
             f"release metadata environment {metadata.get('environment')!r} does not match {expected_environment!r}"
         )
     images = metadata.get("images")
-    if not isinstance(images, dict) or not images:
-        raise RuntimeError("release metadata must contain images")
-    for name, value in images.items():
-        if not isinstance(value, str) or "@sha256:" not in value:
-            raise RuntimeError(f"release metadata image is not digest-pinned: {name}={value!r}")
+    validate_release_images(images)
+    validate_release_snapshot(source, images)
     return metadata
 
 
@@ -126,13 +136,13 @@ def rewrite_kustomization(output: Path) -> None:
     for image_name, (new_name, digest) in AUXILIARY_IMAGES.items():
         if f"  - name: {image_name}\n" not in text:
             auxiliary_block = (
-                f"  - name: {image_name}\n"
-                f"    newName: {new_name}\n"
-                f"    digest: {digest}\n"
+                f"  - name: {image_name}\n    newName: {new_name}\n    digest: {digest}\n"
             )
             marker = "\nconfigMapGenerator:"
             if marker not in text:
-                raise RuntimeError("failed to find configMapGenerator marker for auxiliary image insertion")
+                raise RuntimeError(
+                    "failed to find configMapGenerator marker for auxiliary image insertion"
+                )
             text = text.replace(marker, f"\n{auxiliary_block}{marker}", 1)
     kustomization_path.write_text(text, encoding="utf-8")
 

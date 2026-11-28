@@ -1,5 +1,9 @@
 """Avatar service under the account module boundary."""
 
+from app.modules.account.resource_users import resource_user_query
+
+from app.platform.config.storage import MediaStoragePolicyConfig
+
 from app.modules.media_storage.delivery import MediaDeliveryService
 
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
@@ -9,12 +13,10 @@ import io
 import warnings
 from typing import BinaryIO
 from uuid import uuid4
-from sqlalchemy import select
 
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.db.model_utils import require_persisted_id
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import User
@@ -40,13 +42,20 @@ class AvatarService:
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
     AVATAR_SIZE = (200, 200)
 
-    def __init__(self, *, writes: ObjectWriteCoordinator, delivery: MediaDeliveryService) -> None:
+    def __init__(
+        self,
+        *,
+        writes: ObjectWriteCoordinator,
+        delivery: MediaDeliveryService,
+        config: MediaStoragePolicyConfig,
+    ) -> None:
+        self.config = config
         self.delivery = delivery
         self.writes = writes
         self.storage = writes.storage
 
     def read_upload(self, stream: BinaryIO) -> bytes:
-        limit = settings.AVATAR_MAX_UPLOAD_BYTES
+        limit = self.config.AVATAR_MAX_UPLOAD_BYTES
         content = bytearray()
         while chunk := stream.read(min(64 * 1024, limit - len(content) + 1)):
             content.extend(chunk)
@@ -61,7 +70,7 @@ class AvatarService:
         return ext in self.ALLOWED_EXTENSIONS
 
     def validate_file_size(self, file_bytes: bytes) -> bool:
-        return len(file_bytes) <= settings.AVATAR_MAX_UPLOAD_BYTES
+        return len(file_bytes) <= self.config.AVATAR_MAX_UPLOAD_BYTES
 
     def process_avatar(
         self,
@@ -82,8 +91,8 @@ class AvatarService:
                         raise ValueError("Unsupported image format")
                     width, height = source.size
                     if (
-                        width * height > settings.AVATAR_MAX_PIXELS
-                        or max(width, height) > settings.AVATAR_MAX_DIMENSION
+                        width * height > self.config.AVATAR_MAX_PIXELS
+                        or max(width, height) > self.config.AVATAR_MAX_DIMENSION
                     ):
                         raise ValueError("Avatar dimensions exceed the decoding budget")
                     source.load()
@@ -130,7 +139,7 @@ class AvatarService:
         db.add(user)
         user = (
             db.execute(
-                select(User)
+                resource_user_query()
                 .where(User.id == user_id, User.is_active.is_(True), User.deleted_at.is_(None))
                 .with_for_update()
                 .execution_options(populate_existing=True)
@@ -154,7 +163,7 @@ class AvatarService:
 
     def clear_user_avatar(self, db: Session, user: User) -> bool:
         user = db.scalar(
-            select(User)
+            resource_user_query()
             .where(User.id == user.id)
             .with_for_update()
             .execution_options(populate_existing=True)

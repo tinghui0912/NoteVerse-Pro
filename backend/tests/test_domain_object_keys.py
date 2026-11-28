@@ -59,7 +59,7 @@ from app.modules.account.avatar_service import avatar_object_key
             "scores/score/revisions/revision/renders/screen/002-page.svg",
         ),
         (
-            lambda: playback_audio_object_key(
+            lambda *args, **kwargs: playback_audio_object_key(
                 score_uuid="score", revision_uuid="revision", asset_uuid="audio", extension=".wav"
             ),
             "scores/score/revisions/revision/playback/audio.wav",

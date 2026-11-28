@@ -1,0 +1,70 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: noteverse-otel-collector
+  namespace: observability
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+      app.kubernetes.io/instance: otel-collector
+  enableDefaultDeny:
+    ingress: true
+    egress: true
+  ingress:
+  - fromEndpoints:
+    - matchExpressions:
+      - key: k8s:io.kubernetes.pod.namespace
+        operator: In
+        values:
+        - noteverse-staging
+        - noteverse-production
+      - key: k8s:app.kubernetes.io/component
+        operator: In
+        values:
+        - backend-api
+        - control-plane
+        - backend-worker
+        - backend-beat
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '4317'
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: prometheus
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '8888'
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: kube-system
+        k8s:k8s-app: kube-dns
+    toPorts:
+    - ports:
+      - port: '53'
+        protocol: TCP
+      - port: '53'
+        protocol: UDP
+      rules:
+        dns:
+        - matchName: cluster.local
+        - matchName: svc.cluster.local
+        - matchPattern: '**.svc.cluster.local'
+        - matchPattern: '**.cluster.local'
+  - toEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: observability
+        k8s:app.kubernetes.io/name: tempo
+        k8s:app.kubernetes.io/instance: tempo
+    toPorts:
+    - ports:
+      - protocol: TCP
+        port: '4317'
+  egressDeny:
+  - toCIDR:
+    - 169.254.169.254/32
+    - 100.100.100.200/32

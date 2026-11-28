@@ -1,5 +1,7 @@
 """Uploader-owned semantic erasure; caller owns the transaction."""
 
+from app.modules.account.resource_users import resource_user_query
+
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from app.shared.integrity import ResourceIntegrityError
@@ -23,7 +25,7 @@ def cleanup_account_upload(
     )
     if upload is None:
         return False
-    user = db.get(User, user_id)
+    user = db.scalar(resource_user_query().where(User.id == user_id))
     if user is None or user.deleted_at is None:
         raise ResourceIntegrityError("Upload erasure requires its closed owner")
     uploads.delete_upload(db, user, upload.upload_uuid)

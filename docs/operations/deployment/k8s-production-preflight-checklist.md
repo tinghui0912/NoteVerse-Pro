@@ -38,8 +38,7 @@ Render a private production overlay in strict mode:
 python scripts/render_k8s_release_overlay.py \
   --environment production \
   --output build/k8s-release/production \
-  --backend-api-image ghcr.io/<owner>/noteverse/backend-api@sha256:<digest> \
-  --backend-beat-image ghcr.io/<owner>/noteverse/backend-beat@sha256:<digest> \
+  --backend-core-image ghcr.io/<owner>/noteverse/backend-core@sha256:<digest> \
   --backend-worker-image ghcr.io/<owner>/noteverse/backend-worker@sha256:<digest> \
   --customer-web-image ghcr.io/<owner>/noteverse/customer-web@sha256:<digest> \
   --platform-admin-image ghcr.io/<owner>/noteverse/platform-admin@sha256:<digest> \
@@ -52,6 +51,7 @@ python scripts/render_k8s_release_overlay.py \
   --trusted-proxy-cidrs '["<gateway-data-plane-cidr>"]' \
   --auth-cookie-secure true \
   --mail-default-sender 'NoteVerse Pro <no-reply@noteverse.example.com>' \
+  --csp-object-storage-origins https://media.example.com \
   --s3-endpoint-url https://object-storage.example.com \
   --s3-region auto \
   --s3-bucket noteverse-production \
@@ -76,17 +76,16 @@ Strict mode must fail when any deployment placeholder remains:
 
 ## 2. Secrets
 
-Required backend Secret keys:
-
-- `SECRET_KEY`
-- `DATABASE_URL`
-- `SCHEDULER_LOCK_DATABASE_URL` (direct PostgreSQL or PgBouncer session pooling only)
-- `REDIS_URL`
-- `CELERY_BROKER_URL`
-- `CELERY_RESULT_BACKEND`
-- `S3_ACCESS_KEY_ID`
-- `S3_SECRET_ACCESS_KEY`
-- mail provider key if outbound mail is enabled
+Verify the five runtime database Secret names and exact key sets against
+[Settings Ownership](../../architecture/runtime/settings-ownership.md).
+Every workload references only its own keys; no Secret uses `envFrom` or an
+unvalidated volume bundle. Worker and Beat scheduler-lock URLs use their own
+PostgreSQL roles and direct PostgreSQL or session pooling. Migrator receives
+only its database URL. Exporter has only a read-only database credential.
+Control Plane receives no customer authentication, S3 or mail key. Model
+preparation has an optional separate `HF_TOKEN` credential, and PaddleOCR
+receives no secrets. Verify database ownership, explicit grants and denied
+credential access using the [role contract](../../architecture/runtime/database-role-ownership.md).
 
 Rules:
 
@@ -181,7 +180,7 @@ Verify:
 - Fluent Bit ships container stdout/stderr to Loki;
 - Loki labels stay low-cardinality;
 - Prometheus scrapes customer API process/HTTP metrics and the internal
-  `noteverse-observability-exporter` Service for durable scheduler and
+  `noteverse-control-plane` Service for durable scheduler and
   asynchronous-operation metrics;
 - Grafana has Prometheus, Loki, and Tempo datasources;
 - no backend pod depends on local log files;

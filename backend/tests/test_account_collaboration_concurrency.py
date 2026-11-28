@@ -28,7 +28,6 @@ from app.modules.account.deletion_service import AccountDeletionService
 from app.modules.account.deletion_repository import AccountDeletionRepository
 from app.modules.account.resource_admission import lock_active_resource_user
 from app.modules.account.email_identity import lock_email_identity
-from app.modules.account.deletion_delivery import account_deletion_delivery as delivery
 from app.composition.account_deletion import AccountDeletionExecutor
 from app.composition.storage_inventory import build_storage_inventory_registry
 from app.modules.collaboration.invitation_service import InvitationService
@@ -40,6 +39,14 @@ from tests.test_account_collaboration_postgres import (
     drain,
     assert_bob_graph,
 )
+from tests.support.runtime_resources import deliveries
+from app.modules.auth.sessions_service import SessionService
+from app.platform.config.account_deletion import AccountDeletionSettings
+from app.platform.config.application import AccountEmailConfig
+from app.platform.config.application import CustomerAuthConfig
+from app.platform.config.application import InvitationConfig
+from app.runtime.customer_api.context import get_context
+from tests.support.runtime_resources import resources_for
 
 
 def wait_for_lock(engine, owner, contender):
@@ -72,16 +79,22 @@ def test_invitation_response_and_closure_serialize_without_reviving_access(
 
     def respond(db):
         if command == "accept":
-            return InvitationService().accept_invite(db, token, actor)
-        return InvitationService().decline_pending_invite(db, uuid, actor)
+            return InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            ).accept_invite(db, token, actor)
+        return InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ).decline_pending_invite(db, uuid, actor)
 
     ready = Queue()
     with Session(engine) as owner_db, ThreadPoolExecutor(1) as pool:
         owner = owner_db.scalar(text("SELECT pg_backend_pid()"))
         if first == "closure":
-            operation = AccountDeletionService().request_deletion(
-                owner_db, 1, current_password="secret123"
-            )
+            operation = AccountDeletionService(
+                session_service=SessionService(
+                    config=CustomerAuthConfig.model_validate(get_context().settings.model_dump())
+                )
+            ).request_deletion(owner_db, 1, current_password="valid-secret123")
 
             def competing():
                 with Session(engine) as db:
@@ -97,9 +110,13 @@ def test_invitation_response_and_closure_serialize_without_reviving_access(
             def competing():
                 with Session(engine) as db:
                     ready.put(db.scalar(text("SELECT pg_backend_pid()")))
-                    operation = AccountDeletionService().request_deletion(
-                        db, 1, current_password="secret123"
-                    )
+                    operation = AccountDeletionService(
+                        session_service=SessionService(
+                            config=CustomerAuthConfig.model_validate(
+                                get_context().settings.model_dump()
+                            )
+                        )
+                    ).request_deletion(db, 1, current_password="valid-secret123")
                     db.commit()
                     return operation
 
@@ -144,7 +161,9 @@ def test_finalization_waits_for_pre_admitted_invitation_and_cleans_late_commit(
     with Session(engine) as creator_db, ThreadPoolExecutor(1) as pool:
         owner = creator_db.scalar(text("SELECT pg_backend_pid()"))
         if subject == "recipient":
-            created = InvitationService().create_invite(
+            created = InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            ).create_invite(
                 creator_db, "bob-score", 2, InviteCreateRequest(email="alice@example.com")
             )
             row = creator_db.scalar(
@@ -167,9 +186,13 @@ def test_finalization_waits_for_pre_admitted_invitation_and_cleans_late_commit(
             def close_recipient():
                 with Session(engine) as db:
                     ready.put(db.scalar(text("SELECT pg_backend_pid()")))
-                    identity = AccountDeletionService().request_deletion(
-                        db, 1, current_password="secret123"
-                    )
+                    identity = AccountDeletionService(
+                        session_service=SessionService(
+                            config=CustomerAuthConfig.model_validate(
+                                get_context().settings.model_dump()
+                            )
+                        )
+                    ).request_deletion(db, 1, current_password="valid-secret123")
                     db.commit()
                     return identity
 
@@ -193,12 +216,17 @@ def test_finalization_waits_for_pre_admitted_invitation_and_cleans_late_commit(
 
         def finalize():
             with Session(engine) as db:
-                lease = delivery.claim(db, operation)
+                lease = deliveries().account_deletion.claim(db, operation)
                 db.commit()
                 ready.put(db.scalar(text("SELECT pg_backend_pid()")))
-                completed = AccountDeletionExecutor(build_storage_inventory_registry()).execute(
-                    db, lease
-                )
+                completed = AccountDeletionExecutor(
+                    build_storage_inventory_registry(),
+                    resources=resources_for(),
+                    delivery=deliveries().account_deletion,
+                    config=AccountDeletionSettings.model_validate(
+                        get_context().settings.model_dump()
+                    ),
+                ).execute(db, lease)
                 db.commit()
                 return completed
 
@@ -237,35 +265,38 @@ def test_new_invitation_survives_concurrent_final_user_erasure(collaboration_acc
     operation = close_account(engine)
     with Session(engine) as db:
         db.scalar(select(AccountDeletionOperation)).phase = AccountDeletionPhase.FINALIZE
-        lease = delivery.claim(db, operation)
+        lease = deliveries().account_deletion.claim(db, operation)
         closed_at = db.get(User, 1).deleted_at
         db.commit()
     ready = Queue()
     with Session(engine) as final_db, ThreadPoolExecutor(1) as pool:
         owner = final_db.scalar(text("SELECT pg_backend_pid()"))
-        delivery.require(final_db, lease)
+        deliveries().account_deletion.require(final_db, lease)
         AccountDeletionRepository().lock_user(final_db, 1, erasure=True)
 
         def create_new():
             with Session(engine) as db:
                 ready.put(db.scalar(text("SELECT pg_backend_pid()")))
-                result = InvitationService().create_invite(
-                    db, "bob-score", 2, InviteCreateRequest(email="alice@example.com")
-                )
+                result = InvitationService(
+                    config=InvitationConfig.model_validate(get_context().settings.model_dump())
+                ).create_invite(db, "bob-score", 2, InviteCreateRequest(email="alice@example.com"))
                 db.commit()
                 return result
 
         future = pool.submit(create_new)
         try:
             wait_for_lock(engine, owner, ready.get(timeout=10))
-            assert not AccountDeletionExecutor(build_storage_inventory_registry()).execute(
-                final_db, lease
-            )
+            assert not AccountDeletionExecutor(
+                build_storage_inventory_registry(),
+                resources=resources_for(),
+                delivery=deliveries().account_deletion,
+                config=AccountDeletionSettings.model_validate(get_context().settings.model_dump()),
+            ).execute(final_db, lease)
             assert final_db.get(User, 1) is not None
         finally:
             final_db.commit()
         fresh = future.result(timeout=10)
-    # Advance only the delivery clock to the persisted busy checkpoint. No sleep,
+    # Advance only the deliveries().account_deletion clock to the persisted busy checkpoint. No sleep,
     # retry-policy change or lock-order workaround is needed.
     import importlib
 
@@ -300,15 +331,16 @@ def test_unregistered_invitation_cannot_cross_an_identity_lifetime(
     engine = collaboration_accounts
     drain(engine, close_account(engine))
     verification = EmailVerificationService(
-        provision_storage=_resource_wiring.provision_storage_resources
+        provision_storage=_resource_wiring.provision_storage_resources,
+        config=AccountEmailConfig.model_validate(get_context().settings.model_dump()),
     )
     monkeypatch.setattr(verification, "_new_token", lambda: "registered-identity-token")
     ready = Queue()
     with Session(engine) as creator_db, ThreadPoolExecutor(1) as pool:
         owner = creator_db.scalar(text("SELECT pg_backend_pid()"))
-        old = InvitationService().create_invite(
-            creator_db, "bob-score", 2, InviteCreateRequest(email="alice@example.com")
-        )
+        old = InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ).create_invite(creator_db, "bob-score", 2, InviteCreateRequest(email="alice@example.com"))
 
         def register_then_close():
             with Session(engine) as db:
@@ -316,16 +348,22 @@ def test_unregistered_invitation_cannot_cross_an_identity_lifetime(
                 verification.register(
                     db,
                     RegisterRequest(
-                        email="alice@example.com", password="secret123", display_name="New Alice"
+                        email="alice@example.com",
+                        password="valid-secret123",
+                        display_name="New Alice",
                     ),
                 )
                 user = verification.verify_email(
                     db, VerifyEmailRequest(token="registered-identity-token")
                 )
                 user_id = user.id
-                identity = AccountDeletionService().request_deletion(
-                    db, user_id, current_password="secret123"
-                )
+                identity = AccountDeletionService(
+                    session_service=SessionService(
+                        config=CustomerAuthConfig.model_validate(
+                            get_context().settings.model_dump()
+                        )
+                    )
+                ).request_deletion(db, user_id, current_password="valid-secret123")
                 db.commit()
                 return user_id, identity
 
@@ -351,7 +389,7 @@ def test_unregistered_invitation_cannot_cross_an_identity_lifetime(
         verification.register(
             db,
             RegisterRequest(
-                email="alice@example.com", password="secret123", display_name="Latest Alice"
+                email="alice@example.com", password="valid-secret123", display_name="Latest Alice"
             ),
         )
         new_user = verification.verify_email(
@@ -359,7 +397,9 @@ def test_unregistered_invitation_cannot_cross_an_identity_lifetime(
         )
         assert new_user.id != second_user and second_user != 1
         with pytest.raises(ResourceNotFoundException):
-            InvitationService().accept_invite(db, old.token, new_user.id)
+            InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            ).accept_invite(db, old.token, new_user.id)
         db.rollback()
         assert (
             db.scalar(select(ScoreMembership).where(ScoreMembership.user_id == new_user.id)) is None

@@ -1,10 +1,13 @@
 """Independent PostgreSQL connections prove write/adoption/cleanup fences."""
 
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import complete_image_upload
 from tests.support.uploads import settled_upload_session
 
 from app.composition import storage_resources as _resource_wiring
-from app.composition import media_resources as _media_wiring
 from tests.support.media_writes import persist_prepared_bytes
 
 
@@ -28,7 +31,6 @@ from app.db.models import ObjectWriteIntent, StoredObject, Upload, User
 
 from app.modules.media_storage.write_intents import prepare_write, lock_intent
 from app.modules.media_storage.adoption import adopt_written_object
-from app.modules.media_storage.write_cleanup import write_cleanup_delivery
 from app.shared.time import utc_now
 from app.worker.execution import object_write_cleanup as worker
 from tests.test_stored_object_retirement_postgres import (
@@ -37,6 +39,11 @@ from tests.test_stored_object_retirement_postgres import (
 )
 from tests.test_object_write_intents import facts
 from tests.support.images import image_bytes
+from tests.support.runtime_resources import deliveries
+from app.platform.config.object_writes import ObjectWriteSettings
+from app.runtime.customer_api.context import get_context
+from tests.support.worker_context import inject_worker
+
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -44,8 +51,8 @@ pytest_plugins = ["tests.test_practice_bundle_postgres"]
 def setup_worker(fixture, monkeypatch):
     engine, sessions, storage = fixture
 
-    monkeypatch.setattr(worker, "SessionLocal", sessions)
-    monkeypatch.setattr(worker, "object_storage", storage)
+    inject_worker(monkeypatch, worker, sessions=sessions)
+    inject_worker(monkeypatch, worker, storage=storage)
     return engine, sessions, storage
 
 
@@ -54,7 +61,11 @@ async def prepared(fixture, monkeypatch, *, written=True, cleanup=False):
 
     def create():
         with Session(engine) as db:
-            receipt = prepare_write(db, facts())
+            receipt = prepare_write(
+                db,
+                facts(),
+                config=ObjectWriteSettings.model_validate(get_context().settings.model_dump()),
+            )
             db.commit()
             if written:
                 persist_prepared_bytes(db, storage, receipt, b"bytes")
@@ -62,7 +73,7 @@ async def prepared(fixture, monkeypatch, *, written=True, cleanup=False):
                 row = lock_intent(db, receipt.intent_uuid)
                 row.write_expires_at = utc_now() - timedelta(seconds=1)
                 db.commit()
-                write_cleanup_delivery.recover_and_list_due(db)
+                deliveries().write_cleanup.recover_and_list_due(db)
                 db.commit()
             return receipt
 
@@ -98,7 +109,7 @@ async def test_writer_put_lock_blocks_cleanup_and_prepared_is_durable(
             # expires the lease for deterministic cleanup without timing guesses.
             row.write_expires_at = utc_now() - timedelta(seconds=1)
             db.commit()
-            write_cleanup_delivery.recover_and_list_due(db)
+            deliveries().write_cleanup.recover_and_list_due(db)
             db.commit()
         return worker.execute_object_write_cleanup_task(None, receipt.intent_uuid)
 
@@ -148,9 +159,9 @@ async def test_cleanup_delete_lock_blocks_new_generation(retirement_postgres, mo
             pid.append(db.scalar(text("SELECT pg_backend_pid()")))
             return db
 
-        return ObjectWriteCoordinator(storage, physical_session).write_bytes(
-            key=receipt.object_key, content=b"bytes"
-        )
+        return ObjectWriteCoordinator(
+            storage, physical_session, config=ObjectWriteSettings()
+        ).write_bytes(key=receipt.object_key, content=b"bytes")
 
     new = None
     try:
@@ -221,7 +232,7 @@ async def test_adoption_and_cleanup_have_one_safe_winner(
                 row = lock_intent(db, receipt.intent_uuid)
                 assert row.status == "ADOPTED"
                 db.commit()
-                assert write_cleanup_delivery.recover_and_list_due(db) == []
+                assert deliveries().write_cleanup.recover_and_list_due(db) == []
 
         owner = asyncio.create_task(asyncio.to_thread(adopt))
         contender = None
@@ -310,7 +321,7 @@ async def test_equal_upload_bytes_have_distinct_command_objects_and_both_commit(
                 UploadService(
                     quota=_resource_wiring.storage_quota_service,
                     usage=_resource_wiring.storage_usage_service,
-                    uploads=_resource_wiring.build_upload_session_service(storage),
+                    uploads=resources_for(storage).build_upload_session_service(),
                 ),
                 db,
                 user,
@@ -340,7 +351,7 @@ async def test_bundle_creating_gc_during_put_leaves_only_cleanup_owned_bytes(
 ):
     from app.db.models import PracticeBundleRecord, ScoreRevisionPracticeBinding
     from app.core.exceptions import ValidationException
-    from app.modules.practice.bundle.retention import practice_bundle_retention
+    from app.modules.practice.bundle.retention import PracticeBundleRetention
     from tests.support.take_fixtures import Session
 
     engine, sessions, storage = setup_worker(retirement_postgres, monkeypatch)
@@ -375,7 +386,14 @@ async def test_bundle_creating_gc_during_put_leaves_only_cleanup_owned_bytes(
             assert db.scalar(select(StoredObject)) is None
             row.creation_expires_at = utc_now() - timedelta(seconds=1)
             db.commit()
-            assert practice_bundle_retention.recover_stale_creating(db) == []
+            assert (
+                PracticeBundleRetention(
+                    config=StoredObjectRetirementSettings.model_validate(
+                        get_context().settings.model_dump()
+                    )
+                ).recover_stale_creating(db)
+                == []
+            )
             db.commit()
     finally:
         release.set()
@@ -389,7 +407,7 @@ async def test_bundle_creating_gc_during_put_leaves_only_cleanup_owned_bytes(
         for row in rows:
             row.write_expires_at = utc_now() - timedelta(seconds=1)
         db.commit()
-        due = write_cleanup_delivery.recover_and_list_due(db)
+        due = deliveries().write_cleanup.recover_and_list_due(db)
         db.commit()
     for uuid in due:
         assert (await asyncio.to_thread(worker.execute_object_write_cleanup_task, None, uuid))[
@@ -418,8 +436,10 @@ async def test_retirement_of_reused_authority_forces_fresh_write(retirement_post
             uuid = retire_after_release(db, obj.id)[0]
             db.commit()
             storage.put_bytes(key=facts().object_key, content=b"bytes")
-            receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-                key=facts().object_key, content=b"bytes"
+            receipt = (
+                resources_for(storage)
+                .build_object_write_coordinator()
+                .write_bytes(key=facts().object_key, content=b"bytes")
             )
             assert lock_intent(db, receipt.intent_uuid).status == "ADOPTED"
             db.rollback()
@@ -432,8 +452,10 @@ async def test_retirement_of_reused_authority_forces_fresh_write(retirement_post
                 adopt_written_object(db, receipt)
             db.rollback()
             assert db.scalar(select(StoredObject)) is None
-            current = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-                key=receipt.object_key, content=b"bytes"
+            current = (
+                resources_for(storage)
+                .build_object_write_coordinator()
+                .write_bytes(key=receipt.object_key, content=b"bytes")
             )
             assert current.write_token != receipt.write_token
             obj = adopt_written_object(db, current)
@@ -510,8 +532,9 @@ async def test_revision_rechecks_head_after_prewrite_commit(
             with pytest.raises(ConflictException):
                 RevisionService(
                     quota=_resource_wiring.storage_quota_service,
-                    revision_writer=_media_wiring.build_revision_writer(),
-                    writes=_resource_wiring.build_object_write_coordinator(storage),
+                    revision_writer=resources_for().build_revision_writer(),
+                    writes=resources_for(storage).build_object_write_coordinator(),
+                    post_commit=resources_for().post_commit,
                 ).create(
                     db,
                     repository.test_score_uuid,
@@ -557,8 +580,12 @@ def test_import_artifact_replacement_acquires_intent_before_released_object(reti
         )
         db.add(job)
         db.commit()
-        receipt = _resource_wiring.build_object_write_coordinator(storage).write_bytes(
-            key="artifact/replacement.xml", content=b"<score/>", content_type="application/xml"
+        receipt = (
+            resources_for(storage)
+            .build_object_write_coordinator()
+            .write_bytes(
+                key="artifact/replacement.xml", content=b"<score/>", content_type="application/xml"
+            )
         )
         stored = adopt_written_object(db, receipt)
         db.add(

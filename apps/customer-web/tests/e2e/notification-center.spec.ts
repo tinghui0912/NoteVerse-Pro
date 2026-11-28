@@ -79,7 +79,7 @@ test('notification center combines pending invites and update notifications', as
 
   await mockAuthenticatedSession(page);
   await mockRealtimeEvents(page);
-  await page.route('**/api/v1/me/invites', (route) =>
+  await page.route('**/api/v1/me/invites?**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',

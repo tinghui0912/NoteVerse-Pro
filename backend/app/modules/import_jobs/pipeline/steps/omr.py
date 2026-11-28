@@ -47,6 +47,7 @@ class OmrStep(Step):
 
         engine = create_omr_engine(
             output_folder=ctx.omr_dir,
+            config=ctx.config,
             timeout_seconds=ctx.remaining(),
         )
         result = engine.process_images(ctx.raw_paths)

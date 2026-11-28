@@ -24,3 +24,7 @@ matchmaker
 matchmaker-demo-main
 
 backend/.env*
+
+backend/db/secret-templates/*.env
+
+apps/**/.env*

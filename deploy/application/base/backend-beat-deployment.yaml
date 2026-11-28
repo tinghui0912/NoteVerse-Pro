@@ -34,21 +34,47 @@ spec:
         - name: noteverse-registry-credentials
       containers:
         - name: beat
-          image: noteverse-backend-beat:replace-me
+          image: noteverse-backend-core:replace-me
           args:
             - beat
           envFrom:
             - configMapRef:
-                name: noteverse-backend-config
-            - secretRef:
-                name: noteverse-backend-secret
+                name: noteverse-beat-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: DATABASE_URL
+            - name: SCHEDULER_LOCK_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: SCHEDULER_LOCK_DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: REDIS_URL
+            - name: CELERY_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: CELERY_BROKER_URL
+            - name: CELERY_RESULT_BACKEND
+              valueFrom:
+                secretKeyRef:
+                  name: noteverse-beat-secret
+                  key: CELERY_RESULT_BACKEND
           resources:
             requests:
               cpu: 100m
               memory: 256Mi
+              ephemeral-storage: 64Mi
             limits:
               cpu: 500m
               memory: 512Mi
+              ephemeral-storage: 256Mi
           startupProbe:
             exec:
               command:
@@ -67,3 +93,30 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 6
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 64Mi

@@ -1,7 +1,5 @@
 {
   "api_prefix": "/api/v1",
-  "auth_cookie_name": "noteverse_session",
-  "refresh_cookie_name": "noteverse_refresh",
-  "csrf_cookie_name": "noteverse_csrf",
-  "csrf_header_name": "x-csrf-token"
+  "auth_cookie_name": "nv_session",
+  "secure_auth_cookie_name": "__Host-nv_session"
 }

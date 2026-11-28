@@ -1,9 +1,6 @@
-name: Backend API or Beat image
+name: Backend Core image
 description: Build a local PR artifact or qualify a trusted candidate before canonical promotion
 inputs:
-  role:
-    description: api or beat
-    required: true
   publish:
     description: true only from a trusted main publication job; credentials stay in the caller
     default: "false"
@@ -17,13 +14,10 @@ runs:
     - name: Resolve bounded service image inputs
       id: image
       shell: bash
-      env:
-        ROLE: ${{ inputs.role }}
       run: |
         set -euo pipefail
-        case "$ROLE" in api|beat) ;; *) exit 1 ;; esac
-        echo "repository=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse/backend-${ROLE}" >> "$GITHUB_OUTPUT"
-        echo "local_ref=noteverse-backend-${ROLE}:pr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+        echo "repository=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/noteverse/backend-core" >> "$GITHUB_OUTPUT"
+        echo "local_ref=noteverse-backend-core:pr-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
     - name: Refuse existing canonical or attempt candidate before mutation
@@ -32,17 +26,16 @@ runs:
       shell: bash
       env:
         REPOSITORY: ${{ steps.image.outputs.repository }}
-        ROLE: ${{ inputs.role }}
       run: >-
         python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" plan
-        --repository "$REPOSITORY" --role "$ROLE" --source "$GITHUB_SHA"
+        --repository "$REPOSITORY" --source "$GITHUB_SHA"
         --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
     - name: Build candidate only when trusted; load local image on PR
       id: build
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
       with:
         context: .
-        file: docker/backend/Dockerfile.${{ inputs.role }}
+        file: docker/backend/Dockerfile.core
         push: ${{ inputs.publish == 'true' }}
         load: ${{ inputs.publish != 'true' }}
         provenance: false
@@ -54,11 +47,10 @@ runs:
       shell: bash
       env:
         REPOSITORY: ${{ steps.image.outputs.repository }}
-        ROLE: ${{ inputs.role }}
         DIGEST: ${{ steps.build.outputs.digest }}
       run: |
         set -euo pipefail
-        python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" select --repository "$REPOSITORY" --role "$ROLE" --digest "$DIGEST"
+        python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" select --repository "$REPOSITORY" --digest "$DIGEST"
         docker pull "${REPOSITORY}@${DIGEST}"
     - name: Select local-only PR artifact without registry access
       id: local-artifact
@@ -84,15 +76,14 @@ runs:
       shell: bash
       env:
         IMAGE_REF: ${{ steps.artifact.outputs.ref }}
-        ROLE: ${{ inputs.role }}
-      run: docker run --rm --network none --entrypoint python "$IMAGE_REF" scripts/check_image_contract.py --role "$ROLE"
+      run: python .github/scripts/backend_core_image_smoke.py --image "$IMAGE_REF"
     - name: Generate service SPDX SBOM
       id: sbom
       uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c
       with:
         image: ${{ steps.artifact.outputs.ref }}
         format: spdx-json
-        artifact-name: backend-${{ inputs.role }}-image-sbom.spdx.json
+        artifact-name: backend-core-image-sbom.spdx.json
     - name: Scan the same service artifact
       id: scan
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
@@ -109,14 +100,13 @@ runs:
       shell: bash
       env:
         REPOSITORY: ${{ steps.image.outputs.repository }}
-        ROLE: ${{ inputs.role }}
         DIGEST: ${{ steps.build.outputs.digest }}
         GATE_CONTRACT: ${{ steps.contract.outcome }}
         GATE_SBOM: ${{ steps.sbom.outcome }}
         GATE_TRIVY: ${{ steps.scan.outcome }}
       run: >-
         python .github/scripts/backend_service_image_publication.py --output "$GITHUB_OUTPUT" promote
-        --repository "$REPOSITORY" --role "$ROLE" --source "$GITHUB_SHA" --digest "$DIGEST"
+        --repository "$REPOSITORY" --source "$GITHUB_SHA" --digest "$DIGEST"
     - name: Write service qualification summary
       shell: bash
       env:

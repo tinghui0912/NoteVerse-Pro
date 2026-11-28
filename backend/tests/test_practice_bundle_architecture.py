@@ -58,6 +58,7 @@ def test_score_domain_depends_on_pure_constants_and_canonical_written_model():
                 if node.module.startswith("app.modules.practice.score.generated"):
                     assert node.module == "app.modules.practice.score.generated.contract"
                 assert node.module.startswith("app.modules.practice.score.") or node.module in {
+                    "app.platform.document_admission.musicxml",
                     "app.score_semantics.musicxml_score",
                     "app.score_semantics.tempo_policy",
                 }

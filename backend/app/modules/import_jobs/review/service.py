@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from app.modules.storage_governance.quota.service import StorageQuotaService
 from app.modules.revisions.writer import RevisionWriter
 from app.modules.scores.input_asset_lifecycle import ScoreInputAssetLifecycle
@@ -40,7 +41,7 @@ from app.modules.import_jobs.notifications import (
     admit_import_confirmation_consequences,
 )
 from app.modules.revisions.writer import PreparedRevisionSource, InitialRevisionWrite
-from app.modules.revisions.post_commit import revision_post_commit
+from app.modules.revisions.post_commit import RevisionPostCommitCoordinator
 from app.core.logger import logger
 
 from app.modules.import_jobs.review.read_model import ImportReviewReadModel
@@ -74,11 +75,13 @@ class ImportReviewService:
         input_assets: ScoreInputAssetLifecycle,
         usage: StorageUsageService,
         writes: ObjectWriteCoordinator,
+        post_commit: RevisionPostCommitCoordinator,
     ) -> None:
         self.quota = quota
         self.revision_writer = revision_writer
         self.input_assets = input_assets
         self.usage = usage
+        self.post_commit = post_commit
         self.writes = writes
         self.storage = writes.storage
         self.score_repository = score_repository or ScoreRepository()
@@ -139,8 +142,7 @@ class ImportReviewService:
                 {"job_id": job_uuid, "state": job.state.value},
             )
 
-        content = request.content.encode("utf-8")
-        content = admit_musicxml_document(content)
+        content = admit_musicxml_document(request.content)
         content_hash = hashlib.sha256(content).hexdigest()
         score_uuid = str(uuid.uuid4())
         revision_uuid = str(uuid.uuid4())
@@ -255,7 +257,7 @@ class ImportReviewService:
         work = write_result.post_commit_work
         if work is not None:
             try:
-                revision_post_commit.dispatch_best_effort(work)
+                self.post_commit.dispatch_best_effort(work)
             except Exception as exc:
                 logger.bind(
                     event="revision_post_commit.coordinator_failed",
@@ -286,8 +288,7 @@ class ImportReviewService:
                 {"job_id": job_uuid, "state": job.state.value},
             )
 
-        content = request.content.encode("utf-8")
-        content = admit_musicxml_document(content)
+        content = admit_musicxml_document(request.content)
         job_id = require_persisted_id(job.id, entity="import job")
         artifact = (
             db.execute(

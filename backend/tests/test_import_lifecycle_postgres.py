@@ -1,6 +1,7 @@
 """Import processing outcomes, confirmation and persisted lifecycle facts agree."""
 
-from app.storage import object_storage as _storage_provider
+from tests.support.runtime_resources import resources_for
+
 
 from app.composition import storage_resources as _resource_wiring
 
@@ -40,6 +41,8 @@ from app.shared.durable_failure import DurableFailureClass
 from app.modules.media_storage.persistence import object_from_bytes
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
+from tests.support.runtime_resources import storage as _storage_provider
+from app.platform.config.import_dispatch import ImportDispatchSettings
 
 FAILURE = DurableFailure(
     "import_pipeline_failed", "pipeline", DurableFailureClass.SYSTEM_ERROR, False
@@ -126,7 +129,7 @@ def test_failure_recovery_clears_only_execution_facts(score_service_session):
     db.add(ImportJobStep(job_id=job.id, name="recognition", status="FAILED", step_order=1))
     db.commit()
     assert job.state == ImportJobState.FAILED and job.processing_finished_at is not None
-    ImportDispatchService().reset_execution(db, job, utc_now())
+    ImportDispatchService(config=ImportDispatchSettings()).reset_execution(db, job, utc_now())
     db.commit()
     assert job.state == ImportJobState.QUEUED and job.progress == 0
     assert (
@@ -227,7 +230,7 @@ def test_confirmed_batch_status_bulk_hydrates_score_identities(score_service_ses
     try:
         result = ImportJobService(
             usage=_resource_wiring.storage_usage_service,
-            delivery=_resource_wiring.build_media_delivery_service(_storage_provider),
+            delivery=resources_for(_storage_provider).build_media_delivery_service(),
         ).batch_status(db, job_ids, 1)
     finally:
         event.remove(db.bind, "before_cursor_execute", observe)

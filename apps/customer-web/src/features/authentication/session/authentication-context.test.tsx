@@ -15,6 +15,7 @@ import { accountQueryKeys } from '@/features/account/query-keys';
 import { guestPreviewQueryKeys } from '@/features/scores/guest-preview/query-keys';
 import { principalIndependentQueryMeta } from '@/lib/query-auth-scope';
 import { queryKeys } from '@/lib/query-client';
+import { invalidateSession } from '@/lib/http/session-invalidation';
 
 const fake = vi.hoisted(() => ({profile: vi.fn(), login: vi.fn(), logout: vi.fn(), navigate: vi.fn(), report: vi.fn()}));
 vi.mock('@/features/account/profile/api', () => ({profileApi: {getProfile: fake.profile}}));
@@ -34,6 +35,19 @@ async function seedBearerState() {
 }
 function expectBearerRetained() {expect(client.getQueryData(bearerKey)).toEqual({display_title: 'Guest Score'});}
 const anonymous = () => new ApiError(401, 'token_invalid_expired');
+
+it('clears principal and sensitive queries on authenticated HTTP rejection', async () => {
+  fake.profile.mockResolvedValue({user: principal});
+  const hook = renderHook(() => useAuthentication(), {wrapper});
+  await waitFor(() => expect(hook.result.current.isAuthenticated).toBe(true));
+  seedPrivateState();
+  await seedBearerState();
+  act(() => invalidateSession());
+  expect(hook.result.current.status).toBe('anonymous');
+  expect(privateKeys().every(key => !client.getQueryState(key))).toBe(true);
+  expectBearerRetained();
+  expect(fake.profile).toHaveBeenCalledOnce();
+});
 
 it.each(['authenticated', 'anonymous', 'server-error', 'network-error'] as const)('discovers bootstrap %s without redirecting', async (kind) => {
   if (kind === 'authenticated') fake.profile.mockResolvedValue({user: principal});
@@ -120,7 +134,7 @@ it('does not restore a cleared principal from an earlier in-flight refresh', asy
   await waitFor(() => expect(hook.result.current.isAuthenticated).toBe(true));
   let resolve!: (value: {user: ProfileUserRead}) => void;
   fake.profile.mockImplementation(() => new Promise(done => {resolve = done;}));
-  let pending!: Promise<void>;
+  let pending!: Promise<boolean | undefined>;
   act(() => {pending = hook.result.current.refreshPrincipal(); hook.result.current.clearPrincipal();});
   await act(async () => {resolve({user: principal}); await pending;});
   expect(hook.result.current.status).toBe('anonymous');

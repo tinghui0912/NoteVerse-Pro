@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from app.modules.account.resource_users import resource_user_query
+
+
+from app.platform.config.application import InvitationConfig
+
 import uuid
 from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.modules.account.email_identity import lock_email_identity
 from app.core.exceptions import (
     ResourceNotFoundException,
@@ -55,7 +59,10 @@ class InvitationService:
         repository: CollaborationRepository | None = None,
         access_policy: ScoreAccessPolicy | None = None,
         notification_service: NotificationService | None = None,
+        *,
+        config: InvitationConfig,
     ) -> None:
+        self.config = config
         self.repository = repository or CollaborationRepository()
         self.access_policy = access_policy or ScoreAccessPolicy()
         self.notification_service = notification_service or NotificationService()
@@ -72,7 +79,7 @@ class InvitationService:
         access = self.access_policy.authorize_score(
             db, score_uuid, ScoreAction.MANAGE_MEMBERS, user_id=user_id, lock_score=True
         )
-        owner = db.get(User, access.score.owner_user_id)
+        owner = db.scalar(resource_user_query().where(User.id == access.score.owner_user_id))
         if owner is None:
             raise ResourceNotFoundException("user", code=CustomerErrorCode.USER_NOT_FOUND)
         if request.email == owner.email.lower():
@@ -82,7 +89,7 @@ class InvitationService:
         expires_at = (
             require_utc(request.expires_at)
             if request.expires_at is not None
-            else now + timedelta(days=settings.SCORE_INVITE_TTL_DAYS)
+            else now + timedelta(days=self.config.SCORE_INVITE_TTL_DAYS)
         )
         if expires_at <= now:
             raise ValidationException(
@@ -379,13 +386,13 @@ class InvitationService:
             if inviter and inviter.display_name
             else inviter.email
             if inviter
-            else settings.PROJECT_NAME
+            else self.config.PROJECT_NAME
         )
-        invite_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/invite/{token}"
+        invite_url = f"{self.config.FRONTEND_BASE_URL.rstrip('/')}/invite/{token}"
         role_label = invite_role_label(invite.role, locale)
         email = build_invite_email(
             locale=locale,
-            project_name=settings.PROJECT_NAME,
+            project_name=self.config.PROJECT_NAME,
             inviter_name=inviter_name,
             score_display_title=score_display_title,
             role_label=role_label,

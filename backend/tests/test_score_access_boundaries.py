@@ -2,14 +2,15 @@
 
 import pytest
 from sqlalchemy import event
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import ResourceNotFoundException
 from app.db.models import Score, ScoreMembership, ScoreRevision, User
 from app.modules.revisions.domain import RevisionOrigin
 from app.db.models.score_access import MembershipRole
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.score_access.actions import ScoreAction
 from app.modules.score_access.policy import ScoreAccessPolicy
 from tests.test_score_revision_services import score_service_session as score_service_session

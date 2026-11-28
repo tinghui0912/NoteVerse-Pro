@@ -43,9 +43,22 @@ metadata:
 $Labels
 spec:
   restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile: {type: RuntimeDefault}
   containers:
     - name: probe
       image: $Image
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        privileged: false
+        capabilities: {drop: [ALL]}
+        seccompProfile: {type: RuntimeDefault}
       imagePullPolicy: IfNotPresent
       command: ["python", "-c"]
       args:
@@ -80,29 +93,29 @@ print("connected=%s" % connected)
 
 try {
     Invoke-Checked "policy:control-plane-allowed" {
-        Invoke-SmokePod -Name $allowedControl -Namespace $ApplicationNamespace `
-            -Labels "    app.kubernetes.io/name: noteverse`n    app.kubernetes.io/part-of: noteverse`n    app.kubernetes.io/component: platform-admin" `
-            -Script ($connect -f "noteverse-control-plane", 8000, "True")
+        Invoke-SmokePod -Name $allowedControl -Namespace $GatewayNamespace `
+            -Labels "    app.kubernetes.io/component: proxy`n    app.kubernetes.io/managed-by: envoy-gateway" `
+            -Script ($connect -f "noteverse-control-plane.$ApplicationNamespace", 8000, "True")
     }
     Invoke-Checked "policy:control-plane-denied" {
         Invoke-SmokePod -Name $deniedControl -Namespace $ApplicationNamespace `
-            -Labels "    app.kubernetes.io/name: noteverse`n    app.kubernetes.io/component: network-policy-smoke" `
+            -Labels "    app.kubernetes.io/name: noteverse`n    app.kubernetes.io/component: platform-admin" `
             -Script ($connect -f "noteverse-control-plane", 8000, "False")
     }
     Invoke-Checked "policy:platform-admin-allowed" {
         Invoke-SmokePod -Name $allowedAdmin -Namespace $GatewayNamespace `
             -Labels "    app.kubernetes.io/name: envoy`n    app.kubernetes.io/component: proxy`n    app.kubernetes.io/managed-by: envoy-gateway" `
-            -Script ($connect -f "noteverse-platform-admin.noteverse-staging", 3000, "True")
+            -Script ($connect -f "noteverse-platform-admin.$ApplicationNamespace", 3000, "True")
     }
     Invoke-Checked "policy:platform-admin-denied" {
         Invoke-SmokePod -Name $deniedAdmin -Namespace $ApplicationNamespace `
-            -Labels "    app.kubernetes.io/name: noteverse`n    app.kubernetes.io/component: network-policy-smoke" `
+            -Labels "    app.kubernetes.io/name: noteverse`n    app.kubernetes.io/component: platform-admin" `
             -Script ($connect -f "noteverse-platform-admin", 3000, "False")
     }
 }
 finally {
     foreach ($pod in @(
-        @{ Namespace = $ApplicationNamespace; Name = $allowedControl },
+        @{ Namespace = $GatewayNamespace; Name = $allowedControl },
         @{ Namespace = $ApplicationNamespace; Name = $deniedControl },
         @{ Namespace = $GatewayNamespace; Name = $allowedAdmin },
         @{ Namespace = $ApplicationNamespace; Name = $deniedAdmin }

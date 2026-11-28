@@ -9,17 +9,17 @@ from __future__ import annotations
 
 import argparse
 import base64
+from urllib import parse
 import http.cookiejar
 import json
 import mimetypes
 import subprocess
 import sys
 from pathlib import Path
-from urllib import error, parse, request
+from urllib import error, request
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-from app.core.generated.customer_browser_protocol import CSRF_COOKIE_NAME, CSRF_HEADER_NAME  # noqa: E402
 
 
 DEFAULT_EMAIL = "k8s-smoke@example.com"
@@ -65,21 +65,23 @@ def kubectl_exec_python(namespace: str, deployment: str, code: str) -> None:
 def ensure_user(namespace: str, deployment: str, email: str, password: str) -> None:
     code = f"""
 from sqlalchemy import select
-from app.core.security import get_password_hash
-from app.db.session import SessionLocal
+from app.platform.security.passwords import hash_password
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 from app.db.models.user import User
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 email = {email!r}
 password = {password!r}
-with SessionLocal() as db:
+with sessions() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if user is None:
-        now = utc_now_naive()
+        now = utc_now()
         user = User(
             email=email,
             display_name="K8s Smoke",
-            password_hash=get_password_hash(password),
+            password_hash=hash_password(password),
             is_active=True,
             email_verified_at=now,
             password_changed_at=now,
@@ -88,17 +90,12 @@ with SessionLocal() as db:
         )
         db.add(user)
     else:
-        user.password_hash = get_password_hash(password)
+        user.password_hash = hash_password(password)
         user.is_active = True
-        user.email_verified_at = user.email_verified_at or utc_now_naive()
+        user.email_verified_at = user.email_verified_at or utc_now()
     db.commit()
 """
     kubectl_exec_python(namespace, deployment, code)
-
-
-def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
-    token = next((cookie.value for cookie in cookie_jar if cookie.name == CSRF_COOKIE_NAME), None)
-    return {CSRF_HEADER_NAME: token} if token else {}
 
 
 def request_json(
@@ -111,17 +108,18 @@ def request_json(
     timeout: int = 30,
 ) -> dict[str, object]:
     req = request.Request(url, data=data, headers=headers or {}, method=method)
+    if data is not None and not req.has_header("Content-type"):
+        req.add_header("Content-Type", "application/json")
     try:
+        req.add_header(
+            "Origin",
+            f"{parse.urlsplit(req.full_url).scheme}://{parse.urlsplit(req.full_url).netloc}",
+        )
         with opener.open(req, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"{method} {url} failed with HTTP {exc.code}: {body}") from exc
-
-
-def encode_form(data: dict[str, str]) -> tuple[bytes, dict[str, str]]:
-    body = parse.urlencode(data).encode("utf-8")
-    return body, {"Content-Type": "application/x-www-form-urlencoded"}
 
 
 def encode_multipart_file(field_name: str, file_path: Path) -> tuple[bytes, dict[str, str]]:
@@ -159,7 +157,8 @@ def main() -> int:
 
     cookie_jar = http.cookiejar.CookieJar()
     opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
-    login_body, login_headers = encode_form({"username": args.email, "password": args.password})
+    login_body = json.dumps({"email": args.email, "password": args.password}).encode("utf-8")
+    login_headers = {"Content-Type": "application/json"}
     request_json(
         opener,
         f"{args.api_base}/auth/login",
@@ -167,11 +166,8 @@ def main() -> int:
         data=login_body,
         headers=login_headers,
     )
-    headers = csrf_headers(cookie_jar)
-
     before = quota_used(opener, args.api_base)
     upload_body, upload_headers = encode_multipart_file("file", image_path)
-    upload_headers.update(headers)
     uploaded = request_json(
         opener,
         f"{args.api_base}/uploads",
@@ -187,7 +183,6 @@ def main() -> int:
         opener,
         f"{args.api_base}/uploads/{upload_id}",
         method="DELETE",
-        headers=headers,
         timeout=60,
     )
     after_delete = quota_used(opener, args.api_base)

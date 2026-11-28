@@ -6,11 +6,12 @@ from types import SimpleNamespace
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, func, event
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import ValidationException
 from app.db.models import ScoreInvite, ScoreMembership, MailOutbox, Notification, User
 from app.db.models.score_access import InviteTerminalOutcome, MembershipRole
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.collaboration.invite_lifecycle import InviteStatus, effective_invite_status
 from app.modules.collaboration.invite_lifecycle import hash_invite_token
 from app.modules.collaboration.schemas import InviteCreateRequest
@@ -21,6 +22,8 @@ from app.shared.error_codes import CustomerErrorCode
 from app.shared.time import utc_now
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_trusted_collaboration import collaboration as collaboration
+from app.platform.config.application import InvitationConfig
+from app.runtime.customer_api.context import get_context
 
 
 @contextmanager
@@ -92,7 +95,11 @@ async def test_owner_revoke_http_admits_effective_status_without_writing_rejecti
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             with observe_writes(session) as (writes, commits):
                 response = await client.post(
                     f"/api/v1/scores/{score.score_uuid}/invites/lifecycle/revoke"
@@ -176,7 +183,11 @@ async def test_expired_recipient_command_has_no_write_or_commit(collaboration, p
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             with observe_writes(session) as (writes, commits):
                 response = await client.post("/api/v1" + path)
                 assert response.status_code == 422
@@ -226,7 +237,10 @@ def test_accept_rechecks_expiry_after_membership_contention(collaboration, monke
 
     with observe_writes(session) as (writes, commits):
         with pytest.raises(ValidationException) as error:
-            InvitationService(repository=MembershipWait()).accept_invite(db, "expiring", 2)
+            InvitationService(
+                repository=MembershipWait(),
+                config=InvitationConfig.model_validate(get_context().settings.model_dump()),
+            ).accept_invite(db, "expiring", 2)
         assert error.value.code == CustomerErrorCode.INVITE_EXPIRED
         assert writes == commits == []
     session.refresh(invite)
@@ -241,7 +255,9 @@ def test_accept_rechecks_expiry_after_membership_contention(collaboration, monke
 @pytest.mark.parametrize("command", ["leave", "remove"])
 def test_accepted_actor_facts_survive_membership_revocation(collaboration, command):
     session, _, score, db = collaboration
-    service = InvitationService()
+    service = InvitationService(
+        config=InvitationConfig.model_validate(get_context().settings.model_dump())
+    )
     created = service.create_invite(
         db, score.score_uuid, 1, InviteCreateRequest(email="other@example.com")
     )
@@ -267,9 +283,9 @@ def test_owner_email_cannot_enter_the_invitation_lifecycle(collaboration):
     owner = db.get(User, 1)
     with observe_writes(db) as (writes, commits):
         with pytest.raises(ValidationException):
-            InvitationService().create_invite(
-                db, score.score_uuid, 1, InviteCreateRequest(email=owner.email)
-            )
+            InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            ).create_invite(db, score.score_uuid, 1, InviteCreateRequest(email=owner.email))
     assert writes == [] and commits == []
     assert db.scalar(select(ScoreInvite)) is None and db.scalar(select(MailOutbox)) is None
 
@@ -290,7 +306,9 @@ def test_invitation_targeting_owner_fails_closed_without_terminal_or_membership_
     db.commit()
     with observe_writes(db) as (writes, commits):
         with pytest.raises(ValidationException):
-            InvitationService().accept_invite(db, "self", 1)
+            InvitationService(
+                config=InvitationConfig.model_validate(get_context().settings.model_dump())
+            ).accept_invite(db, "self", 1)
     assert writes == [] and commits == []
     assert invite.terminal_outcome is None and invite.terminal_at is None
     assert db.scalar(select(ScoreMembership)) is None and db.scalar(select(Notification)) is None
@@ -315,9 +333,9 @@ async def test_acceptance_returns_the_persisted_collaborator_identity(
         db.add(membership)
         db.commit()
         original_id = membership.id
-    invite = InvitationService().create_invite(
-        db, score.score_uuid, 1, InviteCreateRequest(email="other@example.com")
-    )
+    invite = InvitationService(
+        config=InvitationConfig.model_validate(get_context().settings.model_dump())
+    ).create_invite(db, score.score_uuid, 1, InviteCreateRequest(email="other@example.com"))
     path = (
         f"/api/v1/invites/{invite.token}/accept"
         if endpoint == "token"
@@ -327,7 +345,11 @@ async def test_acceptance_returns_the_persisted_collaborator_identity(
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.post(path)
         assert response.status_code == 200, response.text
         returned_id = response.json()["membership_id"]

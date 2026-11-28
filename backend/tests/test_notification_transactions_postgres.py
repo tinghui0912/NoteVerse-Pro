@@ -101,9 +101,10 @@ def test_each_notification_kind_hydrates_a_typed_variant_and_read_preserves_sema
             "import.ready_for_review",
             "import.failed",
         }
-        from fastapi.testclient import TestClient
-        from app.api.deps import get_current_user, get_db
-        from app.main import create_app
+        from tests.support.browser import BrowserTestClient as TestClient
+        from app.platform.db.dependencies import get_db
+        from app.runtime.customer_api.deps import get_current_user
+        from app.runtime.customer_api.main import create_app
 
         application = create_app()
         application.dependency_overrides[get_db] = lambda: db

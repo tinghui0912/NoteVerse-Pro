@@ -14,7 +14,7 @@ from botocore.exceptions import (
     IncompleteReadError,
 )
 
-from app.core.config import settings
+from app.platform.config.storage import ObjectStorageConfig
 from app.storage.base import (
     DirectUploadTarget,
     ObjectWriteResult,
@@ -77,10 +77,11 @@ def _positive(value: int, name: str) -> None:
 class S3CompatibleObjectStorage:
     """Provider client lifecycle and synchronous S3 capabilities."""
 
-    def __init__(self) -> None:
-        self.bucket = settings.S3_BUCKET or ""
-        self.endpoint_url = settings.S3_ENDPOINT_URL or ""
-        self.region = settings.S3_REGION
+    def __init__(self, config: ObjectStorageConfig) -> None:
+        self.config = config
+        self.bucket = self.config.S3_BUCKET or ""
+        self.endpoint_url = self.config.S3_ENDPOINT_URL or ""
+        self.region = self.config.S3_REGION
         self._client = None
         self._signing_client = None
         self._mutation_client = None
@@ -103,22 +104,22 @@ class S3CompatibleObjectStorage:
             "s3",
             endpoint_url=endpoint_url,
             region_name=self.region,
-            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+            aws_access_key_id=self.config.S3_ACCESS_KEY_ID,
+            aws_secret_access_key=self.config.S3_SECRET_ACCESS_KEY,
             config=Config(
                 signature_version="s3v4",
-                connect_timeout=settings.S3_CONNECT_TIMEOUT_SECONDS,
-                read_timeout=settings.S3_READ_TIMEOUT_SECONDS,
+                connect_timeout=self.config.S3_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=self.config.S3_READ_TIMEOUT_SECONDS,
                 retries={
                     "mode": "standard",
-                    "total_max_attempts": settings.S3_MAX_ATTEMPTS
+                    "total_max_attempts": self.config.S3_MAX_ATTEMPTS
                     if total_max_attempts is None
                     else total_max_attempts,
                 },
                 request_checksum_calculation="when_required",
                 response_checksum_validation="when_required",
                 s3={
-                    "addressing_style": "path" if settings.S3_FORCE_PATH_STYLE else "virtual",
+                    "addressing_style": "path" if self.config.S3_FORCE_PATH_STYLE else "virtual",
                     "payload_signing_enabled": False,
                 },
             ),
@@ -126,10 +127,10 @@ class S3CompatibleObjectStorage:
 
     @property
     def signing_client(self):
-        if not settings.S3_SIGNED_ENDPOINT_URL:
+        if not self.config.S3_SIGNED_ENDPOINT_URL:
             return self.client
         if self._signing_client is None:
-            self._signing_client = self._make_client(settings.S3_SIGNED_ENDPOINT_URL)
+            self._signing_client = self._make_client(self.config.S3_SIGNED_ENDPOINT_URL)
         return self._signing_client
 
     def put_bytes(
@@ -188,7 +189,7 @@ class S3CompatibleObjectStorage:
         headers: dict[str, str],
     ) -> DirectUploadTarget:
         _positive(length, "content_length")
-        ttl = settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS if ttl is None else ttl
+        ttl = self.config.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS if ttl is None else ttl
         _positive(ttl, "expires_in")
         key = self._normalize_key(key)
         with provider_operation():
@@ -363,7 +364,7 @@ class S3CompatibleObjectStorage:
         ttl = (
             expires_seconds
             if expires_seconds is not None
-            else settings.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS
+            else self.config.OBJECT_STORAGE_SIGNED_URL_EXPIRE_SECONDS
         )
         _positive(ttl, "expires_seconds")
         with provider_operation():

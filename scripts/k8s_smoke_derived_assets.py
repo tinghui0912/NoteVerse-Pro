@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from urllib import parse
 import http.cookiejar
 import json
 import re
@@ -18,11 +19,10 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
-from urllib import error, parse, request
+from urllib import error, request
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-from app.core.generated.customer_browser_protocol import CSRF_COOKIE_NAME, CSRF_HEADER_NAME  # noqa: E402
 
 
 DEFAULT_EMAIL = "k8s-smoke@example.com"
@@ -74,21 +74,23 @@ def kubectl_exec_python(namespace: str, deployment: str, code: str) -> str:
 def ensure_user(namespace: str, deployment: str, email: str, password: str) -> None:
     code = f"""
 from sqlalchemy import select
-from app.core.security import get_password_hash
-from app.db.session import SessionLocal
+from app.platform.security.passwords import hash_password
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 from app.db.models.user import User
-from app.utils.timezone import utc_now_naive
+from app.shared.time import utc_now
 
 email = {email!r}
 password = {password!r}
-with SessionLocal() as db:
+with sessions() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if user is None:
-        now = utc_now_naive()
+        now = utc_now()
         user = User(
             email=email,
             display_name="K8s Smoke",
-            password_hash=get_password_hash(password),
+            password_hash=hash_password(password),
             is_active=True,
             email_verified_at=now,
             password_changed_at=now,
@@ -97,9 +99,9 @@ with SessionLocal() as db:
         )
         db.add(user)
     else:
-        user.password_hash = get_password_hash(password)
+        user.password_hash = hash_password(password)
         user.is_active = True
-        user.email_verified_at = user.email_verified_at or utc_now_naive()
+        user.email_verified_at = user.email_verified_at or utc_now()
     db.commit()
 """
     kubectl_exec_python(namespace, deployment, code)
@@ -118,16 +120,17 @@ from app.db.models import User
 from app.db.models import Score
 from app.modules.storage_governance.usage.domain import StorageUsageCategory
 from app.modules.revisions.domain import RevisionOrigin
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 from app.modules.revisions.object_keys import canonical_revision_source_object_key
 from app.modules.revisions.writer import InitialRevisionWrite, PreparedRevisionSource
-from app.composition.media_resources import build_revision_writer
-from app.modules.revisions.post_commit import revision_post_commit
-from app.composition.storage_resources import build_object_write_coordinator, storage_quota_service
+from app.runtime.cli.resources import get_context
+resources = get_context().resources
+from app.composition.storage_resources import storage_quota_service
 from app.shared.time import utc_now
 from datetime import timedelta
 from app.processing.musicxml.admission import admit_musicxml_document
-from app.storage import object_storage
 
 email = {email!r}
 musicxml = b'''<?xml version="1.0" encoding="UTF-8"?>
@@ -154,7 +157,7 @@ musicxml = b'''<?xml version="1.0" encoding="UTF-8"?>
 </score-partwise>
 '''
 
-with SessionLocal() as db:
+with sessions() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one()
     user_id = require_persisted_id(user.id, entity="user")
     score_uuid = str(uuid.uuid4())
@@ -164,14 +167,14 @@ with SessionLocal() as db:
         bytes_count=len(musicxml), command_key="k8s-smoke:" + revision_uuid, expires_at=utc_now() + timedelta(minutes=15))
     try:
         db.commit()
-        stored = build_object_write_coordinator(object_storage).write_bytes(
+        stored = resources.build_object_write_coordinator().write_bytes(
             key=canonical_revision_source_object_key(score_uuid=score_uuid, revision_uuid=revision_uuid), content=musicxml,
             content_type="application/vnd.recordare.musicxml+xml")
         db.add(Score(score_uuid=score_uuid, owner_user_id=user_id, display_title="K8s Smoke Derived Asset"))
         db.flush()
         prepared = PreparedRevisionSource(revision_uuid, stored, hashlib.sha256(musicxml).hexdigest(),
             "k8s-smoke", "1", reservation.hold_id)
-        result = build_revision_writer().write(db, InitialRevisionWrite(score_uuid, user_id, prepared,
+        result = resources.build_revision_writer().write(db, InitialRevisionWrite(score_uuid, user_id, prepared,
             "k8s-smoke-initial", RevisionOrigin.EDIT))
         db.commit()
     except Exception:
@@ -181,7 +184,7 @@ with SessionLocal() as db:
         raise
     work = result.post_commit_work
     assert work is not None
-    revision_post_commit.dispatch_best_effort(work)
+    resources.post_commit.dispatch_best_effort(work)
     print(json.dumps({{
         "score_id": score_uuid,
         "revision_id": revision_uuid,
@@ -202,15 +205,6 @@ class HttpError(RuntimeError):
         self.body = body
 
 
-def csrf_headers(cookie_jar: http.cookiejar.CookieJar) -> dict[str, str]:
-    token = next((cookie.value for cookie in cookie_jar if cookie.name == CSRF_COOKIE_NAME), None)
-    return (
-        {CSRF_HEADER_NAME: token, "content-type": "application/json"}
-        if token
-        else {"content-type": "application/json"}
-    )
-
-
 def request_json(
     opener: request.OpenerDirector,
     url: str,
@@ -221,7 +215,13 @@ def request_json(
     timeout: int = 30,
 ) -> dict[str, Any]:
     req = request.Request(url, data=data, headers=headers or {}, method=method)
+    if data is not None and not req.has_header("Content-type"):
+        req.add_header("Content-Type", "application/json")
     try:
+        req.add_header(
+            "Origin",
+            f"{parse.urlsplit(req.full_url).scheme}://{parse.urlsplit(req.full_url).netloc}",
+        )
         with opener.open(req, timeout=timeout) as response:
             return dict(json.loads(response.read().decode("utf-8")))
     except error.HTTPError as exc:
@@ -239,24 +239,24 @@ def request_status(
     timeout: int = 30,
 ) -> int:
     req = request.Request(url, data=data, headers=headers or {}, method=method)
+    if data is not None and not req.has_header("Content-type"):
+        req.add_header("Content-Type", "application/json")
     try:
+        req.add_header(
+            "Origin",
+            f"{parse.urlsplit(req.full_url).scheme}://{parse.urlsplit(req.full_url).netloc}",
+        )
         with opener.open(req, timeout=timeout) as response:
             return int(response.status)
     except error.HTTPError as exc:
         return exc.code
 
 
-def encode_form(data: dict[str, str]) -> tuple[bytes, dict[str, str]]:
-    body = parse.urlencode(data).encode("utf-8")
-    return body, {"Content-Type": "application/x-www-form-urlencoded"}
-
-
-def login(
-    api_base: str, email: str, password: str
-) -> tuple[request.OpenerDirector, http.cookiejar.CookieJar]:
+def login(api_base: str, email: str, password: str) -> request.OpenerDirector:
     cookie_jar = http.cookiejar.CookieJar()
     opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
-    body, headers = encode_form({"username": email, "password": password})
+    body = json.dumps({"email": email, "password": password}).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
     request_json(
         opener,
         f"{api_base}/auth/login",
@@ -265,7 +265,7 @@ def login(
         headers=headers,
         timeout=30,
     )
-    return opener, cookie_jar
+    return opener
 
 
 def get_score(opener: request.OpenerDirector, api_base: str, score_id: str) -> dict[str, Any]:
@@ -301,17 +301,14 @@ def wait_for_assets(
 def assert_external_access(
     api_base: str,
     opener: request.OpenerDirector,
-    cookie_jar: http.cookiejar.CookieJar,
     score: dict[str, Any],
 ) -> dict[str, str]:
     score_id = str(score["score_id"])
-    headers = csrf_headers(cookie_jar)
     preview = request_json(
         opener,
         f"{api_base}/scores/{score_id}/guest-previews",
         method="POST",
         data=b"{}",
-        headers=headers,
         timeout=30,
     )
     token = preview["data"]["token"]
@@ -329,7 +326,6 @@ def assert_external_access(
 
 def delete_score(
     opener: request.OpenerDirector,
-    cookie_jar: http.cookiejar.CookieJar,
     api_base: str,
     score_id: str,
 ) -> None:
@@ -338,7 +334,6 @@ def delete_score(
         f"{api_base}/scores/batch-delete",
         method="POST",
         data=json.dumps({"score_ids": [score_id]}).encode("utf-8"),
-        headers=csrf_headers(cookie_jar),
         timeout=30,
     )
     removed = response["data"]["removed"]
@@ -351,13 +346,15 @@ def wait_for_score_deletion(namespace: str, deployment: str, score_id: str) -> N
 import time
 from sqlalchemy import select
 from app.db.models import ScoreDeletionOperation, ScoreDeletionOperationStatus
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 from app.worker.tasks import run_score_deletion_maintenance
 
 run_score_deletion_maintenance()
 deadline = time.monotonic() + 180
 while True:
-    with SessionLocal() as db:
+    with sessions() as db:
         operation = db.scalar(select(ScoreDeletionOperation).where(
             ScoreDeletionOperation.score_uuid == {score_id!r}
         ))
@@ -376,10 +373,12 @@ def assert_owner_usage_zero(namespace: str, deployment: str, email: str) -> None
 from sqlalchemy import select
 from app.db.models.storage_usage import StorageUsageCounter
 from app.db.models.user import User
-from app.db.session import SessionLocal
+from app.runtime.cli.settings import DatabaseCommandSettings
+from app.platform.db.engine import build_engine, build_session_factory
+sessions = build_session_factory(build_engine(DatabaseCommandSettings()))
 
 email = {email!r}
-with SessionLocal() as db:
+with sessions() as db:
     user = db.execute(select(User).where(User.email == email)).scalar_one()
     counters = db.execute(
         select(StorageUsageCounter.category, StorageUsageCounter.used_bytes)
@@ -398,14 +397,13 @@ with SessionLocal() as db:
 
 def cleanup_score(
     opener: request.OpenerDirector,
-    cookie_jar: http.cookiejar.CookieJar,
     api_base: str,
     namespace: str,
     worker_deployment: str,
     score_id: str,
 ) -> None:
     try:
-        delete_score(opener, cookie_jar, api_base, score_id)
+        delete_score(opener, api_base, score_id)
     except HttpError as exc:
         if exc.status_code not in {404, 410, 422}:
             raise
@@ -417,7 +415,7 @@ def main() -> int:
     if args.ensure_user:
         ensure_user(args.namespace, args.backend_deployment, args.email, args.password)
 
-    opener, cookie_jar = login(args.api_base, args.email, args.password)
+    opener = login(args.api_base, args.email, args.password)
     created = create_and_dispatch_score(args.namespace, args.backend_deployment, args.email)
     score_id = created["score_id"]
     try:
@@ -428,10 +426,8 @@ def main() -> int:
             timeout_seconds=args.timeout_seconds,
             poll_seconds=args.poll_seconds,
         )
-        external = assert_external_access(args.api_base, opener, cookie_jar, score)
-        cleanup_score(
-            opener, cookie_jar, args.api_base, args.namespace, args.worker_deployment, score_id
-        )
+        external = assert_external_access(args.api_base, opener, score)
+        cleanup_score(opener, args.api_base, args.namespace, args.worker_deployment, score_id)
         assert_owner_usage_zero(args.namespace, args.backend_deployment, args.email)
     except Exception:
         print(json.dumps({"score_id": score_id, "created": created}, indent=2), file=sys.stderr)
@@ -439,7 +435,6 @@ def main() -> int:
             try:
                 cleanup_score(
                     opener,
-                    cookie_jar,
                     args.api_base,
                     args.namespace,
                     args.worker_deployment,

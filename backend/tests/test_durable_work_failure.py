@@ -1,11 +1,12 @@
 """Domain-owned failure facts and exact attempt fencing."""
 
+from app.runtime.worker.context import get_context as worker_context
+
 from unittest.mock import Mock
 
 import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
-from app.core.config import settings
 from app.modules.import_jobs.pipeline_runner import ImportPipelineRunner
 from app.core.exceptions import (
     FileNotFoundException,
@@ -23,6 +24,8 @@ from app.db.models import (
 )
 from app.modules.revisions.render_states import ScoreRevisionRenderStatus
 from app.modules.playback.domain import PlaybackOutboxStatus
+from app.platform.config.delivery import DeliveryConfig
+from app.runtime.customer_api.context import get_context
 from app.modules.durable_work.delivery import DeliveryAttemptLease
 from app.modules.durable_work.failure import (
     DurableFailure,
@@ -35,6 +38,11 @@ from app.modules.playback.outbox_service import PlaybackOutboxService
 from app.modules.mail.outbox_service import MailOutboxService
 from app.modules.scores.deletion_delivery import ScoreDeletionDeliveryService, ScoreDeletionLease
 from app.shared.time import utc_now
+from app.platform.config.import_dispatch import ImportDispatchSettings
+from app.platform.config.mail_delivery import MailDeliverySettings
+from app.platform.config.score_deletion_delivery import ScoreDeletionDeliverySettings
+
+settings = get_context().settings
 
 
 def failure_facts(record):
@@ -98,7 +106,7 @@ def test_derivative_execution_failure_is_explicit_and_attempt_fenced(
         attempt_token="current",
         started_at=utc_now(),
     )
-    owner = service()
+    owner = service(config=DeliveryConfig.model_validate(worker_context().settings.model_dump()))
     owner._get = Mock(return_value=row)
     lease = DeliveryAttemptLease(attempt=row.attempt_count, token="current")
     assert owner.fail(Mock(), "operation", message, lease=lease)
@@ -132,7 +140,7 @@ def test_mail_provider_outcome_owns_failure_taxonomy(method, code, classificatio
         text_body="body",
         started_at=utc_now(),
     )
-    owner = MailOutboxService()
+    owner = MailOutboxService(config=MailDeliverySettings())
     owner._get = Mock(return_value=row)
     assert getattr(owner, method)(
         Mock(),
@@ -168,13 +176,17 @@ def test_score_deletion_failure_records_system_class_and_terminal_exhaustion(mon
     lease = ScoreDeletionLease(
         operation_uuid="operation", score_uuid="score", attempt=row.attempt_count, token="current"
     )
-    assert ScoreDeletionDeliveryService().fail(Mock(), lease, "timeout unavailable unsupported")
+    assert ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings()).fail(
+        Mock(), lease, "timeout unavailable unsupported"
+    )
     assert row.failure_code == "score_deletion_attempts_exhausted"
     assert row.failure_classification == "system_error"
     assert row.failure_retryable is False
     assert row.failure_detail == "timeout unavailable unsupported"
     facts = failure_facts(row)
-    assert not ScoreDeletionDeliveryService().fail(Mock(), lease, "late evidence")
+    assert not ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings()).fail(
+        Mock(), lease, "late evidence"
+    )
     assert failure_facts(row) == facts
 
 
@@ -235,7 +247,9 @@ def test_derivative_lease_recovery_records_exact_cause_and_retry_capacity(
     )
     db = Mock()
     db.execute.return_value.scalars.return_value.all.side_effect = [[row], []]
-    service().recover_and_list_due(db)
+    service(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    ).recover_and_list_due(db)
     assert row.failure_code == (
         kind + "_attempts_exhausted" if exhausted else kind + "_delivery_lease_expired"
     )
@@ -274,7 +288,7 @@ def test_broker_rejection_records_dispatch_failure_without_consuming_attempt(
     kind, model, status, service, max_attempts
 ):
     row = model(status=status.DISPATCHED, attempt_count=1)
-    owner = service()
+    owner = service(config=DeliveryConfig.model_validate(worker_context().settings.model_dump()))
     owner._get = Mock(return_value=row)
     owner.release_dispatch(Mock(), "operation", "unsupported timeout provider")
     assert row.attempt_count == 1 and row.status == status.PENDING
@@ -292,7 +306,9 @@ def test_broker_rejection_records_dispatch_failure_without_consuming_attempt(
 )
 def test_unavailable_derivative_input_is_permanent(kind, model, service):
     row = model()
-    service()._exhaust_unavailable_resources(row)
+    service(
+        config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+    )._exhaust_unavailable_resources(row)
     assert row.failure_code == kind + "_resources_unavailable"
     assert row.failure_classification == "permanent" and row.failure_retryable is False
 
@@ -318,7 +334,7 @@ def test_mail_admission_records_non_retryable_failure(cause, code, classificatio
     )
     db = Mock()
     db.execute.return_value.scalar_one_or_none.return_value = row
-    assert MailOutboxService().claim(db, "operation") is None
+    assert MailOutboxService(config=MailDeliverySettings()).claim(db, "operation") is None
     assert row.failure_code == code
     assert row.failure_stage == "delivery"
     assert row.failure_classification == classification
@@ -340,7 +356,7 @@ def test_mail_lease_recovery_preserves_transient_cause_until_attempts_exhausted(
     )
     db = Mock()
     db.execute.return_value.scalars.return_value.all.side_effect = [[row], [], []]
-    MailOutboxService().recover_and_list_due(db)
+    MailOutboxService(config=MailDeliverySettings()).recover_and_list_due(db)
     assert row.failure_code == (
         "mail_attempts_exhausted" if exhausted else "mail_delivery_lease_expired"
     )
@@ -361,7 +377,7 @@ def test_score_deletion_lease_recovery_owns_retry_capacity(exhausted):
     )
     db = Mock()
     db.scalars.return_value.all.return_value = [row]
-    ScoreDeletionDeliveryService().recover_and_list_due(db)
+    ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings()).recover_and_list_due(db)
     assert row.failure_code == (
         "score_deletion_attempts_exhausted" if exhausted else "score_deletion_lease_expired"
     )
@@ -382,7 +398,7 @@ def test_healthy_queued_delivery_rejects_operator_rearm(model, service):
     from app.core.exceptions import ValidationException
 
     row = model(text_body="body")
-    owner = service()
+    owner = service(config=DeliveryConfig.model_validate(worker_context().settings.model_dump()))
     owner._get = Mock(return_value=row)
     with pytest.raises(ValidationException):
         owner.rearm_for_operator(Mock(), "operation")
@@ -405,23 +421,13 @@ def test_ops_flushes_domain_rearm_for_atomic_audit_and_reads_the_sql_projection(
     from app.modules.ops import command_service
     from app.modules.ops.schemas import AsyncOperationKind
 
-    owners = {
-        "import": command_service.import_dispatch_service,
-        "revision_render": command_service.revision_render_delivery,
-        "playback": command_service.playback_outbox_service,
-        "mail": command_service.mail_outbox_service,
-        "score_deletion": command_service.score_deletion_delivery,
-        "account_deletion": command_service.account_deletion_delivery,
-        "stored_object_retirement": command_service.retirement_delivery,
-    }
     owner = Mock(return_value="FAILED")
-    monkeypatch.setattr(owners[kind], "rearm_for_operator", owner)
-    read = Mock()
-    monkeypatch.setattr(command_service.ops_async_operation_query_service, "get_operation", read)
+    query = Mock()
+    read = query.get_operation
     db = Mock()
-    result = command_service.OpsAsyncOperationCommandService().retry_operation(
-        db, kind=AsyncOperationKind(kind), operation_id="operation"
-    )
+    result = command_service.OpsAsyncOperationCommandService(
+        {AsyncOperationKind(kind): owner}, query
+    ).retry_operation(db, kind=AsyncOperationKind(kind), operation_id="operation")
     owner.assert_called_once_with(db, "operation")
     db.flush.assert_called_once()
     db.commit.assert_not_called()
@@ -435,7 +441,9 @@ def test_import_broker_rejection_records_delivery_facts_without_mutating_job(mon
 
     row = ImportDispatch(status=ImportDispatchStatus.DISPATCHED, attempt_count=0)
     monkeypatch.setattr("app.modules.import_jobs.dispatch_service.lock_dispatch", lambda *_: row)
-    ImportDispatchService().release_dispatch(Mock(), "operation", "timeout storage unsupported")
+    ImportDispatchService(config=ImportDispatchSettings()).release_dispatch(
+        Mock(), "operation", "timeout storage unsupported"
+    )
     assert row.status == ImportDispatchStatus.PENDING and row.attempt_count == 0
     assert (
         row.failure_code,
@@ -448,7 +456,7 @@ def test_import_broker_rejection_records_delivery_facts_without_mutating_job(mon
 def test_score_deletion_broker_rejection_records_dispatch_facts(monkeypatch):
     row = ScoreDeletionOperation(status=ScoreDeletionOperationStatus.DISPATCHED, attempt_count=0)
     monkeypatch.setattr("app.modules.scores.deletion_delivery.lock_operation", lambda *_: row)
-    assert ScoreDeletionDeliveryService().release_dispatch(
+    assert ScoreDeletionDeliveryService(config=ScoreDeletionDeliverySettings()).release_dispatch(
         Mock(), "operation", "timeout storage unsupported"
     )
     assert row.status == ScoreDeletionOperationStatus.PENDING and row.attempt_count == 0

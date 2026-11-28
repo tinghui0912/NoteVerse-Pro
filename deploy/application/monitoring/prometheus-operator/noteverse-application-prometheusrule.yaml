@@ -19,6 +19,16 @@ spec:
             summary: "NoteVerse backend target is down"
             description: "Prometheus has not been able to scrape one of the NoteVerse backend targets for 5 minutes."
             runbook_url: "docs/operations/runbooks/alerts/backend-target-down.md"
+        - alert: NoteVerseControlPlaneTargetDown
+          expr: |
+            up{namespace=~"noteverse-.*", job=~".*noteverse-control-plane.*"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Control Plane metrics target is down"
+            description: "Control Plane process and durable operation metrics are unavailable."
+            runbook_url: "docs/operations/runbooks/alerts/backend-target-down.md"
         - alert: NoteVerseBackendHigh5xxRate
           expr: |
             (
@@ -60,7 +70,7 @@ spec:
         - alert: NoteVerseAsyncOperationBacklogOld
           expr: |
             max by (namespace, kind) (
-              noteverse_async_operation_oldest_open_age_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
+              noteverse_async_operation_oldest_open_age_seconds{namespace=~"noteverse-.*", job="noteverse-control-plane"}
             ) > 1800
           for: 10m
           labels:
@@ -72,7 +82,7 @@ spec:
         - alert: NoteVerseAsyncOperationProcessingStuck
           expr: |
             max by (namespace, kind) (
-              noteverse_async_operation_oldest_processing_age_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
+              noteverse_async_operation_oldest_processing_age_seconds{namespace=~"noteverse-.*", job="noteverse-control-plane"}
             ) > 1800
           for: 10m
           labels:
@@ -84,7 +94,7 @@ spec:
         - alert: NoteVerseResourceErasureFailed
           expr: |
             sum by (namespace, kind) (
-              noteverse_async_operations_by_status{namespace=~"noteverse-.*", job="noteverse-backend-api", kind=~"account_deletion|stored_object_retirement", status="failed"}
+              noteverse_async_operations_by_status{namespace=~"noteverse-.*", job="noteverse-control-plane", kind=~"account_deletion|stored_object_retirement", status="failed"}
             ) > 0
           for: 15m
           labels:
@@ -118,7 +128,7 @@ spec:
         - alert: NoteVerseOutboxFailuresPresent
           expr: |
             sum by (namespace, kind, status) (
-              noteverse_outbox_records_by_status{namespace=~"noteverse-.*", job="noteverse-backend-api", status=~"failed|permanent_failure"}
+              noteverse_outbox_records_by_status{namespace=~"noteverse-.*", job="noteverse-control-plane", status=~"failed|permanent_failure"}
             ) > 0
           for: 15m
           labels:
@@ -130,7 +140,7 @@ spec:
         - alert: NoteVerseScoreDeletionCleanupStuck
           expr: |
             sum by (namespace) (
-              noteverse_score_deletions_by_status{namespace=~"noteverse-.*", job="noteverse-backend-api", status="deleting"}
+              noteverse_score_deletions_by_status{namespace=~"noteverse-.*", job="noteverse-control-plane", status="deleting"}
             ) > 0
           for: 2h
           labels:
@@ -144,7 +154,7 @@ spec:
         - alert: NoteVerseSchedulerLeaderStale
           expr: |
             (time() - max by (namespace) (
-              noteverse_scheduler_leader_last_heartbeat_timestamp_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
+              noteverse_scheduler_leader_last_heartbeat_timestamp_seconds{namespace=~"noteverse-.*", job="noteverse-control-plane"}
             )) > 90
           for: 2m
           labels:
@@ -155,7 +165,7 @@ spec:
             runbook_url: "docs/operations/runbooks/alerts/scheduler-leader-stale.md"
         - alert: NoteVerseSchedulerLeaderChildExiting
           expr: |
-            increase(noteverse_scheduler_leader_child_exits_total{namespace=~"noteverse-.*", job="noteverse-backend-api"}[15m]) > 0
+            increase(noteverse_scheduler_leader_child_exits_total{namespace=~"noteverse-.*", job="noteverse-control-plane"}[15m]) > 0
           for: 5m
           labels:
             severity: warning
@@ -166,7 +176,7 @@ spec:
         - alert: NoteVerseSchedulerScanStale
           expr: |
             (time() - max by (namespace, scheduler_job) (
-              noteverse_scheduler_last_success_timestamp_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
+              noteverse_scheduler_last_success_timestamp_seconds{namespace=~"noteverse-.*", job="noteverse-control-plane"}
             )) > 900
           for: 10m
           labels:
@@ -178,7 +188,7 @@ spec:
         - alert: NoteVerseSchedulerLagHigh
           expr: |
             max by (namespace, kind) (
-              noteverse_scheduler_lag_seconds{namespace=~"noteverse-.*", job="noteverse-backend-api"}
+              noteverse_scheduler_lag_seconds{namespace=~"noteverse-.*", job="noteverse-control-plane"}
             ) > 900
           for: 10m
           labels:
@@ -189,7 +199,7 @@ spec:
             runbook_url: "docs/operations/runbooks/alerts/scheduler-lag-high.md"
         - alert: NoteVerseSchedulerFailuresIncreasing
           expr: |
-            increase(noteverse_scheduler_failures_total{namespace=~"noteverse-.*", job="noteverse-backend-api"}[15m]) > 0
+            increase(noteverse_scheduler_failures_total{namespace=~"noteverse-.*", job="noteverse-control-plane"}[15m]) > 0
           for: 5m
           labels:
             severity: warning

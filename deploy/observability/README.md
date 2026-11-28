@@ -1,6 +1,6 @@
-# NoteVerse Observability Deployment Skeleton
+# NoteVerse Observability Deployment Contracts
 
-This directory contains the shared Helm values baseline for the future
+This directory contains the shared Helm values baseline for the
 Kubernetes observability stack.
 
 The files under `deploy/observability/values/` are shared baseline values.
@@ -22,7 +22,7 @@ Target namespace:
 observability
 ```
 
-Planned stack:
+Stack:
 
 - Fluent Bit for Kubernetes log collection.
 - Loki for log storage and query.
@@ -133,3 +133,22 @@ Render Helm manifests before installing:
 python scripts/render_observability_helm.py --profile minikube --release loki --release fluent-bit
 python scripts/render_observability_helm.py --profile production --release loki --release fluent-bit
 ```
+
+## Container and network policy
+
+All Helm install/upgrade commands use
+`--post-renderer python --post-renderer-args scripts/harden_observability_manifests.py`
+from the repository root. `scripts/render_observability_helm.py` applies this same
+contract to both profiles. Apply `application-network-policy.yaml` alongside the
+releases. Numeric identity, scratch bounds, PVC/log permissions and the explicit
+Kubernetes API token exceptions are documented in
+[Container and Network Hardening](../../docs/architecture/runtime/container-and-network-hardening.md).
+
+## Application and database scrapes
+
+The application monitoring overlay selects Customer API for process metrics and
+Control Plane for process plus durable operation metrics. Only in-cluster
+Prometheus reaches `/metrics`; the Edge Gateway does not publish that path.
+Standard `postgres_exporter` is database-infrastructure-owned and supplies
+connections, locks, bloat and replication metrics. Its deployment/credentials are
+not part of these five Helm releases or the five application database roles.

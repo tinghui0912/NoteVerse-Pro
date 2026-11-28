@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
+
 from typing import Any
 
-from app.core.config import Settings
+from app.platform.config.queue_schedule import QueueScheduleConfig
 
 
 BeatSchedule = dict[str, dict[str, Any]]
 
 
-def build_beat_schedule(settings: Settings) -> BeatSchedule:
+def build_beat_schedule(settings: QueueScheduleConfig) -> BeatSchedule:
     """Build the recurring background-maintenance schedule.
 
-    Schedule intervals stay in the shared runtime settings because the related
-    retry, lease, and retention policies are also read by API/Ops projections
-    and Worker dispatch services. This module owns only the mapping from policy
-    values to Celery Beat task entries.
+    Beat composition supplies interval policy values. Domain delivery services
+    receive their own retry, lease and retention policies. This module maps
+    interval values to Celery Beat task entries.
     """
 
     return {

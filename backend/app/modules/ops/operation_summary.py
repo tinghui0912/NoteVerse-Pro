@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+from app.platform.config.delivery import OpsDeliveryConfig
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.modules.ops.operation_filters import AsyncOperationFilters
@@ -20,10 +21,13 @@ def status_counts(counter):
 
 
 class AsyncOperationSummaryQuery:
+    def __init__(self, config: OpsDeliveryConfig) -> None:
+        self.config = config
+
     def summary(
         self, db: Session, *, kinds: tuple[AsyncOperationKind, ...], filters: AsyncOperationFilters
     ) -> AsyncOperationsSummaryRead:
-        projection = operation_projection()
+        projection = operation_projection(self.config)
         c = projection.c
         rows = db.execute(
             select(c.kind, c.status, func.count())

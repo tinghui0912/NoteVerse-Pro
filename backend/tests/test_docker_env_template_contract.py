@@ -1,70 +1,32 @@
-"""Prevent the committed Docker environment template from drifting from runtime code."""
+"""Each Docker process receives only its own settings and database identity."""
 
-from __future__ import annotations
-
-import re
 from pathlib import Path
 
-from app.core.config import Settings
-from app.core.settings.worker_runtime import WorkerRuntimeSettings
-from app.core.settings.playback import PlaybackSettings
-from app.core.settings.database import DatabaseSettings
-from app.core.settings.worker_model_engine import WorkerModelEngineSettings
+import pytest
+from sqlalchemy.engine import make_url
 
+from app.runtime.deployment import DEPLOYMENTS
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-ENV_TEMPLATES = {
-    BACKEND_ROOT / ".env.docker.example": set(),
-    BACKEND_ROOT / ".env.docker.worker.example": {
-        "CELERY_WORKER_CONCURRENCY",
-        *WorkerRuntimeSettings.model_fields,
-    },
-}
-ENVIRONMENT_ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)=")
-WORKER_ROLE_SPECIFIC_KEYS = set(PlaybackSettings.model_fields) | set(
-    WorkerModelEngineSettings.model_fields
-)
 
 
-def _template_keys(path: Path) -> set[str]:
-    return {
-        match.group(1)
-        for line in path.read_text(encoding="utf-8-sig").splitlines()
-        if (match := ENVIRONMENT_ASSIGNMENT.match(line))
-    }
-
-
-def test_docker_environment_templates_declare_only_supported_keys() -> None:
-    violations: list[str] = []
-    for path, allowed_extra_keys in ENV_TEMPLATES.items():
-        unsupported = _template_keys(path) - set(Settings.model_fields) - allowed_extra_keys
-        violations.extend(f"{path.name}: {key}" for key in sorted(unsupported))
-
-    assert not violations, "Unsupported Docker environment keys: " + ", ".join(violations)
-
-
-def test_shared_docker_template_supplies_the_application_database_identity():
+@pytest.mark.parametrize("runtime", [name for name in DEPLOYMENTS if name != "paddle_ocr"])
+def test_docker_environment_matches_its_runtime(runtime):
+    contract = DEPLOYMENTS[runtime]
+    template = BACKEND_ROOT / (".env.docker." + runtime.replace("_", "-") + ".example")
     assignments = dict(
         line.split("=", 1)
-        for line in (BACKEND_ROOT / ".env.docker.example").read_text().splitlines()
-        if ENVIRONMENT_ASSIGNMENT.match(line)
+        for line in template.read_text().splitlines()
+        if line and not line.startswith("#") and "=" in line
     )
-    database = DatabaseSettings(DATABASE_URL=assignments["DATABASE_URL"])
-    assert database.DATABASE_URL.startswith("postgresql+psycopg://")
-
-
-def test_worker_process_template_declares_only_the_worker_entrypoint_contract() -> None:
-    assert _template_keys(BACKEND_ROOT / ".env.docker.worker.example") <= {
-        "CELERY_WORKER_CONCURRENCY",
-        *WorkerRuntimeSettings.model_fields,
-    }
-
-
-def test_shared_docker_template_excludes_role_specific_runtime_settings() -> None:
-    shared_keys = _template_keys(BACKEND_ROOT / ".env.docker.example")
-
-    assert shared_keys.isdisjoint(WORKER_ROLE_SPECIFIC_KEYS)
-
-
-def test_no_practice_specific_docker_environment_template_exists() -> None:
-    assert not (BACKEND_ROOT / ".env.docker.practice.example").exists()
+    assert set(assignments) <= set(contract.settings.model_fields)
+    assert set(contract.secret_keys) <= set(assignments)
+    if contract.database_role:
+        assert make_url(assignments["DATABASE_URL"]).username == contract.database_role
+        if "SCHEDULER_LOCK_DATABASE_URL" in assignments:
+            assert (
+                make_url(assignments["SCHEDULER_LOCK_DATABASE_URL"]).username
+                == contract.database_role
+            )
+    if runtime == "migrator":
+        assert set(assignments) == {"DATABASE_URL"}

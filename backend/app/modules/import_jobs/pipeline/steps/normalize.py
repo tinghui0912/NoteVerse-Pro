@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from app.platform.document_admission.musicxml import parse_musicxml_file
 import xml.etree.ElementTree as ET
 
 from app.core.logger import logger
@@ -41,7 +42,7 @@ class XmlNormalizeStep(Step):
         ).info("XML normalization started")
 
         try:
-            tree = ET.parse(xml_path)
+            tree = parse_musicxml_file(xml_path)
             root = tree.getroot()
 
             self._force_a4_page_layout(root, ctx.job_id)

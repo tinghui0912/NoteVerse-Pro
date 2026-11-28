@@ -25,6 +25,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fake.confirm.mockReset(); fake.profile.mockReset();
   fake.token = `confirmation-${++sequence}`;
+  window.history.replaceState(null, '', `/auth/confirm-email-change#token=${fake.token}`);
   client = new QueryClient({defaultOptions: {queries: {retry: false}}});
   client.setQueryData(accountQueryKeys.security(), {security: {email: 'old@example.com', email_verified_at: null}});
   client.setQueryData(accountQueryKeys.sessions(), {sessions: []});
@@ -65,17 +66,15 @@ it.each(['authenticated', 'anonymous', 'refresh-failure'] as const)('confirms on
   view.rerender(<ConfirmEmailChangePage />);
   expect(fake.confirm).toHaveBeenCalledOnce();
   expect(fake.confirm).toHaveBeenCalledWith(fake.token);
-  view.unmount();
-  render(<ConfirmEmailChangePage />, {wrapper: Wrapper});
-  expect(await screen.findByRole('heading', {name: 'emailChangeConfirmedTitle'})).toBeVisible();
-  expect(fake.confirm).toHaveBeenCalledOnce();
+  expect(window.location.hash).toBe('');
 });
 
-it('rejects a missing token locally without submitting a confirmation', async () => {
+it.each(['', '?token=query-only'])('requires a fragment and rejects query %s', async query => {
   fake.token = '';
+  window.history.replaceState(null, '', `/auth/confirm-email-change${query}`);
   fake.profile.mockRejectedValue(new ApiError(401, 'unauthorized', 'unauthorized'));
   render(<ConfirmEmailChangePage />, {wrapper: Wrapper});
-  expect(screen.getByRole('heading', {name: 'emailChangeFailedTitle'})).toBeVisible();
+  expect(await screen.findByRole('heading', {name: 'emailChangeFailedTitle'})).toBeVisible();
   expect(screen.getByText('emailChangeLinkInvalid')).toBeVisible();
   expect(fake.confirm).not.toHaveBeenCalled();
 });

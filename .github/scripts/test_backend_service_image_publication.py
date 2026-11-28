@@ -29,15 +29,14 @@ class Registry:
         self.entries[target] = OTHER if self.mismatch else source.split("@", 1)[1]
 
 
-@pytest.fixture(params=["api", "beat"])
-def artifact(request):
-    role = request.param
-    return role, "ghcr.io/tinghui0912/noteverse/backend-" + role
+@pytest.fixture
+def artifact():
+    return "ghcr.io/tinghui0912/noteverse/backend-core"
 
 
 def test_absent_canonical_and_attempt_candidate_build(artifact):
-    role, repo = artifact
-    result = service.plan(Registry(), repo, role, SOURCE, "40124681012", "1")
+    repo = artifact
+    result = service.plan(Registry(), repo, SOURCE, "40124681012", "1")
     assert result.action == "build"
     assert result.canonical_ref == repo + ":" + SOURCE
     assert result.candidate_ref == repo + ":candidate-40124681012-1"
@@ -45,74 +44,72 @@ def test_absent_canonical_and_attempt_candidate_build(artifact):
 
 
 def test_existing_source_canonical_refuses_even_identical_candidate(artifact):
-    role, repo = artifact
+    repo = artifact
     registry = Registry({repo + ":" + SOURCE: FIRST})
     with pytest.raises(RuntimeError, match="canonical already exists"):
-        service.plan(registry, repo, role, SOURCE, "1", "1")
+        service.plan(registry, repo, SOURCE, "1", "1")
     assert registry.writes == []
 
 
 def test_existing_candidate_refuses(artifact):
-    role, repo = artifact
+    repo = artifact
     with pytest.raises(RuntimeError, match="candidate already exists"):
-        service.plan(Registry({repo + ":candidate-1-1": FIRST}), repo, role, SOURCE, "1", "1")
+        service.plan(Registry({repo + ":candidate-1-1": FIRST}), repo, SOURCE, "1", "1")
 
 
 @pytest.mark.parametrize("source", ["main", "A" * 40, "a" * 39, SOURCE + "\n"])
 def test_invalid_source_refuses(artifact, source):
-    role, repo = artifact
+    repo = artifact
     with pytest.raises(ValueError, match="source SHA"):
-        service.plan(Registry(), repo, role, source, "1", "1")
+        service.plan(Registry(), repo, source, "1", "1")
 
 
-@pytest.mark.parametrize(("repo", "role"), [
-    ("ghcr.io/owner/noteverse/backend-beat", "api"),
-    ("ghcr.io/owner/noteverse/backend-api", "worker"),
-    ("ghcr.io/owner/other/backend-api", "api"),
-])
-def test_role_repository_mismatch_fails(repo, role):
+@pytest.mark.parametrize("repo", ["ghcr.io/owner/other/backend-core", "example.com/backend-core"])
+def test_repository_mismatch_fails(repo):
     with pytest.raises(ValueError, match="mismatch"):
-        service.plan(Registry(), repo, role, SOURCE, "1", "1")
+        service.plan(Registry(), repo, SOURCE, "1", "1")
 
 
 @pytest.mark.parametrize("gate", ["contract", "sbom", "trivy"])
 @pytest.mark.parametrize("outcome", ["failure", "skipped", "cancelled", ""])
 def test_any_failed_gate_prevents_canonical(artifact, gate, outcome):
-    role, repo = artifact
+    repo = artifact
     registry = Registry()
     gates = dict(GATES, **{gate: outcome})
     with pytest.raises(ValueError, match="promotion denied"):
-        service.promote(registry, repo, role, SOURCE, FIRST, gates)
+        service.promote(registry, repo, SOURCE, FIRST, gates)
     assert registry.writes == []
 
 
 def test_different_winner_is_never_overwritten(artifact):
-    role, repo = artifact
+    repo = artifact
     registry = Registry({repo + ":" + SOURCE: OTHER})
     with pytest.raises(RuntimeError, match="never overwrite"):
-        service.promote(registry, repo, role, SOURCE, FIRST, GATES)
+        service.promote(registry, repo, SOURCE, FIRST, GATES)
     assert registry.writes == []
 
 
 def test_identical_winner_is_not_repushed(artifact):
-    role, repo = artifact
+    repo = artifact
     registry = Registry({repo + ":" + SOURCE: FIRST})
-    assert service.promote(registry, repo, role, SOURCE, FIRST, GATES) == "identical-winner-without-repush"
+    assert (
+        service.promote(registry, repo, SOURCE, FIRST, GATES) == "identical-winner-without-repush"
+    )
     assert registry.writes == []
 
 
 def test_qualified_exact_digest_is_attached_and_verified(artifact):
-    role, repo = artifact
+    repo = artifact
     registry = Registry()
-    assert service.promote(registry, repo, role, SOURCE, FIRST, GATES) == "promoted-qualified-oci"
+    assert service.promote(registry, repo, SOURCE, FIRST, GATES) == "promoted-qualified-oci"
     assert registry.writes == [(repo + "@" + FIRST, repo + ":" + SOURCE)]
     assert registry.resolve(repo + ":" + SOURCE) == FIRST
 
 
 def test_post_attach_digest_mismatch_fails(artifact):
-    role, repo = artifact
+    repo = artifact
     with pytest.raises(RuntimeError, match="did not preserve"):
-        service.promote(Registry(mismatch=True), repo, role, SOURCE, FIRST, GATES)
+        service.promote(Registry(mismatch=True), repo, SOURCE, FIRST, GATES)
 
 
 def test_services_use_shared_registry_and_gate_mechanics():
@@ -122,35 +119,57 @@ def test_services_use_shared_registry_and_gate_mechanics():
 
 @pytest.fixture
 def documents():
-    return [yaml.safe_load((ROOT / p).read_text(encoding="utf-8")) for p in (
-        ".github/workflows/backend-api-image.yml", ".github/workflows/backend-beat-image.yml",
-        ".github/actions/backend-service-image/action.yml",
-    )]
+    return [
+        yaml.safe_load((ROOT / p).read_text(encoding="utf-8"))
+        for p in (
+            ".github/workflows/backend-core-image.yml",
+            ".github/actions/backend-service-image/action.yml",
+        )
+    ]
 
 
 def test_actual_parsed_service_documents(documents):
     service.check_workflow_documents(*documents)
 
 
-@pytest.mark.parametrize("mutation", [
-    "canonical-build", "build-alias", "pr-write", "pr-login", "pr-push", "pr-plan",
-    "unguarded-promotion", "early-promotion", "missing-gate", "mutable-sbom", "mutable-scan",
-    "trusted-cancel", "no-pull", "online-contract", "ignore-gate", "local-canonical-tag",
-    "different-promotion-digest", "wrong-gate-selection", "unconditional-pr-action-push", "trusted-event",
-])
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "canonical-build",
+        "build-alias",
+        "pr-write",
+        "pr-login",
+        "pr-push",
+        "pr-plan",
+        "unguarded-promotion",
+        "early-promotion",
+        "missing-gate",
+        "mutable-sbom",
+        "mutable-scan",
+        "trusted-cancel",
+        "no-pull",
+        "online-contract",
+        "ignore-gate",
+        "local-canonical-tag",
+        "different-promotion-digest",
+        "wrong-gate-selection",
+        "unconditional-pr-action-push",
+        "trusted-event",
+    ],
+)
 def test_trust_regressions_fail_closed(documents, mutation):
-    api, beat, action = copy.deepcopy(documents)
+    core, action = copy.deepcopy(documents)
     steps = {s["id"]: s for s in action["runs"]["steps"] if "id" in s}
     if mutation == "canonical-build":
         steps["build"]["with"]["tags"] = "${{ github.sha }}"
     elif mutation == "build-alias":
         steps["build"]["with"]["tags"] = "build-${{ github.run_id }}"
     elif mutation == "pr-write":
-        api["jobs"]["validate"]["permissions"]["packages"] = "write"
+        core["jobs"]["validate"]["permissions"]["packages"] = "write"
     elif mutation == "pr-login":
-        api["jobs"]["validate"]["steps"].append({"uses": "docker/login-action@pin"})
+        core["jobs"]["validate"]["steps"].append({"uses": "docker/login-action@pin"})
     elif mutation == "pr-push":
-        api["jobs"]["validate"]["steps"].append({"run": "docker push bad"})
+        core["jobs"]["validate"]["steps"].append({"run": "docker push bad"})
     elif mutation == "pr-plan":
         steps["plan"].pop("if")
     elif mutation == "unguarded-promotion":
@@ -165,7 +184,7 @@ def test_trust_regressions_fail_closed(documents, mutation):
     elif mutation == "mutable-scan":
         steps["scan"]["with"]["image-ref"] = "${{ github.sha }}"
     elif mutation == "trusted-cancel":
-        beat["concurrency"]["cancel-in-progress"] = True
+        core["concurrency"]["cancel-in-progress"] = True
     elif mutation == "no-pull":
         steps["trusted-artifact"]["run"] = "echo no pull"
     elif mutation == "online-contract":
@@ -181,17 +200,17 @@ def test_trust_regressions_fail_closed(documents, mutation):
     elif mutation == "unconditional-pr-action-push":
         action["runs"]["steps"].append({"run": "docker push bad"})
     elif mutation == "trusted-event":
-        api["jobs"]["publish"]["if"] = "true"
+        core["jobs"]["publish"]["if"] = "true"
     with pytest.raises(ValueError):
-        service.check_workflow_documents(api, beat, action)
+        service.check_workflow_documents(core, action)
 
 
 def test_valid_service_digest_selection_cli(artifact, capsys):
-    role, repo = artifact
-    assert service.main(["select", "--role", role, "--repository", repo, "--digest", FIRST]) == 0
+    repo = artifact
+    assert service.main(["select", "--repository", repo, "--digest", FIRST]) == 0
     assert repo + "@" + FIRST in capsys.readouterr().out
 
 
 def test_malformed_service_digest_cli_fails_closed(artifact):
-    role, repo = artifact
-    assert service.main(["select", "--role", role, "--repository", repo, "--digest", "latest"]) == 1
+    repo = artifact
+    assert service.main(["select", "--repository", repo, "--digest", "latest"]) == 1

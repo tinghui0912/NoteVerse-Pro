@@ -1,6 +1,9 @@
 """Content-only compilation and binding-first application reads."""
 
-from app.composition import storage_resources as _resource_wiring
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 
 from dataclasses import replace
 from pathlib import Path
@@ -16,6 +19,8 @@ from app.modules.practice.bundle.service import PracticeBundleService
 from app.modules.score_access.actions import ScoreAction
 from app.modules.practice.score.compiler.stable_ids import prepare_musicxml_ids_for_practice
 from app.modules.practice.score.compiler.musicxml import compile_practice_score
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+from app.runtime.customer_api.context import get_context
 
 FIXTURE = Path(__file__).parent / "fixtures/musicxml/bundle-multi-part.musicxml"
 
@@ -95,12 +100,16 @@ def durable_row(bundle):
 
 def bundle_storage(bundle):
     return Mock(
-        read_bytes=Mock(
-            side_effect=lambda key: {
-                "prepared.xml": bundle.prepared_musicxml.data,
-                "artifact.json": bundle.artifact.representation.data,
-                "canonical.xml": FIXTURE.read_bytes(),
-            }[key]
+        iter_bytes=Mock(
+            side_effect=lambda key, **kwargs: iter(
+                [
+                    {
+                        "prepared.xml": bundle.prepared_musicxml.data,
+                        "artifact.json": bundle.artifact.representation.data,
+                        "canonical.xml": FIXTURE.read_bytes(),
+                    }[key]
+                ]
+            )
         )
     )
 
@@ -124,7 +133,12 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
         compiler=compiler,
         asset_repository=assets,
         access_policy=Mock(authorize_revision=Mock(return_value=access)),
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
     )
     db = Mock()
     with patch(
@@ -147,7 +161,7 @@ def test_bound_revision_reads_without_compiler_canonical_lookup_or_materializati
     assert read.artifact.artifactId == bundle.artifact.artifact_id
     compiler.compile.assert_not_called()
     assets.canonical_source.assert_not_called()
-    assert storage.read_bytes.call_count == 2
+    assert storage.iter_bytes.call_count == 2
     writer.ensure_binding.assert_not_called()
 
 
@@ -182,7 +196,12 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
         compiler=compiler,
         asset_repository=assets,
         access_policy=Mock(authorize_revision=Mock(return_value=access)),
-        writes=_resource_wiring.build_object_write_coordinator(storage),
+        writes=resources_for(storage).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
+        ),
     )
     with patch(
         "app.modules.practice.bundle.service.lock_live_practice_mutation_access",
@@ -204,8 +223,8 @@ async def test_unbound_revision_compiles_once_then_reads_existing_binding():
     assert service.access_policy.authorize_revision.call_count == 2
     compiler.compile.assert_called_once_with(canonical_musicxml=FIXTURE.read_bytes())
     assets.canonical_source.assert_called_once()
-    storage.read_bytes.assert_any_call("canonical.xml")
-    assert storage.read_bytes.call_count == 3
+    storage.iter_bytes.assert_any_call("canonical.xml", chunk_size=64 * 1024)
+    assert storage.iter_bytes.call_count == 3
 
 
 def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
@@ -235,8 +254,13 @@ def test_unbound_revision_reauthorization_failure_prevents_binding_mutation():
                 )
             )
         ),
-        writes=_resource_wiring.build_object_write_coordinator(
-            Mock(read_bytes=Mock(return_value=FIXTURE.read_bytes()))
+        writes=resources_for(
+            Mock(iter_bytes=Mock(side_effect=lambda *args, **kwargs: iter([FIXTURE.read_bytes()])))
+        ).build_object_write_coordinator(),
+        retention=PracticeBundleRetention(
+            config=StoredObjectRetirementSettings.model_validate(
+                get_context().settings.model_dump()
+            )
         ),
     )
     service.asset_repository.canonical_source.return_value.stored_object.id = 1
@@ -291,8 +315,8 @@ def test_content_verifier_rejects_durable_representation_corruption(corruption):
             object_key="artifact.json", content=data, content_type="application/json"
         )
         row.artifact_object.id = 2
-        storage.read_bytes.side_effect = lambda key: (
-            data if key == "artifact.json" else candidate.prepared_musicxml.data
+        storage.iter_bytes.side_effect = lambda key, **kwargs: iter(
+            [data if key == "artifact.json" else candidate.prepared_musicxml.data]
         )
     elif corruption == "artifact_id":
         row.artifact_id = "practice-score-artifact:0000000000000000"

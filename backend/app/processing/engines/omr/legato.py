@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 import importlib.util
 import json
 import os
@@ -9,9 +10,15 @@ from pathlib import Path
 import subprocess
 from typing import Callable
 import copy
+from app.platform.document_admission.musicxml import (
+    parse_musicxml_file,
+    MUSICXML_LIMITS,
+    DocumentAdmissionError,
+    AdmissionReason,
+)
 import xml.etree.ElementTree as ET
 
-from app.core.settings.worker_runtime import get_worker_runtime_settings
+from app.platform.config.worker_model_engine import WorkerModelEngineSettings
 from app.core.logger import logger
 from app.processing.musicxml import normalize_initial_musicxml_clefs
 from app.shared.error_codes import CustomerErrorCode
@@ -32,6 +39,7 @@ class LegatoOmrEngine:
     def __init__(
         self,
         output_folder: str,
+        config: WorkerModelEngineSettings,
         timeout_seconds: int,
         repo_path: str | None = None,
         python_executable: str | None = None,
@@ -42,7 +50,8 @@ class LegatoOmrEngine:
         beam_size: int | None = None,
         batch_size: int | None = None,
     ) -> None:
-        settings = get_worker_runtime_settings()
+        self.config = config
+        settings = config
         self.output_folder = Path(output_folder)
         self.timeout_seconds = min(
             timeout_seconds,
@@ -254,7 +263,7 @@ class LegatoOmrEngine:
             if not current_pythonpath
             else f"{self.repo_path}{os.pathsep}{current_pythonpath}"
         )
-        settings = get_worker_runtime_settings()
+        settings = self.config
         if settings.HF_HOME:
             env["HF_HOME"] = settings.HF_HOME
         if settings.HF_HUB_OFFLINE:
@@ -339,8 +348,11 @@ class LegatoOmrEngine:
         if not page_xml_paths:
             raise ValueError("No MusicXML pages to merge")
 
-        base_tree = ET.parse(page_xml_paths[0])
+        if sum(path.stat().st_size for path in page_xml_paths) > MUSICXML_LIMITS.max_bytes:
+            raise DocumentAdmissionError(AdmissionReason.SIZE_EXCEEDED)
+        base_tree = parse_musicxml_file(page_xml_paths[0])
         base_root = base_tree.getroot()
+        element_count = sum(1 for _ in base_root.iter())
         base_parts = self._collect_musicxml_parts(base_root)
         base_part_ids = list(base_parts.keys())
         if not base_part_ids:
@@ -351,7 +363,10 @@ class LegatoOmrEngine:
         }
 
         for page_index, page_xml_path in enumerate(page_xml_paths[1:], 2):
-            page_root = ET.parse(page_xml_path).getroot()
+            page_root = parse_musicxml_file(page_xml_path).getroot()
+            element_count += sum(1 for _ in page_root.iter())
+            if element_count > MUSICXML_LIMITS.max_elements:
+                raise DocumentAdmissionError(AdmissionReason.ELEMENT_COUNT_EXCEEDED)
             page_parts = self._collect_musicxml_parts(page_root)
             page_part_ids = list(page_parts.keys())
             if page_part_ids != base_part_ids:

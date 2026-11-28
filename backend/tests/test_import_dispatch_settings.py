@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.import_dispatch import ImportDispatchSettings
+from app.platform.config.import_dispatch import ImportDispatchSettings
 
 
 def test_import_dispatch_settings_accept_default_policy() -> None:

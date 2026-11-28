@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
-from app.core.settings.worker_runtime import WorkerRuntimeSettings
+from app.runtime.worker.settings import WorkerSettings
+from app.runtime.customer_api.settings import CustomerApiSettings
 
 
 WORKER_RUNTIME_BASE = {
@@ -16,15 +17,14 @@ WORKER_RUNTIME_BASE = {
 
 
 def test_settings_do_not_implicitly_load_an_env_file() -> None:
-    loaded_settings = Settings()
+    loaded_settings = CustomerApiSettings()
 
-    assert loaded_settings.SECRET_KEY
     assert loaded_settings.DATABASE_URL
     assert loaded_settings.model_config.get("env_file") is None
 
 
 def test_debug_environment_parsing() -> None:
-    parse_debug = Settings.parse_debug_flag
+    parse_debug = CustomerApiSettings.parse_debug_flag
 
     assert parse_debug("debug") is True
     assert parse_debug("development") is True
@@ -35,37 +35,37 @@ def test_debug_environment_parsing() -> None:
 
 
 def test_settings_compose_trusted_proxy_policy() -> None:
-    settings = Settings(TRUSTED_PROXY_CIDRS='["10.0.0.0/8"]')
+    settings = CustomerApiSettings(TRUSTED_PROXY_CIDRS='["10.0.0.0/8"]')
 
     assert settings.TRUSTED_PROXY_CIDRS == ["10.0.0.0/8"]
 
 
 def test_settings_compose_browser_cors_policy() -> None:
-    settings = Settings(BACKEND_CORS_ORIGINS=["https://app.example.com"])
+    settings = CustomerApiSettings(BACKEND_CORS_ORIGINS=["https://app.example.com"])
 
-    assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == ["https://app.example.com/"]
+    assert [str(origin) for origin in settings.BACKEND_CORS_ORIGINS] == ["https://app.example.com"]
 
 
-def test_settings_compose_token_signing_policy() -> None:
-    assert len(Settings().SECRET_KEY) >= 32
+def test_settings_compose_session_policy() -> None:
+    assert CustomerApiSettings().SESSION_IDLE_DAYS == 14
 
 
 def test_settings_compose_public_frontend_url_policy() -> None:
-    assert Settings(FRONTEND_BASE_URL="https://app.example.com").FRONTEND_BASE_URL == (
+    assert CustomerApiSettings(FRONTEND_BASE_URL="https://app.example.com").FRONTEND_BASE_URL == (
         "https://app.example.com"
     )
 
 
 def test_playback_soundfont_path_is_required() -> None:
     with pytest.raises(ValidationError, match="PLAYBACK_SOUNDFONT_PATH"):
-        WorkerRuntimeSettings(
+        WorkerSettings(
             LEGATO_REPO_PATH="/opt/noteverse/legato",
             PLAYBACK_SOUNDFONT_PATH=None,
         )
 
 
 def test_worker_playback_soundfont_path_can_be_configured_independently() -> None:
-    settings = WorkerRuntimeSettings(
+    settings = WorkerSettings(
         LEGATO_REPO_PATH="/opt/noteverse/legato",
         PLAYBACK_SOUNDFONT_PATH="~/sounds/playback.sf2",
     )
@@ -74,7 +74,7 @@ def test_worker_playback_soundfont_path_can_be_configured_independently() -> Non
 
 
 def test_offline_model_paths_expand_user_home() -> None:
-    settings = WorkerRuntimeSettings(
+    settings = WorkerSettings(
         **WORKER_RUNTIME_BASE,
         MODEL_ROOT="~/noteverse/models",
         HF_HOME="~/noteverse/models/huggingface",
@@ -101,13 +101,13 @@ def test_offline_model_paths_expand_user_home() -> None:
 
 
 def test_legato_runtime_requires_repository_path() -> None:
-    settings = WorkerRuntimeSettings(**WORKER_RUNTIME_BASE)
+    settings = WorkerSettings(**WORKER_RUNTIME_BASE)
 
     assert settings.LEGATO_REPO_PATH == "/opt/noteverse/legato"
 
 
 def test_settings_compose_import_dispatch_policy() -> None:
-    settings = Settings()
+    settings = CustomerApiSettings()
 
     assert settings.IMPORT_DISPATCH_INTERVAL_SECONDS > 0
     assert settings.IMPORT_DISPATCH_TIMEOUT_SECONDS > 0
@@ -118,74 +118,75 @@ def test_settings_compose_import_dispatch_policy() -> None:
 
 
 def test_settings_compose_render_asset_delivery_policy() -> None:
-    settings = Settings()
+    settings = CustomerApiSettings()
 
     assert settings.REVISION_RENDER_MAX_ATTEMPTS > 0
 
 
 def test_settings_compose_playback_delivery_policy() -> None:
-    settings = Settings()
+    settings = CustomerApiSettings()
 
     assert settings.PLAYBACK_OUTBOX_MAX_ATTEMPTS > 0
 
 
 def test_settings_compose_mail_delivery_policy() -> None:
-    settings = Settings()
+    settings = CustomerApiSettings()
 
     assert settings.MAIL_OUTBOX_RETENTION_DAYS > 0
 
 
-def test_settings_compose_notification_and_realtime_policies() -> None:
-    settings = Settings()
+def test_each_process_owns_its_realtime_and_retention_policy() -> None:
+    worker = WorkerSettings()
+    customer = CustomerApiSettings()
 
-    assert settings.NOTIFICATION_RETENTION_DAYS > 0
-    assert settings.REALTIME_EVENT_BATCH_SIZE > 0
-    assert settings.REALTIME_EVENT_RETENTION_DAYS > 0
+    assert worker.NOTIFICATION_RETENTION_DAYS > 0
+    assert customer.REALTIME_EVENT_BATCH_SIZE > 0
+    assert worker.REALTIME_EVENT_RETENTION_DAYS > 0
 
 
 def test_settings_compose_score_deletion_delivery_policy() -> None:
-    settings = Settings()
+    settings = CustomerApiSettings()
 
     assert settings.SCORE_DELETION_MAX_ATTEMPTS > 0
 
 
 def test_settings_compose_fingering_execution_policy() -> None:
-    settings = Settings()
+    settings = CustomerApiSettings()
 
     assert settings.FINGERING_MAX_CONCURRENCY > 0
     assert settings.FINGERING_MAX_CONTENT_BYTES > 0
 
 
 def test_settings_compose_customer_session_security_policy() -> None:
-    settings = Settings()
+    settings = CustomerApiSettings()
 
-    assert settings.ACCESS_TOKEN_EXPIRE_MINUTES > 0
-    assert settings.AUTH_COOKIE_SAMESITE in {"lax", "strict", "none"}
+    assert settings.SESSION_ABSOLUTE_DAYS == 30
+    assert settings.SESSION_CACHE_TTL_SECONDS == 120
 
 
 def test_settings_compose_account_email_link_policy() -> None:
-    settings = Settings()
+    settings = CustomerApiSettings()
 
     assert settings.EMAIL_PASSWORD_RESET_TOKEN_TTL_SECONDS > 0
     assert settings.EMAIL_VERIFY_TOKEN_MAX_AGE_SECONDS > 0
 
 
 def test_settings_compose_transactional_mail_provider_policy() -> None:
-    settings = Settings()
+    settings = WorkerSettings()
 
     assert settings.RESEND_API_URL.startswith(("http://", "https://"))
 
 
 def test_s3_storage_settings_are_validated() -> None:
     with pytest.raises(ValidationError, match="Missing required S3 storage settings"):
-        Settings(
+        CustomerApiSettings(
             S3_ENDPOINT_URL=None,
             S3_BUCKET=None,
             S3_ACCESS_KEY_ID=None,
             S3_SECRET_ACCESS_KEY=None,
         )
 
-    settings = Settings(
+    settings = CustomerApiSettings(
         S3_ENDPOINT_URL="oss-cn-shenzhen.aliyuncs.com",
         S3_BUCKET="bucket",
         S3_ACCESS_KEY_ID="access-key",
@@ -197,16 +198,16 @@ def test_s3_storage_settings_are_validated() -> None:
 
 def test_legato_repository_path_is_required() -> None:
     with pytest.raises(ValidationError, match="LEGATO_REPO_PATH is required"):
-        WorkerRuntimeSettings(
+        WorkerSettings(
             PLAYBACK_SOUNDFONT_PATH="/opt/noteverse/models/soundfonts/FluidR3_GM.sf2",
             LEGATO_REPO_PATH=None,
         )
 
 
 def test_app_main_import_exposes_routes() -> None:
-    from fastapi.testclient import TestClient
+    from tests.support.browser import BrowserTestClient as TestClient
 
-    from app.main import app
+    from app.runtime.customer_api.main import app
 
     with TestClient(app) as client:
         for path in ("/", "/docs", "/api/v1/openapi.json"):

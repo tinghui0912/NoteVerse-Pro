@@ -22,7 +22,6 @@ export const customerRoutes = {
   authLogout: { method: "POST", url: "/api/v1/auth/logout" },
   authPasswordReset: { method: "POST", url: "/api/v1/auth/password/reset" },
   authPasswordResetRequest: { method: "POST", url: "/api/v1/auth/password/forgot" },
-  authRefresh: { method: "POST", url: "/api/v1/auth/refresh" },
   authRegister: { method: "POST", url: "/api/v1/auth/register" },
   guestPreviewGet: { method: "GET", url: "/api/v1/guest-previews/{token}" },
   guestPreviewPageView: { method: "GET", url: "/api/v1/guest-previews/{token}/render-assets/{asset_id}/view" },

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Validate NoteVerse Kubernetes application manifests.
 
 The default mode validates the public repository templates. Public templates
@@ -17,12 +18,21 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from check_k8s_config_ownership import validate_rendered
+from browser_security_contract import validate_browser_documents
+from container_security_contract import (
+    validate_application_documents,
+    validate_dockerfiles,
+    validate_external_files,
+)
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TARGETS = (
     Path("deploy/application/base"),
     Path("deploy/application/overlays/staging"),
     Path("deploy/application/overlays/production"),
+    Path("deploy/application/overlays/production-ha"),
 )
 
 
@@ -128,6 +138,24 @@ def main() -> int:
 
     for target in args.targets:
         rendered = render_kustomize(target)
+        findings.extend(
+            Finding(str(target), 1, "runtime-credential-contract", message)
+            for message in validate_rendered(rendered, require_configuration=target.name != "base")
+        )
+        findings.extend(
+            Finding(str(target), 1, "container-network-security", message)
+            for message in validate_application_documents(
+                [doc for doc in yaml.safe_load_all(rendered) if doc]
+            )
+            + validate_dockerfiles()
+            + validate_external_files(target, [doc for doc in yaml.safe_load_all(rendered) if doc])
+        )
+        findings.extend(
+            Finding(str(target), 1, "browser-security-contract", message)
+            for message in validate_browser_documents(
+                [doc for doc in yaml.safe_load_all(rendered) if doc]
+            )
+        )
         findings.extend(scan_text(f"{target} (rendered)", rendered, patterns))
         for rule, snippet in REQUIRED_RENDERED_SNIPPETS:
             if snippet not in rendered:

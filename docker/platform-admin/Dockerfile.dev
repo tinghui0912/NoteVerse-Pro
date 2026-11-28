@@ -11,6 +11,8 @@ RUN npm install -g "npm@${NPM_VERSION}" \
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=development
 
+ENV TMPDIR=/tmp HOME=/tmp npm_config_cache=/tmp/npm
+
 WORKDIR /app
 
 COPY apps/platform-admin/package.json apps/platform-admin/package-lock.json ./
@@ -19,6 +21,10 @@ RUN npm ci \
 
 COPY docker/platform-admin/entrypoint.dev.sh /usr/local/bin/platform-admin-dev-entrypoint
 RUN chmod +x /usr/local/bin/platform-admin-dev-entrypoint
+
+RUN groupadd --gid 10001 noteverse && useradd --uid 10001 --gid 10001 --no-create-home --home-dir /tmp noteverse \
+    && chown -R 10001:10001 /app
+USER 10001:10001
 
 EXPOSE 3001
 

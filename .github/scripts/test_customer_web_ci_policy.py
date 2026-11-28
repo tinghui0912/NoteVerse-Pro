@@ -263,6 +263,10 @@ class ImagePolicyTests(unittest.TestCase):
 
     def test_image_risk_prs_run_full_image_pipeline(self):
         inputs = {".dockerignore", policy.IMAGE_WORKFLOW,
+                  "backend/tests/fixtures/verovio-written-realization.json",
+                  "backend/tests/fixtures/verovio-playback-profile.json",
+                  ".github/scripts/frontend_image_security_smoke.mjs",
+
                   "apps/customer-web/package.json", "apps/customer-web/package-lock.json",
                   "apps/customer-web/next.config.ts", "apps/customer-web/.npmrc",
                   "apps/customer-web/npm-shrinkwrap.json"}
@@ -313,7 +317,7 @@ class ImagePolicyTests(unittest.TestCase):
                 self.assert_no_image(event, [])
 
     def test_backend_and_unrelated_workflow_are_not_customer_runtime(self):
-        self.assertFalse(policy.runtime_relevant("backend/app/main.py"))
+        self.assertFalse(policy.runtime_relevant("backend/app/runtime/customer_api/main.py"))
         self.assertFalse(policy.runtime_relevant(".github/workflows/backend-quality.yml"))
 
 
@@ -507,7 +511,7 @@ class CustomerBrowserProtocolWorkflowTests(unittest.TestCase):
         self.assertNotIn('        if:', block)
         self.assertLess(customer.index(block), customer.index('      - name: Verify reusable PR Quality proof'))
         backend = (root / '.github/workflows/backend-quality.yml').read_text(encoding='utf-8')
-        self.assertIn('python scripts/generate_customer_browser_protocol.py --check', backend)
+        self.assertIn('python scripts/generate_customer_browser_protocol.py --target backend --check', backend)
 
 
 class RecordingMediaWorkflowTests(unittest.TestCase):

@@ -27,6 +27,10 @@ POLICY_PATHS = {
 IMAGE_POLICY_TRUST_PATHS = {QUALITY_WORKFLOW, *POLICY_PATHS}
 IMAGE_INPUTS = {
     ".dockerignore", IMAGE_WORKFLOW,
+    "backend/tests/fixtures/verovio-written-realization.json",
+    "backend/tests/fixtures/verovio-playback-profile.json",
+    ".github/scripts/frontend_image_security_smoke.mjs",
+
     "apps/customer-web/package.json", "apps/customer-web/package-lock.json",
     "apps/customer-web/next.config.ts",
     # npm reads these before resolving/installing dependencies, if present.
@@ -35,7 +39,7 @@ IMAGE_INPUTS = {
 
 
 def runtime_relevant(path: str) -> bool:
-    if path in {".dockerignore", IMAGE_WORKFLOW}:
+    if path in IMAGE_INPUTS:
         return True
     if path.startswith("docker/customer-web/"):
         return True
@@ -101,7 +105,8 @@ def _time(value: str) -> datetime:
 def quality_reuse(event_name: str, ref: str, sha: str, repository: str,
                   evidence: dict) -> QualityDecision:
     """Allow reuse only for complete, exact, pre-merge PR proof; malformed data denies."""
-    deny = lambda reason: QualityDecision(reason=reason)
+    def deny(reason):
+        return QualityDecision(reason=reason)
     if event_name != "push" or ref != "refs/heads/main":
         return deny("Only a main push can reuse PR Quality.")
     try:

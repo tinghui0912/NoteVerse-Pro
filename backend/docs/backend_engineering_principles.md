@@ -23,8 +23,8 @@ The backend now uses a hybrid architecture:
 - OCR, MusicXML, rendering, realtime, and audio engines live under `app/processing/*`;
 - Celery runtime wiring and durable outbox dispatch adapters live under `app/worker/*`;
 - application runtime concerns live under `app/core/*`;
-- route aggregation lives in `app/api/v1/router.py`;
-- `app/main.py` stays thin.
+- route aggregation lives in `app/runtime/customer_api/router.py`;
+- `app/runtime/customer_api/main.py` stays thin.
 
 Current feature modules:
 
@@ -419,7 +419,7 @@ Shared code should remain low-coupling. Do not put feature-specific ORM-heavy ob
 `app/shared/*` just because multiple modules currently import them.
 
 Celery submission is a worker adapter, not a shared domain primitive. The modules in
-`app/worker/dispatch/*` bridge already-claimed import, render, playback, and mail records
+`app/composition/dispatch/*` bridge already-claimed import, render, playback, and mail records
 to Celery, and release their claims when broker submission fails. Domain services retain
 their state transitions and do not import Celery directly.
 

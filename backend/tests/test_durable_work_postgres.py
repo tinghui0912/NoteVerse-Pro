@@ -1,5 +1,7 @@
 """Persisted failure consistency and the operator SQL projection on PostgreSQL."""
 
+from app.runtime.worker.context import get_context as worker_context
+
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
@@ -32,6 +34,7 @@ from app.modules.ops.query_service import OpsAsyncOperationQueryService
 from app.modules.ops.schemas import AsyncOperationKind
 from app.shared.time import utc_now
 from tests.support.postgres_schema import postgres_schema_database
+from app.platform.config.delivery import DeliveryConfig
 
 
 def test_import_state_requires_complete_failure_facts(monkeypatch):
@@ -206,7 +209,9 @@ def test_persisted_failure_facts_are_complete_and_shared_by_ops_queries(monkeypa
                     ),
                 )
             db.commit()
-            query = OpsAsyncOperationQueryService()
+            query = OpsAsyncOperationQueryService(
+                config=DeliveryConfig.model_validate(worker_context().settings.model_dump())
+            )
             page = query.list_operations(
                 db, limit=10, failure_class=DurableFailureClass.SYSTEM_ERROR
             )

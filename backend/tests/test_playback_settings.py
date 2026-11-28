@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.core.settings.playback import PlaybackSettings
+from app.platform.config.playback import PlaybackSettings
 
 
 def test_playback_settings_normalize_soundfont_path() -> None:

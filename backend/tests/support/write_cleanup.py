@@ -2,12 +2,12 @@
 
 from contextlib import contextmanager
 from datetime import timedelta
-from unittest.mock import patch
+from tests.support.worker_context import patch_worker
 from sqlalchemy import select
 from app.db.models import ObjectWriteIntent
-from app.modules.media_storage.write_cleanup import write_cleanup_delivery
 from app.worker.execution import object_write_cleanup as worker
 from app.shared.time import utc_now
+from tests.support.runtime_resources import deliveries
 
 
 def drain_write_cleanup(db, storage):
@@ -16,7 +16,7 @@ def drain_write_cleanup(db, storage):
     ):
         row.write_expires_at = utc_now() - timedelta(seconds=1)
     db.commit()
-    due = write_cleanup_delivery.recover_and_list_due(db)
+    due = deliveries().write_cleanup.recover_and_list_due(db)
     db.commit()
 
     @contextmanager
@@ -28,8 +28,5 @@ def drain_write_cleanup(db, storage):
             db.rollback()
             raise
 
-    with (
-        patch.object(worker, "SessionLocal", transaction),
-        patch.object(worker, "object_storage", storage),
-    ):
+    with patch_worker(worker, sessions=transaction, storage=storage):
         return [worker.execute_object_write_cleanup_task(None, uuid) for uuid in due]

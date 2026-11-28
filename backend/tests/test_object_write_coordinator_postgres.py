@@ -17,9 +17,11 @@ from app.modules.media_storage.domain import ObjectWriteIntentStatus as Status
 from app.modules.media_storage.write_contracts import ObjectWriteItem
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 from app.modules.media_storage.adoption import adopt_written_object, adopt_written_objects
-from app.modules.media_storage.write_cleanup import write_cleanup_delivery, clean_write_attempt
+from app.modules.media_storage.write_cleanup import clean_write_attempt
 from tests.support.object_storage import InMemoryObjectStorage
 from app.storage.base import ObjectStorageOperationFailedError, ObjectStorageUnavailableError
+from tests.support.runtime_resources import deliveries
+from app.platform.config.object_writes import ObjectWriteSettings
 
 
 @pytest.fixture
@@ -30,7 +32,11 @@ def writes(postgres_engine):
             [User(id=i, email=f"owner{i}@example.test", password_hash="hash") for i in (1, 2)]
         )
     storage = InMemoryObjectStorage()
-    return sessions, storage, ObjectWriteCoordinator(storage, sessions)
+    return (
+        sessions,
+        storage,
+        ObjectWriteCoordinator(storage, sessions, config=ObjectWriteSettings()),
+    )
 
 
 def test_write_does_not_commit_flush_or_rollback_caller(writes):
@@ -100,11 +106,11 @@ def test_partial_batch_failure_keeps_every_key_cleanup_owned(writes):
         rows = list(db.scalars(select(ObjectWriteIntent)))
         assert len(rows) == 3 and {row.status for row in rows} == {Status.CLEANUP_PENDING}
         assert db.scalar(select(StoredObject)) is None
-        identities = write_cleanup_delivery.recover_and_list_due(db)
+        identities = deliveries().write_cleanup.recover_and_list_due(db)
         db.commit()
     for identity in identities:
         with sessions.begin() as db:
-            attempt = write_cleanup_delivery.claim(db, identity)
+            attempt = deliveries().write_cleanup.claim(db, identity)
         with sessions.begin() as db:
             assert clean_write_attempt(db, storage, attempt) == "cleaned"
     assert storage.objects == {}
@@ -248,7 +254,7 @@ def test_uncertain_written_commit_retains_durable_cleanup_responsibility(writes)
     uncertain = sessionmaker(
         sessions.kw["bind"], class_=UncertainCommitSession, expire_on_commit=False
     )
-    coordinator = ObjectWriteCoordinator(storage, uncertain)
+    coordinator = ObjectWriteCoordinator(storage, uncertain, config=ObjectWriteSettings())
     with pytest.raises(RuntimeError, match="acknowledgement"):
         coordinator.write_bytes(key="uncertain/output", content=b"bytes")
     with sessions() as db:
@@ -258,7 +264,7 @@ def test_uncertain_written_commit_retains_durable_cleanup_responsibility(writes)
         assert db.scalar(select(StoredObject)) is None
         identity = row.intent_uuid
     with sessions.begin() as db:
-        attempt = write_cleanup_delivery.claim(db, identity)
+        attempt = deliveries().write_cleanup.claim(db, identity)
     with sessions.begin() as db:
         assert clean_write_attempt(db, storage, attempt) == "cleaned"
     assert not storage.exists("uncertain/output")
@@ -299,7 +305,7 @@ def test_provider_io_has_no_open_coordinator_session_or_checked_out_connection(w
             active.discard(id(self))
 
     observed = sessionmaker(engine, class_=ObservedSession, expire_on_commit=False)
-    coordinator = ObjectWriteCoordinator(storage, observed)
+    coordinator = ObjectWriteCoordinator(storage, observed, config=ObjectWriteSettings())
     for name in ("put_bytes", "copy", "object_metadata", "iter_bytes"):
         original = getattr(storage, name)
 
@@ -337,7 +343,7 @@ def test_unknown_provider_mutation_excludes_cleanup_and_replacement_generation(w
         row = db.scalar(select(ObjectWriteIntent))
         assert row.status == Status.WRITE_UNKNOWN
         generation = row.write_token
-        assert write_cleanup_delivery.recover_and_list_due(db) == []
+        assert deliveries().write_cleanup.recover_and_list_due(db) == []
         db.commit()
     with pytest.raises(ValueError, match="owns"):
         coordinator.write_bytes(key="unknown", content=b"bytes")

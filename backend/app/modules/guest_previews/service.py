@@ -1,3 +1,4 @@
+from app.modules.account.resource_users import resource_user_query
 from app.modules.media_storage.delivery import MediaDeliveryService
 from app.modules.score_access.queries import active_score_predicate
 import re
@@ -126,7 +127,7 @@ class GuestPreviewService:
             render_profile=SCORE_PRESENTATION_RENDER_PROFILE,
         )
         audio = self.assets.playback_asset(db, require_persisted_id(revision.id, entity="revision"))
-        owner = db.get(User, score.owner_user_id)
+        owner = db.scalar(resource_user_query().where(User.id == score.owner_user_id))
         return GuestPreviewRead(
             display_title=score.display_title,
             shared_by=(owner.display_name or "") if owner else "",

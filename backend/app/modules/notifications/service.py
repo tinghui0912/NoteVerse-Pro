@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from app.modules.account.resource_users import resource_user_query
 from datetime import datetime
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
@@ -184,7 +186,7 @@ class NotificationService:
         )
 
     def unread_count(self, db: Session, user_id: int) -> NotificationUnreadCountRead:
-        user = db.get(User, user_id)
+        user = db.scalar(resource_user_query().where(User.id == user_id))
         if user is None:
             raise UnauthorizedException(CustomerErrorCode.NO_ACCESS)
         return NotificationUnreadCountRead(count=self.repository.unread_count(db, user_id))

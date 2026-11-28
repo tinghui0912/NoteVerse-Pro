@@ -1,11 +1,11 @@
 {
   "guest_preview_not_found": "此访客预览不可用。",
+  "payload_too_large": "请求或文档过大，请减小内容后重试。",
   "validation_error": "提交的信息有误，请检查后重试。",
   "resource_not_found": "资源不存在或已被删除。",
   "business_rule_violation": "当前状态下无法完成该操作。",
   "auth_failed": "身份验证失败，请重新登录。",
   "unauthorized": "请先登录后再继续。",
-  "csrf_token_invalid": "登录安全校验失败，请刷新页面后重试。",
   "request_origin_invalid": "该请求已被安全策略拦截。",
   "token_invalid_expired": "登录状态已过期，请重新登录。",
   "account_inactive": "账号未启用，请联系管理员。",
@@ -43,7 +43,7 @@
   "quota_check_unavailable": "暂时无法确认存储空间，请稍后再试。",
   "current_password_required": "请输入当前密码。",
   "current_password_wrong": "当前密码错误。",
-  "password_too_short": "密码长度至少需要 6 个字符。",
+  "password_too_short": "密码长度须为 12–128 个字符。",
   "no_avatar": "当前没有可删除的头像。",
   "avatar_process_failed": "头像处理失败，请更换图片后重试。",
   "file_type_not_allowed": "文件类型不受支持。",
@@ -77,5 +77,8 @@
   "guest_preview_not_enabled": "请先启用访客预览，再轮换链接。",
   "practice_activity_conflict": "此练习会话已有不同的完成记录。",
   "invite_recipient_account_closed": "该邀请的接收账户已注销。",
-  "invite_inviter_account_closed": "该邀请的创建账户已注销。"
+  "invite_inviter_account_closed": "该邀请的创建账户已注销。",
+  "unsupported_media_type": "请求格式不受支持。",
+  "rate_limit_exceeded": "操作过于频繁，请稍后重试。",
+  "rate_limit_unavailable": "安全验证暂时不可用，请稍后重试。"
 }

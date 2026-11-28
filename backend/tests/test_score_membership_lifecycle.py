@@ -6,11 +6,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
-from app.api.deps import get_current_user, get_db
+from app.platform.db.dependencies import get_db
+from app.runtime.customer_api.deps import get_current_user
 from app.core.exceptions import UnauthorizedException
 from app.db.models import Score, ScoreRevision, ScoreMembership, ScoreLibraryOrganization
 from app.db.models.score_access import MembershipRole
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.library.schemas import (
     LibraryView,
     LibrarySort,
@@ -26,6 +27,8 @@ from app.modules.collaboration.invitation_service import InvitationService
 from app.modules.collaboration.membership_service import MembershipService
 from tests.test_score_revision_services import score_service_session as score_service_session
 from tests.test_trusted_collaboration import collaboration as collaboration, member_for
+from app.platform.config.application import InvitationConfig
+from app.runtime.customer_api.context import get_context
 
 
 @pytest.mark.asyncio
@@ -41,7 +44,11 @@ async def test_self_leave_http_revokes_each_member_role_idempotently(collaborati
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.delete(f"/api/v1/me/scores/{score.score_uuid}/membership")
             assert response.status_code == 204 and response.content == b""
             session.refresh(membership)
@@ -77,7 +84,11 @@ async def test_owner_and_never_member_cannot_leave_http(collaboration, user_id):
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=user_id)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             assert (
                 await client.delete(f"/api/v1/me/scores/{score.score_uuid}/membership")
             ).status_code == 403
@@ -93,7 +104,12 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
     member_for(session, "EDITOR")
     membership = session.scalar(select(ScoreMembership))
     membership_id = membership.id
-    library, collaboration_service = LibraryService(), InvitationService()
+    library, collaboration_service = (
+        LibraryService(),
+        InvitationService(
+            config=InvitationConfig.model_validate(get_context().settings.model_dump())
+        ),
+    )
     folder = library.create_folder(db, 2, LibraryFolderCreateRequest(name="Studies"))
     library.batch_move(
         db,
@@ -149,7 +165,11 @@ async def test_leave_hides_organization_until_explicit_reinvite_acceptance(colla
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Origin": "http://testserver"},
+        ) as client:
             response = await client.patch(
                 f"/api/v1/scores/{score.score_uuid}/members/{membership_id}",
                 json={"role": "VIEWER"},

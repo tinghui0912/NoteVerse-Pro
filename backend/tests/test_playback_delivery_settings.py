@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.settings.playback_delivery import PlaybackDeliverySettings
+from app.platform.config.playback_delivery import PlaybackDeliverySettings
 
 
 def test_playback_delivery_settings_accept_default_policy() -> None:

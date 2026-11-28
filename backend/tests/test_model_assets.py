@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from app.composition import storage_resources as _resource_wiring
+
+from tests.support.runtime_resources import resources_for
+
 
 from tests.support.http_errors import CUSTOMER_HTTP_ERRORS
 
@@ -13,19 +15,24 @@ import pytest
 from pydantic import ValidationError
 
 from tests.support.object_storage import InMemoryObjectStorage
-from fastapi.testclient import TestClient
+from tests.support.browser import BrowserTestClient as TestClient
 from app.core.http_application import HttpApplication
 
-from app.api.deps import get_current_user
+from app.runtime.customer_api.deps import get_current_user
 from app.db.models.user import User
-from app.modules.model_assets.router import router
-from app.api.resource_dependencies import get_model_asset_service
+from app.runtime.customer_api.routers.model_assets.router import router
+from app.runtime.customer_api.resources import get_model_asset_service
 from app.modules.model_assets.service import ModelAssetService
 from app.modules.model_assets.schemas import PracticeAcousticAccessRead
 from app.modules.model_assets.generated.practice_acoustic_model_asset import MODEL_ASSET_DESCRIPTOR
 from app.core.exception_handlers import register_exception_handlers
+from app.platform.config.model_asset_delivery import ModelAssetDeliverySettings
+
+from app.runtime.customer_api.context import get_context
 
 app = HttpApplication()
+app.state.settings = get_context().settings
+app.state.session_factory = get_context().sessions
 register_exception_handlers(app, **CUSTOMER_HTTP_ERRORS)
 app.include_router(router, prefix="/api/v1/model-assets")
 
@@ -33,7 +40,8 @@ app.include_router(router, prefix="/api/v1/model-assets")
 def create_test_model_asset_service() -> ModelAssetService:
     return ModelAssetService(
         ttl_seconds=3600,
-        delivery=_resource_wiring.build_media_delivery_service(InMemoryObjectStorage()),
+        delivery=resources_for(InMemoryObjectStorage()).build_media_delivery_service(),
+        config=ModelAssetDeliverySettings(),
     )
 
 

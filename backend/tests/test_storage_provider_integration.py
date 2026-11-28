@@ -6,6 +6,8 @@ import httpx
 import pytest
 from app.storage.s3_compatible import S3CompatibleObjectStorage
 from app.storage.base import ObjectNotFoundError
+from app.platform.config.storage import ObjectStorageConfig
+from app.runtime.customer_api.context import get_context
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("NOTEVERSE_RUN_OBJECT_STORAGE_INTEGRATION") != "1",
@@ -14,7 +16,9 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_signed_lengths_multipart_copy_and_idempotent_deletion():
-    storage = S3CompatibleObjectStorage()
+    storage = S3CompatibleObjectStorage(
+        config=ObjectStorageConfig.model_validate(get_context().settings.model_dump())
+    )
     prefix = "noteverse-integration/" + uuid4().hex + "/"
     single, final, multipart, abandoned = [
         prefix + name for name in ("single", "final", "multipart", "abandoned")

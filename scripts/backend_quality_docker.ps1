@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$composeFile = Join-Path $repoRoot "docker-compose.backend-dev.yml"
+$composeFile = Join-Path $repoRoot "docker-compose.backend-quality.yml"
 
 function Invoke-Quality {
     param([string] $Name, [string] $Command)
@@ -23,9 +23,10 @@ function Invoke-Quality {
 
 switch ($Check) {
     "contracts" {
-        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
-        Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --check"
+        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --target backend --check"
+        Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --target backend --check"
         Invoke-Quality "realtime-contract" "python /repo/scripts/generate_realtime_contract.py --check"
+        Invoke-Quality "runtime-deployment-contract" "python scripts/export_runtime_contract.py --check"
         Invoke-Quality "openapi-customer" "python scripts/export_openapi.py customer-api --check"
         Invoke-Quality "openapi-control-plane" "python scripts/export_openapi.py control-plane-api --check"
     }
@@ -60,13 +61,14 @@ switch ($Check) {
         Invoke-Quality "critical-import-worker-service-coverage" "python -m pytest tests/test_import_execution_recorder.py tests/test_import_dispatch.py tests/test_import_lifecycle_postgres.py tests/test_score_revision_services.py -q --cov=app.modules.import_jobs.execution_recorder --cov-report=term-missing --cov-fail-under=80"
     }
     "all" {
-        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --check"
-        Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --check"
+        Invoke-Quality "browser-protocol" "python /repo/scripts/generate_customer_browser_protocol.py --target backend --check"
+        Invoke-Quality "control-plane-browser-protocol" "python /repo/scripts/generate_control_plane_browser_protocol.py --target backend --check"
         Invoke-Quality "realtime-contract" "python /repo/scripts/generate_realtime_contract.py --check"
         Invoke-Quality "compile" "python -m compileall -q app scripts tests"
         Invoke-Quality "ruff" "python -m ruff check app tests scripts"
         Invoke-Quality "mypy" "python -m mypy --config-file pyproject.toml"
         Invoke-Quality "mypy-model-layer" "python -m mypy --config-file mypy-model-layer.ini"
+        Invoke-Quality "runtime-deployment-contract" "python scripts/export_runtime_contract.py --check"
         Invoke-Quality "openapi-customer" "python scripts/export_openapi.py customer-api --check"
         Invoke-Quality "openapi-control-plane" "python scripts/export_openapi.py control-plane-api --check"
         Invoke-Quality "pytest" "python -m pytest tests -q"

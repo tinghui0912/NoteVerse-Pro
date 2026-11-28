@@ -2,12 +2,14 @@
 
 from fractions import Fraction
 
+from app.platform.document_admission.musicxml import MUSICXML_LIMITS
+
 from pydantic import BaseModel, Field
 from app.shared.api_model import ApiModel
 
 
 class PerformancePlanRequest(BaseModel):
-    musicxml: str = Field(min_length=1)
+    musicxml: str = Field(min_length=1, max_length=MUSICXML_LIMITS.max_bytes)
 
 
 class RationalRead(BaseModel):

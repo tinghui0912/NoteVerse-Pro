@@ -1,3 +1,4 @@
+import { navigateWithinPolicy } from './support/document-navigation';
 import { readFile } from "node:fs/promises";
 import { ACOUSTIC_MODEL_ASSET_DESCRIPTOR } from '../../src/lib/practice/acoustic/generated/runtime-contract';
 import { compositeVideoOutputFiles } from "./support/composite-video-output";
@@ -104,7 +105,12 @@ async function setupContinuousPracticeMocks(page: Page, options: MockOptions = {
   unmatchedApiRequests.set(page, unmatched);
   await page.route('**/api/v1/**', (route) => {
     unmatched.push(`${route.request().method()} ${route.request().url()}`);
-    return route.fulfill({ status: 501, contentType: 'application/json', body: JSON.stringify({  code: 'unmocked_api', request_id: null }) });
+    return route.fulfill({ status: 501, contentType: 'application/json', body: JSON.stringify({  code: 'unmocked_api', request_id: 'e2e-request' }) });
+  });
+  await page.route('**/api/v1/practice-activities', async (route) => {
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().postDataJSON()).toMatchObject({ client_session_id: expect.any(String), practice_binding: expect.any(Object) });
+    await route.fulfill({ json: { activity_id: crypto.randomUUID(), completed_at: new Date().toISOString() } });
   });
   // Explicit navigation away from Practice also stays inside the mock backend.
   await page.route('**/api/v1/library/folders', (route) => route.fulfill({ status: 200, contentType: 'application/json',
@@ -520,11 +526,9 @@ test('first use requires explicit intent; full reload restores intent but requir
   await expect(page.getByRole('button', { name: '开始', exact: true })).toBeEnabled();
   sourceRequests.length=0;
   await page.reload();
-  await expect(page).toHaveURL(new RegExp(`/practice\\?practiceRevisionId=${revisionId}$`));
-  await expect(page.getByText('请先完成练习准备。')).toBeVisible();
-  expect(sourceRequests).toEqual([]);expect((await deviceAndEnvironmentCounts(page)).media).toBe(0);expect((await deviceAndEnvironmentCounts(page)).midi).toBe(0);
-  await page.getByRole('button', { name: '返回练习设置', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/practice/setup\\?practiceRevisionId=${revisionId}$`));
   await expect(setup).toBeVisible();
+  expect(sourceRequests).toEqual([]);expect((await deviceAndEnvironmentCounts(page)).media).toBe(0);expect((await deviceAndEnvironmentCounts(page)).midi).toBe(0);
   await expect(setup.getByRole('button', { name: '连贯演奏', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(setup.getByRole('button', { name: 'MIDI 键盘', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(setup.getByRole('button', { name: '不录制', exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -812,12 +816,12 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await expect.poll(async () => (await mediaState(page)).pending).toBe(true);
     await expect(page.getByRole('button',{name:'麦克风',exact:true})).toBeDisabled();
     await expect(page.getByRole('button',{name:'开始练习',exact:true})).toBeDisabled();
-    await page.getByRole('link',{name:'NoteVerse Pro'}).click(); await expect(page).toHaveURL(/\/zh\/library/);
+    await navigateWithinPolicy(page, `/zh/score/${scoreId}/practice/review`);
     await page.evaluate(() => (window as unknown as { __practiceMedia: MediaMock }).__practiceMedia.resolveCamera!());
     await expectCameraStopped(page,1);
     expect(await page.evaluate(() => (window as unknown as {__practiceMedia:MediaMock}).__practiceMedia.audioStreams.every((s) =>s.getTracks().every((t) =>t.readyState==='ended')))).toBe(true);
     await expect(page.locator('video[aria-label="摄像头预览"]')).toHaveCount(0);
-    await expect(page).toHaveURL(/\/zh\/library/);
+    await expect(page).toHaveURL(/\/practice\/review$/);
   });
 
   test('client navigation unmounts Practice and stops the owned preview tracks', async ({ page }) => {
@@ -825,10 +829,8 @@ test.describe('Continuous VIDEO camera preparation', () => {
     await recordingOption(page, 'VIDEO').click();
     await preparePracticeSetup(page);
     await expectCameraReady(page, 0);
-    // Compile the destination before exercising the client-unmount privacy boundary.
-    expect((await page.request.get('/zh/library')).ok()).toBe(true);
-    await page.getByRole('link', { name: 'NoteVerse Pro' }).click();
-    await expect(page).toHaveURL(/\/zh\/library/);
+    await navigateWithinPolicy(page, `/zh/score/${scoreId}/practice/review`);
+    await expect(page).toHaveURL(/\/practice\/review$/);
     await expectCameraStopped(page, 1);
     await expect(page.locator('video[aria-label="摄像头预览"]')).toHaveCount(0);
   });
@@ -1921,8 +1923,8 @@ test('one complete Setup admission survives Score deletion through Practice, Rev
   expect(admitted.searchParams.get('include_notation')).toBe('true');
   const admittedScoreReads=scoreRequests.length;
   // Any new authorization/read fails: the current browser flow already owns its input.
-  await page.route('**/api/v1/practice/**', (route) =>route.fulfill({status:410,contentType:'application/json',body:JSON.stringify({code:'not_found', request_id: null})}));
-  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({code:'not_found', request_id: null})}));
+  await page.route('**/api/v1/practice/**', (route) =>route.fulfill({status:410,contentType:'application/json',body:JSON.stringify({code:'not_found', request_id: 'e2e-request'})}));
+  await page.route(`**/api/v1/scores/${scoreId}`, (route) =>route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({code:'not_found', request_id: 'e2e-request'})}));
   await expect(page.getByRole('button',{name:'开始',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'开始',exact:true}).click();
   await expect(page.getByRole('button',{name:'查看报告',exact:true})).toBeVisible({timeout:15000});

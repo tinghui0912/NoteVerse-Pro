@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+
+from app.platform.config.realtime_retention import RealtimeRetentionSettings
+
 from datetime import datetime, timedelta
 
 from sqlalchemy import delete, select, func
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.db.models import RealtimeChange
 from app.shared.time import utc_now
 from app.modules.realtime.stream_state import lock_stream_state
@@ -15,10 +17,14 @@ RETENTION_RECIPIENT_BATCH_SIZE = 100
 
 
 class RealtimeMaintenanceService:
-    @staticmethod
-    def retention_cutoff(*, retention_days: int | None = None) -> datetime:
+    def __init__(self, *, config: RealtimeRetentionSettings) -> None:
+        self.config = config
+
+    def retention_cutoff(self, *, retention_days: int | None = None) -> datetime:
         days = (
-            retention_days if retention_days is not None else settings.REALTIME_EVENT_RETENTION_DAYS
+            retention_days
+            if retention_days is not None
+            else self.config.REALTIME_EVENT_RETENTION_DAYS
         )
         if days <= 0:
             raise ValueError("realtime change retention days must be positive")
@@ -51,6 +57,3 @@ class RealtimeMaintenanceService:
         result = db.execute(delete(RealtimeChange).where(*expired))
         db.flush()
         return int(result.rowcount or 0)
-
-
-realtime_maintenance_service = RealtimeMaintenanceService()

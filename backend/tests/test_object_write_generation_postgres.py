@@ -1,8 +1,9 @@
 """Physical mutations retain the PostgreSQL write-generation fence."""
 
+from tests.support.runtime_resources import resources_for
+
 from tests.support.uploads import settled_upload_session
 
-from app.composition import storage_resources as _resource_wiring
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -14,11 +15,11 @@ from sqlalchemy import select
 from app.db.models import ObjectWriteIntent, StoredObject, Upload
 from app.modules.media_storage.adoption import adopt_written_object
 
-from app.modules.media_storage.write_cleanup import write_cleanup_delivery
 from tests.test_stored_object_retirement_postgres import (
     retirement_postgres as retirement_postgres,
 )
 from tests.test_object_write_postgres import setup_worker
+from tests.support.runtime_resources import deliveries
 
 pytest_plugins = ["tests.test_practice_bundle_postgres"]
 
@@ -40,7 +41,7 @@ def test_unsettled_generation_excludes_parallel_write_without_retaining_database
         return result
 
     monkeypatch.setattr(storage, "put_bytes", held)
-    coordinator = _resource_wiring.build_object_write_coordinator(storage)
+    coordinator = resources_for(storage).build_object_write_coordinator()
     with ThreadPoolExecutor(2) as pool:
         first = pool.submit(coordinator.write_bytes, key="generation/fenced", content=b"bytes")
         try:
@@ -48,7 +49,7 @@ def test_unsettled_generation_excludes_parallel_write_without_retaining_database
             with sessions() as db:
                 row = db.scalar(select(ObjectWriteIntent).with_for_update(nowait=True))
                 assert row.status == "WRITING"
-                assert write_cleanup_delivery.recover_and_list_due(db) == []
+                assert deliveries().write_cleanup.recover_and_list_due(db) == []
                 db.rollback()
             with pytest.raises(ValueError, match="owns"):
                 pool.submit(
@@ -75,7 +76,7 @@ def test_failed_put_retains_cleanup_evidence(retirement_postgres, monkeypatch):
     monkeypatch.setattr(storage, "put_bytes", fail)
     with sessions() as db:
         with pytest.raises(OSError):
-            _resource_wiring.build_object_write_coordinator(storage).write_bytes(
+            resources_for(storage).build_object_write_coordinator().write_bytes(
                 key="generation/failure", content=b"bytes"
             )
     with sessions() as db:
@@ -88,8 +89,10 @@ def test_existing_exact_object_reuses_without_provider_put(retirement_postgres, 
     _, sessions, storage = retirement_postgres
     adapter = storage
     with sessions() as db:
-        receipt = _resource_wiring.build_object_write_coordinator(adapter).write_bytes(
-            key="generation/exact", content=b"bytes"
+        receipt = (
+            resources_for(adapter)
+            .build_object_write_coordinator()
+            .write_bytes(key="generation/exact", content=b"bytes")
         )
         obj = adopt_written_object(db, receipt)
         db.add(
@@ -107,7 +110,9 @@ def test_existing_exact_object_reuses_without_provider_put(retirement_postgres, 
 
     monkeypatch.setattr(storage, "put_bytes", unexpected)
     with sessions() as db:
-        duplicate = _resource_wiring.build_object_write_coordinator(adapter).write_bytes(
-            key="generation/exact", content=b"bytes"
+        duplicate = (
+            resources_for(adapter)
+            .build_object_write_coordinator()
+            .write_bytes(key="generation/exact", content=b"bytes")
         )
         assert duplicate == receipt

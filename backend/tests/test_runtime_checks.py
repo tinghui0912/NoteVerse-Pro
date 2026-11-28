@@ -1,16 +1,14 @@
+from app.platform.runtime import RuntimeRole
 import pytest
 import sys
 import json
 from types import SimpleNamespace
 
-from app.core.settings.worker_runtime import get_worker_runtime_settings
-from app.core.runtime_checks import (
-    ROLE_CHECK_NAMES,
-    RuntimeRole,
-    check_huggingface_models,
-    check_omr_cuda_runtime,
-    check_omr_engine,
-)
+from app.runtime.diagnostics import checks_for_role
+from app.runtime.checks import ROLE_CHECK_NAMES
+
+
+worker_checks = checks_for_role(RuntimeRole.WORKER)
 
 
 def test_api_runtime_checks_cover_api_owned_dependencies() -> None:
@@ -30,13 +28,6 @@ def test_control_plane_runtime_checks_require_independent_identity_configuration
         "database",
         "storage_quota_policy",
         "redis",
-    )
-
-
-def test_observability_exporter_checks_only_its_database_dependency() -> None:
-    assert ROLE_CHECK_NAMES[RuntimeRole.OBSERVABILITY_EXPORTER] == (
-        "settings",
-        "database",
     )
 
 
@@ -71,7 +62,6 @@ def test_all_runtime_checks_are_a_deduplicated_union() -> None:
     for role in (
         RuntimeRole.API,
         RuntimeRole.CONTROL_PLANE,
-        RuntimeRole.OBSERVABILITY_EXPORTER,
         RuntimeRole.WORKER,
         RuntimeRole.BEAT,
     ):
@@ -82,19 +72,19 @@ def test_omr_runtime_check_accepts_image_source_without_git_metadata(tmp_path, m
     repo_path = tmp_path / "legato"
     (repo_path / "legato" / "models").mkdir(parents=True)
 
-    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_REPO_PATH", str(repo_path))
-    monkeypatch.setattr("app.core.runtime_checks.LEGATO_REPO_COMMIT", "abc123")
+    monkeypatch.setattr(worker_checks.worker, "LEGATO_REPO_PATH", str(repo_path))
+    monkeypatch.setattr("app.runtime.checks.LEGATO_REPO_COMMIT", "abc123")
 
-    result = check_omr_engine()
+    result = worker_checks.check_omr_engine()
 
     assert result.ok is True
     assert result.message == "LEGATO commit=abc123 (image metadata)"
 
 
 def test_omr_cuda_runtime_check_is_skipped_for_cpu_device(monkeypatch) -> None:
-    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_DEVICE", "cpu")
+    monkeypatch.setattr(worker_checks.worker, "LEGATO_DEVICE", "cpu")
 
-    result = check_omr_cuda_runtime()
+    result = worker_checks.check_omr_cuda_runtime()
 
     assert result.ok is True
     assert result.message == "not required for LEGATO_DEVICE=cpu"
@@ -108,10 +98,10 @@ def test_omr_cuda_runtime_check_fails_when_cuda_is_unavailable(monkeypatch) -> N
             get_device_name=lambda _: "unused",
         )
     )
-    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_DEVICE", "cuda")
+    monkeypatch.setattr(worker_checks.worker, "LEGATO_DEVICE", "cuda")
     monkeypatch.setitem(sys.modules, "torch", torch_stub)
 
-    result = check_omr_cuda_runtime()
+    result = worker_checks.check_omr_cuda_runtime()
 
     assert result.ok is False
     assert result.message == "CUDA is not available to the worker process"
@@ -125,10 +115,10 @@ def test_omr_cuda_runtime_check_reports_available_gpu(monkeypatch) -> None:
             get_device_name=lambda _: "NVIDIA Test GPU",
         )
     )
-    monkeypatch.setattr(get_worker_runtime_settings(), "LEGATO_DEVICE", "cuda")
+    monkeypatch.setattr(worker_checks.worker, "LEGATO_DEVICE", "cuda")
     monkeypatch.setitem(sys.modules, "torch", torch_stub)
 
-    result = check_omr_cuda_runtime()
+    result = worker_checks.check_omr_cuda_runtime()
 
     assert result.ok is True
     assert result.message == "CUDA ready: devices=1, primary=NVIDIA Test GPU"
@@ -150,10 +140,10 @@ def test_huggingface_model_check_rejects_incomplete_sharded_snapshot(tmp_path, m
         ),
         encoding="utf-8",
     )
-    monkeypatch.setattr(get_worker_runtime_settings(), "HF_HOME", str(tmp_path))
-    monkeypatch.setattr("app.core.runtime_checks.HF_MODEL_REPOSITORIES", ("example/model",))
+    monkeypatch.setattr(worker_checks.worker, "HF_HOME", str(tmp_path))
+    monkeypatch.setattr("app.runtime.checks.HF_MODEL_REPOSITORIES", ("example/model",))
 
-    result = check_huggingface_models()
+    result = worker_checks.check_huggingface_models()
 
     assert result.ok is False
     assert "model-00001-of-00002.safetensors" in result.message
@@ -168,14 +158,13 @@ def test_huggingface_model_check_rejects_incomplete_sharded_snapshot(tmp_path, m
     ],
 )
 def test_resource_lifecycle_task_is_required(monkeypatch, name):
-    from app.core.runtime_checks import check_celery_tasks
-    from app.task_queue.config import celery_app
+    from app.runtime.worker.main import celery_app
     import app.worker.tasks  # noqa: F401
 
     celery_app.loader.import_default_modules()
     assert name in celery_app.tasks
-    assert check_celery_tasks().ok
+    assert worker_checks.check_celery_tasks().ok
     monkeypatch.delitem(celery_app.tasks, name)
-    result = check_celery_tasks()
+    result = worker_checks.check_celery_tasks()
     assert not result.ok
     assert name in result.message

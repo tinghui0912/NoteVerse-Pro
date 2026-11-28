@@ -7,6 +7,9 @@ $env:NOTEVERSE_INTEGRATION_RUN_ID = [guid]::Parse($env:NOTEVERSE_INTEGRATION_RUN
 $projectName = "noteverse-integration-$env:NOTEVERSE_INTEGRATION_RUN_ID"
 $composeArgs = @("compose", "--project-name", $projectName, "--project-directory", $repoRoot, "-f", (Join-Path $repoRoot "docker-compose.integration.yml"))
 if (-not $env:NOTEVERSE_INTEGRATION_PASSWORD) { $env:NOTEVERSE_INTEGRATION_PASSWORD = [guid]::NewGuid().ToString("N") + "Aa1!" }
+foreach ($role in @("MIGRATOR", "CUSTOMER_API", "CONTROL_PLANE", "WORKER", "BEAT", "OBSERVABILITY")) {
+    [Environment]::SetEnvironmentVariable("NV_$($role)_PASSWORD", [guid]::NewGuid().ToString("N"), "Process")
+}
 $started = $false
 $existingContainers = & docker @composeArgs ps --all --quiet
 if ($LASTEXITCODE -ne 0) { throw "Cannot inspect the integration project." }

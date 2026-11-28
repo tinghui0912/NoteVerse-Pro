@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import ast
 from pathlib import Path
 
@@ -67,13 +68,13 @@ def test_worker_execution_modules_do_not_import_task_entrypoints() -> None:
 def test_worker_dispatch_modules_delegate_shared_producer_runtime() -> None:
     violations: list[str] = []
 
-    for path in (WORKER_ROOT / "dispatch").glob("*.py"):
+    for path in (BACKEND_ROOT / "app/composition/dispatch").glob("*.py"):
         if path.name == "__init__.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module in {
-                "app.task_queue.config",
+                "app.runtime.worker.main",
                 "app.core.background_tracing",
             }:
                 violations.append(f"{path.name}: from {node.module} import ...")

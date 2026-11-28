@@ -1,6 +1,9 @@
 """Real transaction phases and live access fences of durable bundle admission."""
 
-from app.composition import storage_resources as _resource_wiring
+from app.platform.config.stored_object_retirement import StoredObjectRetirementSettings
+
+from tests.support.runtime_resources import resources_for
+
 
 from app.modules.practice.bundle.states import PracticeBundleStatus
 
@@ -28,6 +31,8 @@ from app.modules.score_access.policy import ScoreAccessPolicy
 from app.shared.time import utc_now
 from tests.support.practice_bundle import bind_bundle
 from tests.test_practice_bundle_postgres import postgres_bundle as postgres_bundle
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+from app.runtime.customer_api.context import get_context
 
 
 def authorization(db, repository, user_id=1):
@@ -73,7 +78,13 @@ def test_writer_commits_creation_before_io_and_reauthorizes_before_binding(
 
         monkeypatch.setattr(storage, "put_bytes", physical)
         writer = PracticeBundleWriter(
-            repository=repository, writes=_resource_wiring.build_object_write_coordinator(storage)
+            repository=repository,
+            writes=resources_for(storage).build_object_write_coordinator(),
+            retention=PracticeBundleRetention(
+                config=StoredObjectRetirementSettings.model_validate(
+                    get_context().settings.model_dump()
+                )
+            ),
         )
         add = repository.add_binding
 
@@ -194,7 +205,12 @@ def test_creation_reauthorizes_live_access_after_physical_write(
         live()
         with pytest.raises((UnauthorizedException, ResourceNotFoundException)):
             PracticeBundleWriter(
-                writes=_resource_wiring.build_object_write_coordinator(storage)
+                writes=resources_for(storage).build_object_write_coordinator(),
+                retention=PracticeBundleRetention(
+                    config=StoredObjectRetirementSettings.model_validate(
+                        get_context().settings.model_dump()
+                    )
+                ),
             ).ensure_binding(
                 db,
                 candidate,
@@ -227,7 +243,12 @@ def test_expired_creation_lease_cannot_adopt_or_bind(postgres_bundle, monkeypatc
         live()
         with pytest.raises(ValueError, match="lease expired"):
             PracticeBundleWriter(
-                writes=_resource_wiring.build_object_write_coordinator(storage)
+                writes=resources_for(storage).build_object_write_coordinator(),
+                retention=PracticeBundleRetention(
+                    config=StoredObjectRetirementSettings.model_validate(
+                        get_context().settings.model_dump()
+                    )
+                ),
             ).ensure_binding(
                 db,
                 candidate,

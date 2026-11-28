@@ -167,7 +167,9 @@ class ScoreAssetService:
                 bundle.writestr(
                     render_asset.filename,
                     read_admitted_bytes(
-                        self.storage, StoredObjectReadTarget.from_object(render_asset.stored_object)
+                        self.storage,
+                        StoredObjectReadTarget.from_object(render_asset.stored_object),
+                        max_bytes=render_asset.stored_object.byte_size,
                     ),
                 )
         archive.seek(0)

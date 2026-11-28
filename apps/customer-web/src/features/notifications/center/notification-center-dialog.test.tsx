@@ -9,10 +9,11 @@ import { NotificationCenterDialog } from './notification-center-dialog';
 import { NotificationBell } from './notification-bell';
 
 const fake = vi.hoisted(() => ({
-  push: vi.fn(), toast: vi.fn(), close: vi.fn(),
+  push: vi.fn(), toast: vi.fn(), close: vi.fn(), authenticated: true,
   notifications: { list: vi.fn(), unreadCount: vi.fn(), markRead: vi.fn(), markAllRead: vi.fn() },
   collaboration: { listMyPendingInvites: vi.fn(), acceptMyPendingInvite: vi.fn(), declineMyPendingInvite: vi.fn() },
 }));
+vi.mock('@/features/authentication/session/authentication-context', () => ({ useAuthentication: () => ({ isAuthenticated: fake.authenticated }) }));
 vi.mock('@/features/notifications/api', () => ({ notificationsApi: fake.notifications }));
 vi.mock('@/features/scores/collaboration/api', () => ({ collaborationApi: fake.collaboration }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({toast: fake.toast}) }));
@@ -31,6 +32,7 @@ const notice: NotificationRead = {
 let client: QueryClient;
 beforeEach(() => {
   vi.resetAllMocks();
+  fake.authenticated = true;
   client = new QueryClient({defaultOptions: {queries: {retry: false}, mutations: {retry: false}}});
   fake.collaboration.listMyPendingInvites.mockResolvedValue({items: [invite], next_cursor: null});
   fake.notifications.list.mockResolvedValue({items: [notice], next_cursor: null});
@@ -122,4 +124,17 @@ it.each([true, false])('opens history even if the read-state write fails (alread
   await waitFor(() => expect(fake.push).toHaveBeenCalledWith('/upload#import-activity'));
   expect(fake.close).toHaveBeenCalledWith(false);
   expect(fake.notifications.markRead).toHaveBeenCalledTimes(read ? 0 : 1);
+});
+
+
+it('waits for the authenticated principal before starting private Bell queries', async () => {
+  fake.authenticated = false;
+  const {rerender} = render(<QueryClientProvider client={client}><NotificationBell /></QueryClientProvider>);
+  expect(fake.collaboration.listMyPendingInvites).not.toHaveBeenCalled();
+  expect(fake.notifications.unreadCount).not.toHaveBeenCalled();
+  fake.authenticated = true;
+  rerender(<QueryClientProvider client={client}><NotificationBell /></QueryClientProvider>);
+  expect(await screen.findByText('2')).toBeVisible();
+  expect(fake.collaboration.listMyPendingInvites).toHaveBeenCalledOnce();
+  expect(fake.notifications.unreadCount).toHaveBeenCalledOnce();
 });

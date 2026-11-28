@@ -9,10 +9,13 @@ from app.shared.request_id import RequestId
 
 class ControlPlaneErrorCode(StrEnum):
     VALIDATION_ERROR = "validation_error"
+    PAYLOAD_TOO_LARGE = "payload_too_large"
     TOKEN_INVALID_EXPIRED = "token_invalid_expired"
     INVALID_CREDENTIALS = "invalid_credentials"
     NO_ACCESS = "no_access"
-    CSRF_TOKEN_INVALID = "csrf_token_invalid"
+    UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
+    RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
+    RATE_LIMIT_UNAVAILABLE = "rate_limit_unavailable"
     REQUEST_ORIGIN_INVALID = "request_origin_invalid"
     RESOURCE_NOT_FOUND = "resource_not_found"
     AUTH_FAILED = "auth_failed"

@@ -22,8 +22,9 @@ changes rather than ordinary build side effects.
 | `cache` | Redis and shared configuration |
 | `celery` | Task dispatch and cache/configuration |
 | `tracing` | OpenTelemetry SDK and OTLP gRPC exporter |
+| `metrics` | Prometheus metric primitives |
 | `http` | FastAPI, Uvicorn, metrics/instrumentation |
-| `auth` | JWT and password hashing |
+| `auth` | Argon2id password hashing |
 | `storage` | Object storage clients |
 | `image` | Pillow operations |
 | `fingering` | NumPy and PianoPlayer |
@@ -39,13 +40,13 @@ Nested `include-group` entries compose responsibilities without copying roots.
 | Group | Composition |
 | --- | --- |
 | `api` | HTTP, DB/migrations, storage, dispatch, auth, image, fingering |
-| `beat` | Celery/shared settings and PostgreSQL advisory-lock driver |
-| `worker-app` | DB, storage, Celery, image, render, tracing |
+| `beat` | Celery, DB factories and PostgreSQL advisory locks |
+| `worker-app` | DB, storage, Celery, image, render, tracing, metrics and password/token libraries |
 | `worker` | Worker application, OCR, Torch, CPU Paddle, Legato execution libraries |
 | `quality` | API, Beat, render, quality tools; no heavy Worker stack |
 | `dev` | Default developer environment; includes Quality |
 
-The API artifact ships customer API, control-plane API, observability exporter
+The API artifact ships customer API, control-plane API
 and migration entrypoints. Beat publishes named tasks and owns PostgreSQL
 advisory locking; it must not import Worker execution or acquire OCR/render/ML
 packages. Worker owns rendering and heavy OCR/ML execution.
@@ -108,11 +109,13 @@ transitive upgrade explicit. Builds and ordinary validation never upgrade.
 
 ## Packaging Is Not Deployment Readiness
 
-The offline checker runs `uv pip check --python <active-interpreter>`. API checks
-all shipped composition roots and migration modules. Beat checks scheduler
-imports and heavy-dependency isolation. Worker-deps checks bounded OTLP/Paddle/
-PaddleOCR/PaddleX imports. Final Worker delegates canonical 16-task registration
-to `app.core.runtime_checks.check_celery_tasks()` and imports Verovio/OCR without
+The offline checker runs `uv pip check --python <active-interpreter>`. Core checks
+Customer API, Control Plane, Beat and migrator in separate subprocesses with
+scoped synthetic environments. Every mode rejects Worker dependencies and
+cross-runtime imports. The core smoke also proves numeric identity and root
+filesystem write rejection. Worker-deps checks bounded OTLP/Paddle/
+PaddleOCR/PaddleX imports. Final Worker delegates canonical task registration
+to `app.runtime.checks.check_celery_tasks()` and imports Verovio/OCR without
 initializing models.
 
 Checks require no database, Redis, S3, model cache, GPU, production secrets or
@@ -127,10 +130,10 @@ See [ADR 0008](../../adr/0008-backend-dependency-authority.md) for rationale.
 Dependency identity, shared OCI mechanics, and role-specific registry policies
 are separate CI responsibilities under `.github/scripts/`. They add no application
 dependency or service abstraction. Worker policy owns qualified dependency-artifact reuse and existing
-final-source refusal. API/Beat policy owns their bounded repositories and source
+final-source refusal. Core policy owns its bounded repository and source
 canonicals, without understanding Worker keys.
 
-API and Beat trusted publication plans before mutation and refuses existing
+Core trusted publication plans before mutation and refuses existing
 canonical or candidate tags. Buildx pushes only `candidate-<run>-<attempt>`.
 An explicit candidate OCI pull precedes offline packaging; SPDX and exact
 CRITICAL Trivy use the same OCI. Only three actual successful gate outcomes
@@ -140,9 +143,9 @@ is never overwritten, while an identical winner is not repushed. This does not
 claim registry-server CAS. A failure may leave a candidate, never a newly assigned
 qualified canonical. There are no trusted build-run aliases.
 
-PR API/Beat images use local `noteverse-backend-<role>:pr-<run>-<attempt>` tags,
+PR Core images use local `noteverse-backend-core:pr-<run>-<attempt>` tags,
 no registry planning/login/push/promotion, and contents-read permissions. Trusted
-main API and Beat runs each serialize; PR runs may cancel earlier validation of the same PR.
+main Core runs serialize; PR runs may cancel earlier validation of the same PR.
 
 ## Script Ownership
 

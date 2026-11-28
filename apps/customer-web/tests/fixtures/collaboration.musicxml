@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>2</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes>
+      <direction><sound tempo="120"/></direction>
+      <note id="n1"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>quarter</type><voice>1</voice><staff>1</staff></note>
+      <note id="n2"><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>quarter</type><voice>1</voice><staff>1</staff></note>
+      <note id="n3"><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration><type>quarter</type><tie type="start"/><voice>1</voice><staff>1</staff></note>
+    </measure>
+    <measure number="2">
+      <attributes><time><beats>6</beats><beat-type>8</beat-type></time></attributes>
+      <direction><sound tempo="90"/></direction>
+      <note id="n4"><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><type>quarter</type><dot/><tie type="stop"/><voice>1</voice><staff>1</staff></note>
+      <backup><duration>3</duration></backup>
+      <note id="n5"><pitch><step>A</step><octave>4</octave></pitch><duration>3</duration><type>quarter</type><dot/><voice>2</voice><staff>1</staff></note>
+      <note id="n6"><chord/><pitch><step>C</step><octave>5</octave></pitch><duration>3</duration><type>quarter</type><dot/><voice>2</voice><staff>1</staff></note>
+      <note id="n7"><pitch><step>D</step><octave>5</octave></pitch><duration>3</duration><type>quarter</type><dot/><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>

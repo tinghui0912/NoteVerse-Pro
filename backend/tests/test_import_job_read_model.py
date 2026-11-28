@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from app.db.models import ImportJob
 from app.modules.import_jobs.domain import ImportJobState
-from app.main import app
+from app.runtime.customer_api.main import app
 from app.modules.import_jobs.read_model import ImportJobReadModel
 from app.modules.import_jobs.repository import ImportJobRepository
 from app.modules.import_jobs.schemas import ImportJobRead

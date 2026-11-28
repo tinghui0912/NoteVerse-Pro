@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+
+from app.modules.practice.bundle.retention import PracticeBundleRetention
+
 from app.modules.media_storage.write_coordinator import ObjectWriteCoordinator
 from app.modules.media_storage.reads import StoredObjectReadTarget, read_admitted_bytes
 
@@ -34,6 +37,7 @@ class PracticeBundleService:
 
     def __init__(
         self,
+        retention: PracticeBundleRetention,
         *,
         access_policy=None,
         asset_repository=None,
@@ -48,7 +52,9 @@ class PracticeBundleService:
         self.storage = writes.storage
         self.compiler = compiler or PracticeBundleCompiler()
         self.repository = repository or PracticeBundleRepository()
-        self.writer = writer or PracticeBundleWriter(writes=writes, repository=self.repository)
+        self.writer = writer or PracticeBundleWriter(
+            retention=retention, writes=writes, repository=self.repository
+        )
 
     def resolve_bundle(self, db: Session, score_uuid: str, user_id: int, revision_uuid: str):
         access = self.access_policy.authorize_revision(
